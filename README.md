@@ -1,4 +1,7 @@
-# GloomAmiga
-Source code to the Amiga FPS classic by Black Magic
+# Gloom Reforged
 
-Source is provided "as-is" with no support, and no guarantee that it contains the full, complete or final code or data.
+This is a modified version of Gloom based on the released original Gloom source code.
+
+This version is a work in progress.
+
+Source code to the Amiga FPS classic by Black Magic. 
