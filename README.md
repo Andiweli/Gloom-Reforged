@@ -22,6 +22,10 @@ The goal is **not** to turn Gloom into a completely different engine, but to mod
 
 The project will proceed step by step, with stability and authenticity taking priority over feature creep. Each improvement should feel like something that could have belonged in a polished Amiga-era enhanced edition of Gloom.
 
+## Release
+
+As soon as there is a stable basic version available. 
+
 ## Legal / Source Code Notice
 
 This project is based on the publicly available original source code of **Gloom**. All original rights, trademarks, names, graphics, audio, game data and related assets remain the property of their respective owners.
