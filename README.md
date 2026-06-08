@@ -13,12 +13,12 @@ The goal is **not** to turn Gloom into a completely different engine, but to mod
 - [x] Bug fixes for the original source code in gloom2.s
 - [x] Integrating the health/weapon-bar and gun/muzzleflash graphics
 - [x] Improved keyboard and mouse controls for a smoother FPS-style experience
-- [ ] Integrating new options in the ingame-menu
+- [x] Integrating new options in the ingame-menu
 - [ ] Improved render depth to avoid banding
 - [ ] Faster and cleaner loading behaviour compared to the current source build
 - [ ] Optional visual enhancements such as muzzle flashes, atmospheric effects and subtle dynamic lighting
 - [ ] Keeping compatibility with real Amiga systems as a priority, not only emulators
-- [ ] Maintaining the original Gloom gameplay structure, assets and atmosphere as the foundation
+- [x] Maintaining the original Gloom gameplay structure, assets and atmosphere as the foundation
 
 The project will proceed step by step, with stability and authenticity taking priority over feature creep. Each improvement should feel like something that could have belonged in a polished Amiga-era enhanced edition of Gloom.
 
