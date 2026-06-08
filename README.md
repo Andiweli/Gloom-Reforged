@@ -10,9 +10,10 @@ The goal is **not** to turn Gloom into a completely different engine, but to mod
 
 ## Planned scope includes
 
-- [x] Bug fixes for the original source code in gloom.s and gloom2.s
+- [x] Bug fixes for the original source code in gloom2.s
 - [x] Integrating the health/weapon-bar and gun/muzzleflash graphics
-- [x] iImproved keyboard and mouse controls for a smoother FPS-style experience
+- [x] Improved keyboard and mouse controls for a smoother FPS-style experience
+- [ ] Integrating new options in the ingame-menu
 - [ ] Improved render depth to avoid banding
 - [ ] Faster and cleaner loading behaviour compared to the current source build
 - [ ] Optional visual enhancements such as muzzle flashes, atmospheric effects and subtle dynamic lighting
