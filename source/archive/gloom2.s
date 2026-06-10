@@ -16,7 +16,7 @@
 	;cyn - can't open file in loadfile
 	;blu - ran out of remap colours!
 
-aga_	equ	-1
+aga_	equ	0
 os_	equ	-1
 
 testw	equ	128
@@ -371,7 +371,7 @@ keya1	macro
 	endm
 
 qkey	macro
-	move.l	rawtable,a0
+	move.l	rawtable(pc),a0
 	key	\1
 	endm
 
@@ -634,7 +634,6 @@ wb	;
 	move.l	d0,a6
 	jsr	-60(a6)
 	move.l	d0,outhand
-	jsr	g2log_open	;v22 diagnostic level/runtime log
 	;
 	move.l	wbmess(pc),d0
 	beq.s	.nocd
@@ -651,33 +650,24 @@ wb	;
 	bcs	nomem
 	;
 	jsr	initmain
-	jsr	g2cfg_load	;v141: load PROGDIR:gloom.cfg if present
 	;
 	bsr	bigfont
-	jsr	g2v190i_levelselect_loadscripts	; v190i: build START LEVEL list from script file before title menu
 	;
-	; v41x diagnostic: bigfont returned, continue to title music start.
-	;
-.intro	jsr	g2v190p_load_title_assets	; v190p: reload title art if gameplay freed it
-	move.l	medat,a1
-	move.l	titlemed,a0
+.intro	move.l	medat(pc),a1
+	move.l	titlemed(pc),a0
 	jsr	8(a1)	;start title music!
 	;
-.intro2	jsr	g2v36_clear_title_buffers	;v36: clear both OS bitmaps before returning to title menu
-	jsr	dointro	;returns gametype
-	; v08: previous diagnostic hold after dointro removed.
-	; Continue into gametype handling after menu selection.
+.intro2	jsr	dointro	;returns gametype
 	;
 	cmp	#3,gametype
 	bcs.s	.play
-	move.l	medat,a1
+	move.l	medat(pc),a1
 	jsr	12(a1)
 	bra.s	exittoos
 .play	;
-	jsr	initnewgame
+	bsr	initnewgame
 	tst	gametype
 	bmi	.intro2
-	jsr	g2v190p_free_title_assets	; v190p: free title art during gameplay to keep memory contiguous
 	;
 	;bsr	smallfont
 	tst	twowins
@@ -692,9 +682,7 @@ wb	;
 .n22	bsr	bigfont
 	bra	.intro
 	;
-exittoos	jsr	inputoff	; v34: restore ciaa/rawkey vectors before OS exit/closewindow
-	jsr	g2cfg_save	;v141: persist menu/options on clean exit
-	jsr	freeobjlist2
+exittoos	jsr	freeobjlist2
 	jsr	permit
 	jsr	finitdisplay
 	jsr	finitvbint
@@ -713,8 +701,7 @@ nomem	move.l	wbmess(pc),d0
 	jsr	-378(a6)
 	clr.l	wbmess
 	;
-.bye	jsr	g2log_close
-	rts
+.bye	rts
 
 ; ************* FAST SUBS ********************
 	
@@ -1012,138 +999,57 @@ dogamemenu	;
 	;
 	move	#$8020,$dff09a
 	;
-	jsr	g2v190aj_grey_menu_backdrop	; v190aj: grey current chunky frame for ESC menu, no full drawall call
-	bsr	trainer_update_display_texts
 	lea	gamemenu,a4
 	jsr	initmenu
-	move	#-1,game_menu_active
-	; v17: entering the in-game menu via ESC leaves ESC/fire still held.
-	; Wait until the trigger is released so CONTINUE is not auto-selected.
-	jsr	g2v17_wait_menu_release
 	;
 .loop	jsr	selmenu
-	move	d0,d7
-	and	#$0300,d7	;v109: $0100=left, $0200=right in game menu
-	and	#$00ff,d0
-	tst	d7
-	beq.s	.game_menu_fire
-	cmp	#0,d0
-	beq	.loop
-	bra.s	.game_menu_adjust
-.game_menu_fire
-	cmp	#0,d0
 	beq	.done
-.game_menu_adjust
-	cmp	#2,d0
-	bne.s	.notwsize
-	cmp	#$0100,d7
-	beq.s	.wsize_left
+	;
+	subq	#1,d0
+	bne	.notpsize
+	bra	.loop
+	;
+.notpsize	subq	#1,d0
+	bne	.notwsize
 	bsr	newwsize
 	bra	.loop
-.wsize_left	bsr	decwsize
-	bra	.loop
-.notwsize
-	cmp	#3,d0
-	bne.s	.notlwin
+	;
+.notwsize	subq	#1,d0
+	bne	.notlwin
 	bsr	largewin
 	bra	.loop
-.notlwin
-	cmp	#4,d0
-	bne.s	.notfloor
-	tst	floorflag
-	bgt.s	.floor_off
-	move	#1,floorflag
-	bra.s	.fskip
-.floor_off	move	#-1,floorflag
-.fskip	bsr	trainer_update_floor_text
-	bsr	refresh
+	;
+.notlwin	subq	#1,d0
+	bne	.notfloor
+	;
+	addq	#1,floorflag
+	cmp	#2,floorflag
+	bne.s	.fskip
+	move	#-1,floorflag
+.fskip	bsr	refresh
 	bra	.loop
-.notfloor
-	cmp	#5,d0
-	bne.s	.notroof
-	tst	roofflag
-	bgt.s	.roof_off
-	move	#1,roofflag
-	bra.s	.rskip
-.roof_off	move	#-1,roofflag
-.rskip	bsr	trainer_update_ceiling_text
-	bsr	refresh
+	;
+.notfloor	subq	#1,d0
+	bne	.notroof
+	;
+	addq	#1,roofflag
+	cmp	#2,roofflag
+	bne.s	.rskip
+	move	#-1,roofflag
+.rskip	bsr	refresh
 	bra	.loop
-.notroof
-	cmp	#7,d0
-	bne.s	.notblob
-	bsr	trainer_toggle_blobshadow
-	jsr	opton
-	bra	.loop
-.notblob
-	cmp	#8,d0
-	bne.s	.notrefl
-	bsr	trainer_toggle_reflections
-	jsr	opton
-	bra	.loop
-.notrefl
-	cmp	#10,d0
-	bne.s	.notinv
-	bsr	trainer_toggle_inv
-	jsr	opton		;v109a: long-call buildfix for cheat-row redraw
-	bra	.loop
-.notinv
-	cmp	#11,d0
-	bne.s	.notbouncy
-	bsr	trainer_toggle_bouncy
-	jsr	opton
-	bra	.loop
-.notbouncy
-	cmp	#12,d0
-	bne.s	.notonehit
-	bsr	trainer_toggle_onehit
-	jsr	opton
-	bra	.loop
-.notonehit
-	cmp	#13,d0
-	bne.s	.notweapon
-	cmp	#$0100,d7
-	beq.s	.weapon_left
-	bsr	trainer_next_weapon
-	bra.s	.weapon_done
-.weapon_left	bsr	trainer_prev_weapon
-.weapon_done	jsr	opton
-	bra	.loop
-.notweapon
-	cmp	#14,d0
-	bne.s	.notboost
-	cmp	#$0100,d7
-	beq.s	.boost_left
-	bsr	trainer_next_boost
-	bra.s	.boost_done
-.boost_left	bsr	trainer_prev_boost
-.boost_done	jsr	opton
-	bra	.loop
-.notboost
-	cmp	#16,d0
-	bne	.loop
-	tst	d7
-	bne	.loop
+.notroof	;
 	move	#1,finished
 	;
-.done	jsr	g2cfg_save	;v141: save ingame menu settings when leaving menu
-	clr	game_menu_active
-	cmp	#1,finished
-	beq.s	.finish_exit
-	; v190am: normal CONTINUE path stays display-on.  The visible
-	; menu frame remains until predrawall has rendered and db-swapped
-	; the restored game frame, avoiding the old black redraw flash.
-	jsr	g2v147_finitmenu_soft
-	jsr	g2v190an_resume_menu_noblank	; v190an: redraw gameplay without clspic/db black frames
-	bra.s	.findone
-.finish_exit
-	jsr	dispoff
+.done	jsr	dispoff
 	jsr	finitmenu
-	jsr	g2v190aj_restore_game_palette	; restore gameplay palette after grey/font menu palette
+	cmp	#1,finished
+	bne.s	.notfin
 	bsr	clspic
 	bsr	clspic
-	jsr	dispon
-.findone
+	bra.s	.findone
+.notfin	bsr	predrawall
+.findone	jsr	dispon
 	;
 	move	#$20,$dff09a
 	;
@@ -1152,7 +1058,7 @@ dogamemenu	;
 	move	finished(pc),d0
 	beq.s	.nolink
 	bset	#7,d0
-	jsr	serput
+	bsr	serput
 .nolink	move	(a7)+,framecnt
 	clr	paused
 	;
@@ -1160,516 +1066,21 @@ dogamemenu	;
 	;
 	rts
 
-trainer_toggle_blobshadow
-	tst	g2_blobshadow
-	ble.s	.on
-	move	#-1,g2_blobshadow
-	bra.s	.done
-.on	move	#1,g2_blobshadow
-.done	bsr	trainer_update_blob_text
-	rts
-
-trainer_toggle_reflections
-	tst	g2_reflections
-	ble.s	.on
-	move	#-1,g2_reflections
-	bra.s	.done
-.on	move	#1,g2_reflections
-.done	bsr	trainer_update_reflection_text
-	rts
-
-trainer_toggle_inv
-	tst	trainer_invincible
-	beq.s	.on
-	clr	trainer_invincible
-	bra.s	.done
-.on	move	#-1,trainer_invincible
-.done	bsr	trainer_update_inv_text
-	bra	trainer_apply
-
-trainer_toggle_bouncy
-	tst	trainer_bouncy
-	beq.s	.on
-	clr	trainer_bouncy
-	bra.s	.done
-.on	move	#-1,trainer_bouncy
-.done	bsr	trainer_update_bouncy_text
-	bra	trainer_apply
-
-trainer_toggle_onehit
-	tst	trainer_onehit
-	beq.s	.on
-	clr	trainer_onehit
-	bra.s	.done
-.on	move	#-1,trainer_onehit
-.done	bsr	trainer_update_onehit_text
-	rts
-
-trainer_next_weapon
-	; v117: WEAPON loops DEFAULT->1..5->DEFAULT for right/RETURN
-	cmp	#5,trainer_weapon
-	bcs.s	.inc
-	clr	trainer_weapon
-	bra.s	.ok
-.inc	addq	#1,trainer_weapon
-.ok	bsr	trainer_update_weapon_text
-	bra	trainer_apply
-
-trainer_prev_weapon
-	; v117: WEAPON loops DEFAULT<-5<-... for left
-	tst	trainer_weapon
-	bne.s	.dec
-	move	#5,trainer_weapon
-	bra.s	.ok
-.dec	subq	#1,trainer_weapon
-.ok	bsr	trainer_update_weapon_text
-	bra	trainer_apply
-
-trainer_next_boost
-	; v117: UPGRADE loops DEFAULT->1..5->DEFAULT for right/RETURN
-	cmp	#5,trainer_boost
-	bcs.s	.inc
-	clr	trainer_boost
-	bra.s	.ok
-.inc	addq	#1,trainer_boost
-.ok	bsr	trainer_update_boost_text
-	bra	trainer_apply
-
-trainer_prev_boost
-	; v117: UPGRADE loops DEFAULT<-5<-... for left
-	tst	trainer_boost
-	bne.s	.dec
-	move	#5,trainer_boost
-	bra.s	.ok
-.dec	subq	#1,trainer_boost
-.ok	bsr	trainer_update_boost_text
-	bra	trainer_apply
-
-trainer_apply
-	move.l	player1(pc),d0
-	beq.s	.p2
-	move.l	d0,a5
-	bsr	trainer_apply_one
-.p2	tst	twowins
-	beq.s	.rts
-	move.l	player2(pc),d0
-	beq.s	.rts
-	move.l	d0,a5
-	bsr	trainer_apply_one
-.rts	rts
-
-trainer_apply_one
-	move	trainer_weapon,d0
-	beq.s	.weapon_default
-	subq	#1,d0
-	move	d0,ob_weapon(a5)
-.weapon_default
-	move	trainer_boost,d0
-	beq.s	.boost_default
-	moveq	#6,d0
-	sub	trainer_boost,d0
-	move.b	d0,ob_reload(a5)
-.boost_default
-	tst	trainer_bouncy
-	beq.s	.no_bouncy
-	move	#3,ob_bouncecnt(a5)
-	bra.s	.bouncy_done
-.no_bouncy	clr	ob_bouncecnt(a5)
-.bouncy_done	tst	trainer_invincible
-	beq.s	.no_inv
-	move	#25,ob_hitpoints(a5)
-.no_inv	st	ob_update(a5)
-	rts
-
-trainer_maintain_one	;v112: keep enabled trainer options permanent without forcing
-			;status redraws every frame.  Only mark ob_update when a
-			;visible value actually changed.
-	moveq	#0,d7
-	move	trainer_weapon,d0
-	beq.s	.weapon_done
-	subq	#1,d0
-	cmp	ob_weapon(a5),d0
-	beq.s	.weapon_done
-	move	d0,ob_weapon(a5)
-	moveq	#-1,d7
-.weapon_done
-	move	trainer_boost,d0
-	beq.s	.boost_done
-	moveq	#6,d0
-	sub	trainer_boost,d0
-	cmp.b	ob_reload(a5),d0
-	beq.s	.boost_done
-	move.b	d0,ob_reload(a5)
-	moveq	#-1,d7
-.boost_done
-	tst	trainer_bouncy
-	beq.s	.bouncy_done
-	cmp	#3,ob_bouncecnt(a5)
-	beq.s	.bouncy_done
-	move	#3,ob_bouncecnt(a5)
-	moveq	#-1,d7
-.bouncy_done
-	tst	trainer_invincible
-	beq.s	.inv_done
-	cmp	#25,ob_hitpoints(a5)
-	beq.s	.inv_done
-	move	#25,ob_hitpoints(a5)
-	; do not set ob_update here: damage is cancelled visually, so the HUD
-	; should not flash/flicker on every invincible hit.
-.inv_done
-	tst	d7
-	beq.s	.rts
-	st	ob_update(a5)
-.rts	rts
-
-trainer_update_yesno3
-	; a0 points to YES/NO field, d0 flag (>0 = YES)
-	tst	d0
-	ble.s	.no
-	move.b	#'Y',(a0)+
-	move.b	#'E',(a0)+
-	move.b	#'S',(a0)+
-	rts
-.no	move.b	#'N',(a0)+
-	move.b	#'O',(a0)+
-	move.b	#' ',(a0)+
-	rts
-
-trainer_update_blob_text
-	lea	game_blob,a0
-	lea	21(a0),a0
-	move	g2_blobshadow,d0
-	bra	trainer_update_yesno3
-
-trainer_update_reflection_text
-	lea	game_reflections,a0
-	lea	21(a0),a0
-	move	g2_reflections,d0
-	bra	trainer_update_yesno3
-
-trainer_update_inv_text
-	lea	game_inv,a0
-	lea	21(a0),a0
-	tst	trainer_invincible
-	beq.s	.no
-	move.b	#'Y',(a0)+
-	move.b	#'E',(a0)+
-	move.b	#'S',(a0)+
-	rts
-.no	move.b	#'N',(a0)+
-	move.b	#'O',(a0)+
-	move.b	#' ',(a0)+
-	rts
-
-trainer_update_bouncy_text
-	lea	game_bouncy,a0
-	lea	21(a0),a0
-	tst	trainer_bouncy
-	beq.s	.no
-	move.b	#'Y',(a0)+
-	move.b	#'E',(a0)+
-	move.b	#'S',(a0)+
-	rts
-.no	move.b	#'N',(a0)+
-	move.b	#'O',(a0)+
-	move.b	#' ',(a0)+
-	rts
-
-trainer_update_onehit_text
-	lea	game_onehit,a0
-	lea	21(a0),a0
-	tst	trainer_onehit
-	beq.s	.no
-	move.b	#'Y',(a0)+
-	move.b	#'E',(a0)+
-	move.b	#'S',(a0)+
-	rts
-.no	move.b	#'N',(a0)+
-	move.b	#'O',(a0)+
-	move.b	#' ',(a0)+
-	rts
-
-trainer_update_weapon_text
-	lea	game_weapon,a0
-	lea	21(a0),a0
-	move	trainer_weapon,d0
-	bra	trainer_write_default_or_digit
-
-trainer_update_boost_text
-	lea	game_boost,a0
-	lea	21(a0),a0
-	move	trainer_boost,d0
-	bra	trainer_write_default_or_digit
-
-trainer_write_default_or_digit
-	move.l	a0,-(a7)
-	moveq	#7,d1
-.clear	move.b	#' ',(a0)+
-	dbf	d1,.clear
-	move.l	(a7)+,a0
-	tst	d0
-	bne.s	.digit
-	move.b	#'D',(a0)+
-	move.b	#'E',(a0)+
-	move.b	#'F',(a0)+
-	move.b	#'A',(a0)+
-	move.b	#'U',(a0)+
-	move.b	#'L',(a0)+
-	move.b	#'T',(a0)+
-	rts
-.digit	add	#'0',d0
-	move.b	d0,(a0)
-	rts
-
-trainer_update_display_texts
-	movem.l	d0-d7/a0-a6,-(a7)
-	bsr	trainer_update_wsize_text
-	bsr	trainer_update_full_text
-	bsr	trainer_update_floor_text
-	bsr	trainer_update_ceiling_text
-	bsr	trainer_update_blob_text
-	bsr	trainer_update_reflection_text
-	bsr	trainer_update_inv_text
-	bsr	trainer_update_bouncy_text
-	bsr	trainer_update_onehit_text
-	bsr	trainer_update_weapon_text
-	bsr	trainer_update_boost_text
-	movem.l	(a7)+,d0-d7/a0-a6
-	rts
-
-trainer_update_wsize_text
-	; v109: gloom.s-style view-size names for the gloom2 320x224 view field.
-	move	width(pc),d0
-	cmp	#320,d0
-	bcs.s	.notfull
-	cmp	#224,hite
-	bcs.s	.notfull
-	lea	trainer_txt_fullscreen,a1
-	bra.s	.copy
-.notfull
-	cmp	#96,d0
-	bcs.s	.tiny
-	cmp	#128,d0
-	bcs.s	.small
-	cmp	#160,d0
-	bcs.s	.medium
-	cmp	#192,d0
-	bcs.s	.large
-	cmp	#224,d0
-	bcs.s	.xlarge
-	cmp	#256,d0
-	bcs.s	.huge
-	cmp	#288,d0
-	bcs.s	.vhuge
-	lea	trainer_txt_almost,a1
-	bra.s	.copy
-.tiny	lea	trainer_txt_tiny,a1
-	bra.s	.copy
-.small	lea	trainer_txt_small,a1
-	bra.s	.copy
-.medium	lea	trainer_txt_medium,a1
-	bra.s	.copy
-.large	lea	trainer_txt_large,a1
-	bra.s	.copy
-.xlarge	lea	trainer_txt_xlarge,a1
-	bra.s	.copy
-.huge	lea	trainer_txt_huge,a1
-	bra.s	.copy
-.vhuge	lea	trainer_txt_vhuge,a1
-.copy	lea	game_wsize,a0
-	lea	21(a0),a0
-	moveq	#15,d1
-.blank	move.b	#' ',(a0)+
-	dbf	d1,.blank
-	lea	game_wsize,a0
-	lea	21(a0),a0
-.cpy	move.b	(a1)+,d0
-	beq.s	.done
-	move.b	d0,(a0)+
-	bra.s	.cpy
-.done	rts
-
-trainer_update_full_text
-	lea	game_full,a0
-	lea	21(a0),a0
-	cmp	#320,width
-	bne.s	.no
-	cmp	#224,hite
-	bne.s	.no
-	move.b	#'Y',(a0)+
-	move.b	#'E',(a0)+
-	move.b	#'S',(a0)+
-	rts
-.no	move.b	#'N',(a0)+
-	move.b	#'O',(a0)+
-	move.b	#' ',(a0)+
-	rts
-
-trainer_update_floor_text
-	lea	game_floor,a0
-	lea	21(a0),a0
-	move	floorflag(pc),d0
-	bmi.s	.no
-	move.b	#'Y',(a0)+
-	move.b	#'E',(a0)+
-	move.b	#'S',(a0)+
-	move.b	#' ',(a0)+
-	move.b	#' ',(a0)+
-	move.b	#' ',(a0)+
-	rts
-.no	move.b	#'N',(a0)+
-	move.b	#'O',(a0)+
-	move.b	#' ',(a0)+
-	move.b	#' ',(a0)+
-	move.b	#' ',(a0)+
-	move.b	#' ',(a0)+
-	rts
-.shaded	move.b	#'S',(a0)+
-	move.b	#'H',(a0)+
-	move.b	#'A',(a0)+
-	move.b	#'D',(a0)+
-	move.b	#'E',(a0)+
-	move.b	#'D',(a0)+
-	rts
-
-trainer_update_ceiling_text
-	lea	game_ceil,a0
-	lea	21(a0),a0
-	move	roofflag(pc),d0
-	bmi.s	.no
-	move.b	#'Y',(a0)+
-	move.b	#'E',(a0)+
-	move.b	#'S',(a0)+
-	move.b	#' ',(a0)+
-	move.b	#' ',(a0)+
-	move.b	#' ',(a0)+
-	rts
-.no	move.b	#'N',(a0)+
-	move.b	#'O',(a0)+
-	move.b	#' ',(a0)+
-	move.b	#' ',(a0)+
-	move.b	#' ',(a0)+
-	move.b	#' ',(a0)+
-	rts
-.shaded	move.b	#'S',(a0)+
-	move.b	#'H',(a0)+
-	move.b	#'A',(a0)+
-	move.b	#'D',(a0)+
-	move.b	#'E',(a0)+
-	move.b	#'D',(a0)+
-	rts
-
-
-g2v17_wait_menu_release
-	movem.l	d0,-(a7)
-.g2v17_wmr_loop
-	bsr	vwait
-	jsr	readmenujoy
-	bne.s	.g2v17_wmr_loop
-	movem.l	(a7)+,d0
-	rts
-
 largewin	move	#320,width
 	move	#224,hite
-	bra	sizedone
+	bra.s	sizedone
 
-; v115/v117: discrete view sizes from v114 ingame menu.
-; v117: left/right/RETURN now loop between TINY and FULLSCREEN.
-; ALMOST FULL keeps current width but uses VERY HUGE height.
-newwsize	cmp	#320,width
-	bne.s	.nf
-	cmp	#224,hite
-	bcc	.s64		;v117: FULLSCREEN -> TINY
-.nf	move	width(pc),d0
-	cmp	#96,d0
-	bcs.s	.s96
-	cmp	#128,d0
-	bcs.s	.s128
-	cmp	#160,d0
-	bcs.s	.s160
-	cmp	#192,d0
-	bcs.s	.s192
-	cmp	#224,d0
-	bcs.s	.s224
-	cmp	#256,d0
-	bcs	.s256
-	cmp	#288,d0
-	bcs	.s288
-	bra	.sfull
-.s64	move	#64,width
+newwsize	cmp	#224,hite
+	bcs.s	.inc
+	cmp	#320,width
+	bcs.s	.inc2
+	move	#64,width
 	move	#64,hite
-	bra	sizedone
-.s96	move	#96,width
-	move	#96,hite
-	bra	sizedone
-.s128	move	#128,width
-	move	#128,hite
-	bra	sizedone
-.s160	move	#160,width
-	move	#160,hite
-	bra	sizedone
-.s192	move	#192,width
-	move	#192,hite
-	bra	sizedone
-.s224	move	#224,width
-	move	#192,hite
-	bra	sizedone
-.s256	move	#256,width
-	move	#192,hite
-	bra	sizedone
-.s288	move	#288,width
-	move	#192,hite		;v115: ALMOST FULL same height as VERY HUGE
-	bra	sizedone
-.sfull	move	#320,width
-	move	#224,hite
-	bra	sizedone
-
-decwsize	move	width(pc),d0
-	cmp	#64,d0
-	bls	.sfull		;v117: TINY -> FULLSCREEN
-	cmp	#96,d0
-	bls.s	.s64
-	cmp	#128,d0
-	bls.s	.s96
-	cmp	#160,d0
-	bls.s	.s128
-	cmp	#192,d0
-	bls.s	.s160
-	cmp	#224,d0
-	bls.s	.s192
-	cmp	#256,d0
-	bls.s	.s224
-	cmp	#288,d0
-	bls.s	.s256
-	bra	.s288		;FULLSCREEN/320 -> ALMOST FULL
-.s64	move	#64,width
-	move	#64,hite
-	bra	sizedone
-.s96	move	#96,width
-	move	#96,hite
-	bra	sizedone
-.s128	move	#128,width
-	move	#128,hite
-	bra	sizedone
-.s160	move	#160,width
-	move	#160,hite
-	bra	sizedone
-.s192	move	#192,width
-	move	#192,hite
-	bra	sizedone
-.s224	move	#224,width
-	move	#192,hite
-	bra	sizedone
-.s256	move	#256,width
-	move	#192,hite
-	bra	sizedone
-.s288	move	#288,width
-	move	#192,hite		;v115: ALMOST FULL same height as VERY HUGE
-	bra	sizedone
-.sfull	move	#320,width
-	move	#224,hite
-	; fall through to sizedone
-
+	bra.s	sizedone
+	;
+.inc	add	#32,hite
+.inc2	add	#32,width
+	;
 sizedone	move	width(pc),d0
 	move	d0,chunkymodw
 	lsr	#1,d0
@@ -1681,7 +1092,6 @@ sizedone	move	width(pc),d0
 	move	d0,maxy
 	neg	d0
 	move	d0,miny
-	bsr	trainer_update_display_texts	;v112: rebuild menu text immediately
 	bra	refresh
 
 calcoffset	move	#320,d0
@@ -1700,12 +1110,7 @@ calcoffset	move	#320,d0
 
 refresh	jsr	dispoff
 	jsr	finitmenu
-	jsr	g2v190aj_restore_game_palette	; v190aj: leave font palette before drawing refreshed backdrop
 	jsr	predrawall
-	tst	game_menu_active
-	beq.s	.g2v190aj_refresh_nogrey
-	jsr	g2v190aj_grey_menu_backdrop
-.g2v190aj_refresh_nogrey
 	lea	gamemenu,a4
 	jsr	initmenu2
 	jsr	dispon
@@ -1716,8 +1121,6 @@ drawchunky	;draw a chunky shape on a 320 wide chunkymap
 	;d0=x,d1=y,d2=shape#,a0=shapetable
 	;
 	move.l	panel(pc),a0
-	; fall through with panel as source table
-g2drawchunky_a0	;a0=shapetable, d0=x,d1=y,d2=shape#
 	add	#224,d1
 	;
 	movem.l	d2-d5/a2-a4,-(a7)
@@ -1741,583 +1144,13 @@ g2drawchunky_a0	;a0=shapetable, d0=x,d1=y,d2=shape#
 	add.l	(a2)+,a3
 .vloop	move.b	(a0)+,d0
 	beq.s	.skip
-	move.b	0(a4,d0),(a3)	;v64: normal shapes still need active palette remap
+	move.b	0(a4,d0),(a3)
 .skip	add.l	d5,a3
 	dbf	d4,.vloop
 	dbf	d2,.hloop
 	;
 	movem.l	(a7)+,d2-d5/a2-a4
 	rts
-
-
-; v47: final retail CrM2 smallfont2.bin has the full green statusbar
-; background one entry later than the public source smallfont2.bin.  Public
-; data:  #47 = 320px bar, #46 = middle clear.
-; Retail: #48 = 320px bar, #49 = middle clear, #47/#46 are tiny pieces.
-; Detect the shape width at runtime so both data sets work.
-g2draw_statusbar_base
-	movem.l	d0-d2/a0,-(a7)
-	moveq	#47,d2
-	move.l	panel(pc),a0
-	move.l	200(a0),d0	;12 + 47*4
-	beq.s	.g2dsb_draw
-	add.l	d0,a0
-	cmp	#300,4(a0)	;width >= 300 means public-source #47 is the bar
-	bcc.s	.g2dsb_draw
-	moveq	#48,d2	;retail/final data: #48 is the full statusbar
-.g2dsb_draw
-	moveq	#0,d0
-	moveq	#0,d1
-	bsr	drawchunky
-	movem.l	(a7)+,d0-d2/a0
-	rts
-
-g2draw_statusbar_clear
-	movem.l	d0-d2/a0,-(a7)
-	moveq	#46,d2
-	move.l	panel(pc),a0
-	move.l	196(a0),d0	;12 + 46*4
-	beq.s	.g2dsc_draw
-	add.l	d0,a0
-	cmp	#16,4(a0)	;retail #46 is only a tiny 2px piece
-	bcc.s	.g2dsc_draw
-	moveq	#49,d2	;retail/final data: #49 is the clear strip
-.g2dsc_draw
-	moveq	#0,d0
-	moveq	#2,d1
-	bsr	drawchunky
-	movem.l	(a7)+,d0-d2/a0
-	rts
-
-; v20: keep the original 224..239 chunky panel source deterministic.
-; The real status strip is the 13-line shape #47; the remaining three
-; visible lines are explicitly black so C2P never converts stale RAM.
-g2clearpanelchunky
-	movem.l	d0-d1/a0,-(a7)
-	move.l	chunky(pc),a0
-	add.l	#320*224,a0
-	move	#(320*16/4)-1,d0
-	moveq	#0,d1
-.g2cpc_loop
-	move.l	d1,(a0)+
-	dbf	d0,.g2cpc_loop
-	movem.l	(a7)+,d0-d1/a0
-	rts
-
-; v103: clear the whole chunky frame before C2P.  Used for teleport handoff:
-; after the last visible blue/pixel frame we display black while the next
-; intermission screen is loaded, instead of holding the final blue chamber view.
-g2clearfullchunky
-	movem.l	d0-d1/a0,-(a7)
-	move.l	chunky(pc),a0
-	move	#(320*240/4)-1,d0
-	moveq	#0,d1
-.g2cfc_loop
-	move.l	d1,(a0)+
-	dbf	d0,.g2cfc_loop
-	movem.l	(a7)+,d0-d1/a0
-	rts
-
-; v61/v63: optional first-person gun overlay from CrM2 gun.bin.
-; gun.bin is a normal anim/shape file with its own palette.  The loader
-; remaps it once at startup.  Index 0 stays transparent; index 1 is
-; kept as opaque black so the weapon body has no see-through holes.
-; v67 draws the already-remapped gun indices through the active palettes table,
-; just like drawchunky, while still using coloffs layout.  This keeps the gun
-; in one piece and maps its colours into the current display palette.
-g2drawgun
-	movem.l	d0-d7/a0-a5,-(a7)
-	move.l	gunpic(pc),d0
-	beq.w	.g2dg_done
-	; v100: during the death fall, hide the first-person weapon completely.
-	; ZGloom only leaves the red translucent screen / camera drop visible.
-	move.l	player_(pc),a5
-	tst.l	a5
-	beq.s	.g2dg_player_ok
-	tst	ob_hitpoints(a5)
-	ble.w	.g2dg_done
-.g2dg_player_ok
-	move.l	d0,a0
-	;
-	; v68: ZGloom-style fire handling.  gun.bin shape #1 is the
-	; recoil/firing weapon frame; shapes #2..#4 are muzzle flashes
-	; selected by weapon group.  Draw the muzzle first, then the gun.
-	clr.b	g2gun_recoilflag
-	move	g2gun_firetimer(pc),d7
-	beq.s	.g2dg_normal_shape
-	st	g2gun_recoilflag
-	subq	#1,g2gun_firetimer
-	moveq	#1,d6		;shape #1 = firing/recoil gun frame
-	bra.s	.g2dg_have_shape_index
-.g2dg_normal_shape
-	moveq	#0,d6		;shape #0 = normal gun frame
-.g2dg_have_shape_index
-	lsl	#2,d6
-	add	#12,d6		;anim offset table entry
-	move.l	0(a0,d6.w),d0
-	beq.w	.g2dg_done
-	cmp.l	#$20000,d0
-	bcc.w	.g2dg_done
-	add.l	d0,a0		;a0 = shape
-	;
-	; shape header: xhandle,yhandle,width,height then column-major pixels.
-	; ZGloom placement: x = centre - xhandle.  We keep the higher
-	; Gloom2Reforged baseline from v65, and add recoil downward when fired.
-	move	(a0),d0		;x handle
-	move	#160,d1
-	sub	d0,d1		;x
-	move	6(a0),d3		;height
-	move	#245,d4
-	sub	d3,d4		;raised gun baseline behind the statusbar
-	tst.b	g2gun_recoilflag
-	beq.s	.g2dg_no_recoil_y
-	add	#4,d4		;v71: shorter, lighter firing recoil
-.g2dg_no_recoil_y
-	;
-	; ZGloom bob is only used when not firing.
-	tst.b	g2gun_recoilflag
-	bne.s	.g2dg_bob_done
-	move.l	player_(pc),a5
-	move	ob_bounce(a5),d0
-	beq.s	.g2dg_bob_done
-	lsr	#1,d0
-	and	#255,d0
-	move.l	camrots(pc),a2
-	lea	0(a2,d0*8),a2
-	move	2(a2),d0
-	asr	#8,d0
-	asr	#3,d0		;approx /2048 => about +/-16px
-	add	d0,d1
-	move	d0,d7
-	bpl.s	.g2dg_bobpos
-	neg	d7
-.g2dg_bobpos
-	lsr	#1,d7
-	sub	d7,d4
-.g2dg_bob_done
-	; v71: draw animated muzzle flash first so the weapon sprite sits in front.
-	tst.b	g2gun_recoilflag
-	beq.s	.g2dg_no_muzzle
-	bsr	g2drawgun_muzzle
-.g2dg_no_muzzle
-	bsr	g2drawgun_coloffs_shape_crop_left	;v99: hide stray left-edge non-transparent gun pixels
-.g2dg_done
-	movem.l	(a7)+,d0-d7/a0-a5
-	rts
-
-; Draw one gun.bin shape into the Gloom2 chunky/C2P column layout.
-; In: a0 = shape, d1 = x, d4 = y.  Shape pixels are already remapped by
-; remapanim, but still go through the active palettes table like drawchunky.
-g2drawgun_coloffs_shape
-	movem.l	d0-d7/a0-a5,-(a7)
-	move	4(a0),d2		;width
-	move	6(a0),d3		;height
-	tst	d2
-	ble.w	.g2dgs_done
-	cmp	#160,d2
-	bhi.w	.g2dgs_done
-	tst	d3
-	ble.w	.g2dgs_done
-	cmp	#128,d3
-	bhi.w	.g2dgs_done
-	cmp	#240,d4
-	bge.w	.g2dgs_done
-	move	#240,d5
-	sub	d4,d5		;visible rows from y to bottom
-	ble.w	.g2dgs_done
-	cmp	d3,d5
-	bls.s	.g2dgs_vhok
-	move	d3,d5
-.g2dgs_vhok
-	move	d3,d6
-	sub	d5,d6		;bytes to skip at bottom of every source column
-	subq	#1,d5		;dbf visible height
-	subq	#1,d2		;dbf width
-	move.l	chunky(pc),a1
-	mulu	#320,d4
-	add.l	d4,a1		;destination row base
-	ext.l	d1
-	lea	coloffs,a2
-	lea	0(a2,d1*4),a2	;C2P column layout, not linear x
-	lea	8(a0),a0		;source pixels
-	move.l	palettes(pc),a4
-	moveq	#0,d0
-.g2dgs_xloop
-	move.l	a1,a3
-	add.l	(a2)+,a3
-	move	d5,d7
-.g2dgs_yloop
-	move.b	(a0)+,d0
-	beq.s	.g2dgs_skip
-	move.b	0(a4,d0),(a3)
-.g2dgs_skip
-	lea	320(a3),a3
-	dbf	d7,.g2dgs_yloop
-	adda.w	d6,a0
-	dbf	d2,.g2dgs_xloop
-.g2dgs_done
-	movem.l	(a7)+,d0-d7/a0-a5
-	rts
-
-; v99: draw the main first-person gun with a tiny left crop.  Some gun.bin
-; variants contain a few non-zero pixels in the transparent left padding.  Do
-; not restore the old index-1 transparency globally because that punched holes
-; into the weapon body; crop the first four source columns for the gun.
-g2drawgun_coloffs_shape_crop_left
-	movem.l	d0-d7/a0-a5,-(a7)
-	move	4(a0),d2		;width
-	move	6(a0),d3		;height
-	cmp	#8,d2
-	bls.w	.g2dgcl_done
-	tst	d3
-	ble.w	.g2dgcl_done
-	cmp	#128,d3
-	bhi.w	.g2dgcl_done
-	cmp	#240,d4
-	bge.w	.g2dgcl_done
-	addq	#4,d1		;v105b: skip four transparent-padding columns on screen
-	subq	#4,d2		;and in source width
-	move	#240,d5
-	sub	d4,d5
-	ble.w	.g2dgcl_done
-	cmp	d3,d5
-	bls.s	.g2dgcl_vhok
-	move	d3,d5
-.g2dgcl_vhok
-	move	d3,d6
-	sub	d5,d6
-	subq	#1,d5
-	subq	#1,d2
-	move.l	chunky(pc),a1
-	mulu	#320,d4
-	add.l	d4,a1
-	ext.l	d1
-	lea	coloffs,a2
-	lea	0(a2,d1*4),a2
-	lea	8(a0),a0
-	move	d3,d0
-	lsl	#2,d0
-	adda.w	d0,a0		;v105b: skip four column-major source columns
-	move.l	palettes(pc),a4
-	moveq	#0,d0
-.g2dgcl_xloop
-	move.l	a1,a3
-	add.l	(a2)+,a3
-	move	d5,d7
-.g2dgcl_yloop
-	move.b	(a0)+,d0
-	beq.s	.g2dgcl_skip
-	move.b	0(a4,d0),(a3)
-.g2dgcl_skip
-	lea	320(a3),a3
-	dbf	d7,.g2dgcl_yloop
-	adda.w	d6,a0
-	dbf	d2,.g2dgcl_xloop
-.g2dgcl_done
-	movem.l	(a7)+,d0-d7/a0-a5
-	rts
-
-; Draw one gun.bin shape scaled as solid pixel blocks in the same coloffs/C2P
-; layout.  In: a0 = shape, d1 = x, d4 = y, d7 = integer scale factor 1..3.
-g2drawgun_coloffs_shape_scaled
-	cmp	#1,d7
-	bhi.s	.g2dgss_go
-	bra	g2drawgun_coloffs_shape
-.g2dgss_go
-	movem.l	d0-d7/a0-a6,-(a7)
-	move	d7,d5		;scale
-	move	4(a0),d2		;width
-	move	6(a0),d3		;height
-	tst	d2
-	ble.w	.g2dgss_done
-	cmp	#160,d2
-	bhi.w	.g2dgss_done
-	tst	d3
-	ble.w	.g2dgss_done
-	cmp	#128,d3
-	bhi.w	.g2dgss_done
-	cmp	#240,d4
-	bge.w	.g2dgss_done
-	move	d2,d0
-	mulu	d5,d0
-	add	d1,d0
-	cmp	#320,d0
-	bgt.w	.g2dgss_done
-	move	d3,d0
-	mulu	d5,d0
-	add	d4,d0
-	cmp	#240,d0
-	bgt.w	.g2dgss_done
-	move.l	chunky(pc),a1
-	mulu	#320,d4
-	add.l	d4,a1		;base destination row
-	ext.l	d1
-	lea	coloffs,a6
-	lea	8(a0),a5		;current source column
-	move.l	palettes(pc),a4
-	subq	#1,d2		;dbf width
-.g2dgss_xsrc
-	move	d5,d6		;repeat this source column scale times
-.g2dgss_xrep
-	move.l	a1,a3
-	lea	0(a6,d1*4),a2
-	add.l	(a2),a3
-	move.l	a5,a2		;source pixel ptr for this column
-	move	d3,d4
-	subq	#1,d4		;dbf source height
-.g2dgss_ysrc
-	moveq	#0,d0
-	move.b	(a2)+,d0
-	beq.s	.g2dgss_zero
-	move.b	0(a4,d0.w),d0
-	move	d5,d7
-	subq	#1,d7
-.g2dgss_yrep_nz
-	move.b	d0,(a3)
-	lea	320(a3),a3
-	dbf	d7,.g2dgss_yrep_nz
-	bra.s	.g2dgss_ynext
-.g2dgss_zero
-	move	d5,d7
-	subq	#1,d7
-.g2dgss_yrep_z
-	lea	320(a3),a3
-	dbf	d7,.g2dgss_yrep_z
-.g2dgss_ynext
-	dbf	d4,.g2dgss_ysrc
-	addq	#1,d1
-	subq	#1,d6
-	bne.s	.g2dgss_xrep
-	adda.w	d3,a5		;next source column (column-major layout)
-	dbf	d2,.g2dgss_xsrc
-.g2dgss_done
-	movem.l	(a7)+,d0-d7/a0-a6
-	rts
-
-; Draw one gun.bin shape with a fractional nearest-neighbour scale.
-; In: a0 = shape, d1 = x, d4 = y, d6 = numerator, d7 = denominator.
-; Used for smaller follow-up muzzle flashes than the old 2x/3x steps.
-g2drawgun_coloffs_shape_scalefrac
-	movem.l	d0-d7/a0-a6,-(a7)
-	move	4(a0),d2		;width
-	move	6(a0),d3		;height
-	tst	d2
-	ble.w	.g2dgsf_done
-	cmp	#160,d2
-	bhi.w	.g2dgsf_done
-	tst	d3
-	ble.w	.g2dgsf_done
-	cmp	#128,d3
-	bhi.w	.g2dgsf_done
-	cmp	#240,d4
-	bge.w	.g2dgsf_done
-	move	d2,d5
-	mulu	d6,d5
-	divu	d7,d5		;scaled width
-	beq.w	.g2dgsf_done
-	move	d3,d0
-	mulu	d6,d0
-	divu	d7,d0		;scaled height
-	beq.w	.g2dgsf_done
-	move	d5,d6
-	add	d1,d6
-	cmp	#320,d6
-	bgt.w	.g2dgsf_done
-	move	d0,d6
-	add	d4,d6
-	cmp	#240,d6
-	bgt.w	.g2dgsf_done
-	move.l	chunky(pc),a1
-	mulu	#320,d4
-	add.l	d4,a1		;base destination row
-	move	d0,d4		;scaled height
-	move	d1,d7		;base x
-	ext.l	d7
-	lea	coloffs,a6
-	lea	8(a0),a5		;source base
-	move.l	palettes(pc),a4
-	moveq	#0,d6		;dest x index
-.g2dgsf_xloop
-	cmp	d5,d6
-	bge.s	.g2dgsf_done
-	move	d6,d0
-	mulu	d2,d0
-	divu	d5,d0		;source x = dx * srcw / dstw
-	mulu	d3,d0
-	lea	0(a5,d0.w),a0	;source column base
-	move	d7,d0
-	add	d6,d0
-	move.l	a1,a3
-	lea	0(a6,d0*4),a2
-	add.l	(a2),a3
-	moveq	#0,d1		;dest y index
-.g2dgsf_yloop
-	cmp	d4,d1
-	bge.s	.g2dgsf_xnext
-	move	d1,d0
-	mulu	d3,d0
-	divu	d4,d0		;source y = dy * srch / dsth
-	move.b	0(a0,d0.w),d0
-	andi.l	#$ff,d0
-	beq.s	.g2dgsf_skip
-	move.b	0(a4,d0.w),(a3)
-.g2dgsf_skip
-	lea	320(a3),a3
-	addq	#1,d1
-	bra.s	.g2dgsf_yloop
-.g2dgsf_xnext
-	addq	#1,d6
-	bra.s	.g2dgsf_xloop
-.g2dgsf_done
-	movem.l	(a7)+,d0-d7/a0-a6
-	rts
-
-; Draw the muzzle-flash shape from gun.bin.  ZGloom uses shapes #2..#4,
-; selected as 2 + ((weapon + 1) / 2), so weapon 0/1 share the first flash,
-; 2/3 share the second, and 4 uses the largest flash.
-g2drawgun_muzzle
-	movem.l	d0-d7/a0-a5,-(a7)
-	move.l	gunpic(pc),d0
-	beq.w	.g2dm_done
-	move.l	d0,a0
-	; v73: match the muzzle flash to the current weapon upgrade like ZGloom:
-	; shape = 2 + ((weapon + 1) / 2).  This gives matching flash art for
-	; upgrades 0/1, 2/3 and 4, instead of cycling unrelated flash frames.
-	move.l	player_(pc),a5
-	moveq	#0,d7
-	tst.l	a5
-	beq.s	.g2dm_have_weapon
-	move	ob_weapon(a5),d7
-	cmp	#4,d7
-	bls.s	.g2dm_weapon_ok
-	moveq	#4,d7
-.g2dm_weapon_ok
-	addq	#1,d7
-	asr	#1,d7
-	addq	#2,d7
-.g2dm_have_weapon
-	move	d7,d6
-	lsl	#2,d6
-	add	#12,d6
-	move.l	0(a0,d6.w),d0
-	beq.w	.g2dm_done
-	cmp.l	#$20000,d0
-	bcc.w	.g2dm_done
-	add.l	d0,a0
-	; v72: keep the flash behind the gun, but raise it far enough so the
-	; upper/sides remain visible.  Bottom-aligning at 240 hid it entirely
-	; behind the gun/statusbar in the Gloom2 C2P layout.
-	move	4(a0),d0		;width
-	move	#320,d1
-	sub	d0,d1
-	asr	#1,d1		;centre by width, not xhandle
-	move	6(a0),d3		;height
-	move	#211,d4
-	sub	d3,d4		;v76: move the whole flash further up so the bright core sits
-				;right at/just above the gun muzzle instead of being hidden too low
-	; v79: keep the single-shape approach from v78, but reduce the follow-up
-	; sizes by about 20%.  The 3-frame sequence is now 1x -> 1.6x -> 2.4x
-	; instead of 1x -> 2x -> 3x.
-	move	g2gun_firetimer(pc),d5
-	cmp	#2,d5
-	beq.s	.g2dm_scale1
-	cmp	#1,d5
-	beq.s	.g2dm_scale16
-	; firetimer == 0 on the last visible flash frame after g2drawgun already
-	; decremented it.  Draw the same flash shape one more step larger.
-.g2dm_scale24
-	move	d0,d6
-	moveq	#12,d7
-	mulu	d7,d6
-	moveq	#5,d7
-	divu	d7,d6
-	sub	d0,d6
-	lsr	#1,d6
-	sub	d6,d1		;centre 2.4x flash around the same muzzle point
-	move	d3,d6
-	moveq	#12,d7
-	mulu	d7,d6
-	moveq	#5,d7
-	divu	d7,d6
-	sub	d3,d6
-	lsr	#1,d6
-	sub	d6,d4
-	moveq	#12,d6
-	moveq	#5,d7
-	bsr	g2drawgun_coloffs_shape_scalefrac
-	bra.s	.g2dm_done
-.g2dm_scale16
-	move	d0,d6
-	moveq	#8,d7
-	mulu	d7,d6
-	moveq	#5,d7
-	divu	d7,d6
-	sub	d0,d6
-	lsr	#1,d6
-	sub	d6,d1		;centre 1.6x flash
-	move	d3,d6
-	moveq	#8,d7
-	mulu	d7,d6
-	moveq	#5,d7
-	divu	d7,d6
-	sub	d3,d6
-	lsr	#1,d6
-	sub	d6,d4
-	moveq	#8,d6
-	moveq	#5,d7
-	bsr	g2drawgun_coloffs_shape_scalefrac
-	bra.s	.g2dm_done
-.g2dm_scale1
-	bsr	g2drawgun_coloffs_shape
-.g2dm_done
-	movem.l	(a7)+,d0-d7/a0-a5
-	rts
-
-; Try all known Gloom/Gloom Deluxe/Zombie Massacre gun locations.
-g2loadgunfallback
-	movem.l	d0-d1/a0,-(a7)
-	tst.l	gunpic
-	bne.s	.g2lg_done
-	lea	g2gun_name_miscbin(pc),a0
-	moveq	#1,d1
-	jsr	loadfile
-	move.l	d0,gunpic
-	bne.s	.g2lg_done
-	lea	g2gun_name_stufbin(pc),a0
-	moveq	#1,d1
-	jsr	loadfile
-	move.l	d0,gunpic
-	bne.s	.g2lg_done
-	lea	g2gun_name_miscraw(pc),a0
-	moveq	#1,d1
-	jsr	loadfile
-	move.l	d0,gunpic
-	bne.s	.g2lg_done
-	lea	g2gun_name_stufraw(pc),a0
-	moveq	#1,d1
-	jsr	loadfile
-	move.l	d0,gunpic
-.g2lg_done
-	movem.l	(a7)+,d0-d1/a0
-	rts
-
-; gun.bin uses raw palette index 1 as transparent.  drawchunky skips 0,
-; therefore convert index 1 to 0 before remapanim destroys the raw indices.
-g2gun_prepare
-	; v73: keep gun palette index 1 as a real black gun colour.
-	; Earlier builds converted raw index 1 to 0 before remapanim, which
-	; created transparent holes inside the weapon graphic.  gun.bin already
-	; uses index 0 as transparency; index 1 must remain opaque black.
-	rts
-
-g2gun_name_miscbin	dc.b	'misc/gun.bin',0
-	even
-g2gun_name_stufbin	dc.b	'stuf/gun.bin',0
-	even
-g2gun_name_miscraw	dc.b	'misc/gun',0
-	even
-g2gun_name_stufraw	dc.b	'stuf/gun',0
-	even
 
 predrawall	;draw up everything....
 	;
@@ -2326,7 +1159,10 @@ predrawall	;draw up everything....
 	bsr	clspic
 	bsr	clspic
 	bsr	calcoffset
-	bsr	g2draw_statusbar_base
+	moveq	#0,d0
+	moveq	#0,d1
+	moveq	#47,d2
+	bsr	drawchunky
 	move.l	player1(pc),a0
 	st	ob_update(a0)
 	tst	gametype
@@ -2337,78 +1173,35 @@ predrawall	;draw up everything....
 	bra	drawall_
 
 drawall	;
-	jsr	g2v36_hide_pointer	;v36: keep Intuition pointer hidden during gameplay
-	lea	g2log_msg_da_enter,a0
-	jsr	g2log_drawstep
 .wait	tst	doneflag
 	bne.s	.waitskip
 	bsr	vwait
 	bra.s	.wait
 .waitskip	clr	doneflag
-	lea	g2log_msg_da_wait_ok,a0
-	jsr	g2log_drawstep
 	;
 drawall_	move.l	player1(pc),player_
 	move.l	memory(pc),memat
 	;
-	lea	g2log_msg_da_calc1_b,a0
-	jsr	g2log_drawstep
-	jsr	calcscene
-	lea	g2log_msg_da_calc1_ok,a0
-	jsr	g2log_drawstep
-	lea	g2log_msg_da_draw1_b,a0
-	jsr	g2log_drawstep
-	jsr	drawscene
-	lea	g2log_msg_da_draw1_ok,a0
-	jsr	g2log_drawstep
-	lea	g2log_msg_da_blit1_b,a0
-	jsr	g2log_drawstep
-	jsr	blitscene
-	lea	g2log_msg_da_blit1_ok,a0
-	jsr	g2log_drawstep
+	bsr	calcscene
+	bsr	drawscene
+	bsr	blitscene
 	;
 	move	twowins(pc),d0
 	beq.s	.show
 	;
 	move.l	player2(pc),player_
 	move.l	memory(pc),memat
-	lea	g2log_msg_da_calc2_b,a0
-	jsr	g2log_drawstep
-	jsr	calcscene
-	lea	g2log_msg_da_calc2_ok,a0
-	jsr	g2log_drawstep
-	lea	g2log_msg_da_draw2_b,a0
-	jsr	g2log_drawstep
-	jsr	drawscene
-	lea	g2log_msg_da_draw2_ok,a0
-	jsr	g2log_drawstep
-	lea	g2log_msg_da_blit2_b,a0
-	jsr	g2log_drawstep
-	jsr	blitscene
-	lea	g2log_msg_da_blit2_ok,a0
-	jsr	g2log_drawstep
+	bsr	calcscene
+	bsr	drawscene
+	bsr	blitscene
 .show	;
-	lea	g2log_msg_da_wait2_b,a0
-	jsr	g2log_drawstep
 .wait2	tst	showflag
 	bne.s	.waitskip2
 	bsr	vwait
 	bra.s	.wait2
-.waitskip2	lea	g2log_msg_da_wait2_ok,a0
-	jsr	g2log_drawstep
-	lea	g2log_msg_da_doc2p_b,a0
-	jsr	g2log_drawstep
-	jsr	doc2p
-	lea	g2log_msg_da_doc2p_ok,a0
-	jsr	g2log_drawstep
-	lea	g2log_msg_da_db_b,a0
-	jsr	g2log_drawstep
+.waitskip2	bsr	doc2p
 	jsr	db
-	lea	g2log_msg_da_db_ok,a0
-	jsr	g2log_drawstep
 	clr	showflag
-	lea	g2log_msg_da_exit,a0
-	jsr	g2log_drawstep
 	rts
 
 doc2p	;
@@ -2421,7 +1214,6 @@ doc2p	;
 	move.l	linemod(pc),d3		;linemod
 	move.l	c2p(pc),a2
 	jsr	(a2)
-	;nop	;v16: bottom clear disabled, restore compact 240-row plane layout first
 	move	panelcnt(pc),d0
 	beq.s	.rts
 	;
@@ -2435,44 +1227,13 @@ doc2p	;
 	add.l	#320*224,a0
 	;
 	move	#320,d0
-	moveq	#16,d1	;v19: convert full 224..239 status/gun panel area
+	moveq	#13,d1
 	move.l	bpmod(pc),d2
 	move.l	linemod(pc),d3
 	move.l	c2p(pc),a2
 	jsr	(a2)
 	;
 .rts	rts
-
-
-g2v15_clear_bottom16	;clear bottom 16 visible OS lines below the 240-line game render
-	;Only active in OS/NewMode path. No-OS copper path keeps original layout.
-	tst	os
-	beq.s	g2v15_cb16_done
-	movem.l	d0-d2/a0-a1,-(a7)
-	move.l	drawbitmap(pc),a0
-	move	bitplanes(pc),d1
-	subq	#1,d1
-g2v15_cb16_plane
-	move.l	a0,a1
-	add.l	#40*240,a1
-	moveq	#16-1,d0
-g2v15_cb16_line
-	clr.l	(a1)+
-	clr.l	(a1)+
-	clr.l	(a1)+
-	clr.l	(a1)+
-	clr.l	(a1)+
-	clr.l	(a1)+
-	clr.l	(a1)+
-	clr.l	(a1)+
-	clr.l	(a1)+
-	clr.l	(a1)+
-	dbf	d0,g2v15_cb16_line
-	add.l	bpmod(pc),a0
-	dbf	d1,g2v15_cb16_plane
-	movem.l	(a7)+,d0-d2/a0-a1
-g2v15_cb16_done
-	rts
 
 resetplayer	st	ob_update(a5)
 	clr	ob_mega(a5)
@@ -2522,18 +1283,13 @@ printmess2	;a4=message, d0=length of message, d6=Y
 	mulu	d2,d0
 	move	#160,d7
 	sub	d0,d7	;X
-	bpl.s	.g2v11_x_ok
-	moveq	#0,d7	;v11: clamp long intermission/menu lines
-.g2v11_x_ok
 	;
 	jsr	ownblitter
 	;
 .loop2	move.b	(a4)+,d2
 	beq	.done
 	cmp.b	#' ',d2
-	beq.w	.spc
-	cmp.b	#'\',d2	;v11: do not render script separators
-	beq.w	.spc
+	beq.s	.spc
 	cmp.b	#'0',d2
 	bcs.s	.nnum
 	cmp.b	#'9',d2
@@ -2543,7 +1299,8 @@ printmess2	;a4=message, d0=length of message, d6=Y
 	bra.s	.here
 .nnum	cmp.b	#"'",d2
 	bne.s	.notap
-	bra.w	.spc		; v190z: apostrophe glyph is unsafe here, render it as space for test
+	moveq	#57,d2
+	bra.s	.here
 .notap	cmp.b	#'!',d2
 	bne.s	.notex
 	moveq	#36,d2
@@ -2573,7 +1330,7 @@ printmess2	;a4=message, d0=length of message, d6=Y
 	bmi.s	.spc
 	;
 .pdloop	bsr	vwait
-	jsr	checkany
+	bsr	checkany
 	beq.s	.none
 	move	#-1,pdelay
 	moveq	#0,d2
@@ -2613,33 +1370,22 @@ printhexnum	;d0=x,d1=y,d2=hex long,a5=window
 
 showstats	;
 	;a5=player
-	; v50: final retail smallfont2 statusbar base is correct; HUD items
-	; are shifted +1/+1 so health/weapon/lives align with the original bar.
 	;
-	; v49: do NOT draw the old middle-clear over the final retail
-	; smallfont2 statusbar.  The full base strip is redrawn every
-	; frame by blitscene before showstats, so this extra clear is
-	; unnecessary and was wiping the left part of the final #48 bar.
+	;clear middle
+	moveq	#0,d0
+	moveq	#2,d1
+	moveq	#46,d2
+	bsr	drawchunky
 	;
 	;hitpoints
-	; v51: align health cells with final retail statusbar and use
-	; original colour zones: left red, middle yellow/orange, right green.
 	move	ob_hitpoints(a5),d7
 	ble.s	.nohp
-	move	#267,d6	;v101: healthbar another 1px left, final slot alignment
-	moveq	#0,d3
+	move	#267,d6
+	moveq	#45,d2
 	subq	#1,d7
-.hploop	moveq	#45,d2	;left danger/red cells
-	cmp	#10,d3
-	blt.s	.hpcolok
-	moveq	#46,d2	;middle yellow/orange cells
-	cmp	#18,d3
-	blt.s	.hpcolok
-	moveq	#47,d2	;right green cells
-.hpcolok	move	d6,d0
-	moveq	#4,d1
+.hploop	move	d6,d0
+	moveq	#3,d1
 	bsr	drawchunky
-	addq	#1,d3
 	addq	#2,d6
 	dbf	d7,.hploop
 .nohp	;
@@ -2649,11 +1395,11 @@ showstats	;
 	moveq	#6,d6
 	sub	d7,d6
 	lsl	#3,d6
-	add	#217,d6	;v65: skull icons 2px left
+	add	#218,d6
 	moveq	#44,d2
 	subq	#1,d7
 .lvloop	move	d6,d0
-	moveq	#2,d1	;v74: skull icons 1px higher
+	moveq	#2,d1
 	bsr	drawchunky
 	addq	#8,d6
 	dbf	d7,.lvloop
@@ -2664,10 +1410,10 @@ showstats	;
 	blt.s	.nowp
 	move	ob_weapon(a5),d2	;0...4
 	add	#39,d2
-	moveq	#55,d6	;v51: first weapon pip 1px left
-	moveq	#11,d3	;v51: final retail bar slots are 11px apart
+	moveq	#55,d6
+	moveq	#10,d3
 .wploop	move	d6,d0
-	moveq	#3,d1
+	moveq	#2,d1
 	bsr	drawchunky
 	add	d3,d6
 	dbf	d7,.wploop
@@ -2680,129 +1426,17 @@ showstats	;
 	cmp	#50,d7
 	ble.s	.mgok
 	moveq	#50,d7
-.mgok	moveq	#54,d6
+.mgok	moveq	#53,d6
 	sub	d7,d6
 	moveq	#45,d2
 	lsr	#1,d7
 	subq	#1,d7
 .mgloop	move	d6,d0
-	moveq	#4,d1
+	moveq	#3,d1
 	bsr	drawchunky
 	addq	#2,d6
 	dbf	d7,.mgloop
 .nomg	;
-	rts
-
-; v53: chunky-safe statusbar message scroller.  The original printmess
-; path draws through the old planar/window blitter and is bypassed by the
-; new chunky->C2P frame path.  This uses the existing 5-line chatfont and
-; draws into the black message slot of the bottom statusbar after the bar
-; and HUD items have been refreshed.
-g2draw_statusbar_scroll
-	movem.l	d0-d7/a0-a4,-(a7)
-	move	ob_messtimer(a5),d0
-	beq.w	.g2sms_done
-	bpl.s	.g2sms_timer_ok
-	neg	ob_messtimer(a5)	;first visible frame: arm old timer semantics
-	move	ob_messtimer(a5),d0
-.g2sms_timer_ok
-	move.l	ob_mess(a5),a4
-	tst.l	a4
-	beq.w	.g2sms_done
-	move	ob_messlen(a5),d5
-	ble.w	.g2sms_done
-	; v55/v56: scroll text setup.  v56 no longer draws with chatfont.bin;
-	; the actual glyph colour comes from the smallfont2 glyph shapes below.
-	move.l	panel(pc),a0
-	move.l	192(a0),d1	;12 + 45*4: red health cell shape
-	beq.s	.g2sms_red_fallback
-	add.l	d1,a0
-	addq	#8,a0		;skip handles + w/h
-	moveq	#0,d1
-	move.b	(a0),d1
-	beq.s	.g2sms_red_fallback
-	move.l	palettes(pc),a3
-	move.b	0(a3,d1),d2
-	bra.s	.g2sms_red_ok
-.g2sms_red_fallback
-	move.l	palettes(pc),a3
-	moveq	#45,d2
-	move.b	0(a3,d2),d2
-.g2sms_red_ok
-	move	#127,d6
-	sub	d0,d6		;progress: 0..127
-	add	d6,d6		;2 px/frame scroll speed
-	move	#210,d7		;start just outside right edge of status message slot
-	sub	d6,d7
-	subq	#1,d5
-.g2sms_loop
-	move.b	(a4)+,d0
-	beq.s	.g2sms_done
-	cmp.b	#'\',d0
-	beq.s	.g2sms_space
-	cmp.b	#' ',d0
-	beq.s	.g2sms_space
-	movem.l	d5/d7/a4,-(a7)
-	bsr	g2draw_statusbar_char
-	movem.l	(a7)+,d5/d7/a4
-.g2sms_space
-	addq	#6,d7
-	dbf	d5,.g2sms_loop
-.g2sms_done
-	movem.l	(a7)+,d0-d7/a0-a4
-	rts
-
-g2draw_statusbar_char	;d0.b=character, d7.w=x
-	; v56: use the real smallfont2 glyph shapes instead of chatfont.bin.
-	; The statusbar message area uses the same font artwork as the retail
-	; HUD, so readability/colour now matches the original data.  Clip the
-	; full glyph to the black message slot.
-	cmp	#111,d7
-	blt.s	.g2smc_rts
-	cmp	#201,d7
-	bgt.s	.g2smc_rts
-	; v81: do not use chat calcchar here.  smallfont2/printmess2 maps
-	; punctuation differently: ! is glyph 36, . is 37 and :/? use 38.
-	cmp.b	#'0',d0
-	bcs.s	.g2smc_notnum
-	cmp.b	#'9',d0
-	bhi.s	.g2smc_notnum
-	sub.b	#'0',d0
-	ext	d0
-	bra.s	.g2smc_mapped
-.g2smc_notnum
-	cmp.b	#'!',d0
-	bne.s	.g2smc_notbang
-	moveq	#36,d0
-	bra.s	.g2smc_mapped
-.g2smc_notbang
-	cmp.b	#'.',d0
-	bne.s	.g2smc_notdot
-	moveq	#37,d0
-	bra.s	.g2smc_mapped
-.g2smc_notdot
-	cmp.b	#':',d0
-	beq.s	.g2smc_punct38
-	cmp.b	#'?',d0
-	bne.s	.g2smc_notpunct38
-.g2smc_punct38
-	moveq	#38,d0
-	bra.s	.g2smc_mapped
-.g2smc_notpunct38
-	cmp.b	#'A',d0
-	bcs.s	.g2smc_rts
-	and	#31,d0
-	add	#9,d0
-.g2smc_mapped
-	tst	d0
-	blt.s	.g2smc_rts
-	cmp	#38,d0
-	bhi.s	.g2smc_rts
-	move	d0,d2		;smallfont2 glyph shape #0..38
-	move	d7,d0		;x inside message slot
-	moveq	#4,d1		;v58: one pixel lower than v57 (224+4)
-	bsr	drawchunky
-.g2smc_rts
 	rts
 
 blit	;a0=shapetable to blit, a1=bitmap, d0=X, d1=Y, d2=char
@@ -2887,508 +1521,7 @@ blitmode	dc	$fca
 
 pixsize	dc	0	;pixel size...at least 2!
 
-; v93: chunky pixelate effect for teleport/death transitions.
-; Existing game logic already drives ob_pixsize/ob_pixsizeadd for teleport,
-; exit and player death.  The original routine was stubbed out in this
-; gloom2 path, so those animations never became visible.
-;
-; The chunky buffer uses the C2P column-offset layout: vertical rows are
-; spaced by chunkymodw, while visible X positions must go through coloffs.
-; This routine therefore samples/fills rectangular screen blocks in display
-; coordinates but writes through coloffs, keeping the C2P layout intact.
-pixelate	movem.l	d0-d7/a0-a5,-(a7)
-	move	pixsize(pc),d6
-	cmp	#2,d6
-	blt.w	.done
-	cmp	#24,d6
-	ble.s	.sizeok
-	move	#24,d6
-.sizeok	moveq	#0,d4		;Y block start
-.yloop	cmp	hite(pc),d4
-	bge.w	.done
-	move.l	chunky(pc),a5
-	move	d4,d3
-	mulu	chunkymodw(pc),d3
-	add.l	d3,a5		;top row base for this block row
-	moveq	#0,d2		;X block start
-.xloop	cmp	width(pc),d2
-	bge.s	.nexty
-	move	width(pc),d1
-	sub	d2,d1		;remaining width
-	cmp	d6,d1
-	ble.s	.bwok
-	move	d6,d1
-.bwok	move	hite(pc),d5
-	sub	d4,d5		;remaining height
-	cmp	d6,d5
-	ble.s	.bhok
-	move	d6,d5
-.bhok	lea	coloffs(pc),a1
-	move.l	a5,a0
-	move.l	0(a1,d2*4),d0
-	add.l	d0,a0
-	moveq	#0,d7
-	move.b	(a0),d7		;sample colour
-	move.l	a5,a2		;current destination row base
-	subq	#1,d5		;DBF row count
-.yfill	move	d1,d0
-	subq	#1,d0		;DBF column count
-	move	d2,d6		;current X inside this block
-.xfill	move.l	0(a1,d6*4),d3
-	move.b	d7,0(a2,d3.l)
-	addq	#1,d6
-	dbf	d0,.xfill
-	adda.l	chunkymod(pc),a2
-	dbf	d5,.yfill
-	move	pixsize(pc),d6
-	cmp	#24,d6
-	ble.s	.addx
-	move	#24,d6
-.addx	add	d6,d2
-	bra.s	.xloop
-.nexty	move	pixsize(pc),d6
-	cmp	#24,d6
-	ble.s	.addy
-	move	#24,d6
-.addy	add	d6,d4
-	bra.w	.yloop
-.done	movem.l	(a7)+,d0-d7/a0-a5
-	rts
-
-; v99: ZGloom-style post-render tint helpers.  They build a 256-byte remap
-; table from the current planar RGB palette, then remap only the game view
-; through coloffs so the HUD/statusbar remains untouched.
-g2apply_blue_tint
-	movem.l	d0-d7/a0-a6,-(a7)
-	move.l	player_(pc),a0
-	move	ob_pixsize(a0),d7
-	ble.w	.g2t_done
-	cmp	#24,d7
-	ble.s	.g2bt_fok
-	move	#24,d7
-.g2bt_fok
-	moveq	#24,d6
-	sub	d7,d6		;old colour weight
-	moveq	#8,d4		;target R/G = 8
-	moveq	#15,d5		;target B = 15
-	bsr	g2build_tint_lut
-	bsr	g2apply_tint_lut
-.g2t_done
-	movem.l	(a7)+,d0-d7/a0-a6
-	rts
-
-g2apply_red_tint
-	movem.l	d0-d7/a0-a6,-(a7)
-	moveq	#12,d7		;transparent red strength
-	moveq	#24,d6
-	sub	d7,d6
-	moveq	#15,d4		;target R = 15
-	moveq	#0,d5		;target G/B = 0
-	bsr	g2build_red_tint_lut
-	bsr	g2apply_tint_lut
-	movem.l	(a7)+,d0-d7/a0-a6
-	rts
-
-; Build blue tint LUT. In: d6=old weight, d7=tint weight, d4=target RG, d5=target B.
-g2build_tint_lut
-	movem.l	d0-d7/a0-a4,-(a7)
-	move.l	planar_palette(pc),a0
-	move.l	planar_remap(pc),a1
-	tst.l	a0
-	beq.w	.g2bl_done
-	tst.l	a1
-	beq.w	.g2bl_done
-	lea	g2tint_lut(pc),a2
-	move	#255,d3
-.g2bl_loop
-	move	0(a0,d3*4),d0
-	move	d0,d1
-	move	d0,d2
-	lsr	#8,d0
-	and	#$f,d0
-	mulu	d6,d0
-	move	d4,d1
-	mulu	d7,d1
-	add	d1,d0
-	divu	#24,d0
-	and	#$f,d0
-	lsl	#8,d0
-	move	0(a0,d3*4),d1
-	lsr	#4,d1
-	and	#$f,d1
-	mulu	d6,d1
-	move	d4,d2
-	mulu	d7,d2
-	add	d2,d1
-	divu	#24,d1
-	and	#$f,d1
-	lsl	#4,d1
-	or	d1,d0
-	move	0(a0,d3*4),d1
-	and	#$f,d1
-	mulu	d6,d1
-	move	d5,d2
-	mulu	d7,d2
-	add	d2,d1
-	divu	#24,d1
-	and	#$f,d1
-	or	d1,d0
-	move.b	0(a1,d0.w),0(a2,d3.w)
-	dbf	d3,.g2bl_loop
-.g2bl_done
-	movem.l	(a7)+,d0-d7/a0-a4
-	rts
-
-; Build red tint LUT. In: d6=old weight, d7=tint weight, d4=target R, d5=target GB.
-g2build_red_tint_lut
-	movem.l	d0-d7/a0-a4,-(a7)
-	move.l	planar_palette(pc),a0
-	move.l	planar_remap(pc),a1
-	tst.l	a0
-	beq.w	.g2rl_done
-	tst.l	a1
-	beq.w	.g2rl_done
-	lea	g2tint_lut(pc),a2
-	move	#255,d3
-.g2rl_loop
-	move	0(a0,d3*4),d0
-	move	d0,d1
-	lsr	#8,d0
-	and	#$f,d0
-	mulu	d6,d0
-	move	d4,d1
-	mulu	d7,d1
-	add	d1,d0
-	divu	#24,d0
-	and	#$f,d0
-	lsl	#8,d0
-	move	0(a0,d3*4),d1
-	lsr	#4,d1
-	and	#$f,d1
-	mulu	d6,d1
-	move	d5,d2
-	mulu	d7,d2
-	add	d2,d1
-	divu	#24,d1
-	and	#$f,d1
-	lsl	#4,d1
-	or	d1,d0
-	move	0(a0,d3*4),d1
-	and	#$f,d1
-	mulu	d6,d1
-	move	d5,d2
-	mulu	d7,d2
-	add	d2,d1
-	divu	#24,d1
-	and	#$f,d1
-	or	d1,d0
-	move.b	0(a1,d0.w),0(a2,d3.w)
-	dbf	d3,.g2rl_loop
-.g2rl_done
-	movem.l	(a7)+,d0-d7/a0-a4
-	rts
-
-g2apply_tint_lut
-	movem.l	d0-d7/a0-a4,-(a7)
-	move.l	chunky(pc),a0
-	tst.l	a0
-	beq.w	.g2atl_done
-	lea	g2tint_lut(pc),a3
-	lea	coloffs(pc),a1
-	move	width(pc),d7
-	ble.w	.g2atl_done
-	subq	#1,d7
-.g2atl_x
-	move.l	(a1)+,d0
-	move.l	a0,a2
-	add.l	d0,a2
-	move	hite(pc),d6
-	ble.s	.g2atl_nextx
-	subq	#1,d6
-.g2atl_y
-	moveq	#0,d1
-	move.b	(a2),d1
-	move.b	0(a3,d1.w),(a2)
-	adda.l	chunkymod(pc),a2
-	dbf	d6,.g2atl_y
-.g2atl_nextx
-	dbf	d7,.g2atl_x
-.g2atl_done
-	movem.l	(a7)+,d0-d7/a0-a4
-	rts
-
-g2fill_void_fog
-	; v190bc: far portal fog uses a carried dark wall colour/span.
-	; It propagates through long no-wall corridor openings, but never copies
-	; texture rows and never reads neighbouring entries outside vertdraws.
-	; Only very dark wall columns (distance shade >= 13) seed the carry, so
-	; nearby doorways stay untouched and far openings fade into the wall fog.
-	movem.l	d0-d7/a0-a6,-(a7)
-	move.l	chunky(pc),a0
-	tst.l	a0
-	beq.w	.g2fv_done
-	move.l	vertdraws(pc),a6
-	tst.l	a6
-	beq.w	.g2fv_done
-	move.l	chunkymod(pc),d4
-	clr	g2fv_global_ok
-	;
-	; pass 1: left -> right.  Solid far wall columns update the carry;
-	; following empty portal columns are filled from that carry until another
-	; solid column changes or clears it.
-	clr	g2fv_carry_ok
-	lea	coloffs(pc),a1
-	move	width(pc),d7
-	ble.w	.g2fv_pass2
-	subq	#1,d7
-.g2fv_lx
-	move.l	(a1),d0
-	move.l	a0,a2
-	add.l	d0,a2
-	tst.l	vd_data(a6)
-	beq.s	.g2fv_lempty
-	move	vd_pal(a6),d0
-	cmp	#13,d0
-	blo.s	.g2fv_lclear
-	move	vd_y(a6),d0
-	add	midy(pc),d0
-	move	vd_h(a6),d5
-	bsr	g2fv_set_carry
-	bra.s	.g2fv_lnext
-.g2fv_lclear
-	clr	g2fv_carry_ok
-	bra.s	.g2fv_lnext
-.g2fv_lempty
-	tst	g2fv_carry_ok
-	beq.s	.g2fv_lnext
-	bsr	g2fv_fill_with_carry
-.g2fv_lnext
-	lea	vd_size(a6),a6
-	addq.l	#4,a1
-	dbf	d7,.g2fv_lx
-	;
-	; pass 2: right -> left.  This fills openings that have no far wall on
-	; their left side, again using only a carried colour/span.
-.g2fv_pass2
-	clr	g2fv_carry_ok
-	move	width(pc),d7
-	ble.w	.g2fv_done
-	subq	#1,d7
-	lea	coloffs(pc),a1
-	move	d7,d0
-	ext.l	d0
-	lsl.l	#2,d0
-	add.l	d0,a1
-	move.l	vertdraws(pc),a6
-	move	d7,d0
-	mulu	#vd_size,d0
-	add.l	d0,a6
-.g2fv_rx
-	move.l	(a1),d0
-	move.l	a0,a2
-	add.l	d0,a2
-	tst.l	vd_data(a6)
-	beq.s	.g2fv_rempty
-	move	vd_pal(a6),d0
-	cmp	#13,d0
-	blo.s	.g2fv_rclear
-	move	vd_y(a6),d0
-	add	midy(pc),d0
-	move	vd_h(a6),d5
-	bsr	g2fv_set_carry
-	bra.s	.g2fv_rnext
-.g2fv_rclear
-	clr	g2fv_carry_ok
-	bra.s	.g2fv_rnext
-.g2fv_rempty
-	tst	g2fv_carry_ok
-	beq.s	.g2fv_rnext
-	bsr	g2fv_fill_with_carry
-.g2fv_rnext
-	lea	-vd_size(a6),a6
-	subq.l	#4,a1
-	dbf	d7,.g2fv_rx
-.g2fv_done
-	movem.l	(a7)+,d0-d7/a0-a6
-	rts
-
-; a2 = source solid wall column top
-; d0 = wall top Y on screen, d4 = chunkymod, d5 = wall height
-g2fv_set_carry
-	movem.l	d0-d5/a2-a4,-(a7)
-	clr	g2fv_carry_ok
-	tst	d5
-	ble.w	.g2fv_sc_done
-	; clip top
-	tst	d0
-	bpl.s	.g2fv_sc_notopclip
-	add	d0,d5
-	ble.w	.g2fv_sc_done
-	neg	d0
-	move	d0,d1
-	mulu.l	d4,d1
-	add.l	d1,a2
-	moveq	#0,d0
-	bra.s	.g2fv_sc_clipbot
-.g2fv_sc_notopclip
-	beq.s	.g2fv_sc_clipbot
-	move	d0,d1
-	mulu.l	d4,d1
-	add.l	d1,a2
-.g2fv_sc_clipbot
-	move	hite(pc),d2
-	sub	d0,d2
-	ble.w	.g2fv_sc_done
-	cmp	d2,d5
-	bls.s	.g2fv_sc_countok
-	move	d2,d5
-.g2fv_sc_countok
-	subq	#1,d5
-	bmi.s	.g2fv_sc_done
-	move	d0,g2fv_carry_top
-	move	d5,d1
-	addq	#1,d1
-	move	d1,g2fv_carry_h
-	; sample near the middle of the clipped span first
-	move	d5,d1
-	lsr	#1,d1
-	move.l	d1,d2
-	mulu.l	d4,d2
-	moveq	#0,d1
-	move.b	0(a2,d2.l),d1
-	bne.s	.g2fv_sc_havecol
-	; fallback: first non-zero pixel in the clipped wall span
-	move	d5,d2
-	move.l	a2,a4
-.g2fv_sc_find
-	moveq	#0,d1
-	move.b	(a4),d1
-	bne.s	.g2fv_sc_havecol
-	add.l	d4,a4
-	dbf	d2,.g2fv_sc_find
-	bra.s	.g2fv_sc_done
-.g2fv_sc_havecol
-	move	d1,g2fv_carry_col
-	move	#1,g2fv_carry_ok
-	; v190bi: do not seed the global long-corridor fallback from texture
-	; pixels.  Some wall samples briefly remapped to red/white/green while
-	; walking and caused coloured tunnel-end flicker.  Local carry may still
-	; use the wall colour for neighbouring spans; the large no-wall fallback
-	; below now always builds its stable neutral dark fog colour.
-.g2fv_sc_done
-	movem.l	(a7)+,d0-d5/a2-a4
-	rts
-
-; a2 = destination empty portal column top.  Uses carry vars only.
-g2fv_fill_with_carry
-	movem.l	d0-d5/a2-a4,-(a7)
-	tst	g2fv_carry_ok
-	beq.s	.g2fv_fc_done
-	move	g2fv_carry_top(pc),d0
-	move	g2fv_carry_h(pc),d5
-	ble.s	.g2fv_fc_done
-	move	g2fv_carry_col(pc),d1
-	move	d0,d2
-	mulu.l	d4,d2
-	add.l	d2,a2
-	subq	#1,d5
-.g2fv_fc_loop
-	tst.b	(a2)
-	bne.s	.g2fv_fc_skip
-	move.b	d1,(a2)
-.g2fv_fc_skip
-	add.l	d4,a2
-	dbf	d5,.g2fv_fc_loop
-.g2fv_fc_done
-	movem.l	(a7)+,d0-d5/a2-a4
-	rts
-
-g2fv_carry_ok	dc	0
-g2fv_carry_top	dc	0
-g2fv_carry_h	dc	0
-g2fv_carry_col	dc	0
-g2fv_global_ok	dc	0
-g2fv_global_col	dc	0
-
-; Build a stable palette-correct fallback colour for long no-wall corridors.
-; v190bi: this is deliberately neutral and not seeded from wall textures,
-; avoiding rare coloured tunnel-end flicker from red/white/green samples.
-g2fv_build_default_global
-	movem.l	d0-d2/a3-a4,-(a7)
-	move.l	planar_remap,a4
-	tst.l	a4
-	beq.s	.g2fv_bdg_done
-	lea	paladjust,a3
-	; v190bh: very dark fallback RGB.  v190bf used $211, which could remap
-	; to a visibly grey/light grey palette entry while walking through long
-	; corridors.  The fallback must stay almost black until a real far wall
-	; is close enough to seed the normal textured fog.
-	move	#$100,d0
-	moveq	#0,d1
-	move.b	0(a4,d0.w),d1
-	and	#$00ff,d1
-	moveq	#0,d2
-	move.b	0(a3,d1.w),d2
-	bne.s	.g2fv_bdg_have
-	moveq	#1,d2
-.g2fv_bdg_have
-	move	d2,g2fv_global_col
-	move	#1,g2fv_global_ok
-.g2fv_bdg_done
-	movem.l	(a7)+,d0-d2/a3-a4
-	rts
-
-; Fills still-empty pixels in no-wall columns after floor/ceiling rendering,
-; using the stable neutral dark global fog colour.  This is the fallback for
-; very long corridor openings that have no nearby dark wall column to carry
-; a local span.
-g2fill_void_fog_remaining
-	movem.l	d0-d7/a0-a6,-(a7)
-	; v190bi: always rebuild the stable neutral default colour for this
-	; frame.  Do not reuse texture-sampled global colours; those caused rare
-	; red/white/green flicker at the end of long tunnels.
-	clr	g2fv_global_ok
-	bsr.w	g2fv_build_default_global
-	tst	g2fv_global_ok
-	beq.w	.g2fvr_done
-	move.l	chunky(pc),a0
-	tst.l	a0
-	beq.w	.g2fvr_done
-	move.l	vertdraws(pc),a6
-	tst.l	a6
-	beq.w	.g2fvr_done
-	move.l	chunkymod(pc),d4
-	move	g2fv_global_col(pc),d1
-	lea	coloffs(pc),a1
-	move	width(pc),d7
-	ble.w	.g2fvr_done
-	subq	#1,d7
-.g2fvr_x
-	tst.l	vd_data(a6)
-	bne.s	.g2fvr_next
-	move.l	(a1),d0
-	move.l	a0,a2
-	add.l	d0,a2
-	move	hite(pc),d6
-	ble.s	.g2fvr_next
-	subq	#1,d6
-.g2fvr_y
-	tst.b	(a2)
-	bne.s	.g2fvr_skip
-	move.b	d1,(a2)
-.g2fvr_skip
-	add.l	d4,a2
-	dbf	d6,.g2fvr_y
-.g2fvr_next
-	lea	vd_size(a6),a6
-	addq.l	#4,a1
-	dbf	d7,.g2fvr_x
-.g2fvr_done
-	movem.l	(a7)+,d0-d7/a0-a6
-	rts
-
-g2tint_lut	ds.b	256
-	even
+pixelate	rts
 
 flatcam	dc.l	0
 flatyadd	dc	0
@@ -3883,17 +2016,12 @@ exec_teleport	move.l	eventobj(pc),a0
 	bra	exec_loop
 .tele	;
 	move	#2,ob_pixsizeadd(a0)
-	; v105i: if a teleport and door event happen in the same event script,
-	; do not let the delayed door sound start after the teleport sound.
-	clr	doorsfxflag
 	bsr	dotelesfx
 	bra	exec_loop
 
-; v105i: keep the original working telesfx -> playsfx path from v100a/v105h,
-; but raise priority so it is not occasionally skipped by busy combat/door SFX.
 dotelesfx	move.l	telesfx(pc),a0
 	moveq	#64,d0
-	moveq	#40,d1
+	moveq	#10,d1
 	bra	playsfx
 
 exec_loadobjs	;
@@ -4258,18 +2386,12 @@ calcscene	;a5=player object
 	move.l	#drawobjtrans,shaperender
 	bra.s	.rit
 .hb	move.l	#drawobjinvs,shaperender
-.rit	move.l	a5,g2_shape_owner	;v126 owner for enemy blob shadow
-	jsr	(a0)
-	clr.l	g2_shape_owner
+.rit	jsr	(a0)
 	move.l	#drawobjnorm,shaperender
 	bra.s	.loop
-.notinvs	move.l	a5,g2_shape_owner	;v126 owner for enemy blob shadow
-	jsr	(a0)
-	clr.l	g2_shape_owner
+.notinvs	jsr	(a0)
 	bra.s	.loop
 .done	;
-	; v30: body-chunk/gore draw is enabled again.
-	; Blood splats remain disabled for crash isolation.
 	lea	gore(pc),a5
 	;
 .loop2	move.l	(a5),a5
@@ -4280,7 +2402,6 @@ calcscene	;a5=player object
 	moveq	#0,d1
 	move.l	go_shape(a5),a0
 	move	#$200,d7
-	clr.l	g2_shape_owner	;v126 gore/body chunks never get enemy shadows
 	bsr	drawshape_q
 	;
 	bra.s	.loop2
@@ -4291,27 +2412,13 @@ calcscene	;a5=player object
 
 blitscene	;
 	move.l	player_(pc),a5
-	;
-	; v103: teleport handoff blackout.  Once the last visible teleport pixel
-	; frame has been reached, suppress gun/HUD/statusbar and C2P a clean black
-	; frame.  The intermission is only shown after it has loaded.
-	tst	g2teleport_blackout
-	beq.s	.g2bs_not_blackout
-	jsr	g2clearfullchunky
-	clr	panelcnt
-	rts
-.g2bs_not_blackout
-	;
-	;v20: redraw deterministic HUD source every frame.  The public gloom2
-	;panel path otherwise leaves stale chunky bytes in the lower strip on
-	;the OS/NewMode C2P path.
+	;	
 	bclr	#7,ob_update(a5)
-	bsr	g2clearpanelchunky
-	bsr	g2drawgun		;v63: draw weapon before statusbar so bar covers its lower part
-	bsr	g2draw_statusbar_base
+	beq.s	.skip
+	;
 	bsr	showstats
-	bsr	g2draw_statusbar_scroll	;v53: chunky-safe scrolling pickup/status message
 	move	#2,panelcnt
+.skip	;
 	rts
 
 .noupdate	move	ob_messtimer(a5),d0
@@ -4331,42 +2438,21 @@ blitscene	;
 	rts
 
 drawscene	;a5=player
-	; v28: pinpoint first-level crash inside drawscene.
-	lea	g2log_msg_ds_enter,a0
-	jsr	g2log_drawstep
-	lea	g2log_msg_ds_cast_b,a0
-	jsr	g2log_drawstep
+	;
 	bsr	castwalls
-	lea	g2log_msg_ds_cast_ok,a0
-	jsr	g2log_drawstep
-	lea	g2log_msg_ds_render_b,a0
-	jsr	g2log_drawstep
 	bsr	renderwalls
-	lea	g2log_msg_ds_render_ok,a0
-	jsr	g2log_drawstep
-	; v190bb: fill far corridor openings right after wall rendering, but only
-	; across the neighbouring wall span and with one sampled dark colour.
-	; This keeps far openings dark like walls without copying horizontal
-	; texture rows, and still lets floor/ceiling render above and below.
-	jsr	g2fill_void_fog
 	;
 	move	roofflag(pc),d0
 	ble.s	.noroof
-	lea	g2log_msg_ds_roof_b,a0
-	jsr	g2log_drawstep
 	move	#-255,d0
 	sub	camy(pc),d0
 	moveq	#1,d1
 	move	miny(pc),d7
 	move.l	roof(pc),a0
 	bsr	flat
-	lea	g2log_msg_ds_roof_ok,a0
-	jsr	g2log_drawstep
 .noroof	;
 	move	floorflag(pc),d0
 	ble.s	.nofloor
-	lea	g2log_msg_ds_floor_b,a0
-	jsr	g2log_drawstep
 	move	camy(pc),d0
 	neg	d0
 	moveq	#-1,d1
@@ -4374,66 +2460,26 @@ drawscene	;a5=player
 	subq	#1,d7
 	move.l	floor(pc),a0
 	bsr	flat
-	lea	g2log_msg_ds_floor_ok,a0
-	jsr	g2log_drawstep
 .nofloor	;
-	; v190bd: after floor/ceiling, fill any still-empty no-wall columns with
-	; a global dark wall fog colour sampled earlier from a far wall.  This
-	; keeps very long corridor openings dark instead of black, without
-	; interfering with wall/floor rendering or copying texture rows.
-	jsr	g2fill_void_fog_remaining
-	lea	g2log_msg_ds_shapes_b,a0
-	jsr	g2log_drawstep
 	bsr	drawshapes
-	lea	g2log_msg_ds_shapes_ok,a0
-	jsr	g2log_drawstep
-	; v17: original gloom2 had an early RTS here, making blood/pixelate reachable.
-	lea	g2log_msg_ds_blood_b,a0
-	jsr	g2log_drawstep
-	; v31: safe chunky blood renderer re-enabled, legacy screen-splat disabled.
+	;
+	rts
+	;
 	bsr	drawblood
-	lea	g2log_msg_ds_blood_ok,a0
-	jsr	g2log_drawstep
-	;
-	; v99: ZGloom-style screen colour effects.  Teleport/exit uses pixsize
-	; as a blue-white fade timer, then the existing pixelate pass runs.
-	; Death/hit uses a transparent red screen tint while the eye-height death
-	; animation already moves the view down.
-	move.l	player_(pc),a0
-	move	ob_pixsize(a0),d0
-	beq.s	.g2ds_no_blue_tint
-	jsr	g2apply_blue_tint
-.g2ds_no_blue_tint
-	move.l	player_(pc),a0
-	tst	ob_paltimer(a0)
-	bne.s	.g2ds_red_tint
-	tst	ob_hitpoints(a0)
-	bgt.s	.g2ds_no_red_tint
-.g2ds_red_tint
-	jsr	g2apply_red_tint
-.g2ds_no_red_tint
 	;
 	move.l	player_(pc),a0
 	move	ob_pixsize(a0),d0
-	beq.s	.g2ds_no_pixel
-	lea	g2log_msg_ds_pixel_b,a0
-	jsr	g2log_drawstep
-	jsr	pixelate
-	lea	g2log_msg_ds_pixel_ok,a0
-	jsr	g2log_drawstep
-.g2ds_no_pixel
-	lea	g2log_msg_ds_exit,a0
-	jsr	g2log_drawstep
+	bne	pixelate
 	rts
 
 chatstuff	move	chatok(pc),d0
 	beq.s	.rts
 	;
-	move	chatoutget,d0
-	cmp	chatoutput,d0
+	move	chatoutget(pc),d0
+	cmp	chatoutput(pc),d0
 	beq.s	.noout
 	and	#31,d0
-	lea	chatout,a0
+	lea	chatout(pc),a0
 	move.b	0(a0,d0),d0	;chat out character!
 	addq	#1,chatoutget
 	moveq	#1,d1
@@ -4447,9 +2493,9 @@ chatstuff	move	chatok(pc),d0
 .noout	move	chatcnt(pc),d0
 	beq.s	.rts
 	;
-	move	chatinget,d0
+	move	chatinget(pc),d0
 	and	#31,d0
-	lea	chatin,a0
+	lea	chatin(pc),a0
 	move.b	0(a0,d0),d0
 	addq	#1,chatinget
 	subq	#1,chatcnt
@@ -4478,7 +2524,7 @@ sfxvbint	lea	sfxs(pc),a1
 	;
 	move	fadevol(pc),d0
 	beq.s	.nofade
-	move.l	medat,a1
+	move.l	medat(pc),a1
 	sub	#$80,fadevol
 	bgt.s	.setvol
 	clr	fadevol
@@ -4492,18 +2538,14 @@ sfxvbint	lea	sfxs(pc),a1
 .nofade	rts
 
 	dc.l	readmodem
-; v34: KEYBMOUSE becomes control 0, matching stable gloom.s v29a/WAXD.
-; joytable_end is used by inputon/inputoff so OS deactivation/EXIT cannot
-; overwrite code while clearing the table.
-joytable	dc.l	readnull,readnull,readnull,readnull,readnull,readnull
-joytable_end
-joytable2	dc.l	readkeymouse,readkeys,readjoy1,readjoy0,readcd321,readcd320
+joytable	dc.l	readnull,readnull,readnull,readnull,readnull
+joytable2	dc.l	readjoy1,readjoy0,readkeys,readcd321,readcd320
 
 readjoy	;a0=player
 	move	ob_cntrl(a0),d0
 	bmi.s	readmodem
 	;
-	lea	joyx0,a0
+	lea	joyx0(pc),a0
 	lea	0(a0,d0*8),a0
 	move.l	joytable(pc,d0*4),a1
 	jsr	(a1)
@@ -4553,7 +2595,7 @@ readmodem	;
 	bra.s	readmodem
 	;
 .serhere	bsr	serget
-	lea	joyxs,a0
+	lea	joyxs(pc),a0
 	bclr	#7,d0
 	beq.s	.djoy
 	and	#$ff,d0
@@ -4603,8 +2645,6 @@ vbhandler	movem.l	d2-d7/a2-a6,-(a7)
 	subq	#1,(a1)+	;inc/dec frame counters
 	addq	#1,(a1)
 	;
-	; v34: sample/apply KEYBMOUSE mouse before drawing, as in stable v29a.
-	jsr	sample_keymouse_vb
 	;this done every frame!
 	bsr	chatstuff
 	bsr	sfxvbint
@@ -4620,7 +2660,6 @@ vbhandler	movem.l	d2-d7/a2-a6,-(a7)
 	bsr	doanims
 	bsr	dorots
 	bsr	dodoors
-	; v31: update blood particles again; draw path is guarded/chunky-safe.
 	bsr	moveblood
 	;
 	ifne	debugser
@@ -4724,7 +2763,6 @@ obj_loop	move.l	(a5),a5
 	exg.l	a0,a5
 	;
 	move	ob_damage(a0),d0
-	bsr	g2_onehit_damage
 	move.l	ob_hit(a5),a1
 	sub	d0,ob_hitpoints(a5)
 	bgt.s	hit_skip
@@ -4736,7 +2774,6 @@ hit_ret	move.l	#killobject2,killjsr
 	movem.l	obj_a0(pc),a0/a5
 	;
 	move	ob_damage(a0),d0
-	bsr	g2_onehit_damage
 	move.l	ob_hit(a5),a1
 	sub	d0,ob_hitpoints(a5)
 	bgt.s	hit_skip2
@@ -4744,31 +2781,6 @@ hit_ret	move.l	#killobject2,killjsr
 	;
 hit_skip2	jsr	(a1)
 	bra	obj_loop
-
-; v183: ONE-HIT-KILL cheat.  Only projectile objects get their damage
-; raised to the target's remaining hitpoints, and players themselves are
-; explicitly excluded so player/friendly damage is untouched.
-g2_onehit_damage	; in/out d0=damage, a0=attacker, a5=victim
-	tst	trainer_onehit
-	beq.s	.rts
-	tst	d0
-	ble.s	.rts
-	move.l	ob_logic(a0),d1
-	cmp.l	#firelogic,d1
-	beq.s	.projectile
-	cmp.l	#homeinlogic,d1
-	bne.s	.rts
-.projectile
-	move.l	player1(pc),d1
-	cmp.l	d1,a5
-	beq.s	.rts
-	move.l	player2(pc),d1
-	cmp.l	d1,a5
-	beq.s	.rts
-	move	ob_hitpoints(a5),d1
-	ble.s	.rts
-	move	d1,d0
-.rts	rts
 	;
 exit_vb	st	doneflag
 	;
@@ -4855,7 +2867,7 @@ sparkslogic	subq	#1,ob_delay(a5)
 	rts
 
 bloodymess	;throw random blood splots everywhere!
-	; v31: blood particles restored; drawblood uses safe chunky byte writes.
+	;
 	bsr	bloodspeed2
 	add.l	ob_x(a5),d0
 	move.l	d0,d2
@@ -4883,7 +2895,7 @@ bloodymess	;throw random blood splots everywhere!
 .done	rts
 
 bloodymess2	;throw random blood splots everywhere!
-	; v31: blood particles restored; drawblood uses safe chunky byte writes.
+	;
 	bsr	bloodspeed2
 	add.l	ob_x(a5),d0
 	move.l	d0,d2
@@ -5035,8 +3047,7 @@ blowquick	;
 	bsr	blowchunx
 	bra	killobject
 
-blowchunx	; v30: body chunks enabled again; blood particle creation remains disabled.
-	move	2(a4),d7
+blowchunx	move	2(a4),d7
 	subq	#1,d7
 	;
 .loop	addlast	objects
@@ -5274,56 +3285,6 @@ pauselogic	subq	#1,ob_delay(a5)
 	;
 .skip	rts
 
-g2apply_player_muzzle_origin
-	movem.l	d0-d2/a1,-(a7)
-	move.l	a5,d1
-	move.l	player1(pc),d0
-	cmp.l	d1,d0
-	beq.s	.g2amo_do
-	move.l	player2(pc),d0
-	cmp.l	d1,d0
-	bne.s	.g2amo_done
-.g2amo_do
-	; v68: ZGloom muzzle-origin approximation.  Spawn player bullets
-	; slightly in front of the player so the projectile appears to leave
-	; the weapon instead of emerging from behind the statusbar.
-	move	ob_rot(a5),d0
-	and	#255,d0
-	move.l	camrots(pc),a1
-	lea	0(a1,d0*8),a1
-	move	#28,d0		;v120: restore original muzzle-origin base offset
-	move	d0,d2
-	muls	2(a1),d0
-	add.l	d0,d0
-	neg.l	d0
-	add.l	d0,ob_x(a0)
-	muls	6(a1),d2
-	add.l	d2,d2
-	add.l	d2,ob_z(a0)
-	; v80: ZGloom keeps the shot y unchanged here.  The projectile height
-	; already comes from ob_firey(a5) in shoot above; adding another negative
-	; offset made the first projectile appear too high and huge on screen.
-.g2amo_done
-	movem.l	(a7)+,d0-d2/a1
-	rts
-
-g2player_bullet_visual_prestep
-	movem.l	d0-d1,-(a7)
-	move.l	a5,d0
-	cmp.l	player1,d0
-	beq.s	.do
-	cmp.l	player2,d0
-	bne.s	.done
-.do	movem.l	ob_xvec(a0),d0-d1
-	add.l	d0,ob_x(a0)
-	add.l	d1,ob_z(a0)
-	add.l	d0,ob_x(a0)
-	add.l	d1,ob_z(a0)
-	add.l	d0,ob_x(a0)
-	add.l	d1,ob_z(a0)
-.done	movem.l	(a7)+,d0-d1
-	rts
-
 shoot	;
 	;fire off a bullet...
 	;
@@ -5344,7 +3305,6 @@ shoot	;
 	add	ob_firey(a5),d0
 	move	d0,ob_y(a0)
 	move	ob_z(a5),ob_z(a0)
-	bsr	g2apply_player_muzzle_origin
 	move.l	#firelogic,ob_logic(a0)
 	move.l	#drawshape_1,ob_render(a0)
 	move.l	#rts,ob_hit(a0)
@@ -5375,10 +3335,8 @@ shoot	;
 	add.l	d1,d1
 	;
 	movem.l	d0-d1,ob_xvec(a0)
-	; v120: player bullets need a visual pre-step after the real flight
-	; vector is known.  The old #28/#34/#50 base offset alone was too
-	; small visually for the big weapon-4/5 projectile sprites.
-	bsr	g2player_bullet_visual_prestep
+	;add.l	d0,ob_x(a0)
+	;add.l	d1,ob_z(a0)
 	;
 	move	#32,ob_rad(a0)
 	move.l	#32*32,ob_radsq(a0)
@@ -6237,8 +4195,7 @@ checkvecs	movem.l	ob_xvec(a5),d6-d7
 	tst	d1
 	rts
 
-playerdead	; v102: dead-on-ground state is inert: no rotation/mouse drift.
-	clr.l	ob_rotspeed(a5)
+playerdead	bsr	getcntrl
 	;
 	subq	#1,ob_delay(a5)
 	bgt.s	.rts
@@ -6393,20 +4350,11 @@ redpal	;move.l	#palettesr,ob_palette(a5)
 
 playerhit	tst	ob_damage(a0)
 	beq.s	.rts
-	tst	trainer_invincible	;v115: unlimited health cancels visual hit/HUD flicker
-	beq.s	.normal
-	move	#25,ob_hitpoints(a5)
-	rts
-.normal	st	ob_update(a5)
+	st	ob_update(a5)
 	bsr	redpal
 .rts	rts
 
-playerdie	;v115: unlimited health also blocks lethal damage without HUD flash
-	tst	trainer_invincible
-	beq.s	.die
-	move	#25,ob_hitpoints(a5)
-	rts
-.die	bsr	redpal
+playerdie	bsr	redpal
 	clr	ob_hitpoints(a5)
 	st	ob_update(a5)
 	move.l	#playerdeath,ob_logic(a5)
@@ -6449,11 +4397,7 @@ weapongot	bsr	playtsfx
 	move.l	(a7)+,a5
 	bra	killobject
 
-weapond0	tst	trainer_weapon	;v115: forced trainer weapon/upgrade must not flicker on pickups
-	bne	.trainer_skip
-	tst	trainer_boost
-	bne	.trainer_skip
-	st	ob_update(a5)
+weapond0	st	ob_update(a5)
 	cmp	ob_weapon(a5),d0
 	bne	.new
 	;
@@ -6493,7 +4437,6 @@ weapond0	tst	trainer_weapon	;v115: forced trainer weapon/upgrade must not flicke
 	dc.b	'new weapon!',0
 	even
 	rts
-.trainer_skip	rts
 
 invisigot	bsr	playtsfx
 	move.l	a5,-(a7)
@@ -6600,30 +4543,16 @@ playertimers	tst	ob_mega(a5)
 	clr	ob_pixsizeadd(a5)
 	bra.s	.notpix
 	;
-.pixnz	cmp	#22,ob_pixsize(a5)	;v105c: keep teleport animation visible 10 frames longer before black hold
-	blt.s	.notpix
+.pixnz	cmp	#24,ob_pixsize(a5)
+	bne.s	.notpix
 	;
-	; v104: level-exit teleport was still holding the final blue frame because
-	; finished2 was copied to finished before the v103 blackout flag was set.
-	; For exits/intermissions, first request a black C2P frame, clear pix/HUD
-	; state, then let mainloop leave the level.  The loading/intermission wait
-	; now sits on black instead of the last blue teleport chamber frame.
-	move	finished2(pc),d0
-	beq.s	.g2normal_teleport
-	move	#1,g2teleport_blackout
-	move	#17,g2teleport_black_hold	;v105b: shorter black hold, about one third of v105
-	move	d0,g2teleport_black_finish
-	clr	finished			;do not leave the level until the black hold elapsed
-	clr	ob_pixsize(a5)
-	clr	ob_pixsizeadd(a5)
-	bra.s	.notpix
+	move	finished2(pc),finished
+	bne.s	.notpix
 	;
-.g2normal_teleport
 	move	ob_telex(a5),ob_x(a5)
 	move	ob_telez(a5),ob_z(a5)
 	move	ob_telerot(a5),ob_rot(a5)
-	clr	ob_pixsize(a5)
-	clr	ob_pixsizeadd(a5)
+	neg	ob_pixsizeadd(a5)
 .notpix	;
 	move	ob_hyper(a5),d0
 	beq.s	.nothyper
@@ -6689,7 +4618,7 @@ pput	dc	0	;put new cntrl here
 pget	dc	0	;read this for actual
 
 getcntrl	move	ob_cntrl(a5),d0
-	lea	joyx0,a0
+	lea	joyx0(pc),a0
 	move.l	0(a0,d0*8),joyx
 	move.l	4(a0,d0*8),joyb
 	rts
@@ -6701,11 +4630,7 @@ rotsetacc	equ	$20000
 
 rotplayer	;return rot in d0, leave a0
 	;
-	cmp	#0,ob_cntrl(a5)	; v34 KEYBMOUSE mouse rotation is applied in VBlank sampler
-	bne.w	.notkmouse
-	clr.l	ob_rotspeed(a5)
-	rts
-.notkmouse	move	joys(pc),d0	;strafing?
+	move	joys(pc),d0	;strafing?
 	bne.s	.norot
 	move	joyx(pc),d0
 	beq.s	.norot
@@ -6758,59 +4683,10 @@ unbounce	move	ob_bounce(a5),d1
 
 moveplayer	;work out movement vector into d0/d1...check still/moving!
 	;
-	cmp	#0,ob_cntrl(a5)	; v34 KEYBMOUSE: W/X forward-back and A/D strafe, mouse turns
-	bne	.normmove
-	move	joyy(pc),d4	;forward/backward
-	move	joyx(pc),d5	;strafe direction
-	move	joys(pc),d0
-	bne.s	.kmstrflag
-	clr	d5
-.kmstrflag	tst	d4
-	bne.s	.kmmove
-	tst	d5
-	beq.w	.still
-.kmmove	movem.l	d4-d5/a1,-(a7)
-	move.l	camrots(pc),a1
-	move	ob_rot(a5),d1
-	and	#255,d1
-	lea	0(a1,d1*8),a1
-	move	d4,d0
-	beq.s	.kmnostep
-	neg	d0
-	move	d0,d2
-	bsr	g2_get_shift_movspeed	; v59: SHIFT run = 150% speed for KEYBMOUSE
-	muls	d0,d2
-	move	d2,d0
-	move	d0,d1
-	muls	2(a1),d0
-	add.l	d0,d0
-	muls	6(a1),d1
-	add.l	d1,d1
-	neg.l	d0
-	add.l	d0,d6
-	add.l	d1,d7
-.kmnostep	move	d5,d0
-	beq.s	.kmdonevec
-	move.l	camrots(pc),a1	; v35: strafe uses camrot table base, not forward-rotated entry
-	lsl	#6,d0
-	add	ob_rot(a5),d0
-	and	#255,d0
-	lea	0(a1,d0*8),a1
-	bsr	g2_get_shift_movspeed	; v59: SHIFT run = 150% speed for KEYBMOUSE strafe
-	move	d0,d1
-	muls	2(a1),d0
-	add.l	d0,d0
-	muls	6(a1),d1
-	add.l	d1,d1
-	neg.l	d0
-	add.l	d0,d6
-	add.l	d1,d7
-.kmdonevec	movem.l	(a7)+,d4-d5/a1
-	bra	.check
-.normmove	move	joyy(pc),d0
+	move	joyy(pc),d0
 	bne	.move
 	move	joys(pc),d0
-	beq.w	.still
+	beq.s	.still
 	move	joyx(pc),d0
 	bne.s	.strafe
 	;
@@ -6892,24 +4768,6 @@ moveplayer	;work out movement vector into d0/d1...check still/moving!
 	and	#3,ob_frame(a5)
 	rts
 
-; v59: KEYBMOUSE run modifier.  Left or right SHIFT keeps the existing
-; W/X/A/D and cursor movement logic, but raises the effective move speed
-; to approximately 150%.  It reads the existing rawmatrix bits, so no new
-; keyboard poller is introduced.
-g2_get_shift_movspeed
-	move	ob_movspeed(a5),d0
-	movem.l	d1/a0,-(a7)
-	move.l	rawtable,a0
-	move.b	12(a0),d1	; raw $60/$61 = left/right SHIFT bits
-	and.b	#3,d1
-	beq.s	.g2gsm_done
-	move	d0,d1
-	asr	#1,d1
-	add	d1,d0
-.g2gsm_done
-	movem.l	(a7)+,d1/a0
-	rts
-
 checkevent	bsr	checknew2
 	beq.s	.rts
 	;
@@ -6950,7 +4808,7 @@ checkevent	bsr	checknew2
 	;
 .noclr	move.l	a5,eventobj
 	movem.l	d6-d7,-(a7)
-	jsr	execevent
+	bsr	execevent
 	movem.l	(a7)+,d6-d7
 	move.l	eventobj(pc),a5
 	;
@@ -7007,12 +4865,6 @@ playerlogic0	;restart after death...2 seconds invincibility.
 	move.l	#playerlogic,ob_logic(a5)
 playerlogic	;
 	bsr	playertimers	;do timer stuff...
-	jsr	trainer_maintain_one	;v115: permanent trainer options, including level/pickup override
-	; v100: once teleport/exit pixel-fade begins, freeze player control so
-	; the player cannot keep walking while the blue teleport effect runs.
-	move	ob_pixsize(a5),d0
-	or	ob_pixsizeadd(a5),d0
-	bne	rts		;v100a: generic return label, not checkfire's local .rts
 	bsr	getcntrl	;player control
 	;
 	move.l	ob_x(a5),d6
@@ -7039,11 +4891,6 @@ playerlogic	;
 .newok	;
 	bsr	checksuck
 	bsr	checkevent	;in an event zone?
-	; v100: checkevent can start teleport this same frame; do not still rotate,
-	; move or fire after the transition has already started.
-	move	ob_pixsize(a5),d0
-	or	ob_pixsizeadd(a5),d0
-	bne	rts		;v100a: generic return label, not checkfire's local .rts
 	bsr	rotplayer	;rotate
 	bsr	moveplayer	;forward/back/strafe
 checkfire	;
@@ -7113,21 +4960,12 @@ checkfire	;
 .nomega	bsr	shoot
 	;
 .shdone	move.l	(a7)+,a0
-	move	#3,g2gun_firetimer	;v79: 3-frame single-shape flash 1x->1.6x->2.4x
 	move.l	(a0),a0
 	moveq	#32,d0
 	moveq	#0,d1
 	bsr	playsfx
 	;
-	; v84: make the already-slower base fire frequency another ~30% slower
-	; again, while still leaving ob_reload itself untouched so the weapon /
-	; statusbar upgrade display remains correct.  Keep upgrade speedups
-	; intact by scaling the actual reload counter to about 3.4x ob_reload.
-	moveq	#0,d0
-	move.b	ob_reload(a5),d0
-	mulu	#17,d0
-	divu	#5,d0
-	move.b	d0,ob_reloadcnt(a5)
+	move.b	ob_reload(a5),ob_reloadcnt(a5)
 	rts
 	;
 .nofire	tst.b	ob_reloadcnt(a5)
@@ -7178,13 +5016,9 @@ adjustpos	bsr	adjustposq
 
 checkfireb	move	joyb(pc),d0
 	beq.s	.nofire
-	cmp	#0,ob_cntrl(a5)	; v34 KEYBMOUSE keeps firing while held
-	beq.s	.kmfire
 	tst	ob_lastbut(a5)
 	bne.s	.skip
 	move	d0,ob_lastbut(a5)
-	rts
-.kmfire	move	d0,ob_lastbut(a5)
 	rts
 .skip	moveq	#0,d0
 	rts
@@ -7365,17 +5199,6 @@ drawblood	clr	scrnblood
 	cmp	maxy(pc),d1
 	bge	.loop
 	;
-	; v34: same wall-occlusion test as stable gloom.s v45a.
-	; Blood is drawn after walls, so reject droplets behind the nearest wall
-	; in the projected screen column.
-	move	d0,d4
-	add	midx(pc),d4
-	move.l	vertdraws(pc),a0
-	mulu	#vd_size,d4
-	lea	0(a0,d4),a0
-	cmp	vd_z(a0),d2
-	bcc	.loop
-	;
 	cmp	#40,d2
 	bcc.s	.pix
 	tst	bl_y(a5)
@@ -7387,81 +5210,51 @@ drawblood	clr	scrnblood
 	clr	bl_color(a5)
 	bra	.loop
 .pix	;
-	move	d0,d4	;projected relative X for bounds of 2x2 splat
-	move	d1,d5	;projected relative Y for bounds of 2x2 splat
 	add	midx(pc),d0
 	add	midy(pc),d1
 	;
 	move.l	darktable(pc),a0
 	move	0(a0,d2*2),d3
 	;
-	; v31: chunky blood must use byte writes.  The old planar/cop path
-	; wrote a word through COP/wi_bmap and could corrupt the chunky/C2P
-	; frame or hit the legacy screen-splat blit path.  Keep the original
-	; particle projection, but draw a small guarded 2x2 block into chunky.
-	;
-	move.l	d1,d7
-	mulu	chunkymodw(pc),d7	;row offset
-	;
-	lea	blcols,a0
-	move	0(a0,d3*2),d3
-	and	d6,d3
-	;
-	; v32: convert 12-bit RGB blood colour to the active 8-bit chunky
-	; palette index.  v31 wrote the low byte of $f00/$c00/etc. directly,
-	; which becomes 0 for red blood and therefore drew black splats.
-	move.l	planar_remap(pc),a0
-	tst.l	a0
-	beq.s	.v32_blood_fallback_red
-	move.b	0(a0,d3.w),d3
-	bra.s	.v32_blood_color_ok
-.v32_blood_fallback_red
-	moveq	#12,d3
-.v32_blood_color_ok
-	;
 	move.l	chunky(pc),a1
+	;
 	lea	coloffs,a2
 	add.l	0(a2,d0*4),a1
-	move.b	d3,0(a1,d7.l)
+	mulu	chunkymod(pc),d1
 	;
-	move	d4,d6	;relative X from before midx add
-	addq	#1,d6
-	cmp	maxx(pc),d6
-	bge.s	.no_x2
-	move	d0,d6
-	addq	#1,d6
-	move.l	chunky(pc),a3
-	add.l	0(a2,d6*4),a3
-	move.b	d3,0(a3,d7.l)
-.no_x2	;
-	move	d5,d6	;relative Y from before midy add
-	addq	#1,d6
-	cmp	maxy(pc),d6
-	bge.s	.no_y2
-	move.l	d7,d6
-	move	chunkymodw(pc),d5
-	ext.l	d5
-	add.l	d5,d6
-	move.b	d3,0(a1,d6.l)
-	;
-	move	d4,d5
-	addq	#1,d5
-	cmp	maxx(pc),d5
-	bge.s	.no_y2
-	move	d0,d5
-	addq	#1,d5
-	move.l	chunky(pc),a3
-	add.l	0(a2,d5*4),a3
-	move.b	d3,0(a3,d6.l)
-.no_y2	bra	.loop
+	move	blcols(pc,d3*2),d3
+	and	d6,d3
+	move	d3,0(a1,d1.l)
+	bra	.loop
 	;
 .done	move	#$8020,$dff09a
 	;
-	; v31: disable legacy close-up screen splat blit for now.  It uses
-	; font/wi_bmap planar drawing and was the likely crash path in the
-	; new chunky/C2P renderer.  World blood and gore remain active.
+	move	scrnblood(pc),d0
+	beq.s	.rts
 	clr	scrnblood
-	rts
+	;
+	bsr	rndw2
+	and	#3,d0
+	add	#51,d0
+	move	d0,d2	;splat#
+	;
+	move.l	window(pc),a0
+	move	wi_bh(a0),d0
+	subq	#8,d0
+	bsr	rndn2
+	move	d0,d3	;Y
+	;
+	move	wi_bw(a0),d0
+	subq	#8,d0
+	bsr	rndn2
+	add	wi_x(a0),d0	;X
+	;
+	move	d3,d1
+	move.l	wi_bmap(a0),a1
+	move.l	font(pc),a0
+	bra	blit
+	;
+.rts	rts
 
 blcols	dc	$ccc,$bbb,$aaa,$999,$888,$777,$666,$555
 	dc	$444,$333,$222,$111,$111,$111,$111,$111
@@ -7536,7 +5329,6 @@ drawshape_q	;
 	move.l	memat(pc),a1
 	add.l	#sh_size,memat
 	movem	d0-d2,sh_x(a1)
-	move.l	g2_shape_owner,sh_prev(a1)	;v126 object owner copied into draw item
 	move.l	a0,sh_shape(a1)
 	move	d7,sh_scale(a1)
 	move.l	shaperender(pc),sh_render(a1)
@@ -7598,7 +5390,7 @@ checknew_	movem.l	d3-d7,-(a7)
 	lea	checkoffs(pc),a1	;where to check from
 	move.l	map_poly(pc),a2
 	bsr	incframe
-	move	frame,d3
+	move	frame(pc),d3
 	moveq	#8,d5		;nine squares
 	;
 .loop	movem	(a1)+,d0-d1
@@ -7668,7 +5460,7 @@ checknewslow	;check wall zone
 	lea	checkoffs(pc),a1	;where to check from
 	move.l	map_poly(pc),a2
 	bsr	incframe
-	move	frame,d3
+	move	frame(pc),d3
 	moveq	#8,d5		;nine squares
 	move	#$3fff,closest
 	;
@@ -8041,7 +5833,7 @@ readcd321	;into a0 block
 
 readkeys	;into a0 block
 	;
-	move.l	rawtable,a1
+	move.l	rawtable(pc),a1
 	moveq	#0,d0
 	keya1	$4f
 	beq.s	.nleft
@@ -8072,106 +5864,6 @@ readkeys	;into a0 block
 	beq.s	.nstr
 	moveq	#-1,d0
 .nstr	move	d0,6(a0)
-	rts
-
-readkeymouse	;keyboard plus mouse into a0 block
-	; v34: imported from stable gloom.s v29a/WAXD.
-	; W/A/X/D are tracked in rawkeyread; X is backward, avoiding S+A/S+D rollover.
-	movem.l	d1-d3/a1,-(a7)
-	move.l	rawtable,a1
-	clr	(a0)
-	clr	2(a0)
-	clr	4(a0)
-	clr	6(a0)
-	moveq	#0,d0
-	keya1	$63	; cursor up
-	bne.s	.km_up
-	keya1	$4c	; numpad up
-	bne.s	.km_up
-	btst	#1,wasd_state	; W held
-	beq.s	.km_nup
-.km_up	moveq	#-1,d0
-.km_nup	; v118: do not treat raw $60 as KEYBMOUSE down here.
-	; $60 is left SHIFT in the raw matrix and is used as run modifier;
-	; keeping it as down made SHIFT+W / SHIFT+cursor-up walk backward.
-	keya1	$4d	; cursor/numpad down
-	bne.s	.km_down
-	btst	#3,wasd_state	; X held = backward
-	beq.s	.km_ndown
-.km_down	moveq	#1,d0
-.km_ndown	move	d0,2(a0)
-	moveq	#0,d0
-	keya1	$4f	; cursor left
-	bne.s	.km_left
-	btst	#2,wasd_state	; A held
-	beq.s	.km_nleft
-.km_left	moveq	#-1,d0
-.km_nleft	keya1	$4e	; cursor right
-	bne.s	.km_rite
-	btst	#4,wasd_state	; D held
-	beq.s	.km_nrite
-.km_rite	moveq	#1,d0
-.km_nrite	tst	d0
-	beq.s	.km_nostrafe
-	move	d0,(a0)
-	move	#-1,6(a0)
-.km_nostrafe	moveq	#0,d0
-	keya1	$66
-	beq.s	.km_nkeyfire
-	moveq	#-1,d0
-.km_nkeyfire	move	d0,4(a0)
-	btst	#6,$bfe001	; left mouse button = fire
-	bne.s	.km_nolmfire
-	move	#-1,4(a0)
-.km_nolmfire	movem.l	(a7)+,d1-d3/a1
-	rts
-
-sample_keymouse_vb	;v34/v29a: VBlank direct mouse yaw for KEYBMOUSE, mid speed
-	movem.l	d0-d2/a5,-(a7)
-	move	$dff00a,d1
-	move.b	d1,d0
-	tst	mousexinit
-	bne.s	.kmvb_have_last
-	move.b	d0,mousexlast
-	move	#-1,mousexinit
-	bra.s	.kmvb_done
-.kmvb_have_last	move.b	mousexlast,d2
-	move.b	d0,mousexlast
-	sub.b	d2,d0
-	ext.w	d0
-	beq.s	.kmvb_done
-	cmp	#24,d0
-	ble.s	.kmvb_pos_ok
-	moveq	#24,d0
-	bra.s	.kmvb_apply
-.kmvb_pos_ok	cmp	#-24,d0
-	bge.s	.kmvb_apply
-	moveq	#-24,d0
-.kmvb_apply	tst	paused
-	bne.s	.kmvb_done
-	move.l	player1,a5
-	tst.l	a5
-	beq.s	.kmvb_done
-	; v102: while teleporting or dead, never apply live mouse yaw.  The death
-	; animation may still spin/fall by script, but once the body is down the
-	; player can no longer turn the camera.
-	move	ob_pixsize(a5),d1
-	or	ob_pixsizeadd(a5),d1
-	bne.s	.kmvb_done
-	tst	ob_hitpoints(a5)
-	ble.s	.kmvb_done
-	cmp	#0,ob_cntrl(a5)
-	bne.s	.kmvb_done
-	ext.l	d0
-	swap	d0
-	clr.w	d0
-	move.l	d0,d1
-	asr.l	#3,d0
-	asr.l	#4,d1
-	add.l	d1,d0
-	add.l	d0,ob_rot(a5)
-	clr.l	ob_rotspeed(a5)
-.kmvb_done	movem.l	(a7)+,d0-d2/a5
 	rts
 
 gridoffs	incbin	gridoffs4.bin
@@ -8375,7 +6067,7 @@ makeoutlist	;create outlist from inlist
 .done	rts
 
 dothezone2	;
-	move	frame,d0
+	move	frame(pc),d0
 	cmp	zo_done(a1),d0
 	beq.s	.rts
 	move	d0,zo_done(a1)
@@ -8420,7 +6112,7 @@ dothezone2	;
 .rts	rts
 
 dothezone	;
-	move	frame,d0
+	move	frame(pc),d0
 	cmp	zo_done(a1),d0
 	beq	rts ;.skip3
 	move	d0,zo_done(a1)
@@ -8567,7 +6259,7 @@ dothezone3	move	d0,d4
 	;
 .skip3	rts
 
-	;elseif
+	elseif
 
 makeoutlist2	;create outlist from inlist
 	;
@@ -8718,7 +6410,7 @@ makeoutlist2	;create outlist from inlist
 	;bne	.loop0
 	rts
 
-	;elseif
+	elseif
 
 castwalls	;process 'walls' list
 	;
@@ -8863,7 +6555,7 @@ castwalls	;process 'walls' list
 	sub	d3,d4	;y1,hite
 	movem	d3-d4,vd_y(a0)
 	;
-	;elseif
+	elseif
 	;
 	moveq	#64,d5
 	swap	d5
@@ -8876,21 +6568,20 @@ castwalls	;process 'walls' list
 	;
 	divu.l	d4,d5
 	;
-	;elseif
-	;v14: disabled old alternate quarter wall texture step.
-	;This is the same class of wall-texture fix as the stable gloom.s path.
-;	neg	d3
-;	neg	d5
-;	cmp	#-128,camy
-;	sle	d4
-;	ext	d4
-;	add	d4,d5
-;	;
-;	swap	d5
-;	clr	d5
-;	ext.l	d3
-;	divu.l	d3,d5	;sc step
-;	asr.l	#2,d5
+	elseif
+	;
+	neg	d3
+	neg	d5
+	cmp	#-128,camy
+	sle	d4
+	ext	d4
+	add	d4,d5
+	;
+	swap	d5
+	clr	d5
+	ext.l	d3
+	divu.l	d3,d5	;sc step
+	asr.l	#2,d5
 	;
 	;elseif
 	;
@@ -9019,14 +6710,6 @@ drawshapes	lea	shapelist(pc),a6
 .drawloop	move.l	(a6),d0
 	beq	.rts
 	move.l	d0,a6
-	; v190ay: beyond the hard far-fog distance, do not draw later
-	; shape/wallstrip overlays at all.  They were rendered after the far
-	; corridor fog and could appear as horizontal wrong-texture lines inside
-	; the dark zone.  Real far walls/floors are already handled by the wall
-	; renderer/fog; sprites and transparent strips should only fade in before
-	; they reach this fully dark distance.
-	cmp	#(6<<grdshft),sh_z(a6)
-	bcc	.drawloop
 	move.l	sh_shape(a6),d0
 	bne.s	.shape
 	;
@@ -9165,7 +6848,6 @@ drawshapes	lea	shapelist(pc),a6
 	;a1.l=dest
 	;a2.l=palette
 	;
-	bsr	g2_setup_enemy_blob_column	;v126 hard-edged per-column shadow under enemies
 	lea	coloffs,a5
 	lea	0(a5,d7*4),a5
 	;
@@ -9190,7 +6872,6 @@ drawshapes	lea	shapelist(pc),a6
 	addq	#2,a0
 	;
 	jsr	(a3)	;drawobjnorm/invs
-	clr	g2_shadow_active	;v126 shadow state belongs to this one sprite
 	;
 	move.l	(a7)+,a6
 	bra	.drawloop
@@ -9284,14 +6965,10 @@ drawobjtrans	;draw transparent object (merge both colours!)
 	addx	d0,d1	;xtend
 	add.l	d7,a4
 	dbf	d4,.vloop
-	bsr	g2_draw_enemy_blob_column	;v173 reflections below transparent/invisible pickups too
 	;
 	movem.l	(a7)+,d0-d5/a5-a6
 	;
-.zbad	tst	g2_shadow_active
-	ble.s	.noshinc
-	addq	#1,g2_shadow_curx
-.noshinc	add.l	d5,d0
+.zbad	add.l	d5,d0
 	moveq	#0,d7
 	addx.l	d7,d0	;next src X
 	lea	vd_size(a6),a6
@@ -9332,14 +7009,10 @@ drawobjnorm	;normal draw object...
 .skip	addx.l	d6,d1	;next src Y
 	add.l	d7,a4
 	dbf	d4,.vloop
-	bsr	g2_draw_enemy_blob_column	;v126 hard-edged dark column below enemy feet
 	;
 	movem.l	(a7)+,d0-d1/d4-d5
 	;
-.zbad	tst	g2_shadow_active
-	ble	.noshinc
-	addq	#1,g2_shadow_curx
-.noshinc	add.l	d5,d0
+.zbad	add.l	d5,d0
 	moveq	#0,d7
 	addx.l	d7,d0	;next src X
 	lea	vd_size(a6),a6
@@ -9377,568 +7050,6 @@ thermostrip	movem.l	d0-d2/d4-d5,-(a7)
 	;
 	rts
 
-
-; -----------------------------------------------------------------------------
-; v137/v176 enemy blob shadows + floor-anchored multi-colour reflections.
-; Blob shadows keep the confirmed hard-edged foot shadow path.  Reflections are
-; palette/dither based: darker projectile colour with sparse bright tint.
-; Projectiles use a wide oval, and pickup rings stay on the floor all the time.
-; -----------------------------------------------------------------------------
-g2_setup_enemy_blob_column
-	movem.l	d0-d7/a0-a2,-(a7)
-	clr	g2_shadow_active
-	move.l	sh_prev(a6),a2	;object owner copied when shape was queued
-	tst.l	a2
-	beq	.done
-	move.l	player1(pc),d0
-	cmp.l	d0,a2
-	beq	.done
-	move.l	player2(pc),d0
-	cmp.l	d0,a2
-	beq	.done
-	;
-	; v132: reflections first.  The accidental projectile shadows in v126 showed
-	; that bullets also pass this same draw path, so use it deliberately now.
-	tst	g2_reflections
-	ble	.try_blob
-	move.l	ob_logic(a2),d0
-	cmp.l	#firelogic,d0
-	beq	.setup_reflection
-	cmp.l	#homeinlogic,d0
-	beq	.setup_reflection
-	cmp.l	#weaponlogic,d0
-	beq	.setup_reflection
-	; v169: minimal stationaere Powerup-Reflections, bewusst eng
-	; gefiltert.  Nicht alle rts-Objekte reflektieren, nur bekannte
-	; Upgrade-/Pickup-Hit-Handler plus Bouncy-Logic.
-	cmp.l	#bouncylogic,d0
-	beq	.setup_reflection
-	move.l	ob_hit(a2),d0
-	cmp.l	#bouncygot,d0
-	beq	.setup_reflection
-	cmp.l	#weapongot,d0
-	beq	.setup_reflection
-	cmp.l	#thermogot,d0
-	beq	.setup_reflection
-	cmp.l	#invisigot,d0
-	beq	.setup_reflection
-	cmp.l	#invincgot,d0
-	beq	.setup_reflection
-	bra	.try_blob
-	;
-.setup_reflection
-	bsr	g2_prepare_reflection_column
-	bra	.done
-	;
-.try_blob
-	tst	g2_blobshadow
-	ble	.done
-	; v127: bullets use colltype 1/2/4 and were visible in v126.
-	; Real monsters use colltype 0 here, so keep shadows enemy-only.
-	tst	ob_colltype(a2)
-	bne	.done
-	tst	ob_hitpoints(a2)
-	ble	.done
-	; v128: keep blob shadows only in the near range.
-	; Far floors are already heavily darkened by distance shading, and a fixed
-	; palette blob can look brighter there.  About three map/texture widths
-	; (=3*gs) is the visible cutoff.
-	cmp	#3<<grdshft,d2
-	bgt	.done
-	; d7=start screen column, d3=visible clipped sprite width
-	move	d7,g2_shadow_curx
-	move	d7,d0
-	move	d3,d1
-	lsr	#1,d1
-	add	d1,d0
-	move	d0,g2_shadow_cx
-	; v130: foot-width blob, not full body width.  Use about half the
-	; visible sprite width as the total shadow width (radius = width/4).
-	move	d3,d0
-	lsr	#2,d0
-	cmp	#3,d0
-	bge	.rx_min_ok
-	moveq	#3,d0
-.rx_min_ok
-	cmp	#16,d0
-	ble	.rx_max_ok
-	moveq	#16,d0
-.rx_max_ok
-	move	d0,g2_shadow_rx
-	moveq	#1,d0	;v129 fallback: darker blob shadow
-	move.l	planar_remap(pc),a0
-	tst.l	a0
-	beq	.col_ok
-	move	#$111,d1	;v129: darker shadow tone
-	move.b	0(a0,d1.w),d0
-	bne	.col_ok
-	move	#$222,d1
-	move.b	0(a0,d1.w),d0
-	bne	.col_ok
-	moveq	#1,d0
-.col_ok	move	d0,g2_shadow_col
-	move	#1,g2_shadow_active
-.done	movem.l	(a7)+,d0-d7/a0-a2
-	rts
-
-; prepare coloured reflection under bullets or weapon pickups.
-; active=2 means reflection, active=1 means enemy blob shadow.
-g2_prepare_reflection_column
-	; d7=start screen column, d3=visible clipped sprite width, a2=object
-	; v170: projectiles now cast a reflection about as wide as the visible
-	; projectile itself.  Stationary upgrade/pickup reflections stay anchored
-	; on the floor and only pulse lightly at the low/bottom part of their
-	; bobbing/animation phase.
-	cmp	#3<<grdshft,d2
-	bgt	.no_reflect
-	move	d7,g2_shadow_curx
-	move	d7,d0
-	move	d3,d1
-	lsr	#1,d1
-	add	d1,d0
-	move	d0,g2_shadow_cx
-	clr	g2_reflect_pickup
-	bsr	g2_reflect_owner_is_pickup
-	tst	d0
-	beq	.bullet_size
-	move	#1,g2_reflect_pickup
-	; v182: weapon upgrades should read more like projectile reflections:
-	; still clearly visible, but smaller in the distance and less oversized.
-	move.l	ob_hit(a2),d1
-	cmp.l	#weapongot,d1
-	bne.s	.pick_token_size
-	move	d3,d0
-	lsr	#1,d0
-	cmp	#3,d0
-	bge	.wp_min_ok
-	moveq	#3,d0
-.wp_min_ok
-	cmp	#16,d0
-	ble	.wp_pulse
-	moveq	#16,d0
-.wp_pulse
-	; v185: weapon-upgrade reflections stay visible at their base size.
-	; Only the brief floor-touch moment should make the oval swell.
-	move	ob_y(a2),d1
-	bpl.s	.wp_y_abs
-	neg	d1
-.wp_y_abs	cmp	#4,d1
-	bgt.s	.pick_pulse_done
-	move	d0,d1
-	lsr	#1,d1
-	add	d1,d0
-	cmp	#24,d0
-	ble.s	.pick_pulse_done
-	moveq	#24,d0
-	bra.s	.pick_pulse_done
-.pick_token_size
-	move	d3,d0
-	; v182: token/powerup upgrades also use a projectile-like oval that can
-	; shrink properly with distance instead of staying too large far away.
-	lsr	#1,d0
-	cmp	#2,d0
-	bge	.up_min_ok
-	moveq	#2,d0
-.up_min_ok
-	cmp	#14,d0
-	ble	.pick_pulse
-	moveq	#14,d0
-.pick_pulse
-	; v185: token/powerup reflections are always visible at their base size.
-	; Only the brief floor-touch moment should increase the oval.
-	move	ob_y(a2),d1
-	bpl.s	.pick_y_abs
-	neg	d1
-.pick_y_abs	cmp	#4,d1
-	bgt.s	.pick_pulse_done
-	move	d0,d1
-	lsr	#1,d1
-	add	d1,d0
-	cmp	#21,d0
-	ble.s	.pick_pulse_done
-	moveq	#21,d0
-.pick_pulse_done
-	bra	.rx_ok
-.bullet_size
-	move	d3,d0
-	; v170: projectile reflection diameter ~= projectile width, so radius
-	; ~= visible width / 2 instead of the older smaller width / 3 shadow.
-	lsr	#1,d0
-	cmp	#2,d0
-	bge	.bul_min_ok
-	moveq	#2,d0
-.bul_min_ok
-	cmp	#16,d0
-	ble	.rx_ok
-	moveq	#16,d0
-.rx_ok
-	move	d0,g2_shadow_rx
-	; v181: pickups get an absolute projected floor row, so their reflection
-	; can be anchored to the same floor plane as projectile reflections
-	; without following the bobbing sprite bitmap.  Projectiles keep the old
-	; relative y-offset path.
-	clr	g2_shadow_yoff
-	clr	g2_reflect_floorrow
-	tst	g2_reflect_pickup
-	beq.s	.projectile_floor_yoff
-	move	camy(pc),d0
-	neg	d0
-	ext.l	d0
-	asl.l	#focshft,d0
-	divs	d2,d0
-	add	midy(pc),d0
-	addq	#2,d0		; v189: back to the v186 pickup reflection baseline, but about 2px higher
-	cmp	#2,d0
-	bge.s	.pick_row_min_ok
-	moveq	#2,d0
-.pick_row_min_ok
-	move	hite(pc),d1
-	sub	#12,d1
-	cmp	d1,d0
-	ble.s	.pick_row_max_ok
-	move	d1,d0
-.pick_row_max_ok	move	d0,g2_reflect_floorrow
-	bra.s	.y_done
-.projectile_floor_yoff
-	move	ob_y(a2),d0
-	neg	d0
-.scale_yoff	ext.l	d0
-	asl.l	#focshft,d0
-	divs	d2,d0
-	cmp	#30,d0
-	ble	.ymax_ok
-	moveq	#30,d0
-.ymax_ok	cmp	#-16,d0
-	bge	.ymin_ok
-	move	#-16,d0
-.ymin_ok	move	d0,g2_shadow_yoff
-.y_done	bsr	g2_reflection_colour
-	move	d0,g2_shadow_col
-	move	#2,g2_shadow_active
-	rts
-.no_reflect	clr	g2_shadow_active
-	rts
-
-; v169: narrow pickup classifier used only by the reflection path.
-g2_reflect_owner_is_pickup
-	move.l	ob_logic(a2),d0
-	cmp.l	#weaponlogic,d0
-	beq.s	.yes
-	cmp.l	#bouncylogic,d0
-	beq.s	.yes
-	move.l	ob_hit(a2),d0
-	cmp.l	#bouncygot,d0
-	beq.s	.yes
-	cmp.l	#weapongot,d0
-	beq.s	.yes
-	cmp.l	#thermogot,d0
-	beq.s	.yes
-	cmp.l	#invisigot,d0
-	beq.s	.yes
-	cmp.l	#invincgot,d0
-	beq.s	.yes
-	moveq	#0,d0
-	rts
-.yes	moveq	#1,d0
-	rts
-
-g2_reflection_colour
-	; v174: use the darker projectile/upgrade colour again for the main
-	; reflection body.  The brighter table is kept only for sparse/dithered
-	; outside pixels, so the floor glow is visible but no longer over-bright.
-	movem.l	d1-d3/a0,-(a7)
-	moveq	#0,d2
-	move.l	ob_shape(a2),d1
-	cmp.l	#bullet1,d1
-	beq	.got_weapon
-	addq	#1,d2
-	cmp.l	#bullet2,d1
-	beq	.got_weapon
-	addq	#1,d2
-	cmp.l	#bullet3,d1
-	beq	.got_weapon
-	addq	#1,d2
-	cmp.l	#bullet4,d1
-	beq	.got_weapon
-	addq	#1,d2
-	cmp.l	#bullet5,d1
-	beq	.got_weapon
-	; v169/v174: colour stationary powerup reflections by pickup family.
-	move.l	ob_logic(a2),d1
-	cmp.l	#bouncylogic,d1
-	beq	.got_bouncy
-	move.l	ob_hit(a2),d1
-	cmp.l	#thermogot,d1
-	beq	.got_thermo
-	cmp.l	#invisigot,d1
-	beq	.got_invisi
-	cmp.l	#invincgot,d1
-	beq	.got_invinc
-	move	ob_weapon(a2),d2
-	bra	.got_weapon
-.got_bouncy	moveq	#1,d2	; green-ish
-	bra	.got_weapon
-.got_thermo	moveq	#3,d2	; cyan-ish
-	bra	.got_weapon
-.got_invisi	moveq	#4,d2	; magenta-ish
-	bra	.got_weapon
-.got_invinc	moveq	#0,d2	; yellow-ish
-.got_weapon
-	and	#7,d2
-	moveq	#2,d0	; dark centre/body fallback
-	moveq	#15,d3	; bright sparse edge fallback
-	move.l	planar_remap(pc),a0
-	tst.l	a0
-	beq	.store_edge
-	lea	g2_reflect_dark_rgb(pc),a0
-	move	0(a0,d2*2),d1
-	move.l	planar_remap(pc),a0
-	move.b	0(a0,d1.w),d0
-	bne	.edge_colour
-	moveq	#2,d0
-.edge_colour	lea	g2_reflect_rgb(pc),a0
-	move	0(a0,d2*2),d1
-	move.l	planar_remap(pc),a0
-	move.b	0(a0,d1.w),d3
-	bne	.store_edge
-	moveq	#15,d3
-.store_edge	move	d3,g2_reflect_edge_col
-	movem.l	(a7)+,d1-d3/a0
-	rts
-
-; RGB12 colours, remapped to the active Gloom palette at runtime.
-; v174 weapon/projectile colours: 1 yellow, 2 green, 3 green/white,
-; 4 blue/white, 5 magenta.  Dark table is the visible reflection body;
-; bright table is used sparsely on the outside only.
-g2_reflect_dark_rgb
-	dc	$520,$040,$030,$006,$404,$520,$040,$030
-g2_reflect_rgb
-	dc	$960,$0a0,$6f6,$66f,$a0a,$960,$0a0,$6f6
-
-g2_draw_enemy_blob_column
-	; called from drawobjnorm/drawobjtrans after the current sprite column was drawn.
-	; a4 points one row below the drawn/clipped sprite column.
-	movem.l	d0-d7/a0-a1,-(a7)
-	tst	g2_shadow_active
-	ble	.rts
-	cmp	#2,g2_shadow_active
-	beq	.reflection
-	move	g2_shadow_curx(pc),d0
-	move	d0,d1
-	sub	g2_shadow_cx(pc),d1
-	bpl	.abs_ok
-	neg	d1
-.abs_ok	move	g2_shadow_rx(pc),d2
-	cmp	d2,d1
-	bgt	.rts
-	; v130: narrower, more oval hard-edged foot shadow.  The centre is
-	; a little thicker, but the outer columns stay 1 pixel high so the shape
-	; reads as an ellipse instead of a wide flat diamond/karo.
-	moveq	#2,d5	;outer edge vertical offset
-	moveq	#0,d6	;dbf count: 1 row
-	move	d2,d3
-	mulu	#7,d3
-	lsr	#3,d3	;7/8 radius: thin outer edge
-	cmp	d3,d1
-	bgt	.have_band
-	moveq	#1,d5
-	moveq	#1,d6	;2 rows in broad mid band
-	move	d2,d3
-	lsr	#1,d3	;1/2 radius
-	cmp	d3,d1
-	bgt	.have_band
-	moveq	#0,d5
-	moveq	#2,d6	;3 rows in centre
-	move	d2,d3
-	lsr	#2,d3	;1/4 radius
-	cmp	d3,d1
-	bgt	.have_band
-	moveq	#0,d5
-	moveq	#2,d6	;keep hard oval centre, no tall diamond peak
-.have_band
-	move.l	a4,a0
-	move.l	chunkymod(pc),d7
-	sub.l	d7,a0	;v132: one pixel lower than v131, still above v130
-	sub.l	d7,a0
-	sub.l	d7,a0
-	; skip down by start offset
-	tst	d5
-	beq	.draw
-.offloop	adda.l	d7,a0
-	subq	#1,d5
-	bne	.offloop
-.draw	move	g2_shadow_col(pc),d4
-.yloop	move.b	d4,(a0)
-	adda.l	d7,a0
-	dbf	d6,.yloop
-	bra	.rts
-	;
-.reflection
-	move	g2_shadow_curx(pc),d0
-	move	d0,d1
-	sub	g2_shadow_cx(pc),d1
-	bpl	.rabs_ok
-	neg	d1
-.rabs_ok	move	g2_shadow_rx(pc),d2
-	cmp	d2,d1
-	bgt	.rts
-	; v172: projectiles get a real oval instead of the too-flat one-line
-	; stroke from v171.  Stationary pickups keep a floor oval and can pulse.
-	clr	g2_reflect_softedge
-	tst	g2_reflect_pickup
-	bne.s	.pickup_band
-	moveq	#2,d5	;projectile outer edge: low, wide oval
-	moveq	#0,d6	;1 row
-	move	d2,d3
-	mulu	#7,d3
-	lsr	#3,d3	;7/8 radius sparse outer rim
-	cmp	d3,d1
-	bgt	.rsoft_outer
-	moveq	#1,d5
-	moveq	#1,d6	;2-row mid band
-	move	d2,d3
-	lsr	#1,d3	;1/2 radius
-	cmp	d3,d1
-	bgt	.rsoft_mid
-	moveq	#0,d5
-	moveq	#2,d6	;3-row dark centre, still oval not a line
-	bra	.rband_ok
-.pickup_band
-	; v182: draw pickup/upgrade reflections with the same oval profile as
-	; projectile reflections, so they do not read as flatter rings.
-	moveq	#2,d5	;outer edge: low, wide oval
-	moveq	#0,d6	;1 row
-	move	d2,d3
-	mulu	#7,d3
-	lsr	#3,d3	;7/8 radius sparse outer rim
-	cmp	d3,d1
-	bgt	.rsoft_outer
-	moveq	#1,d5
-	moveq	#1,d6	;2-row mid band
-	move	d2,d3
-	lsr	#1,d3	;1/2 radius
-	cmp	d3,d1
-	bgt	.rsoft_mid
-	moveq	#0,d5
-	moveq	#2,d6	;3-row dark centre, still oval not a line
-	bra	.rband_ok
-.rsoft_outer
-	move	#2,g2_reflect_softedge	;outer edge: sparse dither
-	bra	.rband_ok
-.rsoft_mid
-	move	#1,g2_reflect_softedge	;mid edge: light dither
-.rband_ok
-	move.l	chunkymod(pc),d7
-	tst	g2_reflect_pickup
-	bne.s	.pick_anchor_a
-	move.l	a4,a0
-	sub.l	d7,a0
-	sub.l	d7,a0
-	; projectile path: relative floor-anchor from sprite underside.
-	move	g2_shadow_yoff(pc),d3
-	beq	.yoff_done
-	bmi	.yoff_up
-.yoff_down	adda.l	d7,a0
-	subq	#1,d3
-	bne	.yoff_down
-	bra	.yoff_done
-.yoff_up	neg	d3
-.yoff_up_loop	suba.l	d7,a0
-	subq	#1,d3
-	bne	.yoff_up_loop
-	bra.s	.yoff_done
-.pick_anchor_a
-	move.l	chunky(pc),d0
-	move	g2_shadow_curx(pc),d4
-	lsl	#2,d4
-	lea	coloffs(pc),a0
-	add.l	0(a0,d4.w),d0
-	move.l	d0,a0
-	move	g2_reflect_floorrow(pc),d3
-	mulu	chunkymodw(pc),d3
-	add.l	d3,a0
-	sub.l	d7,a0
-	sub.l	d7,a0
-.yoff_done
-	; safety: never let reflections write into the status/gun area.
-	move.l	chunky(pc),a1
-	move	g2_shadow_curx(pc),d4
-	lsl	#2,d4
-	lea	coloffs(pc),a0
-	add.l	0(a0,d4.w),a1
-	move	hite(pc),d4
-	sub	#10,d4
-	mulu	chunkymodw(pc),d4
-	add.l	d4,a1
-	tst	g2_reflect_pickup
-	bne.s	.pick_anchor_b
-	move.l	a4,a0
-	sub.l	d7,a0
-	sub.l	d7,a0
-	move	g2_shadow_yoff(pc),d3
-	beq	.clamp_yoff_done
-	bmi	.clamp_yoff_up
-.clamp_yoff_down	adda.l	d7,a0
-	subq	#1,d3
-	bne	.clamp_yoff_down
-	bra	.clamp_yoff_done
-.clamp_yoff_up	neg	d3
-.clamp_yoff_up_loop	suba.l	d7,a0
-	subq	#1,d3
-	bne	.clamp_yoff_up_loop
-	bra.s	.clamp_yoff_done
-.pick_anchor_b
-	move.l	chunky(pc),d0
-	move	g2_shadow_curx(pc),d3
-	lsl	#2,d3
-	lea	coloffs(pc),a0
-	add.l	0(a0,d3.w),d0
-	move.l	d0,a0
-	move	g2_reflect_floorrow(pc),d3
-	mulu	chunkymodw(pc),d3
-	add.l	d3,a0
-	sub.l	d7,a0
-	sub.l	d7,a0
-.clamp_yoff_done	cmp.l	a1,a0
-	bhi	.rts
-	tst	d5
-	beq	.rdraw
-.roffloop	adda.l	d7,a0
-	subq	#1,d5
-	bne	.roffloop
-.rdraw	move	g2_shadow_col(pc),d4
-	; v137 multi-colour pseudo-alpha: centre uses dark colour, the outer
-	; ellipse bands use the lighter colour and are dithered against the floor.
-	; True 80% alpha is not available in this 8-bit chunky/palette path, so
-	; use sparse writes to simulate transparency.
-	move	g2_reflect_softedge(pc),d0
-	beq	.centre_dither
-	move	g2_reflect_edge_col(pc),d4
-	move	g2_shadow_curx(pc),d3
-	add	d6,d3
-	cmp	#2,d0
-	beq	.outer_dither
-	btst	#0,d3	;mid edge: skip about half the columns/rows
-	bne	.rts
-	bra	.ryloop
-.outer_dither
-	and	#3,d3	;outer edge: keep only one in four samples
-	bne	.rts
-	bra	.ryloop
-.centre_dither
-	; v172: denser dark centre so the reflection reads as a dim oval instead
-	; of a thin bright line, while still leaving occasional floor pixels visible.
-	move	g2_shadow_curx(pc),d3
-	add	d6,d3
-	and	#7,d3
-	cmp	#7,d3
-	beq	.rts
-.ryloop	move.b	d4,(a0)
-	adda.l	d7,a0
-	dbf	d6,.ryloop
-.rts	movem.l	(a7)+,d0-d7/a0-a1
-	rts
-
 renderwalls	;
 	move.l	chunkymod(pc),d0
 	move.l	vertdraws(pc),a0
@@ -9960,87 +7071,9 @@ renderwalls	;
 	rts
 
 solidstrip	set	0
-drawstrip2	; v190bz chunky-safe transparent wall strip overlay with green glass
-	; a1=top of destination column, a2=palettes base, a4=strip/vd data
-	; Non-zero texels are drawn through the current wall palette.  Zero texels
-	; are normally transparent, except for the original Gloom strip flag -6
-	; where zero texels apply a green transparent filter to the already-rendered
-	; chunky pixel behind the strip.
-	movem.l	d0-d7/a0-a6,-(a7)
-	move.l	vd_data(a4),d0
-	beq	.rts
-	move.l	d0,a0		; source texture column, byte -1 is the strip flag
-	moveq	#0,d6		; 0 = plain transparency on texel 0
-	move.b	-1(a0),d6
-	; v190cb: handle all original coloured transparent strip flags, not only
-	; -6.  The classic renderer uses -7..-2 as coloured glass/mask selectors
-	; and -1 as neutral transparency.  Some Deluxe green windows do not arrive
-	; as exactly -6 after texture remapping, so treat every coloured flag as
-	; green-tinted for this focused green-glass restoration pass.
-	cmp.b	#$f9,d6		; -7..-2 are coloured flags
-	bcs.s	.g2st_plain
-	cmp.b	#$ff,d6		; -1 = neutral transparent/white, keep plain
-	beq.s	.g2st_plain
-	lea	g2_strip_green_lut,a6
-	moveq	#1,d6
-	bra.s	.g2st_mode_done
-.g2st_plain
-	moveq	#0,d6
-.g2st_mode_done
-	move.l	chunkymod(pc),d7
-	move	vd_y(a4),d2
-	add	midy(pc),d2	; screen Y start
-	move.l	vd_ystep(a4),d3
-	move	vd_h(a4),d4
-	moveq	#0,d0		; texture Y start, 16.16 style after swap below
-	tst	d2
-	bpl.s	.notopclip
-	add	d2,d4
-	ble	.rts
-	neg	d2
-	ext.l	d2
-	mulu.l	d3,d2
-	move.l	d2,d0
-	moveq	#0,d2
-	bra.s	.clipdone
-.notopclip
-	beq.s	.clipdone
-	move	d2,d5
-	ext.l	d5
-	mulu.l	d7,d5
-	add.l	d5,a1
-.clipdone
-	move	hite(pc),d5
-	sub	d2,d5
-	ble	.rts
-	cmp	d5,d4
-	ble.s	.hiteok
-	move	d5,d4
-.hiteok
-	subq	#1,d4
-	blt	.rts
-	swap	d0
-	swap	d3
-	sub	d3,d0
-	add.l	d3,d0
-	move	vd_pal(a4),d5
-	move.l	0(a2,d5*4),a5
-.loop
-	move.b	0(a0,d0),d5
-	beq.s	.zero
-	move.b	0(a5,d5),(a1)
-	bra.s	.advance
-.zero
-	tst	d6
-	beq.s	.advance
-	moveq	#0,d5
-	move.b	(a1),d5
-	move.b	0(a6,d5.w),(a1)
-.advance
-	addx.l	d3,d0
-	add.l	d7,a1
-	dbf	d4,.loop
-.rts	movem.l	(a7)+,d0-d7/a0-a6
+drawstrip2	;
+	;drawstrip_
+	;
 	rts
 
 	dc	$f0ff,$ff0f,$fff0
@@ -10075,13 +7108,6 @@ gloompal	dc.l	0 ;incbin	title.pal
 gloombrush	dc.l	0 ;incbin	gloombrush
 
 panel	dc.l	0
-gunpic	dc.l	0	;v20 optional misc/gun first-person weapon shape table
-g2gun_firetimer	dc	0	;v65 short muzzle/firing-frame timer
-g2gun_recoilflag	dc.b	0	;v68 nonzero while firing/recoil frame is active
-	even
-g2teleport_blackout	dc	0	;v103 black screen shown between teleport pixel effect and intermission
-g2teleport_black_hold	dc	0	;v105 black hold countdown before intermission
-g2teleport_black_finish	dc	0	;v105 delayed finished code after black hold
 panelcnt	dc.l	0	;non zero = do c2p for panel.
 offset	dc.l	0	;planar bitmap offset
 
@@ -10099,7 +7125,7 @@ bmaphite	dc	240,0
 bmapmem	dc.l	0
 
 chunkymod	dc	0
-chunkymodw	dc	320	;v44: fullscreen game render width by default
+chunkymodw	dc	testw	;128 pixels width
 planar_c2p	dc.l	0	;routines!
 c2p	dc.l	0	;the biggy
 chunky	dc.l	0	;chunky buffer
@@ -10284,14 +7310,14 @@ camrots2	dc.l	camrots2inc
 
 vertdraws	dc.l	0
 
-width	dc	320	;v44: fullscreen default
-hite	dc	224	;v44: fullscreen default leaves 16-line panel area
-minx	dc	-160	;v44: fullscreen default
+width	dc	testw
+hite	dc	testh
+minx	dc	-testw/2
 midx	;
-maxx	dc	160	;v44: fullscreen default
-miny	dc	-112	;v44: fullscreen default
+maxx	dc	testw/2
+miny	dc	-testh/2
 midy	;
-maxy	dc	112	;v44: fullscreen default
+maxy	dc	testh/2
 wdiv32	dc	0
 wrem32	dc	0
 
@@ -10332,21 +7358,21 @@ defwindow1_1p	;
 	dc.l	slice1
 	dc.l	copstop
 	;
-	;v14: use stable gloom.s fullscreen-style game window
-	dc	160-159	;fullscreen window x
-	dc	cy-120	;fullscreen window y
-	dc	106	;318 pixels wide at 3x3
-	dc	80	;240 pixels high at 3x3
+	elseif
+	dc	160-126 ;45*2
+	dc	cy-120 ;45*2
+	dc	126	;max width for 2 high = 90!
+	dc	80
+	dc	2
 	dc	3
-	dc	3
-	;elseif
+	elseif
 	;
-;	dc	160-90	;disabled alternate small 1P window
-;	dc	cy-90
-;	dc	90
-;	dc	90
-;	dc	2
-;	dc	2
+	dc	160-90
+	dc	cy-90
+	dc	90
+	dc	90
+	dc	2
+	dc	2
 	;elseif
 	;
 	dc	0,0
@@ -10641,17 +7667,6 @@ showpic	;a0=trimmed IFF file, a1=palette
 	bsr	clspic	;show a blank bitmap
 	bsr	vwait
 	movem.l	(a7),a0-a1
-	move.l	drawbitmap(pc),a1
-	bsr	decodeiff
-	movem.l	(a7)+,a0-a1
-	bsr	pokepal
-	bsr	db
-	bra	vwait
-
-showpic_noclear	;a0=trimmed IFF file, a1=palette
-	; redraw without the intermediate blank/black clear to avoid
-	; visible flicker on title/about transitions.
-	movem.l	a0-a1,-(a7)
 	move.l	drawbitmap(pc),a1
 	bsr	decodeiff
 	movem.l	(a7)+,a0-a1
@@ -11861,8 +8876,8 @@ rbf	;receive buffer full interupt
 	beq.s	.chskip
 	add.b	#32,d0
 	;
-	lea	chatin,a1
-	move	chatinput,d1
+	lea	chatin(pc),a1
+	move	chatinput(pc),d1
 	and	#31,d1
 	move.b	d0,0(a1,d1)
 	addq	#1,chatinput
@@ -11925,18 +8940,18 @@ initmed	lea	medat,a0
 	move.l	#medplayer,(a0)
 	bsr	relocate
 	;
-.noreloc	move.l	medat,a1
+.noreloc	move.l	medat(pc),a1
 	move.l	chipzero(pc),a0
 	jsr	(a1)
 	;
-	move.l	medat,a1
-	move.l	titlemed,a0
+	move.l	medat(pc),a1
+	move.l	titlemed(pc),a0
 	jsr	4(a1)
 	;
 	move.l	loadingmed(pc),d0
 	beq.s	.no
 	move.l	d0,a0
-	move.l	medat,a1
+	move.l	medat(pc),a1
 	jsr	4(a1)
 .no	;
 	rts
@@ -11948,9 +8963,7 @@ agafiles	dc.l	gloom
 	dc.b	'pics/title.pal',0
 	even
 	dc.l	gloombrush
-	; v144: original overlay file is pics/gloom, not pics/gloombrush.
-	; If it is absent, loadfile leaves gloombrush=0 and the safe overlay skips it.
-	dc.b	'pics/gloom',0
+	dc.b	'pics/gloombrush',0
 	even
 	dc.l	planar_palette
 	dc.b	'misc/palette_8',0
@@ -11982,9 +8995,6 @@ progfiles	dc.l	gloomcfg
 	even
 	dc.l	panel
 	dc.b	'misc/smallfont2.bin',0
-	even
-	dc.l	gunpic
-	dc.b	'misc/gun.bin',0	;v61 optional first-person gun
 	even
 	dc.l	titlemed+1
 	dc.b	'sfxs/med1',0
@@ -12138,7 +9148,7 @@ initmain	;
 .aga1	tst	os
 	beq.s	.os1
 	moveq	#40,d2	;linemod
-	move.l	#40*240,d3	;bpmod ;v16: restore compact 240-line plane span
+	move.l	#40*240,d3	;bpmod
 	lea	db_os,a0
 	lea	pokepal_os,a1
 .os1	;
@@ -12165,7 +9175,7 @@ initmain	;
 	allocmem	temppal
 	move.l	d0,temppal
 .osskipz	;
-	move.l	#128,d0	;v38: enough chip RAM for a full blank 16x16 Intuition pointer
+	move.l	#8,d0
 	move.l	#$10002,d1
 	allocmem	chipzero
 	move.l	d0,chipzero
@@ -12211,7 +9221,7 @@ initmain	;
 	st	paused
 	clr	dispnest
 	clr.l	font
-	jsr	initsfx
+	bsr	initsfx
 	bsr	initvbint
 	bsr	initdisplay
 	;
@@ -12228,7 +9238,6 @@ initmain	;
 	jsr	showpic
 	bsr	dispon
 	;
-	; v41h diagnostic: BlackMagic/showpic passed; continue to file-load stage.
 	move	#50,vbcounter
 	;
 	lea	progfiles,a0
@@ -12238,111 +9247,49 @@ initmain	;
 	bne.s	.lf
 	lea	ecsfiles,a0
 .lf	bsr	loadfiles
-	jsr	g2loadgunfallback	;v61: optional misc/stuf gun.bin fallback
 	;
-	; v41i diagnostic: progfiles/agafiles loaded OK.
-	; Continue into gloomcfg/C2P filename + C2P load stage.
+	;load in c2p routine
 	;
-		;load in c2p routine
-		;
-		; v13: use the known original path directly.  If the external
-		; c2p/blackmagic_1 can not be opened for any reason, fall back
-		; to the built-in blackmagic_1-compatible converter below.
-		; This avoids the old bogus low-address c2p pointer and lets the
-		; gameplay renderer continue even when the external helper is not
-		; found from the current directory.
-		;
-		move.l	#g2v13_c2pname,a0
-		moveq	#1,d1
-		bsr	loadfile
-		move.l	d0,planar_c2p
-		;
-		move.l	planar_c2p(pc),a2
-		tst.l	a2
-		bne.s	.g2v13_external_c2p
-		tst	aga
-		bne.s	.g2v13_internal_aga
-		move.l	#g2v13_doc2p_1X1X6,a0
-		bra.s	.g2v13_c2p_set
-.g2v13_internal_aga
-		move.l	#g2v13_doc2p_1X1X8,a0
-		bra.s	.g2v13_c2p_set
-.g2v13_external_c2p
-		lea	36(a2),a0
-		tst	aga
-		bne.s	.g2v13_c2p_set
-		lea	40(a2),a0
-.g2v13_c2p_set
-		move.l	a0,c2p
-		;
-	; v41j diagnostic: C2P file loaded and pointer set.
-	; Continue into C2P inittables, then hold immediately after it returns.
+	move.l	gloomcfg(pc),a0
+	lea	text,a1
+	move.l	#'c2p/',(a1)+
+	addq	#2,a0
+.cc	move.b	(a0)+,(a1)
+	cmp.b	#10,(a1)+
+	bne.s	.cc
+	clr.b	-(a1)
+	;
+	lea	text,a0
+	moveq	#1,d1
+	bsr	loadfile
+	move.l	d0,planar_c2p
+	;
+	move.l	planar_c2p(pc),a2
+	lea	36(a2),a0
+	tst	aga
+	bne.s	.aga
+	lea	40(a2),a0
+.aga	move.l	a0,c2p
 	;
 	lea	coloffs,a0	;columns table
 	move	#320,d0	;320 columns
 	lea	paladjust,a1
+	jsr	32(a2)	;inittables
 	;
-	; v41l diagnostic: bypass external C2P inittables.
-	; The external loaded C2P binary is still kept for doc2p later,
-	; but its init-table entry at 32(a2) is not executed here.
-	; This tells us whether the Guru sits in the external inittables call.
-	jsr	g2_inline_c2p_init
-	bra.w	g2_after_inline_c2p_init
-	;
-g2v08_dummy_c2p	;safe fallback if external c2p file did not load
-	rts
-	;
-g2_inline_c2p_init	;blackmagic_1-compatible initc2p table builder
-		;in: a0=coloffs, d0=columns, a1=paladjust
-		move	#$ff,d1
-.g2pal		move.b	d1,0(a1,d1)
-		dbf	d1,.g2pal
-		;
-		lsr	#4,d0
-		subq	#1,d0
-		moveq	#0,d1
-.g2col1		moveq	#7,d2
-.g2col2		move.l	d1,(a0)+
-		addq.l	#2,d1
-		dbf	d2,.g2col2
-		sub.l	#15,d1
-		moveq	#7,d2
-.g2col3		move.l	d1,(a0)+
-		addq.l	#2,d1
-		dbf	d2,.g2col3
-		subq.l	#1,d1
-		dbf	d0,.g2col1
-		rts
-	;
-g2_after_inline_c2p_init
 	bsr	initmed
 	bsr	initser
 	bsr	calcbaud
 	bsr	initdarktable
 	;
-	; v41p diagnostic: C2P table init + med/serial/darktable init returned.
-	; Continue into remapanim/remap table work, then hold after it.
-	;
-	tst.l	remapped
-	bne.w	g2v62_noremap
-	move.l	#-1,remapped
+	bset	#15,remapped
+	bne	.noremap
 	;
 	move.l	map_rgbs(pc),a0
 	move	#-1,(a0)+
 	move.l	a0,map_rgbsat
 	;
-	; v46: restore original panel remap path. Final CrM2 smallfont2.bin
-	; is an anim file and must be remapped into the active game palette
-	; before drawchunky uses palettes(pc).
 	move.l	panel,a0
 	jsr	remapanim
-	move.l	gunpic(pc),d0	;v61: gun.bin has its own palette
-	beq.s	g2v61_no_gun_remap
-	move.l	d0,a0
-	jsr	g2gun_prepare
-	move.l	gunpic(pc),a0
-	jsr	remapanim
-g2v61_no_gun_remap
 	lea	bullet1,a0
 	jsr	remapanim
 	lea	bullet2,a0
@@ -12365,11 +9312,8 @@ g2v61_no_gun_remap
 	jsr	remapanim
 	;
 	move.l	map_rgbsat(pc),map_rgbsat2
-g2v62_noremap	;
+.noremap	;
 	move.l	map_rgbsat2(pc),map_rgbsat
-	;
-	; v41q diagnostic: remapanim/remap block returned.
-	; Continue into initial object/anim loads, then hold after them.
 	;
 	moveq	#0,d0
 	bsr	loadanobj	;load player1
@@ -12377,9 +9321,6 @@ g2v62_noremap	;
 	bsr	loadanobj	;load player2
 	moveq	#2,d0
 	bsr	loadanobj	;load tokens (health)
-	;
-	; v41s diagnostic: player1/player2/token object loads returned.
-	; Continue into map_rgb setup and alloclist block, then hold after it.
 	;
 	move.l	map_rgbsat(pc),map_rgbsfrom
 	move.l	map_rgbsat(pc),map_rgbsfrom2
@@ -12393,9 +9334,6 @@ g2v62_noremap	;
 	;
 .w5sex	tst	vbcounter
 	bgt	.w5sex
-	;
-	; v41t diagnostic: alloclist block returned.
-	; Continue through display-off/free-magic/seed, then hold before forbid.
 	;
 	bsr	dispoff
 	;
@@ -12415,7 +9353,6 @@ g2v62_noremap	;
 	bsr	loadgloomgame
 	endc
 	;
-	; v41v diagnostic: allow initmain to return normally via forbid.
 	bra	forbid
 
 	ifeq	cd32
@@ -12647,31 +9584,6 @@ qsync2	;OK, quick sync up, but now 'waiting' menu
 	;
 .rts	rts
 
-g2v10_showmsg	; a0 = one-item menu/message, wait for fire and close
-	jsr	qmenu
-	jsr	selmenu
-	jsr	finitqmenu
-	rts
-
-g2v10_datafail_initnewgame
-	lea	g2v10_datafailmenu(pc),a0
-	jsr	g2v10_showmsg
-	move	#-1,gametype
-	rts
-
-g2v10_datafailmenu	dc.b	1
-	dc.b	'G2 DATA LOAD FAILED',0
-	even
-g2v10_mapfailmenu	dc.b	1
-	dc.b	'G2 MAP LOAD FAILED',0
-	even
-g2v10_playerfailmenu	dc.b	1
-	dc.b	'G2 PLAYER1 MISSING',0
-	even
-g2v11_c2pfailmenu	dc.b	1
-	dc.b	'G2 C2P MISSING',0
-	even
-
 combatnokmenu	dc.b	1
 	dc.b	'sorry...not available in demo',0
 	even
@@ -12707,9 +9619,8 @@ initnewgame	;
 	tst.l	map_test
 	bne.s	.skhit
 	;
-	tst	gloomdata
+	bset	#15,gloomdata
 	bne.s	.gotdata
-	move	#-1,gloomdata
 .skhit	;
 	ifne	cd32
 	bsr	permit
@@ -12720,16 +9631,9 @@ initnewgame	;
 	bsr	askdatadisk
 	endc
 .gotdata	;
-	; v10: guard script/gloomgame before normalgame scans them.
-	; If the data files were not loaded, the original code dereferenced
-	; null pointers immediately after selecting New Game.
-	tst.l	script
-	beq	g2v10_datafail_initnewgame
-	tst.l	gloomgame
-	beq	g2v10_datafail_initnewgame
 	bsr	qsync
 	;
-	move.l	medat,a1
+	move.l	medat(pc),a1
 	jsr	12(a1)
 	cmp	#2,gametype
 	bne	normalgame
@@ -12782,10 +9686,6 @@ normalgame	;
 	bra	initpstuff
 .master	;
 	move.l	script(pc),scriptat	;default
-	move.l	g2v190i_start_offset(pc),d0	; v190s: START LEVEL keeps script initialisation active
-	bmi.s	.g2v190r_no_levelselect
-	bra	initpstuff		; run script from start, but skip play_ entries until selected level
-.g2v190r_no_levelselect
 	move.l	gloomgame(pc),a0
 	lea	conttxts(pc),a1
 	lea	conts(pc),a2
@@ -12882,12 +9782,12 @@ conttxts	ds.b	160
 	even
 
 execscript_med	;
-	jsr	waitquiet
+	bsr	waitquiet
 	;
 	move.l	loadingmed(pc),d0
 	beq.s	execscript
 	move.l	d0,a0
-	move.l	medat,a1
+	move.l	medat(pc),a1
 	jsr	8(a1)	;start loading music!
 	;
 execscript	cmp	#2,gametype
@@ -12960,13 +9860,11 @@ execscript	cmp	#2,gametype
 .fucked	;
 	rts
 	;
-scriptdone	lea	g2log_msg_script_done,a0
-	jsr	g2log
-	bsr	dispoff
+scriptdone	bsr	dispoff
 	move.l	loadingmed(pc),d0
 	beq	gameover
 	;
-	move.l	medat,a1
+	move.l	medat(pc),a1
 	clr	fadevol
 	jsr	12(a1)	;stop song
 	bra	gameover
@@ -12975,10 +9873,6 @@ sccont	dc.b	'cont_'
 	even
 
 scriptrest	;restart point!
-	move.l	a0,-(a7)
-	lea	g2log_msg_script_rest,a0
-	jsr	g2log
-	move.l	(a7)+,a0
 	;this changes...we add this to 'gloomgame' file now.
 	;
 	move.l	a0,d1
@@ -13017,34 +9911,17 @@ scriptrest	;restart point!
 	;
 	bra	execscript
 
-scriptloop	lea	g2log_msg_script_loop,a0
-	jsr	g2log
-	move.l	script,scriptat
+scriptloop	move.l	script,scriptat
 	bra	execscript
 
-scripthide	lea	g2log_msg_script_hide,a0
-	jsr	g2log
-	bsr	dispoff
+scripthide	bsr	dispoff
 	bra	execscript
 
-scriptshow	lea	g2log_msg_script_show,a0
-	jsr	g2log
-	tst.l	g2v190i_start_offset	; v190t: while skipping earlier levels, suppress old intermission screens
-	bgt	execscript
-	clr	pdelay
+scriptshow	clr	pdelay
 	bsr	dispon
 	bra	execscript
 
-scriptdraw	lea	g2log_msg_script_draw,a0
-	jsr	g2log
-	tst.l	g2v190i_start_offset	; v190t: skip draw_ before earlier play_ entries
-	bgt	execscript
-	tst	g2v190t_reload_pic_after_level	; v190t: reload intermission IFF after gameplay, if needed
-	beq.s	.g2v190t_no_reload_pic
-	clr	g2v190t_reload_pic_after_level
-	bsr	g2v190t_reload_current_pic
-.g2v190t_no_reload_pic
-	move.l	picpal,a1
+scriptdraw	move.l	picpal,a1
 	move.l	pic,d0
 	bne.s	.use
 	move.l	gloompal,a1
@@ -13109,15 +9986,9 @@ rooftag	ds.b	32
 	even
 
 scripttile	;tile command...load in floor/roof tiles!
-	lea	g2log_msg_script_tile,a0
-	jsr	g2log
 	;
 	lea	floortag(pc),a1
 	bsr	fetchrest
-	lea	g2log_msg_tiletag,a0
-	jsr	g2log
-	lea	floortag,a0
-	jsr	g2log
 	bsr	loadtile
 	bra	execscript
 
@@ -13167,8 +10038,6 @@ ecspicpath	dc.b	'pics_ehb/',0
 	even
 
 scriptpict	;load an iff
-	lea	g2log_msg_script_pict,a0
-	jsr	g2log
 	bsr	freeiff
 	lea	agapicpath(pc),a0
 	lea	picname,a1
@@ -13179,10 +10048,6 @@ scriptpict	;load an iff
 	bne.s	.aga
 	subq	#1,a1
 	bsr	fetchrest
-	lea	g2log_msg_picname,a0
-	jsr	g2log
-	lea	picname,a0
-	jsr	g2log
 	move.l	a1,-(a7)
 	bsr	permit
 	lea	picname,a0
@@ -13191,16 +10056,6 @@ scriptpict	;load an iff
 	move.l	d0,pic
 	beq.s	.nopic
 	;
-	; v190t: remember the base intermission picture name before .pal is appended.
-	; This lets us reload the same IFF cleanly after a gameplay level if the
-	; cached intermission buffer was disturbed.
-	movem.l	a0-a2,-(a7)
-	lea	picname,a0
-	lea	g2v190t_lastpicname,a2
-.g2v190t_piccopy
-	move.b	(a0)+,(a2)+
-	bne.s	.g2v190t_piccopy
-	movem.l	(a7)+,a0-a2
 	lea	pic_pal,a0
 	move.l	(a7),a1
 .loop	move.b	(a0)+,(a1)+
@@ -13214,40 +10069,7 @@ scriptpict	;load an iff
 	bsr	forbid
 	bra	execscript
 
-g2v190t_reload_current_pic
-	; Reload the last intermission picture after returning from a gameplay level.
-	; This avoids using a cached picture buffer if gameplay scribbled over it or
-	; fragmented memory around it.  The base picture name is preserved by
-	; scriptpict before it appends .pal to picname.
-	tst.b	g2v190t_lastpicname
-	beq.s	.rts
-	bsr	freeiff
-	bsr	permit
-	lea	g2v190t_lastpicname,a0
-	moveq	#1,d1
-	jsr	loadfile
-	move.l	d0,pic
-	beq.s	.close
-	lea	g2v190t_lastpicname,a0
-	lea	picname,a1
-.copybase	move.b	(a0)+,(a1)+
-	bne.s	.copybase
-	subq.l	#1,a1
-	lea	pic_pal,a0
-.copypal	move.b	(a0)+,(a1)+
-	bne.s	.copypal
-	lea	picname,a0
-	moveq	#1,d1
-	jsr	loadfile
-	move.l	d0,picpal
-.close	bsr	forbid
-.rts	rts
-
 scriptdark	;
-	lea	g2log_msg_script_dark,a0
-	jsr	g2log
-	tst.l	g2v190i_start_offset	; v190t: suppress dark_ before skipped earlier levels
-	bgt	execscript
 	tst	os
 	bne	execscript
 	;
@@ -13283,44 +10105,17 @@ scriptdark	;
 	bra	execscript
 
 scripttext	;print text on iff
-	lea	g2log_msg_script_text,a0
-	jsr	g2log
 	;a6=window, a4=message, d0=length of message, d6=Y
 	;
-	tst.l	g2v190i_start_offset	; v190t: consume but do not show text_ for skipped earlier levels
-	ble.s	.g2v190t_show_text
-	lea	g2log_msg_text_skip_fetch_b,a0
-	jsr	g2log
-	lea	text,a1
-	bsr	fetchrest
-	lea	g2log_msg_text_skip_fetch_ok,a0
-	jsr	g2log
-	bra	execscript
-.g2v190t_show_text
 	move	#2,pdelay
-	lea	g2log_msg_text_font_b,a0
-	jsr	g2log
 	bsr	initfontpal
-	lea	g2log_msg_text_font_ok,a0
-	jsr	g2log
 	;
-	lea	g2log_msg_text_fetch_b,a0
-	jsr	g2log
 	lea	text,a1
 	bsr	fetchrest
-	lea	g2log_msg_text_fetch_ok,a0
-	jsr	g2log
-	lea	text,a0
-	jsr	g2log
-	lea	g2log_msg_text_wrap_b,a0
-	jsr	g2log
-	bsr	g2v14_wrap_script_text
-	lea	g2log_msg_text_wrap_ok,a0
-	jsr	g2log
 	;
 	lea	text,a4
 	move	bmaphite(pc),d6
-	sub	#18,d6	;v57: move intermission text one line higher
+	sub	#11,d6
 	;
 	move.l	a4,a0
 	moveq	#0,d1
@@ -13331,85 +10126,20 @@ scripttext	;print text on iff
 	bne.s	.loop
 	sub	d1,d0
 	movem.l	d0/d6/a0,-(a7)
-	subq	#1,d1	;v15: first line length excludes separator
 	move	d1,d0
 	clr.b	-(a0)
 	sub	#11,d6
-	lea	g2log_msg_text_print1_b,a0
-	jsr	g2log
-	jsr	printmess2
-	lea	g2log_msg_text_print1_ok,a0
-	jsr	g2log
+	bsr	printmess2
 	movem.l	(a7)+,d0/d6/a4
 	;
-.done	lea	g2log_msg_text_printf_b,a0
-	jsr	g2log
-	jsr	printmess2
-	lea	g2log_msg_text_printf_ok,a0
-	jsr	g2log
+.done	bsr	printmess2
 	;
 	tst	pdelay
 	bmi	execscript
 	clr	pdelay
-	lea	g2log_msg_text_done,a0
-	jsr	g2log
 	bra	execscript
 
-g2v14_wrap_script_text	;auto-wrap long text_ script lines at a word boundary
-	; v17: choose a word break close to the visual middle instead of
-	; always using the last blank before column 38. Existing script '\'
-	; markers are respected and left untouched.
-	; in: d0.w = text length, buffer at text. d0 is preserved.
-	movem.l	d1-d7/a0,-(a7)
-	cmp	#38,d0
-	ble.s	g2v17_wst_done
-	move	d0,d4
-	lsr	#1,d4	;target split = roughly half the line
-	moveq	#-1,d2	;best split offset
-	move	#32767,d5	;best distance from target
-	moveq	#0,d3	;current offset
-	lea	text,a0
-g2v17_wst_scan
-	cmp	d0,d3
-	bcc.s	g2v17_wst_apply
-	move.b	0(a0,d3.w),d1
-	beq.s	g2v17_wst_apply
-	cmp.b	#'\',d1
-	beq.s	g2v17_wst_done
-	cmp.b	#' ',d1
-	bne.s	g2v17_wst_next
-	cmp	#8,d3
-	blt.s	g2v17_wst_next
-	cmp	#38,d3
-	bgt.s	g2v17_wst_apply
-	move	d3,d6
-	sub	d4,d6
-	bpl.s	g2v17_wst_diffok
-	neg	d6
-g2v17_wst_diffok
-	cmp	d5,d6
-	bge.s	g2v17_wst_next
-	move	d6,d5
-	move	d3,d2
-g2v17_wst_next
-	addq	#1,d3
-	bra.s	g2v17_wst_scan
-g2v17_wst_apply
-	tst	d2
-	bpl.s	g2v17_wst_have
-	move	#38,d2	;last fallback if no useful blank exists
-g2v17_wst_have
-	lea	text,a0
-	move.b	#'\',0(a0,d2.w)
-g2v17_wst_done
-	movem.l	(a7)+,d1-d7/a0
-	rts
-
 scriptwait	;
-	lea	g2log_msg_script_wait,a0
-	jsr	g2log
-	tst.l	g2v190i_start_offset	; v190t: skip wait_ before skipped earlier levels
-	bgt	execscript
 	tst	pdelay
 	bmi	execscript
 	bsr	waitany
@@ -13417,8 +10147,8 @@ scriptwait	;
 
 checkany	movem.l	d0-d7/a0-a6,-(a7)
 	bsr	vwait
-	bsr	readmenusel	; v188: restore original RETURN/ENTER title-menu opener
-	and	#$10,d0	; set NE if fire/return selected
+	bsr	readmenusel
+	and	#$10,d0	;set ne if fire!
 	movem.l	(a7)+,d0-d7/a0-a6
 	rts
 
@@ -13554,8 +10284,6 @@ comseriesmap	dc.b	'1',0
 scriptplay	;
 	;arrives here with dispon!
 	;
-	lea	g2log_msg_scriptplay(pc),a0
-	jsr	g2log
 	lea	mapname,a1
 	;
 	cmp	#2,gametype
@@ -13568,35 +10296,8 @@ scriptplay	;
 	bsr	pickcombat
 	bra.s	.gotname
 	;
-.notcombat	;
-	; v190t: Levelselect starts the script from the beginning so setup commands
-	; like pict_ and tile_ still run.  Older play_ entries are skipped by a
-	; counter; once the counter reaches zero the current intermission belongs
-	; to the selected map and the selected map is played.
-	move.l	g2v190i_start_offset(pc),d7
-	bmi.s	.g2v190s_noskip
-	tst.l	d7
-	beq.s	.g2v190s_match
-	subq.l	#1,g2v190i_start_offset
-	bsr	fetchrest		; skip this earlier play_ entry, keep script chain running
-	bra	execscript
-.g2v190s_match
-	move.l	#-1,g2v190i_start_offset
-.g2v190s_noskip
-	bsr	fetchrest
+.notcombat	bsr	fetchrest
 .gotname	;
-	lea	g2log_msg_mapname,a0
-	jsr	g2log
-	lea	mapname,a0
-	jsr	g2log
-	; v11: if external C2P did not load, doc2p is a dummy and
-	; gameplay would switch to a black screen. Show a readable
-	; marker instead of entering the renderer blind.
-	move.l	c2p(pc),d0
-	lea	g2v08_dummy_c2p(pc),a0
-	move.l	a0,d1
-	cmp.l	d1,d0
-	beq	g2v11_c2pfail_scriptplay
 	zerolist	objects,ob_size
 	zerolist	doors,do_size
 	zerolist	blood,bl_size
@@ -13615,57 +10316,18 @@ scriptplay	;
 	bne.s	.use
 	move.l	#mappath,d0
 .use	move.l	d0,a0
-	lea	g2log_msg_mapload_before(pc),a0
-	jsr	g2log
-	move.l	map_test(pc),d0
-	bne.s	.g2v22_use_again
-	move.l	#mappath,d0
-.g2v22_use_again
-	move.l	d0,a0
 	moveq	#1,d1
 	bsr	loadfile
 	move.l	d0,map_map
-	bne.s	g2v10_map_loaded
-	bsr	forbid
-	lea	g2v10_mapfailmenu(pc),a0
-	jsr	g2v10_showmsg
-	bra	gameover
-g2v11_c2pfail_scriptplay
-	lea	g2v11_c2pfailmenu(pc),a0
-	jsr	g2v10_showmsg
-	bra	gameover
-g2v10_map_loaded
 	;
-	lea	g2log_msg_mapload_ok(pc),a0
-	jsr	g2log
 	bsr	initmap
-	lea	g2log_msg_initmap_ok(pc),a0
-	jsr	g2log
 	bsr	loadtxts
-	lea	g2log_msg_loadtxts_ok(pc),a0
-	jsr	g2log
 	move	#$a3f7,d0
 	bsr	seedrnd
-	lea	g2log_msg_execevent_before(pc),a0
-	jsr	g2log
 	moveq	#1,d0
-	jsr	execevent
-	lea	g2log_msg_execevent_ok(pc),a0
-	jsr	g2log
+	bsr	execevent
 	bsr	forbid
 	;
-	; v10: execevent must create player1 before the player init
-	; code below writes through a5. Avoid a Guru and show a readable
-	; marker if the level/event path did not spawn the player.
-	tst.l	player1
-	bne.s	g2v10_player1_ok
-	lea	g2v10_playerfailmenu(pc),a0
-	jsr	g2v10_showmsg
-	bra	gameover
-g2v10_player1_ok
-	;
-	lea	g2log_msg_player_ok(pc),a0
-	jsr	g2log
 	move.l	planar_palette(pc),a1
 	jsr	pokepal
 	bsr	calcpalettes
@@ -13689,8 +10351,7 @@ g2v10_player1_ok
 	move	p1weapon(pc),ob_weapon(a5)
 	move.b	p1reload(pc),ob_reload(a5)
 	;
-.psk	jsr	resetplayer
-	jsr	trainer_maintain_one	;v115: apply persistent trainer at level start
+.psk	bsr	resetplayer
 	;
 	tst	gametype
 	beq	.p1
@@ -13709,8 +10370,7 @@ g2v10_player1_ok
 	move	p2weapon(pc),ob_weapon(a5)
 	move.b	p2reload(pc),ob_reload(a5)
 	;
-.psk2	jsr	resetplayer
-	jsr	trainer_maintain_one	;v115: apply persistent trainer at level start
+.psk2	bsr	resetplayer
 .p1	;
 	bsr	linkswap
 	;
@@ -13731,7 +10391,7 @@ g2v10_player1_ok
 	;
 	move.l	loadingmed(pc),d0
 	beq.s	.nolmed
-	move.l	medat,a1
+	move.l	medat(pc),a1
 	clr	fadevol
 	jsr	12(a1)	;stop song
 .nolmed	;
@@ -13741,9 +10401,6 @@ g2v10_player1_ok
 	clr.l	sucking
 	clr	finished
 	clr	finished2
-	clr	g2teleport_blackout
-	clr	g2teleport_black_hold
-	clr	g2teleport_black_finish
 	clr	doneflag
 	clr	showflag
 	clr	escape
@@ -13753,50 +10410,19 @@ g2v10_player1_ok
 	;
 	clr	framecnt
 	clr	paused
-	lea	g2log_msg_predraw_before(pc),a0
-	jsr	g2log
-	jsr	predrawall
-	lea	g2log_msg_predraw_ok(pc),a0
-	jsr	g2log
+	bsr	predrawall
 	bsr	dispon
 	bsr	chaton
-	lea	g2log_msg_dispon_ok(pc),a0
-	jsr	g2log
 	;
-mainloop	addq	#1,g2logframe
-	lea	g2log_msg_mainloop,a0
-	jsr	g2log
-	jsr	drawall
-	lea	g2log_msg_draw_ok,a0
-	jsr	g2log
-	lea	g2log_msg_after_draw,a0
-	jsr	g2log
+mainloop	bsr	drawall
 	move	escape(pc),d0
 	beq.s	.noesc
-	lea	g2log_msg_menu_before,a0
-	jsr	g2log
 	jsr	dogamemenu
-	lea	g2log_msg_menu_ok,a0
-	jsr	g2log
 	clr	escape
-.noesc	lea	g2log_msg_finish_check,a0
-	jsr	g2log
-	; v105b: after the visible exit teleport pixel frame, hold a real black
-	; screen briefly before allowing the intermission screen.
-	tst	g2teleport_black_hold
-	beq.s	.g2no_tele_black_hold
-	subq	#1,g2teleport_black_hold
-	bgt	mainloop
-	move	g2teleport_black_finish(pc),finished
-	clr	g2teleport_black_finish
-	clr	g2teleport_blackout
-.g2no_tele_black_hold
-	move	finished(pc),d0
-	beq	mainloop
+.noesc	move	finished(pc),d0
+	beq.s	mainloop
 	;
 mainexit	st	paused
-	lea	g2log_msg_mainexit(pc),a0
-	jsr	g2log
 	bsr	chatoff
 	bsr	dispoff
 	bsr	qsync2
@@ -13863,7 +10489,6 @@ levelover	;
 	;
 .p1p1	tst.l	map_test
 	bne	gameover
-	move	#-1,g2v190t_reload_pic_after_level	; v190t: next intermission redraw reloads cached picture
 	bra	execscript_med
 	;
 combatwon	move.l	player1(pc),a5
@@ -13919,260 +10544,46 @@ freemap	move.l	map_map,d0
 	clr.l	map_map
 .done	rts
 
-; v166: PLAYER control selector.  PLAYER 1/2 may choose any input
-; method, but never the method currently used by the other player.
-; KEYBMOUSE and KEYBOARD count as the same keyboard method.  The visible
-; menu field is fixed at 10 chars, so longer names cannot corrupt the
-; following PLAYER/menu rows.
 inccntrl	addq	#1,(a2)
-	cmp	#6,(a2)
-	bcs.s	g2v166_inc_pok
+	cmp	#5,(a2)
+	bcs.s	.pok
 	clr	(a2)
-g2v166_inc_pok	move	(a2),d0
-	bsr	g2v166_cntrl_conflict
+.pok	move	(a2),d0
+	cmp	(a3),d0
 	beq.s	inccntrl
-	bra.s	g2v166_cntrl_copy
-
-deccntrl	subq	#1,(a2)
-	bpl.s	g2v166_dec_pok
-	move	#5,(a2)
-g2v166_dec_pok	move	(a2),d0
-	bsr	g2v166_cntrl_conflict
-	beq.s	deccntrl
 	;
-g2v166_cntrl_copy
-	movem.l	d0-d2/a0-a1,-(a7)
-	move.l	a1,a4
-	moveq	#9,d1
-	moveq	#' ',d2
-g2v166_clear_field	move.b	d2,(a4)+
-	dbf	d1,g2v166_clear_field
-	lea	popts(pc),a0
+.there	lea	popts(pc),a0
 	move.l	0(a0,d0*4),a0
-	moveq	#9,d1
-g2v166_copy_field	move.b	(a0)+,d2
-	beq.s	g2v166_copy_done
-	move.b	d2,(a1)+
-	dbf	d1,g2v166_copy_field
-g2v166_copy_done	movem.l	(a7)+,d0-d2/a0-a1
+.sk	move.b	(a0)+,(a1)+
+	bne.s	.sk
 	rts
-
-g2v166_cntrl_conflict	; in: d0=candidate, a3=other player's cntrl. EQ=blocked
-	move	(a3),d1
-	cmp	#2,d0
-	bcc.s	g2v166_nonkeyboard_candidate
-	cmp	#2,d1
-	bcs.s	g2v166_blocked	; KEYBMOUSE/KEYBOARD are one shared method
-	bra.s	g2v166_ok
-g2v166_nonkeyboard_candidate
-	cmp	d1,d0
-	beq.s	g2v166_blocked
-g2v166_ok	moveq	#1,d1
-	rts
-g2v166_blocked	moveq	#0,d1
-	rts
-
-g2v36_clear_title_buffers	;clear both display bitmaps before rebuilding title/menu
-	movem.l	d0-d1/a0,-(a7)
-	move.l	bitmaps,d0
-	beq.s	.rts
-	move.l	d0,a0
-	move.l	bmapmem,d1
-	add.l	d1,d1	;two compact 240-line bitmaps
-	beq.s	.rts
-	lsr.l	#2,d1
-	beq.s	.rts
-	subq.l	#1,d1
-	moveq	#0,d0
-.loop	move.l	d0,(a0)+
-	dbf	d1,.loop
-.rts	movem.l	(a7)+,d0-d1/a0
-	rts
-
-
-g2v37_clear_title_topline	;clear the top few title lines in both compact OS bitmaps
-	movem.l	d0-d7/a0-a2,-(a7)
-	move.l	bitmaps,d0
-	beq.s	.rts
-	move.l	d0,a0
-	move.l	bitmaps2,d0
-	beq.s	.only1
-	move.l	d0,a1
-	bsr.s	.clearone
-.only1	bsr.s	.clearone_a0
-.rts	movem.l	(a7)+,d0-d7/a0-a2
-	rts
-.clearone	movem.l	a0-a1,-(a7)
-	move.l	a1,a0
-	bsr.s	.clearone_a0
-	movem.l	(a7)+,a0-a1
-	rts
-.clearone_a0	; clear lines 0-3 over all active bitplanes
-	move	bitplanes(pc),d7
-	beq.s	.cdone
-	subq	#1,d7
-	move.l	bpmod(pc),d6
-	moveq	#0,d5
-.plane	move.l	a0,a2
-	move.l	d5,d0
-	mulu	d6,d0
-	add.l	d0,a2
-	moveq	#3,d4
-.line	moveq	#9,d3
-	moveq	#0,d0
-.word	move.l	d0,(a2)+
-	dbf	d3,.word
-	dbf	d4,.line
-	addq	#1,d5
-	dbf	d7,.plane
-.cdone	rts
-
-g2v58_clear_title_lastline	;clear stale very bottom title/menu line in both compact OS bitmaps
-	movem.l	d0-d7/a0-a2,-(a7)
-	move.l	bitmaps,d0
-	beq.s	.rts
-	move.l	d0,a0
-	move.l	bitmaps2,d0
-	beq.s	.only1
-	move.l	d0,a1
-	bsr.s	.clearone
-.only1	bsr.s	.clearone_a0
-.rts	movem.l	(a7)+,d0-d7/a0-a2
-	rts
-.clearone	movem.l	a0-a1,-(a7)
-	move.l	a1,a0
-	bsr.s	.clearone_a0
-	movem.l	(a7)+,a0-a1
-	rts
-.clearone_a0	; clear last visible line 239 over all active bitplanes
-	move	bitplanes(pc),d7
-	beq.s	.cdone
-	subq	#1,d7
-	move.l	bpmod(pc),d6
-	moveq	#0,d5
-.plane	move.l	a0,a2
-	move.l	d5,d0
-	mulu	d6,d0
-	add.l	d0,a2
-	move.l	linemod(pc),d0
-	move	#239,d1
-	mulu	d1,d0
-	add.l	d0,a2
-	moveq	#0,d4
-.line	moveq	#9,d3
-	moveq	#0,d0
-.word	move.l	d0,(a2)+
-	dbf	d3,.word
-	dbf	d4,.line
-	addq	#1,d5
-	dbf	d7,.plane
-.cdone	rts
-
-
-; v151: safe main-menu gloombrush overlay.
-; Draws optional pics/gloom at Y=168.  Important: linemod is stored as a
-; longword split over linemod/linemodw, so word-sized mulu must use
-; linemodw.  Using linemod as a word reads the high word 0 and draws at Y=0.
-g2v142_draw_gloombrush_safe
-	movem.l	d0-d4/a0-a2,-(a7)
-	move.l	gloombrush,d0
-	beq	.done
-	move.l	d0,a2
-	;
-	; Basic trimmed-IFF header guard.
-	move	(a2),d0		;pixel width
-	beq	.done
-	cmp	#320,d0
-	bhi	.done
-	move	2(a2),d2		;pixel height
-	beq	.done
-	move	4(a2),d3		;depth
-	beq	.done
-	move	bitplanes,d4
-	cmp	d4,d3
-	bhi	.done
-	;
-	; Clamp decode height to the remaining title area: 240-168 = 72.
-	move	d2,-(a7)
-	cmp	#72,d2
-	bls	.heightok
-	move	#72,2(a2)
-.heightok
-	move.l	showbitmap,d0
-	beq	.skipshow
-	move.l	d0,a1
-	jsr	.g2v142_drawone
-.skipshow
-	move.l	drawbitmap,d0
-	beq	.restore
-	move.l	d0,a1
-	jsr	.g2v142_drawone
-.restore
-	move	(a7)+,2(a2)
-.done	movem.l	(a7)+,d0-d4/a0-a2
-	rts
-
-.g2v142_drawone
-	movem.l	d0/a0-a1,-(a7)
-	move	#168,d0
-	mulu	linemodw(pc),d0
-	add.l	d0,a1
-	move.l	gloombrush,a0
-	jsr	decodeiff
-	movem.l	(a7)+,d0/a0-a1
-	rts
-
-; v145: draw the optional pics/gloom logo only for the main menu.
-; ABOUT deliberately uses the clean title background without this overlay.
-g2v145_draw_menu_gloombrush
-	tst	aga
-	beq.s	.rts
-	jsr	g2v142_draw_gloombrush_safe
-.rts	rts
-
-; v145: rebuild the clean title background.  The menu overlay is added
-; separately, so ABOUT can stay free of the pics/gloom logo.
-g2v145_show_clean_title
-	move.l	gloom(pc),a0
-	move.l	gloompal(pc),a1
-	jsr	showpic_noclear	; v190l: restore pre-levelselect title redraw path, avoids pink top artefacts
-	; v152: keep the full title picture visible again.  The old v37/v58
-	; safety clears for top/bottom stale pixels are no longer applied here.
-	jsr	g2v36_hide_pointer	;v37: re-apply chip-RAM blank pointer after title display
-	rts
-
-; v146: show the optional pics/gloom overlay immediately when the title
-; screen loads.  ABOUT still uses g2v145_show_clean_title, so the overlay
-; stays hidden there.  The overlay itself is still drawn at Y=168.
-g2v146_show_title_with_gloom
-	jsr	g2v145_show_clean_title
-	jsr	g2v145_draw_menu_gloombrush
-	rts
-
 
 dointro	;
-	jsr	g2v145_show_clean_title
+	move.l	gloom(pc),a0
+	move.l	gloompal(pc),a1
+	jsr	showpic
+	;
+	move	aga(pc),d0
+	beq.s	.noaga
+	;
+	move.l	gloombrush(pc),a0
+	move.l	showbitmap(pc),a1
+	move	#168*40,d0
+	mulu	bitplanes(pc),d0
+	add.l	d0,a1
+	bsr	decodeiff
+.noaga	;
 	bsr	dispon
-	jsr	g2v145_draw_menu_gloombrush
 	;
 	bsr	chaton
 	;
-	; v149: draw pics/gloom directly onto the visible title screen after
-	; the clean title has been shown, so it appears immediately at Y=168
-	; and not at the very top.  ABOUT still stays clean.
-	jsr	inputon
-	jsr	waitany
+	bsr	waitany
 	;
-.redrawmenu
-	jsr	g2v145_draw_menu_gloombrush
 	lea	startmenu,a4
 	tst	linked
 	beq.s	.use
 	lea	startmenu2,a4
 .use	jsr	initmenu
-	tst	linked		; v190l: default title selection is ONE PLAYER GAME, not START LEVEL
-	bne.s	.sel
-	move	#2,curropt
 	;
 .sel	jsr	selmenu
 	;
@@ -14206,91 +10617,38 @@ dointro	;
 	bsr	chatoff
 	bra	finitpmenu
 	;
-.notlinked
-	move	d0,d7
-	and	#$0300,d7	; v190f: $0100=left, $0200=right for START LEVEL / PLAYER rows
-	and	#$00ff,d0
-	tst	d7
-	beq.s	.g2v166_notlinked_fire
-	cmp	#0,d0
-	beq	.g2v190f_level_lrsel
-	cmp	#6,d0
-	beq	.g2v166_p1lrsel
-	cmp	#7,d0
-	beq	.g2v166_p2lrsel
-	bra	.sel
-.g2v166_notlinked_fire
-	cmp	#0,d0
-	beq	.g2v190f_level_start
-	cmp	#2,d0
-	bcs	.sel
-	cmp	#5,d0
-	bcs	.g2v190f_shifted_newgame
+.notlinked	cmp	#3,d0
+	bcs	.newgame
 	;
-	; v190f: title menu now has START LEVEL at row 0 and spacers at 1,5,8.
-	; menuskip prevents selecting spacer rows; map the shifted live rows here.
-	cmp	#6,d0
-	beq	.g2v166_p1sel
-	cmp	#7,d0
-	beq	.g2v166_p2sel
-	cmp	#9,d0
-	beq	.linksel
-	cmp	#10,d0
-	beq	.vilesel
-	cmp	#11,d0
-	beq	.about
-	cmp	#12,d0
-	beq	.exitgloom
-	bra	.sel
-.g2v190f_shifted_newgame
-	subq	#2,d0		; rows 2/3/4 -> gametype 0/1/2
-	bra	.newgame
-.g2v190f_level_lrsel
-	bsr	optoff		; v190l: update only this menu row, no full title rebuild
-	cmp	#$0100,d7
-	beq.s	.g2v190f_level_prev
-	bsr	g2v190f_level_next
-	bra.s	.g2v190f_level_row_update
-.g2v190f_level_prev	bsr	g2v190f_level_prev
-.g2v190f_level_row_update
-	bsr	opton
-	bra	.sel
-.g2v190f_level_start
-	bsr	g2v190f_level_start
-	moveq	#0,d0
-	bra	.newgame_maptest
+	subq	#3,d0
+	bne	.notp1
 	;
-.g2v166_p1lrsel	cmp	#$0100,d7
-	beq.s	.g2v166_p1prevsel
-.g2v166_p1sel	lea	p1ctype(pc),a1
+	lea	p1ctype(pc),a1
 	lea	p1_ob_cntrl,a2
 	lea	p2_ob_cntrl,a3
 	bsr	inccntrl
 	bra	.sel
-.g2v166_p1prevsel	lea	p1ctype(pc),a1
-	lea	p1_ob_cntrl,a2
-	lea	p2_ob_cntrl,a3
-	bsr	deccntrl
-	bra	.sel
 	;
-.g2v166_p2lrsel	cmp	#$0100,d7
-	beq.s	.g2v166_p2prevsel
-.g2v166_p2sel	lea	p2ctype(pc),a1
+.notp1	subq	#1,d0
+	bne.s	.notp2
+	;
+	lea	p2ctype(pc),a1
 	lea	p2_ob_cntrl,a2
 	lea	p1_ob_cntrl,a3
 	bsr	inccntrl
 	bra	.sel
-.g2v166_p2prevsel	lea	p2ctype(pc),a1
-	lea	p2_ob_cntrl,a2
-	lea	p1_ob_cntrl,a3
-	bsr	deccntrl
-	bra	.sel
 	;
-.linksel	bsr	finitpmenu
+.notp2	subq	#1,d0
+	bne.s	.notlink
+	;
+	bsr	finitpmenu
 	bsr	linkup
 	bra	dointro
 	;
-.vilesel	addq	#1,mode
+.notlink	subq	#1,d0
+	bne.s	.notvile
+	;
+	addq	#1,mode
 	and	#1,mode
 	move	mode(pc),d0
 	lea	modes,a0
@@ -14300,14 +10658,17 @@ dointro	;
 	bne.s	.moloop
 	;
 	bra	.sel
-	;	;
+	;
+.notvile	subq	#1,d0
+	bne	.notabout
+	;
 .about	;about text...
 	;
-	bsr	g2v147_finitmenu_soft
+	bsr	finitpmenu
 	move.l	gloom(pc),a0
 	move.l	gloompal(pc),a1
 	lea	abouttext,a2
-	bsr	g2v147_pmenu_soft
+	bsr	pmenu
 	move	numopts(pc),-(a7)
 	move	#1,numopts
 	;
@@ -14321,20 +10682,16 @@ dointro	;
 	warn	#$f0f
 	move	#-1,cheat
 	;
-.noch	bsr	g2v147_finitmenu_soft
-	move	(a7)+,numopts
-	jsr	g2v145_show_clean_title
-	bsr	dispon
-	bra	.redrawmenu
+.noch	move	(a7)+,numopts
+	bsr	finitpmenu
+	bra	dointro
 	;
 .notabout	subq	#1,d0
 	bne	.sel
 	;
 .exitgloom	moveq	#4,d0
 	;
-.newgame	clr.l	map_test	; v190f: normal title starts are not forced-map tests
-	move.l	#-1,g2v190i_start_offset	; v190r: normal menu start begins at script default
-.newgame_maptest	move	d0,gametype
+.newgame	move	d0,gametype
 	bsr	qsync2
 	bsr	chatoff
 	bra	finitpmenu
@@ -14390,12 +10747,12 @@ dialup	;
 	key	$41,d0
 	bne	.del	;del
 	;
-	move	chatoutget,d0
-	cmp	chatoutput,d0
+	move	chatoutget(pc),d0
+	cmp	chatoutput(pc),d0
 	beq.s	.wkey
 	;
 	and	#31,d0
-	lea	chatout,a0
+	lea	chatout(pc),a0
 	move.b	0(a0,d0),d0	;chat out character!
 	addq	#1,chatoutget
 	;
@@ -14512,7 +10869,7 @@ doconnect	;
 .cmloop	;
 	btst	#5,$dff01f
 	bne.s	.cmdone
-	jsr	rndw	;v135 buildfix: rndw out of bsr range after reflection code growth
+	bsr	rndw
 	ext.l	d0
 	divs	#$a5a5,d0
 	addq.l	#1,d7
@@ -14698,15 +11055,14 @@ b6	dc.b	'38400',0
 	even
 
 	dc.l	popt0
-popts	dc.l	popt1,popt2,popt3,popt4,popt5,popt6
+popts	dc.l	popt1,popt2,popt3,popt4,popt5
 	;
 popt0	dc.b	'NULL MODEM',0	;-1
-popt1	dc.b	'KEYBMOUSE',0	;0
-popt2	dc.b	' KEYBOARD',0	;1
-popt3	dc.b	'JOYSTICK 1',0	;2
-popt4	dc.b	'JOYSTICK 2',0	;3
-popt5	dc.b	'CD32 PAD 1',0	;4
-popt6	dc.b	'CD32 PAD 2',0	;5
+popt1	dc.b	'JOYSTICK 1',0	;0
+popt2	dc.b	'JOYSTICK 2',0	;1
+popt3	dc.b	' KEYBOARD ',0	;2
+popt4	dc.b	'CD32 PAD 1',0	;3
+popt5	dc.b	'CD32 PAD 2',0	;4
 
 joyxs	dc	0,0	;serial
 joyys	dc	0,0
@@ -14721,416 +11077,51 @@ joyx3	dc	0,0
 joyb3	dc	0,0
 joyx4	dc	0,0
 joyb4	dc	0,0
-joyx5	dc	0,0
-joyb5	dc	0,0
 
 	even
 
-gamemenu	dc.b	17
+gamemenu	dc.b	7
 	dc.b	'CONTINUE',0
-	dc.b	92,0
-	; v116c: ingame menu switches only; title menu remains v107.
-	; Effect render hooks are intentionally disabled after v116/v116b guru.
-game_wsize	dc.b	'          VIEW SIZE: FULLSCREEN                 ',0
-game_full	dc.b	'        FULL SCREEN: YES                        ',0
-game_floor	dc.b	'              FLOOR: YES                        ',0
-game_ceil	dc.b	'            CEILING: YES                        ',0
-	dc.b	92,0
-game_blob	dc.b	'       BLOB SHADOWS: NO                         ',0
-game_reflections	dc.b	'        REFLECTIONS: NO                         ',0
-	dc.b	92,0
-game_inv	dc.b	'   UNLIMITED HEALTH: NO                         ',0
-game_bouncy	dc.b	'     BOUNCY BULLETS: NO                         ',0
-game_onehit	dc.b	'       ONE HIT KILL: NO                         ',0
-game_weapon	dc.b	'             WEAPON: DEFAULT                    ',0
-game_boost	dc.b	'            UPGRADE: DEFAULT                    ',0
-	dc.b	92,0
+	dc.b	'RESOLUTION',0
+	dc.b	'WINDOW SIZE',0
+	dc.b	'FULL SCREEN WINDOW',0
+	dc.b	'FLOOR',0
+	dc.b	'CEILING',0
 	dc.b	'QUIT GAME',0
-	even
-
-g2_blobshadow	dc	-1	;v116c menu flag, v126 enables enemy blob shadow
-g2_reflections	dc	-1	;v116c menu flag only, render code removed
-g2_shape_owner	dc.l	0	;v126 current object owner while queuing shapes
-g2_shadow_active	dc	0	;v126 per-sprite shadow draw active
-g2_shadow_curx	dc	0
-g2_shadow_cx	dc	0
-g2_shadow_rx	dc	0
-g2_shadow_col	dc	0
-g2_shadow_yoff	dc	0	;v133 projected floor offset for projectile reflections
-g2_reflect_floorrow	dc	0	;v181 absolute floor row for pickup/upgrade reflections
-g2_reflect_pickup	dc	0	;v169 current reflection owner is stationary pickup/powerup
-g2_reflect_softedge	dc	0	;v135 reflection-only edge feather/dither flag
-g2_reflect_edge_col	dc	0	;v137 lighter outer reflection colour
-trainer_invincible	dc	0
-trainer_bouncy	dc	0
-trainer_onehit	dc	0	;0=NO, -1=YES one-shot enemy kills
-trainer_weapon	dc	0	;0=DEFAULT, 1..5 forced weapon
-trainer_boost	dc	0	;0=DEFAULT, 1..5 forced upgrade
-game_menu_active	dc	0	;-1 while in in-game menu
-
-trainer_txt_tiny	dc.b	'TINY',0
-trainer_txt_small	dc.b	'SMALL',0
-trainer_txt_medium	dc.b	'MEDIUM',0
-trainer_txt_large	dc.b	'LARGE',0
-trainer_txt_xlarge	dc.b	'EXTRA LARGE',0
-trainer_txt_huge	dc.b	'HUGE',0
-trainer_txt_vhuge	dc.b	'VERY HUGE',0
-trainer_txt_almost	dc.b	'ALMOST FULL',0
-trainer_txt_fullscreen	dc.b	'FULLSCREEN',0
 	even
 
 modes	dc.l	mode1,mode2
 
-mode1	dc.b	'MEATY VIOLENCE MODE',0
+mode1	dc.b	'MEATY',0
 
-mode2	dc.b	'MESSY VIOLENCE MODE',0
+mode2	dc.b	'MESSY',0
 
-startmenu	dc.b	13
-	dc.b	'START LEVEL '
-g2v190f_level_text	dc.b	'MAP1.1',0	;0 v190i script-built direct map selector, display uses dot not underscore
-	dc.b	0			;1 spacer below level selector
-	dc.b	'ONE PLAYER GAME',0	;2
-	dc.b	'TWO PLAYER GAME',0	;3
-	dc.b	'TWO PLAYER COMBAT',0	;4
-	dc.b	0			;5 v190f spacer/separator above PLAYER 1
+startmenu	dc.b	9
+	dc.b	'ONE PLAYER GAME',0	;0
+	dc.b	'TWO PLAYER GAME',0	;1
+	dc.b	'TWO PLAYER COMBAT',0	;2
 	dc.b	'PLAYER 1 '
 p1ctype
 	ifne	cd32
-	dc.b	'CD32 PAD 1',0	;6, fixed 10-char field
+	dc.b	'CD32 PAD 1',0	;3
 	elseif
-	dc.b	'KEYBMOUSE  ',0		;6, fixed 10-char field
+	dc.b	'JOYSTICK 1',0		;3
 	endc
 	;
 	dc.b	'PLAYER 2 '
 p2ctype
 	ifne	cd32
-	dc.b	'CD32 PAD 2',0	;7, fixed 10-char field
+	dc.b	'CD32 PAD 2',0	;4
 	elseif
-	dc.b	'JOYSTICK 1 ',0		;7, fixed 10-char field
+	dc.b	'JOYSTICK 2',0		;4
 	endc
 	;
-	dc.b	0			;8 v190f spacer/separator above REMOTE LINK OPTIONS
-	dc.b	'REMOTE LINK OPTIONS',0	;9
+	dc.b	'REMOTE LINK OPTIONS',0	;5
 	;
-modetxt	dc.b	'MEATY VIOLENCE MODE',0	;10
-	dc.b	'ABOUT GLOOM',0		;11
-	dc.b	'EXIT GLOOM',0		;12
-	even
-
-g2v190f_level_index dc 0
-
-g2v190f_level_next
-	move	g2v190i_level_count(pc),d1
-	beq	g2v190f_level_update
-	addq	#1,g2v190f_level_index
-	move	g2v190f_level_index(pc),d0
-	cmp	d1,d0
-	bcs	g2v190f_level_update
-	clr	g2v190f_level_index
-	bra	g2v190f_level_update
-
-g2v190f_level_prev
-	move	g2v190i_level_count(pc),d1
-	beq	g2v190f_level_update
-	tst	g2v190f_level_index
-	bne	.g2v190i_prevok
-	subq	#1,d1
-	move	d1,g2v190f_level_index
-	bra	g2v190f_level_update
-.g2v190i_prevok
-	subq	#1,g2v190f_level_index
-	bra	g2v190f_level_update
-
-g2v190f_level_update
-	movem.l	d0-d2/a0-a1,-(a7)
-	tst	g2v190i_level_count
-	bne	.g2v190i_have
-	jsr	g2v190i_level_default
-.g2v190i_have
-	move	g2v190f_level_index(pc),d0
-	cmp	g2v190i_level_count(pc),d0
-	bcs	.g2v190i_idxok
-	clr	g2v190f_level_index
-	moveq	#0,d0
-.g2v190i_idxok
-	jsr	g2v190i_get_name_ptr
-	lea	g2v190f_level_text(pc),a1
-	moveq	#5,d1		; v190k: display field is MAPx.y, no brackets/trailing spaces
-.g2v190i_copy
-	move.b	(a0)+,d2
-	beq.s	.g2v190i_copy_done
-	move.b	d2,(a1)+
-	dbf	d1,.g2v190i_copy
-.g2v190i_copy_done
-	clr.b	(a1)
-	movem.l	(a7)+,d0-d2/a0-a1
-	rts
-
-g2v190f_level_start
-	movem.l	d0/a0,-(a7)
-	jsr	g2v190f_level_update
-	move	g2v190f_level_index(pc),d0
-	ext.l	d0
-	move.l	d0,g2v190i_start_offset	; v190t: number of earlier play_ entries to skip
-	clr.l	map_test			; no single-map test mode, continue with next script level
-	movem.l	(a7)+,d0/a0
-	rts
-
-; v190i dynamic title-screen level select.  The list is built from the
-; first available script file before the title menu is shown.  It recognises
-; play_<mapname> lines and stores the playable maps in script order.
-g2v190i_level_loaded dc 0
-g2v190i_level_count dc 0
-g2v190i_start_offset dc.l -1	; v190t: play_ skip counter for levelselect, -1 = none
-g2v190i_scriptbuf dc.l 0	; kept for compatibility, no longer used by v190n static script loader
-g2v190t_reload_pic_after_level dc 0	; v190t: reload current intermission IFF after gameplay
-g2v190t_lastpicname ds.b 64	; v190t: base intermission picture path without .pal
-	even
-
-g2v190i_levelselect_loadscripts
-	tst	g2v190i_level_loaded
-	bne	.rts
-	move	#-1,g2v190i_level_loaded
-	clr	g2v190i_level_count
-	clr	g2v190f_level_index
-	bsr	permit
-	lea	g2v190i_script_misc(pc),a0
-	bsr	g2v190i_try_script
-	tst	g2v190i_level_count
-	bne	.doneio
-	lea	g2v190i_script_stuf(pc),a0
-	bsr	g2v190i_try_script
-	tst	g2v190i_level_count
-	bne	.doneio
-	lea	g2v190i_script_stages(pc),a0
-	bsr	g2v190i_try_script
-	tst	g2v190i_level_count
-	bne	.doneio
-	lea	g2v190i_script_gd_misc(pc),a0
-	bsr	g2v190i_try_script
-	tst	g2v190i_level_count
-	bne	.doneio
-	lea	g2v190i_script_gd_stuf(pc),a0
-	bsr	g2v190i_try_script
-	tst	g2v190i_level_count
-	bne	.doneio
-	lea	g2v190i_script_gd_stages(pc),a0
-	bsr	g2v190i_try_script
-.doneio
-	bsr	forbid
-	tst	g2v190i_level_count
-	bne	.update
-	jsr	g2v190i_level_default
-.update
-	jsr	g2v190f_level_update
-.rts	rts
-
-g2v190i_try_script
-	; v190n: read script into a bounded static buffer instead of using
-	; loadfile/allocmem.  The old temporary allocation was safe most of the
-	; time, but the title return artefact strongly points at a memlist/
-	; overread side-effect.  This path never writes outside the fixed buffer
-	; and always zero-terminates before parsing.
-	movem.l	d0-d3/d7/a0/a6,-(a7)
-	move.l	dosbase,a6
-	move.l	a0,d1
-	move.l	#1005,d2
-	jsr	-30(a6)		; Open(oldfile)
-	move.l	d0,d7
-	beq.s	.done
-	move.l	d7,d1
-	lea	g2v190i_script_static,a0
-	move.l	a0,d2
-	move.l	#g2v190i_script_static_size-1,d3
-	jsr	-42(a6)		; Read(handle, buffer, size-1)
-	move.l	d0,d3
-	move.l	d7,d1
-	jsr	-36(a6)		; Close(handle)
-	tst.l	d3
-	ble.s	.done
-	lea	g2v190i_script_static,a0
-	clr.b	0(a0,d3.w)	; guaranteed terminator for parser
-	jsr	g2v190i_parse_script
-.done
-	movem.l	(a7)+,d0-d3/d7/a0/a6
-	rts
-
-g2v190i_parse_script
-	movem.l	d0-d7/a0-a6,-(a7)
-	move.l	a0,a6
-.loop
-	move.b	(a6),d0
-	beq	.done
-	cmp.b	#13,d0
-	beq	.advance
-	cmp.b	#10,d0
-	beq	.advance
-	cmp.b	#' ',d0
-	beq	.advance
-	cmp.b	#9,d0
-	beq	.advance
-	cmp.b	#';',d0
-	beq	.skipline
-	cmp.b	#'d',d0
-	bne	.notdone
-	cmp.b	#'o',1(a6)
-	bne	.notdone
-	cmp.b	#'n',2(a6)
-	bne	.notdone
-	cmp.b	#'e',3(a6)
-	bne	.notdone
-	cmp.b	#'_',4(a6)
-	beq	.done
-.notdone
-	cmp.b	#'p',d0
-	bne	.skipline
-	cmp.b	#'l',1(a6)
-	bne	.skipline
-	cmp.b	#'a',2(a6)
-	bne	.skipline
-	cmp.b	#'y',3(a6)
-	bne	.skipline
-	cmp.b	#'_',4(a6)
-	bne	.skipline
-	move.l	a6,a5		; v190r: remember script command start for chain entry
-	lea	5(a6),a0
-	jsr	g2v190i_add_level
-.skipline
-	move.b	(a6)+,d0
-	beq	.done
-	cmp.b	#10,d0
-	bne	.skipline
-	bra	.loop
-.advance
-	addq.l	#1,a6
-	bra	.loop
-.done
-	movem.l	(a7)+,d0-d7/a0-a6
-	rts
-
-g2v190i_level_default
-	move.l	a0,-(a7)
-	sub.l	a5,a5		; v190r: fallback entry has no script offset
-	lea	g2v190i_default_map(pc),a0
-	jsr	g2v190i_add_level
-	move.l	(a7)+,a0
-	rts
-
-g2v190i_add_level ; a0 = map name after play_, terminated by CR/LF/0
-	movem.l	d0-d7/a0-a4,-(a7)
-	move.l	a0,a4		; source map name from script line
-	move	g2v190i_level_count(pc),d0
-	cmp	#g2v190i_max_levels,d0
-	bcc	.rts
-	move.l	#-1,d7		; v190r: default no script offset
-	tst.l	a5
-	beq.s	.g2v190r_no_offset
-	move.l	a5,d7
-	sub.l	#g2v190i_script_static,d7
-.g2v190r_no_offset
-	move	d0,d1
-	ext.l	d0
-	lsl.l	#2,d0
-	lea	g2v190i_level_offsets,a3
-	add.l	d0,a3
-	move.l	d7,(a3)		; store play_ command offset for continuing chain
-	move	d1,d0
-	jsr	g2v190i_get_name_ptr_d1
-	move.l	a0,a1		; name field
-	move	d1,d0
-	jsr	g2v190i_get_path_ptr
-	move.l	a0,a2		; path field
-	; clear display field to zeroes; menu display is copied without trailing spaces
-	move.l	a1,a3
-	moveq	#0,d2
-	moveq	#15,d3
-.clrname
-	move.b	d2,(a3)+
-	dbf	d3,.clrname
-	; path starts with maps/
-	lea	g2v190i_map_prefix(pc),a3
-.pfx
-	move.b	(a3)+,d2
-	move.b	d2,(a2)+
-	bne	.pfx
-	subq.l	#1,a2
-	moveq	#0,d3		; visible chars copied
-	moveq	#58,d4		; remaining path chars before null
-.copy
-	move.b	(a4)+,d2
-	beq	.donecopy
-	cmp.b	#13,d2
-	beq	.donecopy
-	cmp.b	#10,d2
-	beq	.donecopy
-	tst	d4
-	beq	.nopath
-	move.b	d2,(a2)+
-	subq	#1,d4
-.nopath
-	cmp	#16,d3
-	bcc	.copy
-	move.b	d2,d5
-	cmp.b	#'_',d5
-	bne.s	.g2v190k_notunderscore
-	move.b	#'.',d5		; v190k: display MAP1.7 instead of MAP1_7
-	bra.s	.noupper
-.g2v190k_notunderscore
-	cmp.b	#'a',d5
-	bcs	.noupper
-	cmp.b	#'z',d5
-	bhi	.noupper
-	sub.b	#32,d5
-.noupper
-	move.b	d5,(a1)+
-	addq	#1,d3
-	bra	.copy
-.donecopy
-	clr.b	(a2)
-	addq	#1,g2v190i_level_count
-.rts
-	movem.l	(a7)+,d0-d7/a0-a4
-	rts
-
-g2v190i_get_name_ptr ; d0.w = index, returns a0
-	lea	g2v190i_level_names,a0
-	ext.l	d0
-	lsl.l	#4,d0
-	add.l	d0,a0
-	rts
-
-g2v190i_get_name_ptr_d1 ; d1.w = index, returns a0 and preserves d1
-	move	d1,d0
-	bra	g2v190i_get_name_ptr
-
-g2v190i_get_path_ptr ; d0.w = index, returns a0
-	lea	g2v190i_level_paths,a0
-	ext.l	d0
-	lsl.l	#6,d0
-	add.l	d0,a0
-	rts
-
-g2v190i_get_offset_ptr ; d0.w = index, returns a0 -> script offset long
-	lea	g2v190i_level_offsets,a0
-	ext.l	d0
-	lsl.l	#2,d0
-	add.l	d0,a0
-	rts
-
-g2v190i_script_misc dc.b 'misc/script',0
-g2v190i_script_stuf dc.b 'stuf/script',0
-g2v190i_script_stages dc.b 'stuf/stages',0
-g2v190i_script_gd_misc dc.b 'gloomdata:misc/script',0
-g2v190i_script_gd_stuf dc.b 'gloomdata:stuf/script',0
-g2v190i_script_gd_stages dc.b 'gloomdata:stuf/stages',0
-g2v190i_map_prefix dc.b 'maps/',0
-g2v190i_default_map dc.b 'map1_1',0
-	even
-
-g2v190i_script_static_size equ 4096
-g2v190i_max_levels equ 64
-
-g2v158_title_credit	dc.b	'GLOOM REFORGED IDEA BY ANDIWELI',0
+	dc.b	'VIOLENCE MODEL: '
+modetxt	dc.b	'MEATY',0		;6
+	dc.b	'ABOUT GLOOM',0		;7
+	dc.b	'EXIT GLOOM',0		;8
 	even
 
 startmenu2	dc.b	5
@@ -15172,30 +11163,6 @@ finitpmenu	;
 finitqmenu	bsr	dispoff
 	bra	finitmenu
 
-; v147: soft menu teardown for title/about transitions.
-; Frees menu strips and restores the font palette without clearing the
-; full picture or switching the display off, so ABOUT can open/close
-; without the previous visible flash.
-g2v147_finitmenu_soft
-	lea	menustrips(pc),a5
-	move	numopts(pc),d2
-	beq.s	.nostrips
-	subq	#1,d2
-.loop	addq	#4,a5
-	move.l	(a5)+,a1
-	freemem	menustrip
-	dbf	d2,.loop
-.nostrips	clr	numopts
-	bra	finitfontpal
-
-; v147: redraw a picture/menu pair without the showpic clear/dispoff path.
-g2v147_pmenu_soft	;a0=iff, a1=palette, a2=menu
-	move.l	a2,-(a7)
-	bsr	showpic_noclear
-	move.l	(a7)+,a4
-	bsr	initmenu
-	bra	dispon
-
 swapshow	movem.l	showbitmap(pc),d0-d1
 	exg	d0,d1
 	movem.l	d0-d1,showbitmap
@@ -15207,32 +11174,12 @@ initfontpal	move.l	font(pc),a1
 	add.l	(a1),a1
 	move	(a1),-(a7)
 	clr	(a1)
-	; v107: bigfont2/smallfont2 are normal 4-colour 12-bit font
-	; palettes.  Native AGA/OS-AGA palette pokers expect paired high/low
-	; nibble words per colour, so convert the four 12-bit colours to
-	; high-word + zero-low-word pairs before poking.  ECS remains unchanged.
-	tst	aga
-	beq.s	.normal12
-	bsr.s	initfontpal_aga12
-	bra.s	.restore12
-.normal12	moveq	#4,d0
+	moveq	#4,d0
 	bsr	pokepal2
-.restore12	move.l	font(pc),a1
+	move.l	font(pc),a1
 	add.l	(a1),a1
 	move	(a7)+,(a1)
 	rts
-
-initfontpal_aga12	lea	fontpal_aga12,a0
-	moveq	#3,d1
-.loop	move	(a1)+,(a0)+	;high nibble/normal 12-bit colour
-	clr	(a0)+		;low nibble = 0, makes font colours stable yellow on AGA
-	dbf	d1,.loop
-	lea	fontpal_aga12,a1
-	moveq	#4,d0
-	bsr	pokepal2
-	rts
-
-fontpal_aga12	ds.w	8	;v107 temporary 4-colour AGA high/low palette pairs
 
 initmenu	clr	curropt
 initmenu2	;
@@ -15253,27 +11200,6 @@ initmenu2	;
 	lsr	#1,d2
 	mulu	d2,d0
 	sub	d0,d6	;Y
-	; v158: keep the v155 title-menu vertical layout, brighten the
-	; separator lines a little, and add a centred footer credit in the
-	; last black row below the image on title menus only.
-	clr	g2v154_titlemenu_lines
-	clr	g2v158_titlemenu_credit
-	cmp.l	#startmenu+1,a4
-	beq.s	.titlemenu_main
-	cmp.l	#startmenu2+1,a4
-	beq.s	.titlemenu_y
-	cmp.l	#gamemenu+1,a4
-	bne.s	.titlemenu_y_done
-	sub	fonth(pc),d6	; v186: move the in-game menu one full row higher
-	bra.s	.titlemenu_y_done
-.titlemenu_y	sub	fonth(pc),d6
-	sub	fonth(pc),d6
-	bra.s	.titlemenu_y_done
-.titlemenu_main	move	#-1,g2v154_titlemenu_lines
-	sub	fonth(pc),d6
-	sub	fonth(pc),d6
-	sub	fonth(pc),d6	; v190l: main title menu one row higher
-.titlemenu_y_done
 	move	d6,menuy
 	lea	menustrips(pc),a5
 	;
@@ -15343,100 +11269,9 @@ initmenu2	;
 .nomemerr	;
 	endc
 	;
-	tst	g2v154_titlemenu_lines
-	beq.s	.g2v154_no_title_lines
-	bsr	g2v154_draw_titlemenu_lines
-.g2v154_no_title_lines
-	tst	g2v158_titlemenu_credit
-	beq.s	.g2v158_no_title_credit
-	bsr	g2v158_draw_title_credit
-.g2v158_no_title_credit
 	bsr	swapshow
 	bsr	db
 	bra	vwait
-
-; v163: draw two thin 80px dotted separators into the blank title-menu
-; rows, 1px higher than v154: one between TWO PLAYER COMBAT and PLAYER 1,
-; one between PLAYER 2 and REMOTE LINK OPTIONS. Each dot uses a slightly
-; brighter yellow from the existing palette, while every second pixel stays
-; transparent so the title image remains visible in between.
-g2v154_draw_titlemenu_lines
-	movem.l	d0-d7/a0-a2,-(a7)
-	move.l	showbitmap(pc),a0
-	move	menuy(pc),d0
-	move	fonth(pc),d1
-	move	d1,d2
-	lsr	#1,d2
-	moveq	#5,d3
-	mulu	d1,d3
-	add	d3,d0
-	add	d2,d0
-	subq	#1,d0
-	bsr.s	g2v154_draw_one_title_line
-	move	menuy(pc),d0
-	move	fonth(pc),d1
-	move	d1,d2
-	lsr	#1,d2
-	moveq	#8,d3
-	mulu	d1,d3
-	add	d3,d0
-	add	d2,d0
-	subq	#1,d0
-	bsr.s	g2v154_draw_one_title_line
-	movem.l	(a7)+,d0-d7/a0-a2
-	rts
-
-g2v154_draw_one_title_line	; d0=Y, a0=bitmap base
-	movem.l	d0-d5/a1-a2,-(a7)
-	move	d0,d1
-	mulu	linemodw(pc),d1
-	move.l	a0,a1
-	add.l	d1,a1
-	adda.w	#15,a1		;x=120, centred 80px line -> 10 bytes
-	move	bitplanes(pc),d5
-	beq.s	.done
-	subq	#1,d5
-	moveq	#0,d2
-.plane	move.l	a1,a2
-	move.l	bpmod(pc),d0
-	mulu	d2,d0
-	add.l	d0,a2
-	cmpi	#1,d2
-	beq.s	.plane1
-	moveq	#9,d1
-.clearbyte	andi.b	#$55,(a2)+	; keep every second pixel transparent on all other planes
-	dbf	d1,.clearbyte
-	bra.s	.nextplane
-.plane1	moveq	#9,d1
-.setbyte	ori.b	#$AA,(a2)+	; set every other pixel on plane 1 -> slightly brighter yellow dots
-	dbf	d1,.setbyte
-.nextplane	addq	#1,d2
-	dbf	d5,.plane
-.done	movem.l	(a7)+,d0-d5/a1-a2
-	rts
-
-g2v158_draw_title_credit
-	movem.l	d0-d1/a4,-(a7)
-	lea	g2v158_title_credit(pc),a4
-	moveq	#-1,d0
-.g2v158_len	addq	#1,d0
-	tst.b	(a4,d0.w)
-	bne.s	.g2v158_len
-	move	bmaphite(pc),d6
-	sub	fonth(pc),d6	; last visible text row at the bottom
-	jsr	printmess2
-	movem.l	(a7)+,d0-d1/a4
-	rts
-
-; v160: ABOUT-screen footer draw.  The credit is no longer shown on the
-; title screen because it caused display artefacts there.
-g2v160_draw_about_credit_boot
-	bsr	g2v158_draw_title_credit
-	bsr	db
-	bra	vwait
-
-g2v154_titlemenu_lines	dc	0
-g2v158_titlemenu_credit	dc	0
 
 minmem	dc.l	$7fffffff
 
@@ -15541,37 +11376,28 @@ readmenujoy	;encode to d0!
 	;
 	tst	active
 	bne.s	.doit
-	lea	joyx,a0
+	lea	joyx(pc),a0
 	clr.l	(a0)
 	clr.l	4(a0)
 	moveq	#0,d0
 	rts
-.doit	lea	joyx,a0
+.doit	lea	joyx(pc),a0
 	bsr	readjoy1
-	lea	joyx0,a0
+	lea	joyx0(pc),a0
 	bsr	readkeys
 	move.l	joyx0(pc),d0
 	or.l	d0,joyx
 	move.l	joyb0(pc),d0
 	or.l	d0,joyb
 	;
-	qkey	$45
-	beq.s	.noesc
-	tst	game_menu_active
-	beq.s	.noesc
-	moveq	#$20,d0	;v115 ESC cancels/back in game menu only
-	rts
-.noesc	qkey	$44
+	qkey	$44
 	bne.s	.fire
-	bra.s	.encode
+	qkey	$45
+	beq.s	.encode
 .fire	move	#-1,joyb
-.encode	lea	joyx,a0
+.encode	lea	joyx(pc),a0
 	jsr	encodejoy
-	tst	game_menu_active
-	beq.s	.normal_menu_mask
-	and	#$1f,d0	;v115 game menu: left/right/up/down/fire
-	rts
-.normal_menu_mask	and	#$1f,d0	;v166 allow title PLAYER rows to see left/right
+	and	#$1c,d0	;fire/up/down only!
 	rts
 
 	;bit:
@@ -15618,15 +11444,6 @@ readmenusel	;read menu selection!
 	and	#255,d0
 	rts
 
-menuskip	;return EQ if current item is a visual spacer/empty row
-	move	curropt(pc),d0
-	lea	menustrips(pc),a0
-	move.l	0(a0,d0*8),a0
-	move.b	(a0),d0
-	beq.s	.rts
-	cmp.b	#92,d0
-.rts	rts
-
 selmenu	;select a menu item...return item in d0
 	;
 	;flash selected option on/off
@@ -15650,73 +11467,28 @@ selmenu	;select a menu item...return item in d0
 	bsr	opton
 	move	(a7)+,d0
 .joygot2	;
-	btst	#5,d0	;v115 ESC cancel/back in game menu
-	beq.s	.noescsel
-	moveq	#0,d0
-	rts
-.noescsel	btst	#0,d0
-	bne.s	g2v166_sel_left
-	btst	#1,d0
-	bne.s	g2v166_sel_right
 	btst	#2,d0
-	bne.s	g2v166_sel_up
+	bne.s	.up
 	btst	#3,d0
-	bne	g2v166_sel_down
+	bne.s	.down
 	;
 	;selected!
 	;
-	bsr	menuskip	;v115 visual spacer rows are never selectable
-	beq.s	g2v166_sel_down
 	move	curropt(pc),d0
 	rts
 	;
-g2v166_sel_left	tst	game_menu_active
-	bne.s	g2v166_leftret
-	bsr.s	g2v166_title_player_lr
-	beq	selmenu
-g2v166_leftret	move	curropt(pc),d0
-	or	#$0100,d0
-	rts
-g2v166_sel_right	tst	game_menu_active
-	bne.s	g2v166_rightret
-	bsr.s	g2v166_title_player_lr
-	beq	selmenu
-g2v166_rightret	move	curropt(pc),d0
-	or	#$0200,d0
-	rts
-
-g2v166_title_player_lr	; NE only on normal title menu START LEVEL / PLAYER rows
-	move	numopts(pc),d1
-	cmp	#13,d1
-	bne.s	g2v166_tplr_no
-	move	curropt(pc),d1
-	cmp	#0,d1
-	beq.s	g2v166_tplr_yes
-	cmp	#6,d1
-	beq.s	g2v166_tplr_yes
-	cmp	#7,d1
-	beq.s	g2v166_tplr_yes
-g2v166_tplr_no	moveq	#0,d1
-	rts
-g2v166_tplr_yes	moveq	#1,d1
-	rts
-
-g2v166_sel_up	subq	#1,curropt
-	bpl.s	g2v166_upchk
+.up	subq	#1,curropt
+	bpl	selmenu
 	move	numopts(pc),d0
 	subq	#1,d0
 	move	d0,curropt
-g2v166_upchk	bsr	menuskip
-	beq.s	g2v166_sel_up
 	bra	selmenu
 	;
-g2v166_sel_down	addq	#1,curropt
+.down	addq	#1,curropt
 	move	curropt(pc),d0
 	cmp	numopts(pc),d0
-	bcs.s	g2v166_downchk
+	bcs	selmenu
 	clr	curropt
-g2v166_downchk	bsr	menuskip
-	beq.s	g2v166_sel_down
 	bra	selmenu
 
 finitmenu	;clean up menu operation
@@ -15733,12 +11505,6 @@ finitmenu	;clean up menu operation
 	bra	finitfontpal
 
 initdarktable	;
-	; v190aq: darker distance curve without screen-space dither.
-	; Keep the original smooth 16 shade lookup as base, but make the
-	; world fade harder in the far range.  Around six texture widths
-	; (6*256 map units) the shade reaches full dark, so distant walls,
-	; floors and objects disappear into the black instead of showing
-	; noisy bands or horizontal/vertical line artefacts.
 	move	#maxz-1,d2
 	move.l	sqr(pc),a0
 	move.l	darktable(pc),a1
@@ -15747,49 +11513,7 @@ initdarktable	;
 	lsl	#3,d3
 	move	0(a0,d3),d3
 	lsr	#3,d3
-	eor	#15,d3	; original shade 0..15
-	;
-	; Distance for the table entry.  The original loop fills darktable
-	; backwards: table index 0 is near, index maxz-1 is far.
-	move	#maxz-1,d4
-	sub	d2,d4	; d4 = real distance index
-	;
-	; General one-step darker look, clipped to the darkest shade.
-	cmp	#15,d3
-	bcc.s	.g2v190aq_farboost
-	addq	#1,d3
-	;
-.g2v190aq_farboost
-	; From about four texture widths start a stronger fog ramp.
-	cmp	#(4<<grdshft),d4
-	blo.s	.g2v190aq_store
-	;
-	;	; At six texture widths and beyond keep a very dark fog shade,
-	; but not pure black.  This avoids far corridor openings turning
-	; into black cut-outs that reveal where a passage continues.
-	cmp	#(6<<grdshft),d4
-	blo.s	.g2v190aq_ramp
-	moveq	#14,d3
-	bra.s	.g2v190aq_store
-	;
-.g2v190aq_ramp
-	move	d4,d5
-	sub	#(4<<grdshft),d5
-	lsr	#6,d5	; 0..7 extra darkness before the non-black fog cap
-	add	d5,d3
-	cmp	#14,d3
-	bls.s	.g2v190aq_store
-	moveq	#14,d3
-	;
-.g2v190aq_store
-	; In the far fog zone clamp the result to shade 14 so distant
-	; geometry stays uniformly very dark instead of collapsing to pure black.
-	cmp	#(4<<grdshft),d4
-	blo.s	.g2v190aq_store2
-	cmp	#14,d3
-	bls.s	.g2v190aq_store2
-	moveq	#14,d3
-.g2v190aq_store2
+	eor	#15,d3
 	move	d3,(a1)+
 	;
 	dbf	d2,.loop
@@ -15858,7 +11582,6 @@ rawkeyread	;a1=matrix! hi bit of keycode=1 if key up!
 	bne.s	.clrkey
 	;
 .setkey	bset	d1,0(a1,d0)	;key on!
-	bsr	wasd_keydown_update
 	;
 	move	chatok(pc),d0
 	beq.s	.skip
@@ -15873,8 +11596,8 @@ rawkeyread	;a1=matrix! hi bit of keycode=1 if key up!
 	;
 	;ok, add to chat out buffer!
 	;
-	lea	chatout,a0
-	move	chatoutput,d1
+	lea	chatout(pc),a0
+	move	chatoutput(pc),d1
 	and	#31,d1
 	move.b	d0,0(a0,d1)
 	addq	#1,chatoutput
@@ -15882,7 +11605,6 @@ rawkeyread	;a1=matrix! hi bit of keycode=1 if key up!
 	bra.s	.skip
 	;
 .clrkey	bclr	d1,0(a1,d0)
-	bsr	wasd_keyup_update
 	;
 .skip	moveq	#6,d0	;wait 6 scanlines?
 	moveq	#-1,d1
@@ -15905,441 +11627,6 @@ ciaa	dc.l	0
 ciaaname	dc.b	'ciaa.resource',0
 	even
 rawmatrix	dc.l	0,0,0,0	;128 key bits
-wasd_state	dc.b	0	;bit1 W, bit2 A, bit3 X(back), bit4 D for KEYBMOUSE
-	even
-
-wasd_keydown_update	;maintain KEYBMOUSE WAXD state from raw keyboard events
-	movem.l	d0-d3/a0,-(a7)
-	move.w	d2,d3
-	and.w	#$7f,d3
-	bsr	wasd_map_rawcode
-	tst.w	d0
-	beq.s	.wkdu_done
-	bset	d0,wasd_state
-.wkdu_done	movem.l	(a7)+,d0-d3/a0
-	rts
-
-wasd_keyup_update	;clear KEYBMOUSE WAXD state from raw keyboard events
-	movem.l	d0-d3/a0,-(a7)
-	move.w	d2,d3
-	and.w	#$7f,d3
-	bsr	wasd_map_rawcode
-	tst.w	d0
-	beq.s	.wkuu_done
-	bclr	d0,wasd_state
-.wkuu_done	movem.l	(a7)+,d0-d3/a0
-	rts
-
-wasd_map_rawcode	;d3.w rawcode -> d0.w bit number, 0 if not WAXD
-	cmp.w	#$11,d3	; W = forward
-	beq.s	.wmap_w
-	cmp.w	#$20,d3	; A = strafe left
-	beq.s	.wmap_a
-	cmp.w	#$32,d3	; X = backward
-	beq.s	.wmap_x
-	cmp.w	#$22,d3	; D = strafe right
-	beq.s	.wmap_d
-	lea	rawmap,a0
-	move.b	0(a0,d3.w),d0
-	cmp.b	#'W',d0
-	beq.s	.wmap_w
-	cmp.b	#'A',d0
-	beq.s	.wmap_a
-	cmp.b	#'X',d0
-	beq.s	.wmap_x
-	cmp.b	#'D',d0
-	beq.s	.wmap_d
-	moveq	#0,d0
-	rts
-.wmap_w	moveq	#1,d0
-	rts
-.wmap_a	moveq	#2,d0
-	rts
-.wmap_x	moveq	#3,d0
-	rts
-.wmap_d	moveq	#4,d0
-	rts
-
-mousexlast	dc.b	0
-	dc.b	0
-mousexinit	dc	0
-keymouse_mx	dc	0
-
-; v22/v94: old OS/DOS diagnostic logger for crash hunting.
-; v94 disables it on real Amiga hardware to avoid missing-volume requesters.
-g2log_open
-	rts	; v190aa: logger disabled after apostrophe diagnosis, avoid DH3 IO side effects
-	movem.l	d0-d3/a0-a1/a6,-(a7)
-	tst.l	g2loghand
-	bne.s	.g2lo_done
-	tst	os
-	beq.s	.g2lo_done
-	move.l	dosbase(pc),a6
-	lea	g2logname(pc),a0
-	move.l	a0,d1
-	move.l	#1006,d2
-	jsr	-30(a6)
-	move.l	d0,g2loghand
-	beq.s	.g2lo_done
-	lea	g2log_msg_open(pc),a0
-	jsr	g2log
-.g2lo_done
-	movem.l	(a7)+,d0-d3/a0-a1/a6
-	rts
-
-g2log_drawstep	;a0 = marker, v27 writes every frame for crash pinpointing
-	rts	;v94: logger disabled, keep call sites harmless
-	movem.l	d0-d7/a0-a6,-(a7)
-	jsr	g2log
-	movem.l	(a7)+,d0-d7/a0-a6
-	rts
-
-g2log_close
-	rts	; v190aa: logger disabled after apostrophe diagnosis
-	movem.l	d0-d1/a6,-(a7)
-	move.l	g2loghand(pc),d1
-	beq.s	.g2lc_done
-	clr.l	g2loghand
-	move.l	dosbase(pc),a6
-	jsr	-36(a6)
-.g2lc_done
-	movem.l	(a7)+,d0-d1/a6
-	rts
-
-g2log	;a0 = zero terminated marker string
-	rts	; v190aa: logger disabled after apostrophe diagnosis
-	movem.l	d0-d3/a0-a1/a6,-(a7)
-	; v190u: keep the trace file small.  Skip per-frame messages, but keep
-	; script/mapload/intermission transition markers.
-	cmp.l	#'MAIN',(a0)
-	bne.s	.g2lg_not_main
-	cmp.l	#'LOOP',4(a0)
-	beq.s	.g2lg_done
-.g2lg_not_main
-	cmp.l	#'FINI',(a0)
-	bne.s	.g2lg_not_finish
-	cmp.l	#'SHED',4(a0)
-	beq.s	.g2lg_done
-.g2lg_not_finish
-	tst	os
-	beq.s	.g2lg_done
-	move.l	g2loghand(pc),d1
-	beq.s	.g2lg_done
-	move.l	a0,a1
-	moveq	#0,d3
-.g2lg_len
-	tst.b	(a1)+
-	beq.s	.g2lg_len_done
-	addq.l	#1,d3
-	bra.s	.g2lg_len
-.g2lg_len_done
-	move.l	a0,d2
-	move.l	dosbase(pc),a6
-	jsr	-48(a6)
-	move.l	g2loghand(pc),d1
-	lea	g2log_nl(pc),a0
-	move.l	a0,d2
-	moveq	#1,d3
-	move.l	dosbase(pc),a6
-	jsr	-48(a6)
-.g2lg_done
-	movem.l	(a7)+,d0-d3/a0-a1/a6
-	rts
-
-g2logname	dc.b	'dh3:gloom.log',0	;v190u transition trace log
-g2log_nl	dc.b	10
-g2loghand	dc.l	0
-g2logframe	dc	0
-g2log_msg_open	dc.b	'G2LOG OPEN v190u',0
-
-g2log_msg_script_done	dc.b	'SCRIPT DONE',0
-g2log_msg_script_rest	dc.b	'SCRIPT REST',0
-g2log_msg_script_loop	dc.b	'SCRIPT LOOP',0
-g2log_msg_script_hide	dc.b	'SCRIPT HIDE',0
-g2log_msg_script_show	dc.b	'SCRIPT SHOW',0
-g2log_msg_script_draw	dc.b	'SCRIPT DRAW',0
-g2log_msg_script_tile	dc.b	'SCRIPT TILE',0
-g2log_msg_script_pict	dc.b	'SCRIPT PICT',0
-g2log_msg_script_dark	dc.b	'SCRIPT DARK',0
-g2log_msg_script_text	dc.b	'SCRIPT TEXT',0
-g2log_msg_text_skip_fetch_b	dc.b	'TEXT SKIP FETCH BEFORE',0
-g2log_msg_text_skip_fetch_ok	dc.b	'TEXT SKIP FETCH OK',0
-g2log_msg_text_font_b	dc.b	'TEXT INITFONT BEFORE',0
-g2log_msg_text_font_ok	dc.b	'TEXT INITFONT OK',0
-g2log_msg_text_fetch_b	dc.b	'TEXT FETCH BEFORE',0
-g2log_msg_text_fetch_ok	dc.b	'TEXT FETCH OK',0
-g2log_msg_text_wrap_b	dc.b	'TEXT WRAP BEFORE',0
-g2log_msg_text_wrap_ok	dc.b	'TEXT WRAP OK',0
-g2log_msg_text_print1_b	dc.b	'TEXT PRINT SPLIT BEFORE',0
-g2log_msg_text_print1_ok	dc.b	'TEXT PRINT SPLIT OK',0
-g2log_msg_text_printf_b	dc.b	'TEXT PRINT FINAL BEFORE',0
-g2log_msg_text_printf_ok	dc.b	'TEXT PRINT FINAL OK',0
-g2log_msg_text_done	dc.b	'TEXT DONE',0
-g2log_msg_script_wait	dc.b	'SCRIPT WAIT',0
-g2log_msg_mapname	dc.b	'MAPNAME',0
-g2log_msg_tiletag	dc.b	'TILETAG',0
-g2log_msg_picname	dc.b	'PICNAME',0
-g2log_msg_scriptplay	dc.b	'SCRIPTPLAY ENTER',0
-g2log_msg_mapload_before	dc.b	'MAP LOAD BEFORE',0
-g2log_msg_mapload_ok	dc.b	'MAP LOAD OK',0
-g2log_msg_initmap_ok	dc.b	'INITMAP OK',0
-g2log_msg_loadtxts_ok	dc.b	'LOADTXTS OK',0
-g2log_msg_execevent_before	dc.b	'EXECEVENT BEFORE',0
-g2log_msg_execevent_ok	dc.b	'EXECEVENT OK',0
-g2log_msg_player_ok	dc.b	'PLAYER1 OK',0
-g2log_msg_predraw_before	dc.b	'PREDRAW BEFORE',0
-g2log_msg_predraw_ok	dc.b	'PREDRAW OK',0
-g2log_msg_dispon_ok	dc.b	'DISPON CHATON OK',0
-g2log_msg_mainloop	dc.b	'MAINLOOP DRAWALL BEFORE',0
-g2log_msg_draw_ok	dc.b	'MAINLOOP DRAWALL OK',0
-g2log_msg_after_draw	dc.b	'MAINLOOP AFTER DRAWALL LOG OK',0
-g2log_msg_menu_before	dc.b	'MENU BEFORE',0
-g2log_msg_menu_ok	dc.b	'MENU OK',0
-g2log_msg_finish_check	dc.b	'FINISHED CHECK',0
-g2log_msg_mainexit	dc.b	'MAINEXIT',0
-g2log_msg_da_enter	dc.b	'DA ENTER',0
-g2log_msg_da_wait_ok	dc.b	'DA WAIT OK',0
-g2log_msg_da_calc1_b	dc.b	'DA CALC1 BEFORE',0
-g2log_msg_da_calc1_ok	dc.b	'DA CALC1 OK',0
-g2log_msg_da_draw1_b	dc.b	'DA DRAW1 BEFORE',0
-g2log_msg_da_draw1_ok	dc.b	'DA DRAW1 OK',0
-g2log_msg_da_blit1_b	dc.b	'DA BLIT1 BEFORE',0
-g2log_msg_da_blit1_ok	dc.b	'DA BLIT1 OK',0
-g2log_msg_da_calc2_b	dc.b	'DA CALC2 BEFORE',0
-g2log_msg_da_calc2_ok	dc.b	'DA CALC2 OK',0
-g2log_msg_da_draw2_b	dc.b	'DA DRAW2 BEFORE',0
-g2log_msg_da_draw2_ok	dc.b	'DA DRAW2 OK',0
-g2log_msg_da_blit2_b	dc.b	'DA BLIT2 BEFORE',0
-g2log_msg_da_blit2_ok	dc.b	'DA BLIT2 OK',0
-g2log_msg_da_wait2_b	dc.b	'DA WAIT2 BEFORE',0
-g2log_msg_da_wait2_ok	dc.b	'DA WAIT2 OK',0
-g2log_msg_da_doc2p_b	dc.b	'DA DOC2P BEFORE',0
-g2log_msg_da_doc2p_ok	dc.b	'DA DOC2P OK',0
-g2log_msg_da_db_b	dc.b	'DA DB BEFORE',0
-g2log_msg_da_db_ok	dc.b	'DA DB OK',0
-g2log_msg_da_exit	dc.b	'DA EXIT',0
-g2log_msg_ds_enter	dc.b	'DS ENTER',0
-g2log_msg_ds_cast_b	dc.b	'DS CAST BEFORE',0
-g2log_msg_ds_cast_ok	dc.b	'DS CAST OK',0
-g2log_msg_ds_render_b	dc.b	'DS RENDER BEFORE',0
-g2log_msg_ds_render_ok	dc.b	'DS RENDER OK',0
-g2log_msg_ds_roof_b	dc.b	'DS ROOF BEFORE',0
-g2log_msg_ds_roof_ok	dc.b	'DS ROOF OK',0
-g2log_msg_ds_floor_b	dc.b	'DS FLOOR BEFORE',0
-g2log_msg_ds_floor_ok	dc.b	'DS FLOOR OK',0
-g2log_msg_ds_shapes_b	dc.b	'DS SHAPES BEFORE',0
-g2log_msg_ds_shapes_ok	dc.b	'DS SHAPES OK',0
-g2log_msg_ds_blood_b	dc.b	'DS BLOOD BEFORE',0
-g2log_msg_ds_blood_ok	dc.b	'DS BLOOD OK',0
-g2log_msg_ds_pixel_b	dc.b	'DS PIXEL BEFORE',0
-g2log_msg_ds_pixel_ok	dc.b	'DS PIXEL OK',0
-g2log_msg_ds_exit	dc.b	'DS EXIT',0
-	even
-
-even
-
-; v141: small binary PROGDIR:gloom.cfg persistence.
-; Header is exactly "GLMCFG" followed by a version word. v183 writes version 2.
-; Missing/bad files are ignored so defaults remain safe.
-g2cfg_load
-	movem.l	d0-d7/a0-a6,-(a7)
-	move.l	dosbase,a6
-	lea	g2cfg_name(pc),a0
-	move.l	a0,d1
-	move.l	#1005,d2	;MODE_OLDFILE
-	jsr	-30(a6)	;Open
-	move.l	d0,d7
-	beq	.load_done
-	move.l	d7,d1
-	lea	g2cfg_buf(pc),a0
-	move.l	a0,d2
-	move.l	#g2cfg_len,d3
-	jsr	-42(a6)	;Read
-	move.l	d0,d6
-	move.l	d7,d1
-	jsr	-36(a6)	;Close
-	cmp.l	#g2cfg_len,d6
-	beq.s	.len_ok
-	cmp.l	#g2cfg_len_old,d6
-	bne	.load_done
-.len_ok	lea	g2cfg_buf(pc),a0
-	cmp.l	#'GLMC',(a0)+
-	bne	.load_done
-	cmp.b	#'F',(a0)+
-	bne	.load_done
-	cmp.b	#'G',(a0)+
-	bne	.load_done
-	move	(a0)+,d7
-	cmp	#1,d7
-	beq.s	.version_ok
-	cmp	#2,d7
-	bne	.load_done
-.version_ok	move	(a0)+,width
-	move	(a0)+,hite
-	move	(a0)+,floorflag
-	move	(a0)+,roofflag
-	move	(a0)+,g2_blobshadow
-	move	(a0)+,g2_reflections
-	move	(a0)+,trainer_invincible
-	move	(a0)+,trainer_bouncy
-	move	(a0)+,trainer_weapon
-	move	(a0)+,trainer_boost
-	clr	trainer_onehit
-	cmp	#2,d7
-	bne.s	.no_onehit_old_cfg
-	move	(a0)+,trainer_onehit
-.no_onehit_old_cfg	bsr	g2cfg_sanitize
-	bsr	g2cfg_apply_view
-.load_done
-	movem.l	(a7)+,d0-d7/a0-a6
-	rts
-
-g2cfg_save
-	movem.l	d0-d7/a0-a6,-(a7)
-	lea	g2cfg_buf(pc),a0
-	move.l	#'GLMC',(a0)+
-	move.b	#'F',(a0)+
-	move.b	#'G',(a0)+
-	move	#2,(a0)+
-	move	width,(a0)+
-	move	hite,(a0)+
-	move	floorflag,(a0)+
-	move	roofflag,(a0)+
-	move	g2_blobshadow,(a0)+
-	move	g2_reflections,(a0)+
-	move	trainer_invincible,(a0)+
-	move	trainer_bouncy,(a0)+
-	move	trainer_weapon,(a0)+
-	move	trainer_boost,(a0)+
-	move	trainer_onehit,(a0)+
-	move.l	dosbase,a6
-	lea	g2cfg_name(pc),a0
-	move.l	a0,d1
-	move.l	#1006,d2	;MODE_NEWFILE
-	jsr	-30(a6)	;Open
-	move.l	d0,d7
-	beq	.save_done	;silent fail, no requester/menu loop
-	move.l	d7,d1
-	lea	g2cfg_buf(pc),a0
-	move.l	a0,d2
-	move.l	#g2cfg_len,d3
-	jsr	-48(a6)	;Write
-	move.l	d7,d1
-	jsr	-36(a6)	;Close
-.save_done
-	movem.l	(a7)+,d0-d7/a0-a6
-	rts
-
-g2cfg_sanitize
-	; floor/ceiling/blob/reflection: positive YES, non-positive NO
-	move	floorflag,d0
-	bgt	.floor_yes
-	move	#-1,floorflag
-	bra	.floor_ok
-.floor_yes	move	#1,floorflag
-.floor_ok	move	roofflag,d0
-	bgt	.roof_yes
-	move	#-1,roofflag
-	bra	.roof_ok
-.roof_yes	move	#1,roofflag
-.roof_ok	move	g2_blobshadow,d0
-	bgt	.blob_yes
-	move	#-1,g2_blobshadow
-	bra	.blob_ok
-.blob_yes	move	#1,g2_blobshadow
-.blob_ok	move	g2_reflections,d0
-	bgt	.refl_yes
-	move	#-1,g2_reflections
-	bra	.refl_ok
-.refl_yes	move	#1,g2_reflections
-.refl_ok
-	; cheats: zero OFF/DEFAULT, non-zero ON or 1..5
-	tst	trainer_invincible
-	beq	.inv_ok
-	move	#-1,trainer_invincible
-.inv_ok	tst	trainer_bouncy
-	beq	.bouncy_ok
-	move	#-1,trainer_bouncy
-.bouncy_ok	tst	trainer_onehit
-	beq	.onehit_ok
-	move	#-1,trainer_onehit
-.onehit_ok
-	move	trainer_weapon,d0
-	bpl	.weapon_pos
-	clr	trainer_weapon
-	bra	.weapon_ok
-.weapon_pos	cmp	#5,d0
-	ble	.weapon_ok
-	move	#5,trainer_weapon
-.weapon_ok	move	trainer_boost,d0
-	bpl	.boost_pos
-	clr	trainer_boost
-	bra	.boost_ok
-.boost_pos	cmp	#5,d0
-	ble	.boost_ok
-	move	#5,trainer_boost
-.boost_ok
-	; view size: accept only known safe sizes, otherwise FULLSCREEN
-	move	width,d0
-	cmp	#64,d0
-	beq	.size64
-	cmp	#96,d0
-	beq	.size96
-	cmp	#128,d0
-	beq	.size128
-	cmp	#160,d0
-	beq	.size160
-	cmp	#192,d0
-	beq	.size192
-	cmp	#224,d0
-	beq	.size224
-	cmp	#256,d0
-	beq	.size256
-	cmp	#288,d0
-	beq	.size288
-	cmp	#320,d0
-	beq	.sizefull
-	bra	.sizefull
-.size64	move	#64,hite
-	rts
-.size96	move	#96,hite
-	rts
-.size128	move	#128,hite
-	rts
-.size160	move	#160,hite
-	rts
-.size192	move	#192,hite
-	rts
-.size224	move	#192,hite
-	rts
-.size256	move	#192,hite
-	rts
-.size288	move	#192,hite	;ALMOST FULL height = VERY HUGE
-	rts
-.sizefull	move	#320,width
-	move	#224,hite
-	rts
-
-g2cfg_apply_view
-	move	width,d0
-	move	d0,chunkymodw
-	lsr	#1,d0
-	move	d0,maxx
-	neg	d0
-	move	d0,minx
-	move	hite,d0
-	lsr	#1,d0
-	move	d0,maxy
-	neg	d0
-	move	d0,miny
-	rts
-
-g2cfg_name	dc.b	'PROGDIR:gloom.cfg',0
-	even
-g2cfg_len_old	equ	6+2+(10*2)
-g2cfg_len	equ	6+2+(11*2)
-g2cfg_buf	ds.b	g2cfg_len
-	even
 
 savefile	;a0=name, a1=mem, d0=length
 	push
@@ -16538,9 +11825,6 @@ calcpalettes	;generate 16 versions of palette
 	cmp	#16,d7
 	bcs.s	.loop
 	;
-	; v190bz: rebuild chunky transparent-strip colour filter LUTs whenever
-	; the level palette/shade palettes are regenerated.
-	jsr	g2build_strip_luts
 	rts
 
 dispoff	tst	dispnest
@@ -16584,7 +11868,7 @@ permit	tst	os
 	push
 	move.l	4.w,a6
 	jsr	-138(a6)
-	jsr	disownblitter
+	bsr	disownblitter
 	pull
 	;
 .rts	rts
@@ -16713,7 +11997,7 @@ showwindowq	;display coplist
 finitdisplay	push
 	;
 	tst	os
-	beq.w	.noos
+	beq.s	.noos
 	;
 	move.l	dbufinfo(pc),a1
 	move.l	grbase(pc),a6
@@ -16742,7 +12026,7 @@ initbitmap	;a0=bitmap struct, d0=bitplane 0
 	;
 	move	bitplanes(pc),d1
 	move	#40,(a0)	;linemod
-	move	#240,2(a0)	;v16: restore original compact bitmap rows
+	move	#240,2(a0)
 	move	d1,4(a0)
 	clr	6(a0)
 	lea	8(a0),a1
@@ -16764,8 +12048,8 @@ screen	dc.l	0
 viewport	dc.l	0
 dbufinfo	dc.l	0
 
-newscreen	dc	0,0	;x,y ;v106: native PAL/WinUAE centering; no 40px right-shift
-	dc	320,240	;w,h ;v17: keep compact 240-line bitmap, avoid bottom overread
+newscreen	dc	0,0	;x,y
+	dc	320,240	;w,h
 newscreen_d	dc	8	;depth
 	dc.b	0,0	;pens
 newscreen_v	dc	0	;viewmode
@@ -16780,7 +12064,7 @@ newscreen_v	dc	0	;viewmode
 	;modify input readers 
 	;
 newwindow	dc	0,0	;x,y
-	dc	320,240	;w,h ;v17: keep compact 240-line window
+	dc	320,240	;w,h
 	dc.b	0,0	;pens
 	dc.l	$c0000	;idcmp flags! $40000=active,
 	dc.l	$11940	;flags! (RMB trap)
@@ -16792,20 +12076,19 @@ newwindow_s	dc.l	0	;screen
 	dc	-1,-1,-1,-1	;mins/maxs
 	dc	15	;type
 
-oswindow	dc.l	0
+window	dc.l	0
 msgport	dc.l	0
 
 newtask	dcb.b	92,0
 
-inputon	bsr	g2v36_hide_pointer	;v36: hide pointer even if input was already active
-	tst	active
+inputon	tst	active
 	bne.s	.rts
 	;
 	move	#$4000,$dff09a
 	;
-	lea	joytable,a2
-	lea     joytable2,a3
-	lea	joytable_end,a4
+	lea	joytable(pc),a2
+	lea	joytable2(pc),a3
+	move.l	a3,a4
 .loop	move.l	(a3)+,(a2)+
 	cmp.l	a4,a2
 	bcs.s	.loop
@@ -16813,12 +12096,11 @@ inputon	bsr	g2v36_hide_pointer	;v36: hide pointer even if input was already acti
 	move.l	ciaa,a0
 	movem.l	$64(a0),d0-d1
 	movem.l	d0-d1,rawstuff
-	move.l	rawtable,$64(a0)
+	move.l	rawtable(pc),$64(a0)
 	move.l	#rawkeyread,$68(a0)
 	move	#$c000,$dff09a
 	st	active
 	;
-	; v36: pointer hide is handled by g2v36_hide_pointer above.
 .rts	rts
 
 inputoff	tst	active
@@ -16826,9 +12108,9 @@ inputoff	tst	active
 	;
 	move	#$4000,$dff09a
 	;
-	lea	joytable,a2
-	lea	readnull,a3
-	lea	joytable_end,a4
+	lea	joytable(pc),a2
+	lea	readnull(pc),a3
+	move.l	a3,a4
 .loop	move.l	a3,(a2)+
 	cmp.l	a4,a2
 	bcs.s	.loop
@@ -16838,52 +12120,14 @@ inputoff	tst	active
 	movem.l	d0-d1,$64(a0)
 	move	#$c000,$dff09a
 	;
-	; v36: restore normal Intuition pointer when game/input loses focus or exits.
-	bsr	g2v36_show_pointer
 	clr	active
 	;
 .rts	rts
 
-g2v35_blank_pointer	dc.w	0,0,0,0
-
-g2v36_hide_pointer	;force invisible pointer for the game screen/window
-	movem.l	d0-d3/a0-a1/a6,-(a7)
-	move	#$0020,$dff096	;v39: disable hardware sprite DMA so OS mouse sprite vanishes even without an Intuition window
-	move.l	oswindow,d0
-	beq.s	.rts
-	move.l	int,d1
-	beq.s	.rts
-	move.l	chipzero(pc),a1	;v37: pointer image must live in chip RAM
-	move.l	a1,d1
-	beq.s	.rts
-	move.l	d0,a0
-	moveq	#1,d0	;v39: 1-line invisible pointer, system sprite is also disabled above
-	moveq	#1,d1	;v39: 1-pixel/word minimal pointer
-	moveq	#0,d2	;x offset
-	moveq	#0,d3	;y offset
-	move.l	int,a6
-	jsr	-270(a6)	; Intuition SetPointer
-.rts	movem.l	(a7)+,d0-d3/a0-a1/a6
-	rts
-
-g2v36_show_pointer	;restore normal pointer when inactive/exit
-	movem.l	d0/a0/a6,-(a7)
-	move	#$8020,$dff096	;v39: re-enable hardware sprite DMA for Workbench/OS pointer
-	move.l	oswindow,d0
-	beq.s	.rts
-	move.l	int,d0
-	beq.s	.rts
-	move.l	oswindow,a0
-	move.l	int,a6
-	jsr	-60(a6)	; Intuition ClearPointer
-.rts	movem.l	(a7)+,d0/a0/a6
-	rts
-
 windowtask	move.l	int(pc),a6	;intuition base
 	lea	newwindow(pc),a0
 	jsr	-204(a6)	;openwindow
-	move.l	d0,oswindow
-	bsr	g2v36_hide_pointer	;v36: hide pointer immediately after OpenWindow
+	move.l	d0,window
 	move.l	d0,a0
 	move.l	86(a0),msgport
 	;
@@ -16919,7 +12163,7 @@ initdisplay	;
 	;
 	;allocate 2 bitmaps!
 	;
-	move	#40*240,d2	;1 bitplane (DB), v16 compact plane span
+	move	#40*240,d2	;1 bitplane (DB)
 	mulu	bitplanes(pc),d2
 	move.l	d2,bmapmem
 	move.l	d2,d0
@@ -16931,7 +12175,7 @@ initdisplay	;
 	move.l	d0,bitmaps2
 	;
 	tst	os
-	beq.w	.noos
+	beq.s	.noos
 	;
 	;OK, OS version...
 	;init bitmaps and open a screen!
@@ -16958,7 +12202,6 @@ initdisplay	;
 	jsr	-198(a6)
 	move.l	d0,a0
 	move.l	a0,screen
-	jsr	g2v36_hide_pointer	;v39: hide OS mouse sprite immediately after custom screen opens
 	lea	44(a0),a0
 	;
 	move.l	a0,viewport
@@ -17082,9 +12325,6 @@ amem_	move.l	a0,d4
 	bne.s	.skip
 	;
 	warn	#$f00
-	clr.l	d0		; v190p: allocation failed, return 0 instead of writing through address 0
-	pull
-	rts
 	;
 .skip	move.l	d0,a0
 	move.l	memlist,(a0)	;next
@@ -17440,9 +12680,9 @@ p1_ob_colltype	dc	8
 p1_ob_collwith	dc	6	;6=combat, 4=game
 p1_ob_cntrl
 	ifne	cd32
-	dc	4	;CD32 PAD 1 in v34 control table
+	dc	3	;for player 0,1=joyport, 2=keys
 	elseif
-	dc	0	;KEYBMOUSE default
+	dc	0
 	endc
 .ob_damage	dc	1
 .ob_hitpoints	dc	25
@@ -17482,9 +12722,9 @@ p2_ob_colltype	dc	16
 p2_ob_collwith	dc	5	;5=combat, 4=game
 p2_ob_cntrl
 	ifne	cd32
-	dc	5	;CD32 PAD 2 in v34 control table
+	dc	4	;for player 0,1=joyport, 2=keys, 3=serial
 	elseif
-	dc	2	;v168 JOYSTICK 1 default is valid while P1 uses KEYBMOUSE
+	dc	1
 	endc
 
 .ob_damage	dc	1
@@ -18231,7 +13471,7 @@ troll_	dc.l	dummy
 .ob_blood	dc	$f00	;color AND for blood
 .ob_ypad	dc	1
 
-abouttext	dc.b	16
+abouttext	dc.b	14
 	dc.b	'GLOOM',0
 	dc.b	0
 	dc.b	'A BLACK MAGIC GAME',0
@@ -18246,8 +13486,6 @@ abouttext	dc.b	16
 	dc.b	'UTILITIES CODED IN BLITZ BASIC 2',0
 	dc.b	'RENDERED IN DPAINT3 AND DPAINT4',0
 	dc.b	'DECRUNCHING CODE BY THOMAS SCHWARZ',0
-	dc.b	0
-	dc.b	'GLOOM REFORGED IDEA BY ANDIWELI',0
 	even
 
 sqrinc	incbin	sqr.bin
@@ -18280,7 +13518,7 @@ chatfont	incbin	chatfont.bin
 
 copinit_ecs	dc	$096,$120
 	;
-	dc	$08e,$2ca1,$090,$1ce1	;v17: stronger 320x240 right-centering test
+	dc	$08e,$2c81,$090,$1cc1	;320X240
 	dc	$092,$38,$094,$d0,$102,0,$104,0,$106,0
 	dc	$100,$6200,$108,5*40,$10a,5*40,$10c,0
 	;
@@ -18336,7 +13574,7 @@ copinit_aga	;copperlist for AGA amigas
 	;
 	dc	$1fc,15,$096,$120
 	;
-	dc	$08e,$2ca1,$090,$1ce1	;v17: stronger right-centering test
+	dc	$08e,$2c81,$090,$1cc1
 	dc	$092,$38,$094,$a0,$102,0,$104,0,$106,0
 	dc	$100,$7200,$108,7*40,$10a,7*40,$10c,0
 	;
@@ -18386,593 +13624,5 @@ sprites_aga	dc	$140,0,$142,0,$144,0,$146,0
 	dc.l	$fffffffe
 copfinit_aga	;
 
-
-
-		even
-		;
-		; v13 built-in fallback C2P.  This is the original c2p/blackmagic_1
-		; algorithm embedded as a safety net, so gameplay is not dependent on
-		; the helper file being found through the current directory.
-		;
-g2v13_c2pname	dc.b	'c2p/blackmagic_1',0
-		even
-
-g2v13_rotbits	macro	;reg1,reg2,shift
-		move.l	\1,d4
-		and.l	d6,\1
-		eor.l	\1,d4
-		lsl.l	#\3,\1
-		;
-		move.l	\2,d5
-		and.l	d6,d5
-		eor.l	d5,\2
-		lsr.l	#\3,\2
-		or.l	d4,\2
-		or.l	d5,\1
-		endm
-
-g2v13_doc2p_1X1X8
-		move.l	#$0f0f0f0f,a2
-		move.l	#$33333333,a3
-		move.l	#$5555aaaa,a4
-		move.l	d2,a5
-		lsl.l	#3,d2
-		move.l	d2,a6
-		sub.l	a5,a6
-		subq.l	#2,a6
-		lsr	#4,d0
-		move	d0,d2
-		ext.l	d2
-		add.l	d2,d2
-		add.l	a6,d2
-		sub.l	d2,d3
-		move.l	d3,-(a7)
-		subq	#1,d1
-		move	d1,d7
-		swap	d7
-		subq	#1,d0
-		move	d0,d7
-		subq	#2,a7
-		move	d7,-(a7)
-		movem.l	(a0)+,d0-d3
-		move.l	a2,d6
-		bra.s	.g2v13_8_here
-.g2v13_8_loop2
-		swap	d7
-		bra.s	.g2v13_8_here
-.g2v13_8_loop
-		movem.l	(a0)+,d0-d3
-		move.l	a2,d6
-		swap	d4
-		move	d4,(a1)
-		sub.l	a6,a1
-.g2v13_8_here
-	g2v13_rotbits	d0,d2,4
-	g2v13_rotbits	d1,d3,4
-		move.l	a3,d6
-	g2v13_rotbits	d0,d1,2
-		move.l	a4,d6
-		move.l	d0,d4
-		and.l	d6,d4
-		eor.l	d4,d0
-		lsr	#1,d4
-		swap	d4
-		add	d4,d4
-		or.l	d4,d0
-		move	d0,(a1)
-		add.l	a5,a1
-		move.l	d1,d4
-		and.l	d6,d4
-		eor.l	d4,d1
-		swap	d0
-		move	d0,(a1)
-		add.l	a5,a1
-		lsr	#1,d4
-		swap	d4
-		add	d4,d4
-		or.l	d4,d1
-		move	d1,(a1)
-		add.l	a5,a1
-		move.l	a3,d6
-	g2v13_rotbits	d2,d3,2
-		move.l	a4,d6
-		move.l	d2,d4
-		and.l	d6,d4
-		eor.l	d4,d2
-		swap	d1
-		move	d1,(a1)
-		add.l	a5,a1
-		lsr	#1,d4
-		swap	d4
-		add	d4,d4
-		or.l	d4,d2
-		move	d2,(a1)
-		add.l	a5,a1
-		move.l	d3,d4
-		and.l	d6,d4
-		eor.l	d4,d3
-		swap	d2
-		move	d2,(a1)
-		add.l	a5,a1
-		lsr	#1,d4
-		swap	d4
-		add	d4,d4
-		or.l	d3,d4
-		move	d4,(a1)
-		add.l	a5,a1
-		dbf	d7,.g2v13_8_loop
-		move	(a7),d7
-		swap	d7
-		movem.l	(a0)+,d0-d3
-		move.l	a2,d6
-		swap	d4
-		move	d4,(a1)
-		add.l	4(a7),a1
-		dbf	d7,.g2v13_8_loop2
-		addq	#8,a7
-		rts
-
-g2v13_doc2p_1X1X6
-		move.l	#$0f0f0f0f,a2
-		move.l	#$33333333,a3
-		move.l	#$5555aaaa,a4
-		move.l	d2,a5
-		lsl.l	#2,d2
-		add.l	a5,d2
-		move.l	d2,a6
-		subq.l	#2,a6
-		lsr	#4,d0
-		move	d0,d2
-		ext.l	d2
-		add.l	d2,d2
-		add.l	a6,d2
-		sub.l	d2,d3
-		move.l	d3,-(a7)
-		subq	#1,d1
-		move	d1,d7
-		swap	d7
-		subq	#1,d0
-		move	d0,d7
-		subq	#2,a7
-		move	d7,-(a7)
-		movem.l	(a0)+,d0-d3
-		move.l	a2,d6
-		bra.s	.g2v13_6_here
-.g2v13_6_loop2
-		swap	d7
-		bra.s	.g2v13_6_here
-.g2v13_6_loop
-		movem.l	(a0)+,d0-d3
-		move.l	a2,d6
-		swap	d4
-		move	d4,(a1)
-		sub.l	a6,a1
-.g2v13_6_here
-	g2v13_rotbits	d0,d2,4
-	g2v13_rotbits	d1,d3,4
-		move.l	a3,d6
-	g2v13_rotbits	d0,d1,2
-		move.l	a4,d6
-		move.l	d0,d4
-		and.l	d6,d4
-		eor.l	d4,d0
-		lsr	#1,d4
-		swap	d4
-		add	d4,d4
-		or.l	d4,d0
-		move	d0,(a1)
-		add.l	a5,a1
-		move.l	d1,d4
-		and.l	d6,d4
-		eor.l	d4,d1
-		swap	d0
-		move	d0,(a1)
-		add.l	a5,a1
-		lsr	#1,d4
-		swap	d4
-		add	d4,d4
-		or.l	d4,d1
-		move	d1,(a1)
-		add.l	a5,a1
-		move.l	a3,d6
-	g2v13_rotbits	d2,d3,2
-		move.l	a4,d6
-		move.l	d2,d4
-		and.l	d6,d4
-		eor.l	d4,d2
-		swap	d1
-		move	d1,(a1)
-		add.l	a5,a1
-		lsr	#1,d4
-		swap	d4
-		add	d4,d4
-		or.l	d2,d4
-		move	d4,(a1)
-		add.l	a5,a1
-		dbf	d7,.g2v13_6_loop
-		move	(a7),d7
-		swap	d7
-		movem.l	(a0)+,d0-d3
-		move.l	a2,d6
-		swap	d4
-		move	d4,(a1)
-		add.l	4(a7),a1
-		dbf	d7,.g2v13_6_loop2
-		addq	#8,a7
-		rts
-
-; v190p: title art memory pressure relief.  Direct START LEVEL tests show that
-; later maps load when the title/intermission path has not accumulated extra
-; large allocations.  Keep the title picture out of memory while playing, then
-; reload it before returning to the title menu.  Palette/remap tables stay loaded.
-g2v190p_load_title_assets
-	movem.l	d0/a0,-(a7)
-	tst.l	gloom
-	bne.s	.done
-	jsr	permit
-	lea	g2v190p_title_aga(pc),a0
-	tst	aga
-	bne.s	.load
-	lea	g2v190p_title_ecs(pc),a0
-.load	jsr	loadfiles
-	jsr	forbid
-.done	movem.l	(a7)+,d0/a0
-	rts
-
-g2v190p_free_title_assets
-	movem.l	d0/a1,-(a7)
-	move.l	gloom,d0
-	beq.s	.skip_gloom
-	clr.l	gloom
-	move.l	d0,a1
-	freemem	title
-.skip_gloom
-	move.l	gloompal,d0
-	beq.s	.skip_pal
-	clr.l	gloompal
-	move.l	d0,a1
-	freemem	titlepal
-.skip_pal
-	move.l	gloombrush,d0
-	beq.s	.skip_brush
-	clr.l	gloombrush
-	move.l	d0,a1
-	freemem	titlebrush
-.skip_brush
-	movem.l	(a7)+,d0/a1
-	rts
-
-g2v190p_title_aga
-	dc.l	gloom
-	dc.b	'pics/title',0
-	even
-	dc.l	gloompal
-	dc.b	'pics/title.pal',0
-	even
-	dc.l	gloombrush
-	dc.b	'pics/gloom',0
-	even
-	dc.l	0
-
-g2v190p_title_ecs
-	dc.l	gloom
-	dc.b	'pics_ehb/title',0
-	even
-	dc.l	gloompal
-	dc.b	'pics_ehb/title.pal',0
-	even
-	dc.l	0
-
 paladjust	ds.b	256	;remaping for scrambled bitplanes
-map_rgbs_	ds.w	256*16	;v190p original-sized 4bit RGB palette pool
-
-	even
-; v190o: large levelselect/script buffers moved out of the middle of code/data so
-; they do not push existing PC-relative references beyond GenAm's 32KB range.
-g2v190i_script_static ds.b g2v190i_script_static_size
-	even
-g2v190i_level_names ds.b g2v190i_max_levels*16
-g2v190i_level_paths ds.b g2v190i_max_levels*64
-g2v190i_level_offsets ds.l g2v190i_max_levels	; v190r: script command offsets for START LEVEL chain mode
-	even
-
-
-	even
-
-		even
-
-	even
-; v190an: resume from ESC in-game menu without the old predrawall blank
-; frames.  predrawall clears and db-swaps both bitmaps via clspic, which is the
-; visible black flash on real Amiga.  Here the grey/menu frame stays visible
-; while a real gameplay frame is rendered into the hidden bitmap.  After the
-; first db the screen is already back in-game; a second render fills the other
-; buffer as well so the following frame cannot bounce back to the menu image.
-g2v190an_resume_menu_noblank
-	movem.l	d0/a0,-(a7)
-	move.l	player1,a0
-	st	ob_update(a0)
-	tst	gametype
-	beq.s	.g2v190an_one_player
-	move.l	player2,a0
-	st	ob_update(a0)
-.g2v190an_one_player
-	movem.l	(a7)+,d0/a0
-	jsr	g2v190aj_restore_game_palette
-	jsr	drawall_
-	jsr	drawall_
-	rts
-
-; v190bz: transparent wall strip colour filter LUTs for chunky renderer.
-; The original planar renderer used the byte before each transparent texture
-; column as a colour-mask selector.  Flag -6 is the green glass/screen tint.
-; In chunky mode we emulate that by remapping the already-rendered destination
-; pixel through this palette-aware LUT when the transparent texel is zero.
-g2build_strip_luts
-	movem.l	d0-d7/a0-a6,-(a7)
-	lea	g2_strip_green_lut,a0
-	moveq	#0,d0
-	move	#255,d7
-.g2st_identity
-	move.b	d0,(a0)+
-	addq	#1,d0
-	dbf	d7,.g2st_identity
-	move.l	planar_palette,d0
-	beq.w	.g2st_done
-	move.l	d0,a2
-	move.l	planar_remap,a3
-	tst.l	a3
-	beq.w	.g2st_done
-	; build inverse paladjust: adjusted chunky index -> original palette index
-	lea	g2_strip_invpal,a0
-	moveq	#0,d0
-	move	#255,d7
-.g2st_clear_inv
-	move.b	d0,(a0)+
-	addq	#1,d0
-	dbf	d7,.g2st_clear_inv
-	lea	g2_strip_invpal,a0
-	lea	paladjust,a1
-	moveq	#0,d0
-	move	#255,d7
-.g2st_inv_loop
-	moveq	#0,d1
-	move.b	0(a1,d0.w),d1
-	move.b	d0,0(a0,d1.w)
-	addq	#1,d0
-	dbf	d7,.g2st_inv_loop
-	lea	g2_strip_green_lut,a4
-	lea	g2_strip_invpal,a0
-	lea	paladjust,a5
-	moveq	#0,d3
-	move	#255,d7
-.g2st_lut_loop
-	moveq	#0,d4
-	move.b	0(a0,d3.w),d4	; real palette index before paladjust
-	moveq	#0,d0
-	cmp	colours,d4
-	bcc.s	.g2st_make_green
-	move	d4,d5
-	tst	aga
-	beq.s	.g2st_ecs_col
-	lsl	#2,d5
-	bra.s	.g2st_get_col
-.g2st_ecs_col
-	add	d5,d5
-.g2st_get_col
-	move	0(a2,d5.w),d0	; 12-bit RGB
-.g2st_make_green
-	; v190cf: realistic green glass.  Preserve the brightness of what is
-	; already behind the pane instead of adding a fixed green boost.  Dark
-	; walls therefore remain dark, while bright lamps/textures stay bright but
-	; become green-tinted.
-	move	d0,d1	; red
-	lsr	#8,d1
-	and	#$000f,d1
-	move	d0,d2	; green
-	lsr	#4,d2
-	and	#$000f,d2
-	move	d0,d6	; blue
-	and	#$000f,d6
-	move	d1,d5	; brightness = max(r,g,b)
-	cmp	d2,d5
-	bhs.s	.g2st_max_g_ok
-	move	d2,d5
-.g2st_max_g_ok
-	cmp	d6,d5
-	bhs.s	.g2st_max_b_ok
-	move	d6,d5
-.g2st_max_b_ok
-	move	d5,d2	; green channel keeps background brightness
-	move	d5,d1	; red/blue only a weak bleed-through
-	lsr	#2,d1
-	move	d1,d6
-	lsl	#8,d1
-	lsl	#4,d2
-	or	d2,d1
-	or	d6,d1
-	moveq	#0,d0
-	move.b	0(a3,d1.w),d0	; RGB -> nearest game palette entry
-	move.b	0(a5,d0.w),d0	; paladjust -> active chunky index
-	move.b	d0,0(a4,d3.w)
-	addq	#1,d3
-	dbf	d7,.g2st_lut_loop
-.g2st_done
-	movem.l	(a7)+,d0-d7/a0-a6
-	rts
-
-g2_strip_invpal	ds.b	256
-g2_strip_green_lut	ds.b	256
-	even
-
-; v190aj: true grey in-game menu backdrop for the Gloom2 chunky/C2P path.
-; Based on the original gloom.s idea of drawing the game through a temporary
-; grey palette, but without calling the full drawall wait path from ESC.
-; We remap the already-rendered chunky frame to safe grey indices 4..15,
-; poke a matching temporary grey palette, C2P it once, then initmenu draws the
-; yellow bigfont2 over this grey frame.  On leaving/refreshing the menu, the
-; original gameplay palette is restored before normal rendering continues.
-g2v190aj_grey_menu_backdrop
-	movem.l	d0-d7/a0-a6,-(a7)
-	move.l	lastpal,d0
-	move.l	d0,g2v190aj_saved_lastpal
-	jsr	g2v190aj_build_grey_palette
-	jsr	g2v190aj_build_grey_lut
-	jsr	g2v190aj_apply_grey_lut
-	lea	g2v190aj_grey_pal,a1
-	jsr	pokepal
-	jsr	doc2p
-	jsr	db
-	movem.l	(a7)+,d0-d7/a0-a6
-	rts
-
-g2v190aj_restore_game_palette
-	movem.l	d0/a1,-(a7)
-	move.l	g2v190aj_saved_lastpal,d0
-	beq.s	.g2v190aj_rg_done
-	move.l	d0,a1
-	jsr	pokepal
-	clr.l	g2v190aj_saved_lastpal
-.g2v190aj_rg_done
-	movem.l	(a7)+,d0/a1
-	rts
-
-g2v190aj_build_grey_palette
-	movem.l	d0-d7/a0,-(a7)
-	lea	g2v190aj_grey_pal,a0
-	move	colours,d7
-	beq.s	.g2v190aj_bgp_done
-	subq	#1,d7
-	moveq	#0,d0
-	tst	aga
-	beq.s	.g2v190aj_bgp_ecs
-.g2v190aj_bgp_aga_loop
-	bsr.s	g2v190aj_make_grey_rgb
-	move	d1,(a0)+
-	clr	(a0)+
-	addq	#1,d0
-	dbf	d7,.g2v190aj_bgp_aga_loop
-	bra.s	.g2v190aj_bgp_done
-.g2v190aj_bgp_ecs
-	bsr.s	g2v190aj_make_grey_rgb
-	move	d1,(a0)+
-	addq	#1,d0
-	dbf	d7,.g2v190aj_bgp_ecs
-.g2v190aj_bgp_done
-	movem.l	(a7)+,d0-d7/a0
-	rts
-
-; d0 = palette index, returns d1 = 12-bit RGB grey.  4..15 are the grey ramp;
-; 1..3 are left for initfontpal/bigfont2 and are not used by the backdrop.
-g2v190aj_make_grey_rgb
-	moveq	#0,d1
-	cmp	#4,d0
-	bcs.s	.g2v190aj_mgr_done
-	cmp	#15,d0
-	bhi.s	.g2v190aj_mgr_done
-	move	d0,d1
-	subq	#4,d1
-	mulu	#9,d1
-	divu	#11,d1
-	addq	#1,d1		; darker dim ramp 1..10, not full white
-	move	d1,d2
-	lsl	#8,d1
-	move	d2,d3
-	lsl	#4,d3
-	or	d3,d1
-	or	d2,d1
-.g2v190aj_mgr_done
-	rts
-
-g2v190aj_build_grey_lut
-	movem.l	d0-d7/a0-a5,-(a7)
-	lea	g2v190aj_invpal,a0
-	moveq	#0,d0
-	move	#255,d7
-.g2v190aj_clear_inv
-	move.b	d0,(a0)+
-	dbf	d7,.g2v190aj_clear_inv
-	lea	g2v190aj_invpal,a0
-	lea	paladjust,a1
-	moveq	#0,d0
-	move	#255,d7
-.g2v190aj_inv_loop
-	moveq	#0,d1
-	move.b	0(a1,d0.w),d1
-	move.b	d0,0(a0,d1.w)
-	addq	#1,d0
-	dbf	d7,.g2v190aj_inv_loop
-	move.l	planar_palette,d0
-	beq.w	.g2v190aj_lut_done
-	move.l	d0,a2
-	lea	g2v190aj_lut,a3
-	lea	g2v190aj_invpal,a0
-	lea	paladjust,a5
-	moveq	#0,d3
-	move	#255,d7
-.g2v190aj_lut_loop
-	moveq	#0,d4
-	move.b	0(a0,d3.w),d4	; real display palette index before paladjust
-	cmp	colours,d4
-	bcc.s	.g2v190aj_lut_black
-	move	d4,d5
-	tst	aga
-	beq.s	.g2v190aj_lut_ecscol
-	lsl	#2,d5
-	bra.s	.g2v190aj_lut_getcol
-.g2v190aj_lut_ecscol
-	add	d5,d5
-.g2v190aj_lut_getcol
-	move	0(a2,d5.w),d0	; 12-bit RGB
-	move	d0,d1
-	move	d0,d2
-	and	#$0f00,d0
-	lsr	#8,d0
-	and	#$00f0,d1
-	lsr	#4,d1
-	and	#$000f,d2
-	add	d1,d0
-	add	d2,d0
-	divu	#3,d0		; grey brightness 0..15
-	mulu	#11,d0
-	divu	#15,d0		; 0..11
-	addq	#4,d0		; safe grey palette indices 4..15
-	bra.s	.g2v190aj_lut_store
-.g2v190aj_lut_black
-	moveq	#4,d0
-.g2v190aj_lut_store
-	moveq	#0,d1
-	move.b	0(a5,d0.w),d1
-	move.b	d1,0(a3,d3.w)
-	addq	#1,d3
-	dbf	d7,.g2v190aj_lut_loop
-.g2v190aj_lut_done
-	movem.l	(a7)+,d0-d7/a0-a5
-	rts
-
-g2v190aj_apply_grey_lut
-	movem.l	d0-d7/a0-a1,-(a7)
-	move.l	chunky,d0
-	beq.s	.g2v190aj_ag_done
-	move.l	d0,a0
-	lea	g2v190aj_lut,a1
-	move	#239,d6
-.g2v190aj_ag_y
-	move	#319,d7
-.g2v190aj_ag_x
-	moveq	#0,d0
-	move.b	(a0),d0
-	move.b	0(a1,d0.w),(a0)+
-	dbf	d7,.g2v190aj_ag_x
-	dbf	d6,.g2v190aj_ag_y
-.g2v190aj_ag_done
-	movem.l	(a7)+,d0-d7/a0-a1
-	rts
-
-; v190aj grey menu temporary palette/LUT storage.  Kept at the file end so it
-; does not disturb nearby PC-relative code/data ranges.
-g2v190aj_saved_lastpal	dc.l	0
-g2v190aj_grey_pal	ds.w	512
-g2v190aj_invpal	ds.b	256
-g2v190aj_lut	ds.b	256
-	even
+map_rgbs_	ds.w	256	;4bit RGB palette for a game

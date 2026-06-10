@@ -40,7 +40,7 @@ exshft	equ	3
 exone	equ	1<<exshft
 exhalf	equ	exone>>1
 	;
-old_linemod	equ	40*7	;v46a: old fixed AGA row stride; runtime linemod is prepared below
+linemod	equ	40*7
 
 	jmp	entrypoint
 
@@ -656,7 +656,7 @@ wb	;
 	jsr	12(a1)
 	bra.s	exittoos
 .play	;
-	jsr	initnewgame
+	bsr	initnewgame
 	tst	gametype
 	bmi	.intro2
 	;
@@ -1148,14 +1148,14 @@ dogamemenu	;
 	move.l	(a7)+,ob_palette(a5)
 	move.l	ob_window(a5),a2
 	jsr	plotwbmap
-	jsr	initstats
+	bsr	initstats
 	bsr	showstats
 .p12	;
 	move.l	player1,a5
 	move.l	(a7)+,ob_palette(a5)
 	move.l	ob_window(a5),a2
 	jsr	plotwbmap
-	jsr	initstats
+	bsr	initstats
 	bsr	showstats
 	;
 	move	#$20,$dff09a
@@ -1780,7 +1780,7 @@ refresh	jsr	dispoff
 	jsr	finitmenu
 	;
 	jsr	freewindows
-	jsr	putwindow
+	bsr	putwindow
 	;
 	lea	window1,a0
 	jsr	makewindow
@@ -1860,11 +1860,6 @@ drawall	;
 	bsr	calcscene
 	move.l	player1(pc),a5
 	bsr	blitscene
-	;v48ae: c2p.library BITMAP context structure probe with stable 96x38 overlay; sample active width up to 200 lines from
-	;the previous real Copper game block, quantize colour into 7-bit chunky,
-	;build an exact 128-slot frame palette, run doc2p, then print C2P checksum.
-	move.l	player1(pc),a5
-	jsr	g2renderer_v48bk_real_copper_exactpal_c2p_probe
 	move.l	player1(pc),a5
 	bsr	drawscene
 	;
@@ -1879,10 +1874,7 @@ drawall	;
 	move.l	player2(pc),a5
 	bsr	drawscene
 	;
-	jsr	g2renderer_shadowtick	;v46c: harmless per-frame shadow-buffer heartbeat
-.show	;v47bo: old global cop marker kept disabled; final marker is in showwindowq
-	;jsr	g2renderer_v47bn_cop_marker	;v47bn: visible proof in real Copper-chunky output
-	st	showflag
+.show	st	showflag
 	rts
 
 resetplayer	st	ob_update(a5)
@@ -1980,7 +1972,7 @@ printmess2	;a6=window, a4=message, d0=length of message, d6=Y
 	bmi.s	.spc
 	;
 .pdloop	bsr	vwait
-	jsr	checkany
+	bsr	checkany
 	beq.s	.none
 	move	#-1,pdelay
 	moveq	#0,d2
@@ -1990,811 +1982,6 @@ printmess2	;a6=window, a4=message, d0=length of message, d6=Y
 	bra	.loop2
 .done	;
 	rts
-
-;v47ch real Copper -> hidden chunky -> doc2p checksum probe, dynamic width x up to 200.
-;v47cg proved dynamic-width x128.  This version keeps the actual active width,
-;clamps it to 320, and increases the copied height to the active height clamped
-;to 200, which is the current hidden doc2p frame height.
-g2renderer_v48bk_real_copper_exactpal_c2p_probe
-	movem.l	d0-d7/a0-a6,-(a7)
-	move.l	ob_window(a5),a6
-	beq.w	g2ch_done
-	move.l	cop(pc),d0
-	beq.w	g2ch_nocop
-	move.l	d0,g2ch_copbase
-	move	copmod(pc),d0
-	beq.w	g2ch_nocop
-	move	d0,g2ch_copstride
-	move	width(pc),d0
-	cmp	#16,d0
-	blt.w	g2ch_nocop
-	cmp	#320,d0
-	ble.s	g2ch_wok
-	move	#320,d0
-g2ch_wok
-	move	d0,g2ch_copyw
-	;v48ae: compact 96x56 library chunky source uses the same centered
-	;horizontal crop as the stable 96x40 visible overlay.
-	move	d0,g2v48bk_libsrcx
-	sub	#96,g2v48bk_libsrcx
-	bpl.s	g2v48bk_libsrcx_ok
-	clr	g2v48bk_libsrcx
-	bra.s	g2v48bk_libsrcx_done
-g2v48bk_libsrcx_ok
-	move	g2v48bk_libsrcx,d0
-	lsr	#1,d0
-	move	d0,g2v48bk_libsrcx
-g2v48bk_libsrcx_done
-	move	hite(pc),d0
-	cmp	#16,d0
-	blt.w	g2ch_nocop
-	cmp	#200,d0
-	ble.s	g2ch_hok
-	move	#200,d0
-g2ch_hok
-	move	d0,g2ch_copyh
-	move	hite(pc),d1
-	sub	d0,d1
-	lsr	#1,d1
-	bpl.s	g2ch_yok
-	moveq	#0,d1
-g2ch_yok
-	move	d1,g2ch_srcy
-	tst	render2_copy_ok
-	beq.w	g2ch_nobuf
-	move.l	chunky,a2
-	beq.w	g2ch_nobuf
-	clr	g2cl_palcount
-	moveq	#0,d7
-
-g2ch_copy_y
-	move.l	g2ch_copbase,a4
-	move	g2ch_srcy,d0
-	add	d7,d0
-	mulu	g2ch_copstride,d0
-	add.l	d0,a4
-	move.l	chunky,a3
-	move	d7,d0
-	mulu	#320,d0
-	add.l	d0,a3
-	moveq	#0,d6
-
-g2ch_copy_x
-	lea	coloffs(pc),a0
-	move.l	0(a0,d6.w*4),d0
-	move.l	a4,a1
-	add.l	d0,a1
-	move	(a1),d0
-	and	#$0fff,d0
-	;v47cl: exact 12-bit colour -> 7-bit frame palette index.
-	;Existing colours reuse their slot; new colours allocate slots up to 127.
-	lea	g2ck_dynpal(pc),a0
-	move	g2cl_palcount,d1
-	beq.s	g2cl_new_colour
-	moveq	#0,d2
-g2cl_find_loop
-	cmp	0(a0,d2.w*2),d0
-	beq.s	g2cl_found_colour
-	addq	#1,d2
-	cmp	d1,d2
-	blt.w	g2cl_find_loop
-g2cl_new_colour
-	move	g2cl_palcount,d2
-	cmp	#128,d2
-	blt.s	g2cl_store_colour
-	;Palette overflow fallback: use compact quantization for extra colours.
-	move	d0,d1
-	lsr	#8,d1
-	and	#$000f,d1
-	lsr	#2,d1
-	lsl	#5,d1
-	move	d0,d2
-	lsr	#4,d2
-	and	#$000f,d2
-	lsr	#2,d2
-	lsl	#3,d2
-	or	d2,d1
-	move	d0,d2
-	and	#$000f,d2
-	lsr	#1,d2
-	or	d2,d1
-	move	d1,d2
-	bra.s	g2cl_emit_colour
-g2cl_store_colour
-	move	d0,0(a0,d2.w*2)
-	addq	#1,g2cl_palcount
-g2cl_found_colour
-g2cl_emit_colour
-	move.b	d2,(a3)+
-	;v48ae: feed the real game/Copper source into c2p.library's compact
-	;96x56 chunky buffer.  This drives the visible Txxxx overlay test.
-	move.l	c2pchunky,a5
-	beq.s	g2v48bk_no_libstore
-	cmp	#56,d7
-	bge.s	g2v48bk_no_libstore
-	move	d6,d0
-	sub	g2v48bk_libsrcx,d0
-	bmi.s	g2v48bk_no_libstore
-	cmp	#96,d0
-	bge.s	g2v48bk_no_libstore
-	move	d7,d1
-	mulu	#96,d1
-	add	d0,d1
-	move.b	d2,0(a5,d1.w)
-g2v48bk_no_libstore
-	addq	#1,d6
-	cmp	g2ch_copyw,d6
-	blt.w	g2ch_copy_x
-	addq	#1,d7
-	cmp	g2ch_copyh,d7
-	blt.w	g2ch_copy_y
-	jsr	doc2p
-	;v48av: rebuild c2p.library's chunky buffer in true linear 96x56 order from
-	;the proven render2_copybuf/doc2p output before library conversion.
-	bsr.w	g2v48bk_refill_linear_c2pchunky
-	;v48av: convert the refilled linear 96x56 chunky buffer with c2p.library.
-	;The visible overlay still uses the old safe path; this only updates Gxxxx.
-	move.l	c2pctx,d0
-	beq.s	g2v48bk_skip_libconvert
-	move.l	c2pchunky,d0
-	beq.s	g2v48bk_skip_libconvert
-	move.l	c2pbase,a6
-	move.l	c2pctx,a0
-	jsr	-90(a6)	;C2P_Chunky2Planar
-	move.l	d0,c2pconverr
-g2v48bk_skip_libconvert
-	move.l	render2_copybuf,a0
-	beq.w	g2ch_nobuf
-	moveq	#0,d1
-	moveq	#0,d7
-
-g2ch_sum_plane
-	moveq	#0,d6
-
-g2ch_sum_line
-	moveq	#0,d5
-	move	g2ch_copyw,d4
-	add	#15,d4
-	lsr	#4,d4
-	beq.s	g2ch_sum_line_next
-
-g2ch_sum_word
-	move.l	a0,a1
-	move	d7,d0
-	mulu	#40*200,d0
-	add.l	d0,a1
-	move	d6,d0
-	mulu	#40,d0
-	add.l	d0,a1
-	move	d5,d0
-	add	d0,d0
-	add.l	d0,a1
-	add	(a1),d1
-	addq	#1,d5
-	cmp	d4,d5
-	blt.w	g2ch_sum_word
-g2ch_sum_line_next
-	addq	#1,d6
-	cmp	g2ch_copyh,d6
-	blt.w	g2ch_sum_line
-	addq	#1,d7
-	cmp	#7,d7
-	blt.w	g2ch_sum_plane
-	lea	g2ch_text(pc),a4
-	cmp	g2ch_prevsum,d1
-	beq.s	g2ch_same
-	move.b	#'F',(a4)
-	move	d1,g2ch_prevsum
-	bra.s	g2ch_fill
-g2ch_same
-	move.b	#'S',(a4)
-g2ch_fill
-	lea	g2ch_hex(pc),a0
-	move	d1,d0
-	lsr	#8,d0
-	lsr	#4,d0
-	and	#15,d0
-	move.b	0(a0,d0.w),1(a4)
-	move	d1,d0
-	lsr	#8,d0
-	and	#15,d0
-	move.b	0(a0,d0.w),2(a4)
-	move	d1,d0
-	lsr	#4,d0
-	and	#15,d0
-	move.b	0(a0,d0.w),3(a4)
-	move	d1,d0
-	and	#15,d0
-	move.b	0(a0,d0.w),4(a4)
-	bra.s	g2ch_have
-g2ch_nocop
-	lea	g2ch_text_nocop(pc),a4
-	bra.s	g2ch_have
-g2ch_nobuf
-	lea	g2ch_text_nobuf(pc),a4
-g2ch_have
-	;v48ag: detailed BITMAP-context diagnostic with one clean output path.
-	;C2P-- = library missing
-	;NCTX- = CreateContext failed
-	;Ixxxx = InitializeContext returned error xxxx
-	;NCHNK = chunky pointer missing
-	;NBMAP = bitmap pointer missing
-	;Vxxxx = Chunky2Planar error xxxx
-	;Hxxxx = bitmap pointer exists, but header is not plausible; xxxx = first word
-	;Mxxxx = plausible BitMap/Planes checksum
-	move.l	c2pbase,d0
-	beq.w	g2ch_c2p_missing
-	move.l	c2pctx,d0
-	beq.w	g2ch_ctx_ptr_missing
-	move.l	c2piniterr,d0
-	bne.w	g2ch_init_error
-	move.l	c2pchunky,d0
-	beq.w	g2ch_chunky_missing
-	move.l	c2pbitmap,d0
-	beq.w	g2ch_bitmap_missing
-	move.l	c2pconverr,d0
-	bne.w	g2ch_convert_error
-
-	;v48ag: normal BITMAP context probe.  According to the SDK, the
-	;BITMAP context should return an Amiga BitMap and planar data starts at
-	;BitPlane #0. Validate BitMap header before reading Planes[].
-	;v48ah: rotating BITMAP header probe.
-	;H000C in v48ag proved BytesPerRow is 12, so now show the actual fields:
-	;Bxxxx = BytesPerRow
-	;Rxxxx = Rows
-	;Dxxxx = Flags/Depth word at BitMap+4
-	;Pxxxx = low word of Planes[0]
-	;v48an: checksum real c2p.library BitMap planes after v48am confirmed K007F.
-	;Confirmed fields:
-	;B000C = BytesPerRow 12, R0038 = 56 rows, D0007 = 7 planes,
-	;K007F = all Plane[0..6] pointers are present.
-	;Unlike v48al, do not abort to NBMAP inside the checksum loop; if a pointer
-	;unexpectedly becomes NULL, skip that plane instead of hiding the result.
-	move.l	c2pbitmap,a3
-	move	(a3),g2v48bk_bpr
-	moveq	#0,d1
-	moveq	#0,d7	;plane index
-g2ch_msum_plane
-	move.l	8(a3,d7.w*4),a1
-	beq.w	g2ch_msum_next_plane
-	moveq	#0,d6	;row
-g2ch_msum_row
-	moveq	#0,d5	;word in 96px row, 6 words
-g2ch_msum_word
-	move.l	a1,a2
-	move	d6,d0
-	mulu	g2v48bk_bpr,d0
-	add.l	d0,a2
-	move	d5,d0
-	add	d0,d0
-	add.l	d0,a2
-	add	(a2),d1
-	addq	#1,d5
-	cmp	#6,d5
-	blt.w	g2ch_msum_word
-	addq	#1,d6
-	cmp	#56,d6
-	blt.w	g2ch_msum_row
-g2ch_msum_next_plane
-	addq	#1,d7
-	cmp	#7,d7
-	blt.w	g2ch_msum_plane
-	lea	g2ch_text_bsum(pc),a4
-	bra.w	g2ch_fill_diag
-
-g2ch_init_error
-	lea	g2ch_text_initerr(pc),a4
-	move	c2piniterr+2,d1
-	bra.w	g2ch_fill_diag
-
-g2ch_convert_error
-	lea	g2ch_text_cvterr(pc),a4
-	move	c2pconverr+2,d1
-	bra.w	g2ch_fill_diag
-
-g2ch_chunky_missing
-	lea	g2ch_text_nochunky(pc),a4
-	bra.w	g2ch_c2p_print
-
-g2ch_bitmap_missing
-	lea	g2ch_text_nobitmap(pc),a4
-	bra.w	g2ch_c2p_print
-
-g2ch_ctx_ptr_missing
-	lea	g2ch_text_noctx(pc),a4
-	bra.w	g2ch_c2p_print
-
-g2ch_c2p_missing
-	lea	g2ch_text_c2pmiss(pc),a4
-	bra.w	g2ch_c2p_print
-
-g2ch_fill_diag
-	lea	g2ch_hex(pc),a0
-	move	d1,d0
-	lsr	#8,d0
-	lsr	#4,d0
-	and	#15,d0
-	move.b	0(a0,d0.w),1(a4)
-	move	d1,d0
-	lsr	#8,d0
-	and	#15,d0
-	move.b	0(a0,d0.w),2(a4)
-	move	d1,d0
-	lsr	#4,d0
-	and	#15,d0
-	move.b	0(a0,d0.w),3(a4)
-	move	d1,d0
-	and	#15,d0
-	move.b	0(a0,d0.w),4(a4)
-	bra.w	g2ch_c2p_print
-
-g2ch_c2p_print
-	moveq	#7,d0
-	move	wi_bh(a6),d6
-	lsr	#2,d6
-	subq	#8,d6
-	bpl.s	g2ch_tyok
-	moveq	#20,d6
-g2ch_tyok
-	jsr	printmess2
-
-g2ch_done
-	movem.l	(a7)+,d0-d7/a0-a6
-	rts
-
-;v48av: refill c2p.library chunky buffer in true linear 96x56 order.
-;Source is the proven render2_copybuf/doc2p planar image, read exactly like the
-;old stable overlay source.  Destination is c2pchunky[y*96+x].
-g2v48bk_refill_linear_c2pchunky
-	movem.l	d0-d7/a0-a6,-(a7)
-	move.l	c2pchunky,d0
-	beq.w	g2v48bk_refill_done
-	move.l	d0,a6
-	move.l	render2_copybuf,d0
-	beq.w	g2v48bk_refill_done
-	move.l	d0,a5
-	move	width(pc),d0
-	sub	#96,d0
-	bpl.s	g2v48bk_refill_srcx_ok
-	moveq	#0,d0
-	bra.s	g2v48bk_refill_srcx_done
-g2v48bk_refill_srcx_ok
-	lsr	#1,d0
-g2v48bk_refill_srcx_done
-	move	d0,g2v48bk_refill_srcx
-	moveq	#0,d7	;y 0..55
-g2v48bk_refill_y
-	moveq	#0,d6	;x 0..95
-g2v48bk_refill_x
-	moveq	#0,d3	;7-bit pixel value
-	moveq	#0,d2	;plane
-g2v48bk_refill_plane
-	move.l	a5,a0
-	move	d2,d0
-	mulu	#40*200,d0
-	add.l	d0,a0
-	move	d7,d0
-	mulu	#40,d0
-	add.l	d0,a0
-	move	d6,d0
-	add	g2v48bk_refill_srcx,d0
-	move	d0,d4
-	lsr	#4,d4
-	and	#15,d0
-	move	#15,d5
-	sub	d0,d5
-	move	d4,d0
-	add	d0,d0
-	add.l	d0,a0
-	move	(a0),d0
-	btst	d5,d0
-	beq.s	g2v48bk_refill_nobit
-	bset	d2,d3
-g2v48bk_refill_nobit
-	addq	#1,d2
-	cmp	#7,d2
-	blt.w	g2v48bk_refill_plane
-	move.l	a6,a0
-	move	d7,d0
-	mulu	#96,d0
-	add	d6,d0
-	move.b	d3,0(a0,d0.w)
-	addq	#1,d6
-	cmp	#96,d6
-	blt.w	g2v48bk_refill_x
-	addq	#1,d7
-	cmp	#56,d7
-	blt.w	g2v48bk_refill_y
-g2v48bk_refill_done
-	movem.l	(a7)+,d0-d7/a0-a6
-	rts
-
-g2ch_copbase	dc.l	0
-g2ch_copstride	dc	0
-g2ch_copyw	dc	0
-g2ch_copyh	dc	0
-g2ch_srcy	dc	0
-g2v48bk_libsrcx	dc	0
-g2v48bk_refill_srcx	dc	0
-g2ch_prevsum	dc	-1
-g2v48bk_bpr	dc	0
-g2v48bk_hdrword	dc	0
-g2v48bk_diagctr	dc	0
-g2ch_text	dc.b	'S0000',0
-g2ch_text_nocop	dc.b	'NCOP',0
-g2ch_text_nobuf	dc.b	'NBUF',0
-g2ch_text_c2pok	dc.b	'C2POK',0
-g2ch_text_ctxok	dc.b	'CTXOK',0
-g2ch_text_cvtok	dc.b	'CVTOK',0
-g2ch_text_bsum	dc.b	'R0000',0
-g2ch_text_bpr	dc.b	'B0000',0
-g2ch_text_rows	dc.b	'R0000',0
-g2ch_text_depth	dc.b	'D0000',0
-g2ch_text_plane0	dc.b	'P0000',0
-g2ch_text_hdrbad	dc.b	'H0000',0
-g2ch_text_initerr	dc.b	'I0000',0
-g2ch_text_cvterr	dc.b	'V0000',0
-g2ch_text_nochunky	dc.b	'NCHNK',0
-g2ch_text_nobitmap	dc.b	'NBMAP',0
-g2ch_text_noctx	dc.b	'NCTX-',0
-g2ch_text_cvtmiss	dc.b	'CVT--',0
-g2ch_text_ctxmiss	dc.b	'CTX--',0
-g2ch_text_c2pmiss	dc.b	'C2P--',0
-g2ch_hex	dc.b	'0123456789ABCDEF'
-	even
-
-;v48ae stable 96x38 visible overlay plus c2p.library BITMAP context structure probe.
-;Uses the proven dynamic-full real Copper -> exact-palette chunky -> doc2p
-;path.  After drawscene/pixelate, this reconstructs a small 64x24 block from
-;render2_copybuf and writes it into the active Copper game buffer.  It is only
-;used in the level drawscene path and does not touch title/intermission code.
-g2renderer_v48bk_c2p_overlay
-	movem.l	d0-d7/a0-a6,-(a7)
-	tst	render2_copy_ok
-	beq.w	g2ci_done
-	move.l	render2_copybuf,d0
-	beq.w	g2ci_done
-	move.l	d0,g2ci_srcbase
-	move.l	cop(pc),d0
-	beq.w	g2ci_done
-	move.l	d0,g2ci_copbase
-	move	copmod(pc),d0
-	beq.w	g2ci_done
-	move	d0,g2ci_copstride
-	;v48ae: confirmed stable 96x38 visible overlay; c2p.library BITMAP context is probed only.
-	;Findings: source rows 40+ smear/repeat, wi_bmap shows HUD/stripes,
-	;and fresh-source Copper remains black.  v48ae keeps 96x38 visible and
-	;probes the documented BITMAP context output in the background.
-	clr	g2cr_srcx
-	clr	g2cr_srcy
-	clr	g2v48bk_libvisible
-	move	width(pc),d0
-	cmp	#96,d0
-	blt.w	g2cr_use64
-	move	hite(pc),d1
-	;v48bk: visible overlay tests c2p.library BitMap->Planes[] after linear refill, scaling safe 38 source rows to 76 visible rows.
-	;v48x plane-major reader and v48y row-interleaved reader both produced
-	;pixel garbage, so do not use c2pbitmap directly for visible output yet.
-	;The c2p.library path still converts/checksums 96x56 in the background.
-	cmp	#80,d1
-	blt.w	g2cs_try96x32
-	move	#96,g2cr_ovw
-	move	#76,g2cr_ovh
-	move	width(pc),d0
-	sub	#96,d0
-	lsr	#1,d0
-	move	d0,g2cr_srcx
-	move	d0,g2ci_dstx
-	move	hite(pc),d0
-	sub	#80,d0
-	move	d0,g2ci_dsty
-	;v48bk: exact 96x76 visible mode may read from c2p.library BitMap->Planes[], using sourceY = visibleY / 2.
-	moveq	#1,d0
-	move	d0,g2v48bk_libvisible
-	bra.w	g2cr_dims_done
-g2cs_try96x32
-	cmp	#72,d1
-	blt.w	g2cr_use64
-	move	#96,g2cr_ovw
-	move	#32,g2cr_ovh
-	move	width(pc),d0
-	sub	#96,d0
-	lsr	#1,d0
-	move	d0,g2cr_srcx
-	move	d0,g2ci_dstx
-	move	hite(pc),d0
-	sub	#36,d0
-	move	d0,g2ci_dsty
-	bra.w	g2cr_dims_done
-g2cr_use64
-	move	width(pc),d0
-	cmp	#64,d0
-	blt.w	g2ci_done
-	move	#64,g2cr_ovw
-	move	#24,g2cr_ovh
-	move	width(pc),d0
-	sub	#64,d0
-	lsr	#1,d0
-	move	d0,g2cr_srcx
-	move	d0,g2ci_dstx
-	move	hite(pc),d0
-	cmp	#32,d0
-	blt.w	g2ci_done
-	sub	#28,d0
-	bpl.w	g2cr_dsty_ok
-	moveq	#0,d0
-g2cr_dsty_ok
-	move	d0,g2ci_dsty
-g2cr_dims_done
-	;v48bk: use c2p.library BitMap->Planes[] only for the confirmed 96px-wide mode
-	;and only if the 96x56 conversion succeeded.  Otherwise fall back to the
-	;old stable render2_copybuf/doc2p source.
-	tst	g2v48bk_libvisible
-	beq.s	g2v48bk_oldsrc
-	move.l	c2pbitmap,d0
-	beq.s	g2v48bk_oldsrc
-	move.l	c2pconverr,d0
-	bne.s	g2v48bk_oldsrc
-	moveq	#1,d0
-	move	d0,g2v48bk_libvisible
-	bra.s	g2v48bk_srcdone
-g2v48bk_oldsrc
-	clr	g2v48bk_libvisible
-g2v48bk_srcdone
-	moveq	#0,d7
-
-g2ci_yloop
-	moveq	#0,d6
-
-g2ci_xloop
-	moveq	#0,d3
-	move	d6,d4
-	add	g2cr_srcx,d4
-	move	d4,d5
-	lsr	#4,d4
-	and	#15,d5
-	move	#15,d0
-	sub	d5,d0
-	move	d0,d5
-	moveq	#0,d2
-
-g2ci_planeloop
-	tst	g2v48bk_libvisible
-	beq.s	g2v48bk_read_old
-	;v48ao: documented BITMAP-context reader.
-	;Use Amiga BitMap->Planes[d2], BytesPerRow from BitMap header.
-	;Visible source is already cropped to 96 pixels, so x = d6, y = d7.
-	move	d6,d0
-	move	d0,d4
-	lsr	#4,d4
-	and	#15,d0
-	move	#15,d5
-	sub	d0,d5
-	;v48bg: user reports the separator bar is always BEFORE each image element,
-	;including the first. So the first column inside each 16px block is the bad
-	;column. When x is exactly at a 16px block start, sample the NEXT pixel
-	;inside the same word instead.
-	tst	d0
-	bne.s	g2v48bk_boundary_done
-	move	#14,d5
-g2v48bk_boundary_done
-g2v48bk_block_map_done
-g2v48bk_bitfix_done
-	move.l	c2pbitmap,a3
-	move.l	8(a3,d2.w*4),a0
-	beq.s	g2v48bk_lib_zero
-	move	d7,d0
-	lsr	#1,d0	;v48bk: sourceY = visibleY / 2, keep only safe 38 source rows
-	mulu	(a3),d0
-	add.l	d0,a0
-	move	d4,d0
-	add	d0,d0
-	add.l	d0,a0
-	move	(a0),d0
-	bra.s	g2v48bk_have_word
-g2v48bk_lib_zero
-	moveq	#0,d0
-	bra.s	g2v48bk_have_word
-g2v48bk_read_old
-	move.l	g2ci_srcbase,a0
-	move	d2,d0
-	mulu	#40*200,d0
-	add.l	d0,a0
-	move	d7,d0
-	lsr	#1,d0	;v48bk: fallback sourceY = visibleY / 2
-	add	g2cr_srcy,d0
-	mulu	#40,d0
-	add.l	d0,a0
-	move	d4,d0
-	add	d0,d0
-	add.l	d0,a0
-	move	(a0),d0
-g2v48bk_have_word
-	btst	d5,d0
-	beq.s	g2ci_nobit
-	bset	d2,d3
-g2ci_nobit
-	addq	#1,d2
-	cmp	#7,d2
-	blt.w	g2ci_planeloop
-
-	;v47cl: colour through exact frame palette captured during Copper->chunky copy.
-	move	d3,d0
-	and	#$007f,d0
-	add	d0,d0
-	lea	g2ck_dynpal(pc),a0
-	move	0(a0,d0.w),d0
-
-	move.l	g2ci_copbase,a1
-	move	g2ci_dsty,d1
-	add	d7,d1
-	mulu	g2ci_copstride,d1
-	add.l	d1,a1
-	move	g2ci_dstx,d1
-	add	d6,d1
-	lea	coloffs(pc),a2
-	move.l	0(a2,d1.w*4),d1
-	add.l	d1,a1
-	move	d0,(a1)
-
-	addq	#1,d6
-	cmp	g2cr_ovw,d6
-	blt.w	g2ci_xloop
-	addq	#1,d7
-	cmp	g2cr_ovh,d7
-	blt.w	g2ci_yloop
-
-g2ci_done
-	movem.l	(a7)+,d0-d7/a0-a6
-	rts
-
-g2ci_srcbase	dc.l	0
-g2ci_copbase	dc.l	0
-g2ci_copstride	dc	0
-g2ci_dstx	dc	0
-g2ci_dsty	dc	0
-g2cr_srcx	dc	0
-g2cr_srcy	dc	0
-g2cr_ovw	dc	64
-g2cr_ovh	dc	24
-g2v48bk_libvisible	dc	0
-g2cl_palcount	dc	0
-g2ck_dynpal	ds.w	128
-	even
-
-;v48l visible c2p.library stamp.
-;Reads the 16x16/7bpl BitMap generated by c2p.library and draws a tiny
-;greyscale 16x16 proof stamp into the active Copper game buffer.  This does not
-;replace the Gloom renderer yet; it only proves the library output can be read
-;and displayed through the existing safe write path.
-g2renderer_v48bk_c2p_stamp_disabled
-	movem.l	d0-d7/a0-a6,-(a7)
-	move.l	c2pbitmap,d0
-	beq.w	g2v48bk_stamp_done
-	move.l	d0,a6
-	move	(a6),g2v48bk_stamp_bpr
-	cmp	#2,g2v48bk_stamp_bpr
-	blt.w	g2v48bk_stamp_done
-	move.l	cop(pc),d0
-	beq.w	g2v48bk_stamp_done
-	move.l	d0,g2v48bk_stamp_cop
-	move	copmod(pc),d0
-	beq.w	g2v48bk_stamp_done
-	move	d0,g2v48bk_stamp_mod
-	move	#8,g2v48bk_stamp_x
-	move	hite(pc),d0
-	sub	#24,d0
-	bpl.s	g2v48bk_stamp_yok
-	moveq	#0,d0
-g2v48bk_stamp_yok
-	move	d0,g2v48bk_stamp_y
-	moveq	#0,d7	;y 0..15
-
-g2v48bk_stamp_yloop
-	moveq	#0,d6	;x 0..15
-
-g2v48bk_stamp_xloop
-	moveq	#0,d3	;reconstructed chunky value from bitplanes
-	move	d6,d4
-	lsr	#4,d4
-	move	d6,d5
-	and	#15,d5
-	move	#15,d0
-	sub	d5,d0
-	move	d0,d5
-	moveq	#0,d2	;plane 0..6
-
-g2v48bk_stamp_planeloop
-	move.l	8(a6,d2.w*4),a0
-	beq.s	g2v48bk_stamp_nobit
-	move.l	a0,a1
-	move	d7,d0
-	mulu	g2v48bk_stamp_bpr,d0
-	add.l	d0,a1
-	move	d4,d0
-	add	d0,d0
-	add.l	d0,a1
-	move	(a1),d0
-	btst	d5,d0
-	beq.s	g2v48bk_stamp_nobit
-	bset	d2,d3
-g2v48bk_stamp_nobit
-	addq	#1,d2
-	cmp	#7,d2
-	blt.w	g2v48bk_stamp_planeloop
-
-	;Convert 7-bit value to visible 12-bit greyscale.
-	move	d3,d0
-	lsr	#3,d0
-	and	#15,d0
-	move	d0,d1
-	lsl	#8,d0
-	move	d1,d2
-	lsl	#4,d2
-	or	d2,d0
-	or	d1,d0
-
-	move.l	g2v48bk_stamp_cop,a1
-	move	g2v48bk_stamp_y,d1
-	add	d7,d1
-	mulu	g2v48bk_stamp_mod,d1
-	add.l	d1,a1
-	move	g2v48bk_stamp_x,d1
-	add	d6,d1
-	lea	coloffs(pc),a2
-	move.l	0(a2,d1.w*4),d1
-	add.l	d1,a1
-	move	d0,(a1)
-
-	addq	#1,d6
-	cmp	#16,d6
-	blt.w	g2v48bk_stamp_xloop
-	addq	#1,d7
-	cmp	#16,d7
-	blt.w	g2v48bk_stamp_yloop
-
-g2v48bk_stamp_done
-	movem.l	(a7)+,d0-d7/a0-a6
-	rts
-
-g2v48bk_stamp_cop	dc.l	0
-g2v48bk_stamp_mod	dc	0
-g2v48bk_stamp_x	dc	0
-g2v48bk_stamp_y	dc	0
-g2v48bk_stamp_bpr	dc	0
-	even
-
-;v48b c2p.library status marker.
-;This only proves OpenLibrary("c2p.library") succeeded.  It deliberately avoids
-;calling any c2p.library LVO until the exact API table is wired in.
-g2renderer_v48bk_c2p_status_marker_unused
-	movem.l	d0-d1/d6/a4/a6,-(a7)
-	move.l	currplayer(pc),a6
-	beq.s	g2v48bk_done
-	move.l	ob_window(a6),a6
-	beq.s	g2v48bk_done
-	move.l	c2pbase,d0
-	beq.s	g2v48bk_missing
-	lea	g2v48bk_text_ok(pc),a4
-	bra.s	g2v48bk_print
-g2v48bk_missing
-	lea	g2v48bk_text_missing(pc),a4
-g2v48bk_print
-	moveq	#7,d0
-	move	wi_bh(a6),d6
-	lsr	#2,d6
-	subq	#8,d6
-	bpl.s	g2v48bk_yok
-	moveq	#20,d6
-g2v48bk_yok
-	jsr	printmess2
-g2v48bk_done
-	movem.l	(a7)+,d0-d1/d6/a4/a6
-	rts
-
-g2v48bk_text_ok	dc.b	'CVTOK',0
-g2v48bk_text_missing	dc.b	'C2P--',0
-	even
 
 initstats	;
 	;draw HUD labels without trailing colons
@@ -2922,7 +2109,7 @@ showstats	;a5=player
 	move.l	ob_window(a5),a1
 	move.l	wi_bmap(a1),a1
 	move	d5,d0
-	moveq	#2,d1	;v47al: health bar restored to original Y
+	moveq	#2,d1
 	move	d4,d2
 	bsr	blit
 	addq	#2,d5
@@ -2961,7 +2148,7 @@ showstats	;a5=player
 	move.l	ob_window(a5),a1
 	move.l	wi_bmap(a1),a1
 	move	d5,d0
-	moveq	#12,d1	;v47al: weapon bar original Y
+	moveq	#12,d1
 	moveq	#50,d2
 	cmp.b	ob_reload(a5),d7
 	blt.s	.nowp
@@ -3886,15 +3073,15 @@ rndtable	ds.w	55
 k_index	dc.l	0
 j_index	dc.l	0
 
-rndl	jsr	rndw
+rndl	bsr	rndw
 	move	d0,d1
-	jsr	rndw
+	bsr	rndw
 	swap	d0
 	move	d1,d0
 	rts
 
 rndn	move	d0,d1
-	jsr	rndw
+	bsr	rndw
 	mulu	d1,d0
 	swap	d0
 	rts
@@ -3937,15 +3124,15 @@ rndtable2	ds.w	55
 k_index2	dc.l	0
 j_index2	dc.l	0
 
-rndl2	jsr	rndw2
+rndl2	bsr	rndw2
 	move	d0,d1
-	jsr	rndw2
+	bsr	rndw2
 	swap	d0
 	move	d1,d0
 	rts
 
 rndn2	move	d0,d1
-	jsr	rndw2
+	bsr	rndw2
 	mulu	d1,d0
 	swap	d0
 	rts
@@ -4069,7 +3256,7 @@ blitscene	;
 	move.l	ob_window(a5),a2
 	moveq	#9,d0
 	jsr	wcopy
-	jsr	initstats
+	bsr	initstats
 	;
 .stats	bsr	showstats
 	;
@@ -4093,10 +3280,6 @@ drawscene	;a5=player
 	;
 	move.l	ob_window(a5),a0
 	bsr	dbwindow
-	;v47h: capture active game-window layout for future renderer hookup.
-	;This is diagnostic only and does not write to the visible bitmap.
-	move.l	ob_window(a5),a0
-	jsr	g2renderer_capture_layout
 	;
 	bsr	castwalls
 	bsr	makeqstrip
@@ -4125,30 +3308,20 @@ drawscene	;a5=player
 	;
 .noflat	bsr	drawshapes
 	bsr	drawblood
-	;v48z: 96x56 c2p.library checksum-only; visible overlay forced back to stable 96x40
-	;reconstructed from the real Copper->chunky->doc2p result.  This hook is
-	;inside drawscene only, so title/intermission/showwindow paths stay untouched.
+	;
 	move.l	currplayer(pc),a0
 	move	ob_pixsize(a0),d0
-	beq.s	g2ci_drawscene_nopix
-	jsr	pixelate
-g2ci_drawscene_nopix
-	jsr	g2renderer_v48bk_c2p_overlay
-	;v48l: draw tiny visible proof stamp from c2p.library-produced BitMap.
-	;v48bk: old visible c2p stamp still disabled because it caused tiled blocks and main-screen stutter
-	nop
-	;The proven g2ch text path prints the plane-data checksum as Pxxxx.
-	nop
+	bne	pixelate
 	rts
 
 chatstuff	move	chatok(pc),d0
 	beq.s	.rts
 	;
-	move	chatoutget,d0
-	cmp	chatoutput,d0
+	move	chatoutget(pc),d0
+	cmp	chatoutput(pc),d0
 	beq.s	.noout
 	and	#31,d0
-	lea	chatout,a0
+	lea	chatout(pc),a0
 	move.b	0(a0,d0),d0	;chat out character!
 	addq	#1,chatoutget
 	moveq	#1,d1
@@ -4162,9 +3335,9 @@ chatstuff	move	chatok(pc),d0
 .noout	move	chatcnt(pc),d0
 	beq.s	.rts
 	;
-	move	chatinget,d0
+	move	chatinget(pc),d0
 	and	#31,d0
-	lea	chatin,a0
+	lea	chatin(pc),a0
 	move.b	0(a0,d0),d0
 	addq	#1,chatinget
 	subq	#1,chatcnt
@@ -4341,7 +3514,7 @@ vbhandler	movem.l	d2-d7/a2-a6,-(a7)
 	and	#126,d0
 	bne.s	.nornd
 	;
-	jsr	rndw
+	bsr	rndw
 	move	lrnd(pc),d1
 	move	d0,lrnd
 	cmp	d0,d1
@@ -4482,17 +3655,17 @@ killobject3	move.l	a5,a0
 	move.l	obj_stack(pc),a7
 	bra	hit_ret
 
-bloodspeed	jsr	rndw
+bloodspeed	bsr	rndw
 	ext.l	d0
 	lsl.l	#2,d0
 	rts
 
-bloodspeed2	jsr	rndw
+bloodspeed2	bsr	rndw
 	ext.l	d0
 	lsl.l	#5,d0
 	rts
 
-bloodspeed3	jsr	rndw
+bloodspeed3	bsr	rndw
 	ext.l	d0
 	lsl.l	#4,d0
 	rts
@@ -4521,7 +3694,7 @@ makesparks	;a2=sparks
 	clr	ob_invisible(a0)
 	clr	ob_colltype(a0)
 	clr	ob_collwith(a0)
-	jsr	rndw
+	bsr	rndw
 	and	#15,d0
 	add	#15,d0
 	move	d0,ob_delay(a0)
@@ -4835,25 +4008,25 @@ addsoul	;d7 times!
 	add	ob_x(a2),d2
 	add	ob_z(a2),d3
 	;
-	jsr	rndw
+	bsr	rndw
 	and	#63,d0
 	sub	#32,d0
 	add	d2,d0
 	move	d0,bl_x(a0)
 	;
-	jsr	rndw
+	bsr	rndw
 	and	#63,d0
 	sub	#32,d0
 	add	#110,d0
 	move	d0,bl_y(a0)	;>0= funny blood!
 	;
-	jsr	rndw
+	bsr	rndw
 	and	#63,d0
 	sub	#32,d0
 	add	d3,d0
 	move	d0,bl_z(a0)
 	;
-	jsr	rndw
+	bsr	rndw
 	and	#1,d0
 	move	soulcols(pc,d0*2),bl_color(a0)
 	;
@@ -4876,7 +4049,7 @@ hurtterra	move.l	a0,-(a7)
 	bra.s	hurtobject
 
 hurtngrunt	move.l	a0,-(a7)
-	jsr	rndw
+	bsr	rndw
 	and	#3,d0
 	cmp	lastgrunt(pc),d0
 	bne.s	.new
@@ -5021,7 +4194,7 @@ pickcalc	;pick a player and calculate angle to player!
 	tst	ob_invisible(a0)
 	beq.s	.rts
 	move	d0,-(a7)
-	jsr	rndw
+	bsr	rndw
 	and	#63,d0
 	sub	#32,d0
 	add	(a7)+,d0
@@ -5033,7 +4206,7 @@ fire1	bsr	pickcalc
 	;random noise for inaccuracy!
 	;
 	move	d0,-(a7)
-	jsr	rndw
+	bsr	rndw
 	and	#31,d0
 	sub	#16,d0
 	add	(a7)+,d0
@@ -5200,7 +4373,7 @@ calcbangle	bsr	calcangle
 	;invisible, add some randomeness!
 	;
 	move	d0,-(a7)
-	jsr	rndw
+	bsr	rndw
 	and	#127,d0
 	sub	#64,d0
 	add	(a7)+,d0
@@ -5384,7 +4557,7 @@ ghoullogic	;
 	;he's pointed at player...how about randomly selected to make 
 	;this his new movement vector?
 	;
-	jsr	rndw
+	bsr	rndw
 	move	ob_movspeed(a5),d1
 	lsl	#8,d1
 	cmp	d1,d0
@@ -5579,7 +4752,7 @@ monstermove	bsr	checkvecs
 	;
 	;OK, try 90/-90 degrees...
 	;
-monsterfix	jsr	rndw
+monsterfix	bsr	rndw
 	moveq	#64,d1
 	tst	d0
 	bpl.s	.umk
@@ -5723,7 +4896,7 @@ getobrot	move	ob_rotspeed(a5),d0
 	;
 	;OK, randomly left/rite!
 	;
-	jsr	rndw
+	bsr	rndw
 	and	#1,d0
 	bne.s	.addr2
 	moveq	#-1,d0
@@ -5822,7 +4995,7 @@ weaponlogic	;
 	clr	ob_invisible(a0)
 	clr	ob_colltype(a0)
 	clr	ob_collwith(a0)
-	jsr	rndw
+	bsr	rndw
 	and	#15,d0
 	add	#15,d0
 	move	d0,ob_delay(a0)
@@ -5935,7 +5108,7 @@ waitrestart	bsr	getcntrl
 	move.l	(a0),a0
 	move.l	a0,ob_shape(a5)
 	;
-	jsr	resetplayer
+	bsr	resetplayer
 	move	#-1,ob_update(a5)
 	st	ob_lastbut(a5)
 	;
@@ -6532,7 +5705,7 @@ checkevent	bsr	checknew2
 	;
 .noclr	move.l	a5,eventobj
 	movem.l	d6-d7,-(a7)
-	jsr	execevent
+	bsr	execevent
 	movem.l	(a7)+,d6-d7
 	move.l	eventobj(pc),a5
 	;
@@ -6972,7 +6145,7 @@ drawblood	clr	scrnblood
 	beq.s	.rts
 	clr	scrnblood
 	;
-	jsr	rndw2
+	bsr	rndw2
 	and	#3,d0
 	add	#51,d0
 	move	d0,d2	;splat#
@@ -8659,7 +7832,7 @@ drawshapes	lea	shapelist(pc),a6
 	move	sh_x(a6),d0
 	add	midx(pc),d0
 	move.l	cop(pc),a1
-	lea	coloffs,a5
+	lea	coloffs(pc),a5
 	add.l	0(a5,d0*4),a1
 	;
 	move.l	palette(pc),a2
@@ -8979,7 +8152,7 @@ renderwalls	;
 	move.l	palette(pc),a2
 	;
 	move.l	vertdraws(pc),a4
-	lea	coloffs,a5
+	lea	coloffs(pc),a5
 	move	width(pc),d7
 	subq	#1,d7
 	;
@@ -9879,11 +9052,11 @@ blowuplander	move.l	diesfx(pc),a0
 	beq	killdefobject
 	move	de_x(a5),de_x(a0)
 	move	de_y(a5),de_y(a0)
-	jsr	rndw
+	bsr	rndw
 	ext.l	d0
 	lsl.l	#1,d0
 	move.l	d0,de_xa(a0)
-	jsr	rndw
+	bsr	rndw
 	ext.l	d0
 	lsl.l	#1,d0
 	move.l	d0,de_ya(a0)
@@ -9910,11 +9083,11 @@ blowupplayer	moveq	#3,d7
 	beq	.rts
 	move	playerx(pc),de_x(a0)
 	move	playery(pc),de_y(a0)
-	jsr	rndw
+	bsr	rndw
 	ext.l	d0
 	lsl.l	#1,d0
 	move.l	d0,de_xa(a0)
-	jsr	rndw
+	bsr	rndw
 	ext.l	d0
 	lsl.l	#1,d0
 	move.l	d0,de_ya(a0)
@@ -10064,7 +9237,7 @@ defender	;defender game!
 	subq	#1,landerstoadd
 	move	landerdelay(pc),landercnt
 	;
-	jsr	rndw
+	bsr	rndw
 	and	#255,d0
 	move	d0,d2
 	move	d0,de_x(a0)
@@ -10086,12 +9259,12 @@ defender	;defender game!
 .frloop	addlast	defobjects
 	beq.s	.nolander
 	;
-	jsr	rndw
+	bsr	rndw
 	ext.l	d0
 	lsl.l	#1,d0	;xadd
 	move.l	d0,d4
 	move.l	d0,de_xa(a0)
-	jsr	rndw
+	bsr	rndw
 	ext.l	d0
 	lsl.l	#1,d0
 	move.l	d0,d5
@@ -10959,10 +10132,9 @@ initmain	;
 	st	paused
 	clr	dispnest
 	clr.l	font
-	jsr	initsfx	;v48bk: was bsr, now jsr to avoid branch range overflow
-	jsr	initvbint	;v48bk: keep same call semantics without BSR range limit
-	jsr	initdisplay	;v48bk: keep same call semantics without BSR range limit
-	jsr	g2rendererprep	;v46a: prepare gloom2-style renderer state, inactive
+	bsr	initsfx
+	bsr	initvbint
+	bsr	initdisplay
 	bsr	dispoff
 	;
 	lea	magicfiles,a0
@@ -10973,7 +10145,6 @@ initmain	;
 	bsr	makeiff
 	bsr	showiff
 	bsr	dispon
-	nop	;v47ai: keep original BlackMagic visible; C2P marker tests now happen in-game
 	move	#50,vbcounter
 	;
 	lea	progfiles,a0
@@ -11082,1028 +10253,6 @@ initmain	;
 	endc
 	;
 	bra	forbid
-
-;v46l renderer prep: allocate, touch and update hidden chunky/planar buffers.
-;The active AGA renderer is still unchanged; nothing from this path is displayed yet.
-g2rendererprep
-	move	#7,bitplanes	;current gloom.s path uses 7 planes
-	move	#old_linemod,linemod	;keep old effective row stride
-	move.l	#40,bpmod	;placeholder for future planar backend
-	clr.l	chunky
-	clr.l	drawbitmap
-	clr.l	showbitmap
-	clr.l	c2p
-	clr	panelcnt
-	clr	render2_active
-	clr	render2_shadow_ok
-	clr	render2_copy_ok
-	clr	render2_tickcnt
-	clr	render2_copycnt
-	clr	render2_visibletest_ok
-	clr	render2_windowscratch_ok
-	clr	g2dbg_scratch_done
-	clr	g2dbg_scratchcnt
-	clr	g2dbg_layoutchgcnt
-	clr	g2dbg_scratch_guard_ok
-	clr	g2dbg_scratch_guard_failcnt
-	clr	g2dbg_scratch_verify_ok
-	clr	g2dbg_scratch_verify_failcnt
-	clr	g2dbg_scratch_verify_lines
-	clr	g2dbg_scratch_ready
-	clr	g2dbg_scratch_ready_failcnt
-	clr	g2dbg_bmap_linebytes
-	clr	g2dbg_bmap_rowbytes
-	clr.l	g2dbg_bmap_plane_span
-	clr	g2dbg_active_probe_done
-	clr	g2dbg_active_probe_ok
-	clr	g2dbg_active_probe_failcnt
-	clr	g2dbg_active_marker_done
-	clr	g2dbg_active_marker_frames
-	clr	g2dbg_active_marker_ok
-	clr	g2dbg_active_marker_failcnt
-	clr	g2dbg_active_marker_frames
-	clr	g2dbg_last_linebytes
-	clr	g2dbg_last_safelines
-	clr.l	g2dbg_last_bmap
-	clr.l	render2_shadow_ptr
-	clr.l	render2_copybuf
-	clr.l	render2_windowscratch
-	;
-	;Hidden 320x200 chunky test buffer. Fast memory is enough for this
-	;first probe because nothing is DMA-displayed from it yet.
-	move.l	#320*200,d0
-	moveq	#1,d1
-	allocmem	render2_chunky
-	move.l	d0,chunky
-	move.l	d0,drawbitmap
-	move.l	d0,showbitmap
-	tst.l	d0
-	beq.s	.nochunky
-	move.l	d0,a0
-	move.l	#320*200,d1
-	moveq	#0,d2
-.fillchunky
-	move.b	d2,(a0)+
-	addq.b	#1,d2
-	subq.l	#1,d1
-	bne.s	.fillchunky
-	move.l	chunky,render2_shadow_ptr
-	move	#-1,render2_shadow_ok
-	;
-	;Hidden planar destination buffer for the first real C2P-layout probe.
-	;This is still not displayed. Size is 320/8*200*7 = 56000 bytes.
-	move.l	#40*200*7,d0
-	moveq	#1,d1
-	allocmem	render2_copy
-	move.l	d0,render2_copybuf
-	tst.l	d0
-	beq.s	.nochunky
-	move.l	d0,showbitmap
-	move	#-1,render2_copy_ok
-	;v47p: hidden interleaved game-window scratch target plus 64-byte guard.
-	;This mimics the old window bitmap layout but is never displayed.
-	move.l	#40*200*7+64,d0
-	moveq	#1,d1
-	allocmem	render2_windowscratch_alloc
-	move.l	d0,render2_windowscratch
-	tst.l	d0
-	beq.s	.nochunky
-	move	#-1,render2_windowscratch_ok
-	jsr	g2renderer_scratch_guard_init
-.nochunky
-	rts
-
-;v46d per-frame shadow-buffer heartbeat.
-;This deliberately updates only hidden buffers, never the visible AGA screen.
-g2renderer_shadowtick
-	movem.l	d0-d2/a0-a1,-(a7)
-	tst	render2_shadow_ok
-	beq.s	.done
-	move.l	chunky,a1
-	tst.l	a1
-	beq.s	.done
-	move.l	render2_shadow_ptr,a0
-	tst.l	a0
-	bne.s	.gotptr
-	move.l	a1,a0
-.gotptr
-	move	render2_tickcnt,d0
-	moveq	#15,d1
-.fill	move.b	d0,(a0)+
-	addq.b	#1,d0
-	dbf	d1,.fill
-	move.l	a1,d1
-	add.l	#320*200,d1
-	move.l	a0,d2
-	cmp.l	d1,d2
-	bcs.s	.nowrap
-	move.l	a1,a0
-.nowrap	move.l	a0,render2_shadow_ptr
-	addq	#1,render2_tickcnt
-	jsr	doc2p	;v46e hidden planar probe only
-.done	movem.l	(a7)+,d0-d2/a0-a1
-	rts
-
-;v46l hidden doc2p/C2P-layout probe. This is still NOT displayed.
-;It converts the complete 320x200 chunky test frame into seven planar
-;bitplanes inside the hidden destination buffer. This finishes the hidden
-;full-frame C2P foundation without touching the visible AGA renderer.
-doc2p
-	movem.l	d0-d7/a0-a3,-(a7)
-	tst	render2_copy_ok
-	beq.s	doc2p_done
-	move.l	chunky,a0
-	move.l	render2_copybuf,a1
-	tst.l	a0
-	beq.s	doc2p_done
-	tst.l	a1
-	beq.s	doc2p_done
-	moveq	#0,d6	;line index 0..199
-doc2p_line
-	moveq	#0,d7	;word/block index 0..19 = 320 pixels total
-doc2p_block
-	moveq	#0,d3	;plane index 0..6
-doc2p_plane
-	move.l	a0,a2
-	move.l	d6,d5
-	mulu	#320,d5	;chunky source line offset
-	move.l	d7,d4
-	lsl.l	#4,d4	;block*16 chunky pixels
-	add.l	d4,d5
-	add.l	d5,a2
-	moveq	#0,d2	;one 16-pixel planar word
-	moveq	#15,d1
-doc2p_pix
-	lsl	#1,d2
-	move.b	(a2)+,d0
-	btst	d3,d0
-	beq.s	doc2p_nextpix
-	addq	#1,d2
-doc2p_nextpix
-	dbf	d1,doc2p_pix
-	move.l	a1,a3
-	move.l	d3,d4
-	mulu	#40*200,d4	;plane stride
-	add.l	d4,a3
-	move.l	d6,d5
-	mulu	#40,d5	;line stride inside one plane
-	add.l	d5,a3
-	move.l	d7,d5
-	add.l	d5,d5	;destination word offset: block*2
-	add.l	d5,a3
-	move	d2,(a3)
-	addq	#1,d3
-	cmp	#7,d3
-	blt.s	doc2p_plane
-	addq	#1,d7
-	cmp	#20,d7
-	blt.s	doc2p_block
-	addq	#1,d6
-	cmp	#200,d6
-	blt.w	doc2p_line
-	addq	#1,render2_copycnt
-doc2p_done
-	movem.l	(a7)+,d0-d7/a0-a3
-	rts
-
-
-;v47c visible Hidden-Planar smoke-test.
-;This proves the complete hidden doc2p output can be read back and displayed.
-;The old visible AGA/IFF renderer is still not replaced: the prepared hidden
-;separate-plane buffer is repacked once into the BlackMagic IFF window.
-g2renderer_visibletest_iff
-	movem.l	d0-d7/a0-a4,-(a7)
-	tst	render2_copy_ok
-	beq.w	.g2vt_done
-	jsr	doc2p	;make sure hidden full-frame C2P buffer is current
-	move.l	render2_copybuf,a0
-	tst.l	a0
-	beq.w	.g2vt_done
-	lea	iffwindow,a4
-	move.l	wi_bmap(a4),a1
-	tst.l	a1
-	beq.w	.g2vt_done
-	;center 200 visible test lines inside the 240 line IFF window
-	lea	40*7*20(a1),a1
-	moveq	#0,d6	;line 0..199
-.g2vt_line
-	moveq	#0,d7	;block 0..19
-.g2vt_block
-	moveq	#0,d3	;plane 0..6
-.g2vt_plane
-	;source: hidden separate-plane buffer, 40*200 bytes per plane
-	move.l	a0,a2
-	move.l	d3,d4
-	mulu	#40*200,d4
-	add.l	d4,a2
-	move.l	d6,d4
-	mulu	#40,d4
-	add.l	d4,a2
-	move.l	d7,d4
-	add.l	d4,d4
-	add.l	d4,a2
-	move	(a2),d2
-	;destination: old gloom.s interleaved 7-plane bitmap
-	move.l	a1,a3
-	move.l	d6,d4
-	mulu	#40*7,d4
-	add.l	d4,a3
-	move.l	d3,d4
-	mulu	#40,d4
-	add.l	d4,a3
-	move.l	d7,d4
-	add.l	d4,d4
-	add.l	d4,a3
-	move	d2,(a3)
-	addq	#1,d3
-	cmp	#7,d3
-	blt.s	.g2vt_plane
-	addq	#1,d7
-	cmp	#20,d7
-	blt.s	.g2vt_block
-	addq	#1,d6
-	cmp	#200,d6
-	blt.w	.g2vt_line
-	move	#-1,render2_visibletest_ok
-.g2vt_done
-	movem.l	(a7)+,d0-d7/a0-a4
-	rts
-
-;v47h non-destructive game-window layout capture.
-;Called from drawscene after dbwindow/usewindow selected the active window.
-;It records the real old-renderer window geometry and bitmap pointers so the
-;next visible renderer step can use correct width/height/modulo instead of
-;blindly writing a 320x200 frame into the old window.
-g2renderer_capture_layout
-	movem.l	d0/a0,-(a7)
-	tst.l	a0
-	beq.s	.done
-	move	wi_w(a0),g2dbg_w
-	move	wi_h(a0),g2dbg_h
-	move	wi_pw(a0),g2dbg_pw
-	move	wi_ph(a0),g2dbg_ph
-	move	wi_bw(a0),g2dbg_bw
-	move	wi_bh(a0),g2dbg_bh
-	move	wi_copmod(a0),g2dbg_copmod
-	move.l	wi_bmap(a0),g2dbg_bmap
-	move.l	wi_cop(a0),g2dbg_cop
-	move.l	window,g2dbg_window
-	move.l	bitmap,g2dbg_bitmap
-	move	#-1,g2dbg_layout_ok
-	jsr	g2renderer_prepare_layout	;v47j: derive safe copy/stride values, no visible write
-	jsr	g2renderer_layout_scratch_probe	;v47l: test layout copy into hidden scratch only
-	jsr	g2renderer_active_bmap_probe	;v47w: write+verify+restore tiny active-bmap marker
-.done	movem.l	(a7)+,d0/a0
-	rts
-
-;v47j non-destructive layout preparation.
-;Uses the captured wi_w/wi_h/wi_pw/wi_ph values to derive concrete pixel
-;width, pixel height, bitplane line bytes and hidden-buffer-safe line count.
-;This still does NOT write to the visible game bitmap. It only prepares values
-;for the next visible probe, so we do not blindly copy a 320x200 buffer into
-;an old-renderer window with a different width/modulo again.
-g2renderer_prepare_layout
-	movem.l	d0-d2,-(a7)
-	clr	g2dbg_windowcopy_ready
-	clr	g2dbg_pxw
-	clr	g2dbg_pxh
-	clr	g2dbg_linebytes
-	clr	g2dbg_safelines
-	clr.l	g2dbg_plane_span
-	;pixel width = wi_w * wi_pw
-	move	g2dbg_w,d0
-	beq.w	.g2pl_done
-	move	g2dbg_pw,d1
-	beq.w	.g2pl_done
-	mulu	d1,d0
-	move	d0,g2dbg_pxw
-	;line bytes for one bitplane = round_up(pixel_width,16)/8
-	add	#15,d0
-	lsr	#4,d0
-	add	d0,d0
-	move	d0,g2dbg_linebytes
-	cmp	#40,d0	;hidden 320-wide C2P plane stride is 40 bytes
-	bhi.w	.g2pl_done
-	;pixel height = wi_h * wi_ph, clamped to hidden 200-line buffer
-	move	g2dbg_h,d0
-	beq.w	.g2pl_done
-	move	g2dbg_ph,d1
-	beq.w	.g2pl_done
-	mulu	d1,d0
-	move	d0,g2dbg_pxh
-	cmp	#200,d0
-	bls.s	.g2pl_hok
-	move	#200,d0
-.g2pl_hok
-	move	d0,g2dbg_safelines
-	;plane span = linebytes * safelines, useful for the next copy probe
-	move	g2dbg_linebytes,d1
-	mulu	d0,d1
-	move.l	d1,g2dbg_plane_span
-	;v47v: real game-window bitmap stride is fixed 40 bytes per bitplane line.
-	;The window width-derived g2dbg_linebytes is valid for hidden scratch,
-	;but active wi_bmap uses 40-byte plane lines (see allocwbmap/showwindow).
-	move	#40,g2dbg_bmap_linebytes
-	move	#40*7,g2dbg_bmap_rowbytes
-	move	g2dbg_safelines,d1
-	mulu	#40,d1
-	move.l	d1,g2dbg_bmap_plane_span
-	move	#-1,g2dbg_windowcopy_ready
-	;v47n: if the captured window layout changed, invalidate hidden scratch.
-	move	g2dbg_linebytes,d0
-	cmp	g2dbg_last_linebytes,d0
-	bne.s	.g2pl_changed
-	move	g2dbg_safelines,d0
-	cmp	g2dbg_last_safelines,d0
-	bne.s	.g2pl_changed
-	move.l	g2dbg_bmap,d0
-	cmp.l	g2dbg_last_bmap,d0
-	beq.s	.g2pl_storelast
-.g2pl_changed
-	clr	g2dbg_scratch_done
-	clr	g2dbg_active_probe_done
-	clr	g2dbg_active_marker_done
-	addq	#1,g2dbg_layoutchgcnt
-.g2pl_storelast
-	move	g2dbg_linebytes,g2dbg_last_linebytes
-	move	g2dbg_safelines,g2dbg_last_safelines
-	move.l	g2dbg_bmap,g2dbg_last_bmap
-.g2pl_done
-	movem.l	(a7)+,d0-d2
-	rts
-
-;v47l non-destructive layout scratch probe.
-;Repackages the hidden separate-plane C2P buffer into a hidden interleaved
-;game-window-shaped scratch buffer using the captured wi_* layout values.
-;It never writes to the active game bitmap. This validates the next visible
-;copy math before another destructive window test.
-g2renderer_layout_scratch_probe
-	movem.l	d0-d7/a0-a3,-(a7)
-	tst	g2dbg_windowcopy_ready
-	beq.w	.g2ls_done
-	tst	render2_copy_ok
-	beq.w	.g2ls_done
-	tst	render2_windowscratch_ok
-	beq.w	.g2ls_done
-	tst	g2dbg_scratch_done
-	bne.w	.g2ls_done
-	move.l	render2_copybuf,a0
-	move.l	render2_windowscratch,a1
-	tst.l	a0
-	beq.w	.g2ls_done
-	tst.l	a1
-	beq.w	.g2ls_done
-	move	g2dbg_linebytes,d1
-	beq.w	.g2ls_done
-	cmp	#40,d1
-	bhi.w	.g2ls_done
-	move	g2dbg_safelines,d6
-	beq.w	.g2ls_done
-	subq	#1,d6
-	moveq	#0,d5	;line index
-.g2ls_line
-	moveq	#0,d7	;plane index
-.g2ls_plane
-	;source: hidden separate-plane buffer, fixed 40 bytes per line
-	move.l	a0,a2
-	move.l	d7,d0
-	mulu	#40*200,d0
-	add.l	d0,a2
-	move.l	d5,d0
-	mulu	#40,d0
-	add.l	d0,a2
-	;destination: hidden interleaved scratch, captured linebytes
-	move.l	a1,a3
-	move.l	d5,d0
-	mulu	d1,d0
-	mulu	#7,d0
-	add.l	d0,a3
-	move.l	d7,d0
-	mulu	d1,d0
-	add.l	d0,a3
-	;copy one plane line with captured byte width
-	move	d1,d2
-	subq	#1,d2
-.g2ls_copy
-	move.b	(a2)+,(a3)+
-	dbf	d2,.g2ls_copy
-	addq	#1,d7
-	cmp	#7,d7
-	blt.s	.g2ls_plane
-	addq	#1,d5
-	dbf	d6,.g2ls_line
-	move	#-1,g2dbg_scratch_done
-	addq	#1,g2dbg_scratchcnt
-	jsr	g2renderer_scratch_guard_check
-	jsr	g2renderer_scratch_verify	;v47q: non-visible source->scratch compare probe
-	jsr	g2renderer_scratch_ready_update	;v47u: aggregate non-visible scratch readiness
-.g2ls_done
-	movem.l	(a7)+,d0-d7/a0-a3
-	rts
-
-;v47p hidden scratch overrun guard init.
-;Writes a 64-byte canary after the maximum scratch payload. No visible output.
-g2renderer_scratch_guard_init
-	movem.l	d0-d1/a0,-(a7)
-	clr	g2dbg_scratch_guard_ok
-	move.l	render2_windowscratch,a0
-	tst.l	a0
-	beq.s	.done
-	add.l	#40*200*7,a0
-	moveq	#63,d0
-.fill	move.b	#$a5,(a0)+
-	dbf	d0,.fill
-	move	#-1,g2dbg_scratch_guard_ok
-.done	movem.l	(a7)+,d0-d1/a0
-	rts
-
-;v47p hidden scratch overrun guard check.
-;If a later copy overruns the intended 40*200*7 area, this marks a fail counter.
-g2renderer_scratch_guard_check
-	movem.l	d0-d1/a0,-(a7)
-	clr	g2dbg_scratch_guard_ok
-	move.l	render2_windowscratch,a0
-	tst.l	a0
-	beq.s	.done
-	add.l	#40*200*7,a0
-	moveq	#63,d0
-.chk	move.b	(a0)+,d1
-	cmp.b	#$a5,d1
-	bne.s	.bad
-	dbf	d0,.chk
-	move	#-1,g2dbg_scratch_guard_ok
-	bra.s	.done
-.bad	addq	#1,g2dbg_scratch_guard_failcnt
-.done	movem.l	(a7)+,d0-d1/a0
-	rts
-
-;v47t hidden scratch verification probe.
-;Compares all safe captured lines copied into hidden interleaved scratch
-;against the original hidden separate-plane C2P buffer.
-;No visible output, no game-bmap write.
-g2renderer_scratch_verify
-	movem.l	d0-d7/a0-a4,-(a7)
-	clr	g2dbg_scratch_verify_ok
-	clr	g2dbg_scratch_verify_lines
-	tst	g2dbg_scratch_done
-	beq.w	.g2sv_done
-	tst	g2dbg_windowcopy_ready
-	beq.w	.g2sv_done
-	move	g2dbg_linebytes,d1
-	beq.w	.g2sv_done
-	cmp	#40,d1
-	bhi.w	.g2sv_done
-	move.l	render2_copybuf,a0
-	move.l	render2_windowscratch,a1
-	tst.l	a0
-	beq.w	.g2sv_done
-	tst.l	a1
-	beq.w	.g2sv_done
-	move	g2dbg_safelines,d7
-	beq.w	.g2sv_done
-	;v47t: verify the whole safe scratch height, not just a small capped probe.
-	move	d7,g2dbg_scratch_verify_lines
-	subq	#1,d7
-	moveq	#0,d5	;line index
-.g2sv_line
-	moveq	#0,d3	;plane index 0..6
-.g2sv_plane
-	;source: hidden separate-plane buffer
-	move.l	a0,a2
-	move.l	d3,d4
-	mulu	#40*200,d4
-	add.l	d4,a2
-	move.l	d5,d4
-	mulu	#40,d4
-	add.l	d4,a2
-	;destination: hidden interleaved scratch with captured linebytes
-	move.l	a1,a3
-	move.l	d5,d4
-	mulu	d1,d4
-	mulu	#7,d4
-	add.l	d4,a3
-	move.l	d3,d4
-	mulu	d1,d4
-	add.l	d4,a3
-	move	d1,d2
-	subq	#1,d2
-.g2sv_byte
-	move.b	(a2)+,d0
-	cmp.b	(a3)+,d0
-	bne.s	.g2sv_bad
-	dbf	d2,.g2sv_byte
-	addq	#1,d3
-	cmp	#7,d3
-	blt.s	.g2sv_plane
-	addq	#1,d5
-	dbf	d7,.g2sv_line
-	move	#-1,g2dbg_scratch_verify_ok
-	bra.s	.g2sv_done
-.g2sv_bad
-	addq	#1,g2dbg_scratch_verify_failcnt
-.g2sv_done
-	movem.l	(a7)+,d0-d7/a0-a4
-	rts
-
-;v47u aggregated hidden-scratch readiness gate.
-;No visible output and no game-bitmap writes. Future visible tests should only run
-;if this flag is nonzero. This keeps the destructive v47d/e/f path locked out until
-;layout, scratch copy, guard and verify all agree.
-g2renderer_scratch_ready_update
-	clr	g2dbg_scratch_ready
-	tst	g2dbg_windowcopy_ready
-	beq.s	.fail
-	tst	g2dbg_scratch_done
-	beq.s	.fail
-	tst	g2dbg_scratch_guard_ok
-	beq.s	.fail
-	tst	g2dbg_scratch_verify_ok
-	beq.s	.fail
-	move	g2dbg_scratch_verify_lines,d0
-	cmp	g2dbg_safelines,d0
-	bne.s	.fail
-	move	#-1,g2dbg_scratch_ready
-	rts
-.fail	addq	#1,g2dbg_scratch_ready_failcnt
-	rts
-
-;v47bn real visible proof marker for the old Gloom Copper-chunky renderer.
-;The active 3D game image is written into the generated Copper list via
-;cop/coloffs/copmod.  It is not primarily visible through the old planar bitmap.
-;This marker therefore writes exactly through the same address path as walls,
-;objects and blood.  It proves the real visible final renderer path first.
-g2renderer_v47bn_cop_marker
-	movem.l	d0-d7/a0-a5,-(a7)
-	move.l	cop(pc),a4
-	beq.w	g2bn_done
-	move	copmod(pc),d5
-	beq.w	g2bn_done
-	move	width(pc),d6
-	cmp	#40,d6
-	bcs.w	g2bn_done
-	move	hite,d7
-	cmp	#16,d7
-	bcs.w	g2bn_done
-	;bottom-centre in logical chunky/Copper columns, not planar pixels
-	move	d6,d0
-	lsr	#1,d0
-	sub	#20,d0
-	bpl.s	g2bn_xok
-	moveq	#0,d0
-g2bn_xok
-	move	d0,g2bn_startx
-	move	d7,d1
-	sub	#14,d1
-	bpl.s	g2bn_yok
-	moveq	#0,d1
-g2bn_yok
-	lea	coloffs,a5
-	moveq	#0,d4
-g2bn_row
-	move	d1,d2
-	add	d4,d2
-	mulu	d5,d2
-	moveq	#0,d3
-g2bn_col
-	move	g2bn_startx(pc),d0
-	add	d3,d0
-	cmp	d6,d0
-	bcc.s	g2bn_nextrow
-	move.l	a4,a1
-	add.l	0(a5,d0*4),a1
-	add.l	d2,a1
-	move	d3,d0
-	lsr	#3,d0
-	add	d4,d0
-	and	#7,d0
-	move	g2bn_colors(pc,d0*2),(a1)
-	addq	#1,d3
-	cmp	#40,d3
-	blt.s	g2bn_col
-g2bn_nextrow
-	addq	#1,d4
-	cmp	#14,d4
-	blt.w	g2bn_row
-g2bn_done
-	movem.l	(a7)+,d0-d7/a0-a5
-	rts
-
-g2bn_startx	dc	0
-g2bn_colors	dc	$00f,$0f0,$f00,$ff0,$f0f,$0ff,$fff,$88f
-
-;v47bp drawscene-final Copper proof marker.
-;Called directly at the end of drawscene, after walls/floor/roof/shapes/blood have
-;written into the freshly selected double-buffered Copper chunky list and before
-;showflag lets showit display it.  This avoids all previous timing/window-link
-;guesses.  It writes a deliberately large bottom band through the same
-;cop/coloffs/copmod addressing that renderwalls uses.
-g2renderer_v47bp_drawscene_marker
-	movem.l	d0-d7/a0-a6,-(a7)
-	move.l	cop,a4
-	beq.w	g2bp_done
-	move	copmod,d5
-	beq.w	g2bp_done
-	move	width,d6
-	cmp	#8,d6
-	bcs.w	g2bp_done
-	move	hite,d7
-	cmp	#8,d7
-	bcs.w	g2bp_done
-	move	d7,d1
-	sub	#18,d1
-	bpl.s	g2bp_yok
-	moveq	#0,d1
-g2bp_yok
-	lea	coloffs,a5
-	moveq	#0,d4
-g2bp_row
-	move	d1,d2
-	add	d4,d2
-	mulu	d5,d2
-	moveq	#0,d3
-g2bp_col
-	cmp	d6,d3
-	bcc.s	g2bp_nextrow
-	move.l	a4,a1
-	add.l	0(a5,d3*4),a1
-	add.l	d2,a1
-	move	d3,d0
-	lsr	#3,d0
-	add	d4,d0
-	and	#7,d0
-	move	g2bp_colors(pc,d0*2),(a1)
-	addq	#1,d3
-	bra.s	g2bp_col
-g2bp_nextrow
-	addq	#1,d4
-	cmp	#18,d4
-	blt.w	g2bp_row
-g2bp_done
-	movem.l	(a7)+,d0-d7/a0-a6
-	rts
-
-g2bp_colors	dc	$fff,$f00,$0f0,$00f,$ff0,$f0f,$0ff,$888
-
-;v47w non-visible active wi_bmap write/verify/restore probe.
-;This is deliberately tiny: one 16-pixel word per plane on the first line.
-;It writes to the real active game-window bitmap, verifies the write, then
-;immediately restores the original words before display can use the test data.
-;This tests active bmap addressing/stride without leaving visible damage.
-;v47y tiny visible active-bmap marker.
-;Unlike the v47w write/restore probe this intentionally leaves an 16x8 marker
-;in the active game-window bitmap once at level start. It is tiny and should be
-;overwritten by the normal renderer on following frames. It never copies a full
-;buffer and therefore must not reproduce the v47d/e/f 4x stretched failure.
-g2renderer_active_bmap_visible_marker
-	movem.l	d0-d7/a0-a5,-(a7)
-	;v47bd: horizon-stabilized pseudo-corridor chunky->doc2p calibration plus visible-tail fill.
-	;Fill a complete 320x200 chunky marker frame with pseudo floor/ceiling bands, run doc2p,
-	;then copy the resulting render2_copybuf words into the visible global bitmap.
-	;The remaining 40 visible lines are filled by repeating the last C2P line.
-	;This is still a calibration frame, not real game-renderer replacement.
-	move.l	bitmap,a1
-	tst.l	a1
-	beq.w	g2sm_fail
-	move.l	chunky,a0
-	tst.l	a0
-	beq.w	g2sm_fail
-	move.l	render2_copybuf,a5
-	tst.l	a5
-	beq.w	g2sm_fail
-	;v47au: continuous calibration repaint.
-	;v47at stopped after the old 100-frame marker window; this keeps the
-	;animated C2P test alive every frame while this calibration build runs.
-	move	#1,g2dbg_active_marker_frames
-	move	#-1,g2dbg_active_marker_done
-g2sm_draw
-	;First build a 320x200 chunky source pattern: 20 columns, plus 16-line vertical band shift.
-	lea	g2sm_calib_colors,a4
-	moveq	#0,d6	;line 0..23
-g2sm_fill_line
-	move.l	a0,a2
-	move.l	d6,d0
-	mulu	#320,d0
-	add.l	d0,a2
-	moveq	#0,d4	;color/word index 0..19
-g2sm_fill_word
-	;v47bd: pseudo-corridor calibration with fixed horizon and clearer side walls.
-	;Still generated chunky test data only: no real game renderer yet.
-	;X phase moves the corridor sideways; Y phase scrolls floor/ceiling bands.
-	move	d4,d0
-	add	g2sm_xphase,d0
-	cmp	#20,d0
-	blt.s	g2smc_x_ok
-	sub	#20,d0
-g2smc_x_ok
-	move	d0,d5	;virtual x block 0..19
-	sub	#10,d0	;distance from screen centre block
-	bpl.s	g2smc_abs_ok
-	neg	d0
-g2smc_abs_ok
-	move	d0,d3	;abs distance 0..10
-	;fixed horizon stripe, independent of Y phase, so the centre stays readable
-	move	d6,d0
-	cmp	#96,d0
-	blt.s	g2smc_no_horizon
-	cmp	#104,d0
-	bge.s	g2smc_no_horizon
-	move.b	#72,d2
-	bra.s	g2smc_centerline
-g2smc_no_horizon
-	move	g2sm_yphase,d0
-	lsl	#3,d0	;phase step = 8 visible lines
-	add	d6,d0	;virtual source line
-	cmp	#200,d0
-	blt.s	g2smc_y_ok
-	sub	#200,d0
-g2smc_y_ok
-	move	d0,d1
-	lsr	#4,d1	;16-line bands
-	cmp	#100,d0
-	blt.s	g2smc_ceiling
-	move.b	#28,d2	;floor base
-	add.b	d1,d2
-	bra.s	g2smc_wallshade
-g2smc_ceiling
-	move.b	#10,d2	;ceiling base
-	add.b	d1,d2
-g2smc_wallshade
-	cmp	#2,d3
-	bgt.s	g2smc_sidewall
-	move.b	#50,d2	;stable central opening
-	add.b	d1,d2
-	bra.s	g2smc_centerline
-g2smc_sidewall
-	move	d3,d0
-	lsl	#2,d0	;stronger side-wall shade away from centre
-	add.b	d0,d2
-	cmp	#3,d3
-	bne.s	g2smc_centerline
-	add.b	#24,d2	;visible inner wall edge
-g2smc_centerline
-	cmp	#10,d5
-	bne.s	g2smc_phase
-	add.b	#16,d2	;thin centre reference column
-g2smc_phase
-	move	g2sm_animphase,d0
-	and	#15,d0
-	add.b	d0,d2
-	moveq	#15,d7
-g2sm_fill_pix
-	move.b	d2,(a2)+
-	dbf	d7,g2sm_fill_pix
-	addq	#1,d4
-	cmp	#20,d4
-	blt.w	g2sm_fill_word
-	addq	#1,d6
-	cmp	#200,d6
-	blt.w	g2sm_fill_line
-	;Convert the controlled chunky bars into the hidden separate-plane buffer.
-	jsr	doc2p
-	move.l	render2_copybuf,a0
-	move.l	bitmap,a1
-	;full-frame display: 320x200 C2P pixels plus 40-line visible tail fill.
-	;Source is doc2p output: plane*40*200 + line*40.
-	;Destination is visible global bitmap interleaved: line*40*7+plane*40.
-	moveq	#0,d5	;start at top line for this full calibration frame
-g2sm_linebase
-	moveq	#0,d6	;line 0..199
-g2sm_line
-	moveq	#0,d7	;plane 0..6
-g2sm_plane
-	;source base for this plane/line inside render2_copybuf
-	move.l	a0,a2
-	move.l	d7,d0
-	mulu	#40*200,d0
-	add.l	d0,a2
-	move.l	d6,d0
-	mulu	#40,d0
-	add.l	d0,a2
-	;destination base for this plane/visible line inside global bitmap
-	move.l	a1,a3
-	move	d5,d0
-	add	d6,d0
-	mulu	#40*7,d0
-	add.l	d0,a3
-	move.l	d7,d0
-	mulu	#40,d0
-	add.l	d0,a3
-	moveq	#0,d4	;word index 0..19
-g2sm_word
-	move	(a2)+,(a3)+
-	addq	#1,d4
-	cmp	#20,d4
-	blt.s	g2sm_word
-	addq	#1,d7
-	cmp	#7,d7
-	blt.s	g2sm_plane
-	addq	#1,d6
-	cmp	#200,d6
-	blt.w	g2sm_line
-	;v47aq: cover the remaining visible 240-line bitmap tail by repeating
-	;the last valid C2P source line. This avoids a leftover old/original
-	;bottom band without extending the hidden 320x200 C2P buffer yet.
-	move	#200,d6
-g2sm_tail_line
-	moveq	#0,d7
-g2sm_tail_plane
-	move.l	a0,a2
-	move.l	d7,d0
-	mulu	#40*200,d0
-	add.l	d0,a2
-	move.l	#199,d0
-	mulu	#40,d0
-	add.l	d0,a2
-	move.l	a1,a3
-	move	d6,d0
-	mulu	#40*7,d0
-	add.l	d0,a3
-	move.l	d7,d0
-	mulu	#40,d0
-	add.l	d0,a3
-	moveq	#0,d4
-g2sm_tail_word
-	move	(a2)+,(a3)+
-	addq	#1,d4
-	cmp	#20,d4
-	blt.s	g2sm_tail_word
-	addq	#1,d7
-	cmp	#7,d7
-	blt.w	g2sm_tail_plane
-	addq	#1,d6
-	cmp	#240,d6
-	blt.w	g2sm_tail_line
-	move	#-1,g2dbg_active_marker_ok
-	jsr	g2sm_update_animphase	;v47av: advance only when player position/rotation changes
-	subq	#1,g2dbg_active_marker_frames
-	bra.s	g2sm_done
-g2sm_fail
-	addq	#1,g2dbg_active_marker_failcnt
-g2sm_done
-	movem.l	(a7)+,d0-d7/a0-a5
-	rts
-
-;v47ay: update independent X/Y/color phases from real control direction.
-;Forward/back scrolls the vertical band phase, strafe left/right scrolls the
-;horizontal block phase, and mouse/other fallback changes color phase only.
-g2sm_update_animphase
-	movem.l	d0-d4/a0,-(a7)
-	moveq	#0,d2	;x phase step
-	moveq	#0,d3	;y phase step
-	moveq	#0,d4	;color phase fallback step
-	;forward/backward from merged control state
-	move	joyy,d0
-	beq.s	g2smi_check_strafe
-	bmi.s	g2smi_forward
-	moveq	#1,d3	;backward scrolls bands down
-	bra.s	g2smi_apply_xy
-g2smi_forward
-	moveq	#-1,d3	;forward scrolls bands up
-	bra.s	g2smi_apply_xy
-g2smi_check_strafe
-	;strafe left/right from merged control state, only if strafe flag is active
-	tst	joys
-	beq.s	g2smi_check_fallback
-	move	joyx,d0
-	beq.s	g2smi_check_fallback
-	bmi.s	g2smi_left
-	moveq	#1,d2	;right scrolls blocks right
-	bra.s	g2smi_apply_xy
-g2smi_left
-	moveq	#-1,d2	;left scrolls blocks left
-g2smi_apply_xy
-	;wrap x phase 0..19
-	move	g2sm_xphase,d0
-	add	d2,d0
-	bpl.s	g2smi_x_nonneg
-	add	#20,d0
-g2smi_x_nonneg
-	cmp	#20,d0
-	blt.s	g2smi_x_store
-	sub	#20,d0
-g2smi_x_store
-	move	d0,g2sm_xphase
-	;wrap y phase 0..15
-	move	g2sm_yphase,d0
-	add	d3,d0
-	bpl.s	g2smi_y_nonneg
-	add	#16,d0
-g2smi_y_nonneg
-	and	#15,d0
-	move	d0,g2sm_yphase
-	bra.s	g2smi_store
-g2smi_check_fallback
-	move.l	player1,a0
-	tst.l	a0
-	beq.w	g2smi_done
-	tst	g2sm_track_init
-	bne.s	g2smi_have_last
-	move.l	ob_x(a0),g2sm_last_x
-	move.l	ob_y(a0),g2sm_last_y
-	move	ob_rot(a0),g2sm_last_rot
-	move	#-1,g2sm_track_init
-	bra.s	g2smi_done
-g2smi_have_last
-	;fallback: mouse rotation, signed by rotation delta
-	move	ob_rot(a0),d0
-	move	g2sm_last_rot,d1
-	cmp	d1,d0
-	beq.s	g2smi_check_pos
-	sub	d1,d0
-	bmi.s	g2smi_rot_minus
-	addq	#1,g2sm_animphase
-	bra.s	g2smi_store
-g2smi_rot_minus
-	subq	#1,g2sm_animphase
-	bra.s	g2smi_store
-g2smi_check_pos
-	;last fallback: any position change, direction unknown here
-	move.l	ob_x(a0),d0
-	cmp.l	g2sm_last_x,d0
-	bne.s	g2smi_pos_moved
-	move.l	ob_y(a0),d0
-	cmp.l	g2sm_last_y,d0
-	beq.s	g2smi_done
-g2smi_pos_moved
-	addq	#1,g2sm_animphase
-g2smi_store
-	move.l	player1,a0
-	tst.l	a0
-	beq.s	g2smi_done
-	move.l	ob_x(a0),g2sm_last_x
-	move.l	ob_y(a0),g2sm_last_y
-	move	ob_rot(a0),g2sm_last_rot
-	move	#-1,g2sm_track_init
-g2smi_done
-	movem.l	(a7)+,d0-d4/a0
-	rts
-
-;v47bd legacy color table kept for reference; pseudo-corridor no longer indexes this directly.
-;Chosen values exercise single bits, combined bits and high-plane combinations.
-g2sm_calib_colors
-	dc.b	1,2,4,8,16,32,64,127,63,31
-	dc.b	15,7,3,5,9,17,33,65,85,102
-	even
-
-g2renderer_active_bmap_probe
-	movem.l	d0-d7/a0-a4,-(a7)
-	clr	g2dbg_active_probe_ok
-	tst	g2dbg_scratch_ready
-	beq.w	.g2ab_done
-	tst	g2dbg_active_probe_done
-	bne.w	.g2ab_done
-	move	g2dbg_linebytes,d0
-	cmp	#2,d0
-	bcs.w	.g2ab_fail
-	move.l	g2dbg_bmap,a1
-	move.l	render2_windowscratch,a0
-	tst.l	a1
-	beq.w	.g2ab_fail
-	tst.l	a0
-	beq.w	.g2ab_fail
-	lea	g2dbg_active_save,a4
-	moveq	#0,d7
-.g2ab_write
-	move.l	a1,a2
-	move.l	d7,d0
-	mulu	#40,d0
-	add.l	d0,a2
-	move.l	a0,a3
-	move.l	d7,d0
-	move	g2dbg_linebytes,d1
-	mulu	d1,d0
-	add.l	d0,a3
-	move	(a2),(a4)+
-	move	(a3),d2
-	move	d2,(a2)
-	cmp	(a2),d2
-	bne.s	.g2ab_restore_fail
-	addq	#1,d7
-	cmp	#7,d7
-	blt.s	.g2ab_write
-	move	#-1,g2dbg_active_probe_ok
-	move	#-1,g2dbg_active_probe_done
-	bra.s	.g2ab_restore
-.g2ab_restore_fail
-	addq	#1,g2dbg_active_probe_failcnt
-.g2ab_restore
-	lea	g2dbg_active_save,a4
-	moveq	#0,d7
-.g2ab_restloop
-	move.l	a1,a2
-	move.l	d7,d0
-	mulu	#40,d0
-	add.l	d0,a2
-	move	(a4)+,(a2)
-	addq	#1,d7
-	cmp	#7,d7
-	blt.s	.g2ab_restloop
-	bra.s	.g2ab_done
-.g2ab_fail
-	addq	#1,g2dbg_active_probe_failcnt
-.g2ab_done
-	movem.l	(a7)+,d0-d7/a0-a4
-	rts
 
 	ifeq	cd32
 
@@ -12533,7 +10682,7 @@ conttxts	ds.b	160
 	even
 
 execscript_med	;
-	jsr	waitquiet
+	bsr	waitquiet
 	;
 	move.l	loadingmed(pc),d0
 	beq.s	execscript
@@ -12848,7 +10997,7 @@ scripttext	;print text on iff
 	lea	text,a4
 	move	wi_bh(a6),d6
 	sub	#7,d6
-	jsr	printmess2
+	bsr	printmess2
 	;
 	tst	pdelay
 	bmi	execscript
@@ -13075,7 +11224,7 @@ scriptplay	;
 	move	#$a3f7,d0
 	bsr	seedrnd
 	moveq	#1,d0
-	jsr	execevent
+	bsr	execevent
 	bsr	calcpalettes
 	bsr	forbid
 	bsr	makepalettes
@@ -13100,7 +11249,7 @@ scriptplay	;
 	move	p1weapon(pc),ob_weapon(a5)
 	move.b	p1reload(pc),ob_reload(a5)
 	;
-.psk	jsr	resetplayer
+.psk	bsr	resetplayer
 	;
 	tst	gametype
 	beq	.p1
@@ -13119,7 +11268,7 @@ scriptplay	;
 	move	p2weapon(pc),ob_weapon(a5)
 	move.b	p2reload(pc),ob_reload(a5)
 	;
-.psk2	jsr	resetplayer
+.psk2	bsr	resetplayer
 .p1	;
 	jsr	trainer_apply
 	bsr	linkswap
@@ -13145,7 +11294,7 @@ scriptplay	;
 	bsr	makewindow
 	move.l	ob_window(a5),a0
 	bsr	showwindow
-	jsr	initstats
+	bsr	initstats
 	;
 	tst	twowins
 	beq.s	.onew
@@ -13156,7 +11305,7 @@ scriptplay	;
 	bsr	makewindow
 	move.l	ob_window(a5),a0
 	bsr	showwindow
-	jsr	initstats
+	bsr	initstats
 .onew	;
 	bsr	calcbpos
 	;
@@ -13184,12 +11333,10 @@ scriptplay	;
 	clr	framecnt
 	clr	paused
 	jsr	drawall2
-	;v47bn: old post-drawall bitmap/C2P calibration call disabled - not the visible Copper path
 	bsr	dispon
 	bsr	chaton
 	;
 mainloop	jsr	drawall
-	;v47bn: old post-drawall bitmap/C2P calibration call disabled - not the visible Copper path
 	move	escape(pc),d0
 	beq.s	.noesc
 	jsr	dogamemenu
@@ -13661,7 +11808,7 @@ doconnect	;
 .cmloop	;
 	btst	#5,$dff01f
 	bne.s	.cmdone
-	jsr	rndw
+	bsr	rndw
 	ext.l	d0
 	divs	#$a5a5,d0
 	addq.l	#1,d7
@@ -14567,76 +12714,6 @@ wasd_map_d	moveq	#4,d0
 	rts
 
 rawtable	dc.l	rawmatrix
-;v46a gloom2-style renderer prep variables. Inactive until a later backend patch enables them.
-panelcnt	dc	0	;non zero later = c2p panel update requested
-bitplanes	dc	7	;current stable AGA path uses 7 planes
-linemod	dc	old_linemod	;prepared runtime line stride
-bpmod	dc.l	40	;prepared bitmap plane stride placeholder
-render2_active	dc	0	;0 = old renderer only
-render2_shadow_ok	dc	0	;nonzero = hidden chunky buffer allocated/touched
-render2_copy_ok	dc	0	;nonzero = hidden doc2p/copy destination allocated
-render2_windowscratch_ok	dc	0	;v47l: hidden interleaved window-shaped scratch allocated
-render2_tickcnt	dc	0	;hidden buffer heartbeat counter
-render2_copycnt	dc	0	;hidden doc2p/copy probe counter
-render2_visibletest_ok	dc	0	;v47a: nonzero once visible test pattern was copied
-;v47h captured active game-window layout, diagnostic only.
-g2dbg_layout_ok	dc	0
-g2dbg_w	dc	0
-g2dbg_h	dc	0
-g2dbg_pw	dc	0
-g2dbg_ph	dc	0
-g2dbg_bw	dc	0
-g2dbg_bh	dc	0
-g2dbg_copmod	dc	0
-g2dbg_bmap	dc.l	0
-g2dbg_cop	dc.l	0
-g2dbg_window	dc.l	0
-g2dbg_bitmap	dc.l	0
-g2dbg_windowcopy_ready	dc	0	;v47j: nonzero when captured layout is safe for next visible probe
-g2dbg_pxw	dc	0	;v47j: wi_w*wi_pw pixel width
-g2dbg_pxh	dc	0	;v47j: wi_h*wi_ph pixel height
-g2dbg_linebytes	dc	0	;v47j: rounded bytes per bitplane line
-g2dbg_safelines	dc	0	;v47j: copy lines clamped to hidden buffer height
-g2dbg_plane_span	dc.l	0	;v47j: linebytes*safelines
-g2dbg_scratch_done	dc	0	;v47l: hidden layout scratch copy completed
-g2dbg_scratchcnt	dc	0	;v47l: hidden layout scratch copy counter
-g2dbg_layoutchgcnt	dc	0	;v47n: count layout-triggered scratch invalidations
-g2dbg_scratch_guard_ok	dc	0	;v47p: scratch guard still intact
-g2dbg_scratch_guard_failcnt	dc	0	;v47p: hidden scratch guard failure counter
-g2dbg_scratch_verify_ok	dc	0	;v47q: hidden scratch source/dest compare ok
-g2dbg_scratch_verify_failcnt	dc	0	;v47q: hidden scratch verify failure counter
-g2dbg_scratch_verify_lines	dc	0	;v47t: number of scratch lines checked in last verify
-g2dbg_scratch_ready	dc	0	;v47u: all hidden scratch safety checks passed
-g2dbg_scratch_ready_failcnt	dc	0	;v47u: aggregate readiness check failed
-g2dbg_bmap_linebytes	dc	0	;v47v: active wi_bmap plane line stride, fixed 40 bytes
-g2dbg_bmap_rowbytes	dc	0	;v47v: active wi_bmap interleaved row stride, fixed 40*7
-g2dbg_bmap_plane_span	dc.l	0	;v47v: active bmap plane span for safe line count
-g2dbg_active_probe_done	dc	0	;v47w: tiny active bmap write/restore probe ran for current layout
-g2dbg_active_probe_ok	dc	0	;v47w: active write/read/restore probe succeeded
-g2dbg_active_probe_failcnt	dc	0	;v47w: active write/read/restore probe failed
-g2dbg_active_marker_done	dc	0	;v47ac: small direct C2P->global bitmap probe written for current layout
-g2dbg_active_marker_ok	dc	0	;v47ab: small scratch->global bitmap probe succeeded
-g2dbg_active_marker_failcnt	dc	0	;v47ab: small scratch->global bitmap probe failed
-g2dbg_active_marker_frames	dc	0	;v47ab: repaint scratch probe for a short visible window
-g2sm_animphase	dc	0	;animated C2P calibration color/rotation phase
-g2sm_xphase	dc	0	;v47ay: horizontal 20-block scroll phase
-g2sm_yphase	dc	0	;v47ay: vertical 16-line band scroll phase
-g2sm_track_init	dc	0	;v47av: player movement tracking initialized
-g2sm_last_x	dc.l	0	;v47av: last player1 X for movement-gated animation
-g2sm_last_y	dc.l	0	;v47av: last player1 Y for movement-gated animation
-g2sm_last_rot	dc	0	;v47av: last player1 rotation for movement-gated animation
-g2dbg_active_save	dc	0,0,0,0,0,0,0	;v47w: saved active words for restore
-g2dbg_last_linebytes	dc	0	;v47n: last prepared linebytes
-g2dbg_last_safelines	dc	0	;v47n: last prepared safe line count
-g2dbg_last_bmap	dc.l	0	;v47n: last captured game-window bitmap pointer
-render2_shadow_ptr	dc.l	0	;next hidden chunky write position
-render2_copybuf	dc.l	0	;hidden copy/c2p destination buffer
-render2_windowscratch	dc.l	0	;v47l: hidden interleaved window-shaped scratch buffer
-c2p	dc.l	0	;future loaded/generated c2p routine pointer
-chunky	dc.l	0	;future chunky render buffer
-drawbitmap	dc.l	0	;future draw bitmap pointer
-showbitmap	dc.l	0	;future visible bitmap pointer
-
 rawstuff	dc.l	0,0
 ciaa	dc.l	0
 ciaaname	dc.b	'ciaa.resource',0
@@ -15035,14 +13112,6 @@ grname	dc.b	'graphics.library',0
 	even
 grbase	dc.l	0
 oldview	dc.l	0
-c2pname	dc.b	'c2p.library',0
-	even
-c2pbase	dc.l	0
-c2pctx	dc.l	0
-c2pchunky	dc.l	0
-c2pbitmap	dc.l	0
-c2piniterr	dc.l	0
-c2pconverr	dc.l	0
 dosname	dc.b	'dos.library',0
 	even
 dosbase	dc.l	0
@@ -15132,80 +13201,9 @@ showwindow	;a0=window
 	move	d0,-10(a2)
 	;
 	pull
-	bra.w	showwindowq	;v47bt: restore original fall-through to display after window build
 	;
-
-;v47bo final display-path marker.
-;This routine is called from showwindowq itself, so it does not depend on the
-;global cop/width/hite variables.  It writes into the exact wi_cop buffer of
-;the window that is about to be shown.  If this marker is not visible, the
-;window/copper display path itself is not being marked correctly.
-g2renderer_v47bo_showwindow_marker
-	movem.l	d0-d7/a0-a5,-(a7)
-	move.l	wi_cop(a0),a4
-	beq.w	g2bo_done
-	move	wi_copmod(a0),d5
-	beq.w	g2bo_done
-	move	wi_w(a0),d6
-	cmp	#16,d6
-	bcs.w	g2bo_done
-	move	wi_h(a0),d7
-	cmp	#8,d7
-	bcs.w	g2bo_done
-	;start near bottom-centre of the actual logical window
-	move	d6,d0
-	lsr	#1,d0
-	sub	#24,d0
-	bpl.s	g2bo_x_ok
-	moveq	#0,d0
-g2bo_x_ok
-	move	d0,g2bo_startx
-	move	d7,d1
-	sub	#12,d1
-	bpl.s	g2bo_y_ok
-	moveq	#0,d1
-g2bo_y_ok
-	lea	coloffs(pc),a5
-	moveq	#0,d4
-
-g2bo_row
-	move	d1,d2
-	add	d4,d2
-	mulu	d5,d2
-	moveq	#0,d3
-
-g2bo_col
-	move	g2bo_startx(pc),d0
-	add	d3,d0
-	cmp	d6,d0
-	bcc.s	g2bo_nextrow
-	move.l	a4,a1
-	add.l	0(a5,d0*4),a1
-	add.l	d2,a1
-	move	d3,d0
-	lsr	#2,d0
-	add	d4,d0
-	and	#7,d0
-	move	g2bo_colors(pc,d0*2),(a1)
-	addq	#1,d3
-	cmp	#48,d3
-	blt.s	g2bo_col
-
-g2bo_nextrow
-	addq	#1,d4
-	cmp	#12,d4
-	blt.w	g2bo_row
-
-g2bo_done
-	movem.l	(a7)+,d0-d7/a0-a5
-	rts
-
-g2bo_startx	dc	0
-g2bo_colors	dc	$fff,$f00,$0f0,$00f,$ff0,$f0f,$0ff,$888
-
 showwindowq	;display coplist
 	;
-	;v47bs: showwindow marker disabled - this path also displays title/intermission
 	move.l	wi_cop(a0),d0
 	move.l	wi_slice(a0),a0
 	move.l	(a0),a0
@@ -15218,25 +13216,6 @@ showwindowq	;display coplist
 
 finitdisplay	push
 	;
-	;v48bk: destroy optional c2p context and close c2p.library if opened.
-	move.l	c2pctx,d0
-	beq.w	.v48e_noctxdestroy
-	move.l	d0,a0
-	move.l	c2pbase,a6
-	jsr	-60(a6)
-	clr.l	c2pctx
-	clr.l	c2pchunky
-	clr.l	c2pbitmap
-	clr.l	c2piniterr
-	clr.l	c2pconverr
-.v48e_noctxdestroy
-	move.l	c2pbase,d0
-	beq.s	.v48a_noc2pclose
-	move.l	d0,a1
-	move.l	4.w,a6
-	jsr	-414(a6)
-	clr.l	c2pbase
-.v48a_noc2pclose
 	move.l	grbase,a6
 	move.l	oldview,a1
 	jsr	-222(a6)	;load view
@@ -15258,65 +13237,7 @@ initdisplay	push
 	jsr	-408(a6)
 	move.l	d0,grbase
 	;
-	;v48bk: optional c2p.library preparation and visible BITMAP Planes reader with linear refill and 2x vertical scaling.  This must not be fatal yet:
-	;if the library is missing, the old stable overlay path remains active.
-	lea	c2pname,a1
-	moveq	#0,d0
-	move.l	4.w,a6
-	jsr	-408(a6)
-	move.l	d0,c2pbase
-	beq.w	.v48e_noctx
-	;v48h: mini real conversion smoke test. Configure a tiny 16x16/7-bit
-	;from the real Gloom/Copper readback, then converted by c2p.library.
-	;C2P_Chunky2Planar. This stays invisible and must not affect gameplay.
 	move.l	d0,a6
-	jsr	-48(a6)	;C2P_CreateContext()
-	move.l	d0,c2pctx
-	beq.w	.v48e_noctx
-	move.l	d0,a0
-	move.l	c2pbase,a6
-	moveq	#1,d0	;C2P_CONTEXT_PARAMETER_TYPE
-	moveq	#1,d1	;v48ae C2P_CONTEXT_TYPE_BITMAP, not FAST_BITMAP
-	jsr	-72(a6)	;C2P_SetContextParameter
-	move.l	c2pctx,a0
-	moveq	#2,d0	;C2P_CONTEXT_PARAMETER_WIDTH
-	moveq	#96,d1
-	jsr	-72(a6)
-	move.l	c2pctx,a0
-	moveq	#3,d0	;C2P_CONTEXT_PARAMETER_HEIGHT
-	moveq	#56,d1
-	jsr	-72(a6)
-	move.l	c2pctx,a0
-	moveq	#9,d0	;C2P_CONTEXT_PARAMETER_PLANAR_FORMAT
-	moveq	#7,d1	;C2P_CONTEXT_PLANAR_FORMAT_7_BIT
-	jsr	-72(a6)
-	move.l	c2pctx,a0
-	jsr	-54(a6)	;C2P_InitializeContext
-	move.l	d0,c2piniterr
-	bne.w	.v48e_noctx
-	move.l	c2pctx,a0
-	moveq	#4,d0	;C2P_CONTEXT_PARAMETER_CHUNKY
-	jsr	-66(a6)	;C2P_GetContextParameter
-	move.l	d0,c2pchunky
-	beq.w	.v48e_noctx
-	move.l	c2pctx,a0
-	moveq	#5,d0	;C2P_CONTEXT_PARAMETER_BITMAP
-	jsr	-66(a6)
-	move.l	d0,c2pbitmap
-	move.l	c2pchunky,a0
-	moveq	#0,d0
-	move	#5375,d1	;96*56 chunky bytes - 1
-.v48f_fill
-	move.b	d0,(a0)+
-	addq.b	#1,d0
-	dbf	d1,.v48f_fill
-	move.l	c2pctx,a0
-	move.l	c2pbase,a6
-	jsr	-90(a6)	;C2P_Chunky2Planar
-	move.l	d0,c2pconverr
-.v48e_noctx
-	;
-	move.l	grbase,a6
 	move.l	34(a6),oldview
 	sub.l	a1,a1
 	jsr	-222(a6)	;loadview
