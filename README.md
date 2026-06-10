@@ -4,9 +4,11 @@
 ![AI Assisted Coding](https://img.shields.io/badge/AI-Assisted%20Coding-white)
 ![Controls](https://img.shields.io/badge/Controls-Keyboard%20%2F%20Mouse%20%2F%20Joypad-green)
 
-This project aims to build an enhanced Amiga version of **Gloom**, based on the original source code, while preserving the look, feel and gameplay identity of the classic release.
+This project aims to build an enhanced Amiga version of Gloom, based on the original, unmodified source code published at [earok/GloomAmiga](https://github.com/earok/GloomAmiga).
 
-The goal is **not** to turn Gloom into a completely different engine, but to modernize and extend it carefully where it makes sense on real Amiga hardware.
+That repository serves as the clean reference base from which this project is being ported, reorganized, fixed, and carefully extended.
+
+The goal is *not* to turn Gloom into a completely different engine, but to modernize and improve it where it makes sense on real Amiga hardware, while preserving the look, feel, speed, atmosphere, and gameplay identity of the classic release.
 
 ## Planned scope includes
 
