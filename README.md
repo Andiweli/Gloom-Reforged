@@ -14,7 +14,7 @@ The goal is **not** to turn Gloom into a completely different engine, but to mod
 - [x] Integrating the health/weapon-bar and gun/muzzleflash graphics
 - [x] Improved keyboard and mouse controls for a smoother FPS-style experience
 - [x] Integrating new options in the ingame-menu
-- [ ] Improved render depth to avoid banding
+- [x] Improved render depth for far areas (to possibly avoid banding)
 - [ ] Faster and cleaner loading behaviour compared to the current source build
 - [ ] Optional visual enhancements such as muzzle flashes, atmospheric effects and subtle dynamic lighting
 - [ ] Keeping compatibility with real Amiga systems as a priority, not only emulators
