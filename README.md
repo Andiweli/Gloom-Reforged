@@ -22,6 +22,16 @@ The goal is **not** to turn Gloom into a completely different engine, but to mod
 
 The project will proceed step by step, with stability and authenticity taking priority over feature creep. Each improvement should feel like something that could have belonged in a polished Amiga-era enhanced edition of Gloom.
 
+## Screenshots
+
+<p align="center">
+<img width="1026" height="800" alt="image" src="https://github.com/user-attachments/assets/885a5c9a-4c3b-48c2-b75d-d99f79149a65" />
+
+<img width="1026" height="800" alt="image" src="https://github.com/user-attachments/assets/3a7ae507-4b8d-4650-890e-ff2bb23609fa" />
+
+<img width="1026" height="800" alt="image" src="https://github.com/user-attachments/assets/f80e473c-04c7-452b-a747-42169354db2a" />
+</p>
+
 ## Release
 
 As soon as there is a stable basic version available. 
