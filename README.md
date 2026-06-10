@@ -22,6 +22,30 @@ The goal is **not** to turn Gloom into a completely different engine, but to mod
 
 The project will proceed step by step, with stability and authenticity taking priority over feature creep. Each improvement should feel like something that could have belonged in a polished Amiga-era enhanced edition of Gloom.
 
+## Most critical changes so far
+
+1. **Made `gloom2.s` bootable again**
+   Fixed startup/Guru issues and turned it into a usable standalone source base.
+2. **Fixed Devpac/assembler issues**
+   Corrected branch range problems, oversized `bsr` jumps, and other build errors.
+3. **Centered the screen output properly**
+   The game screen is now correctly centered; screen position 40 became the good anchor.
+4. **Fixed wrong colors caused by bitplane/stride issues**
+   The incorrect 256-line stride approach was discarded; the compact 240-line plane span is the correct path.
+5. **Restored correct texture rendering**
+   Wall and level graphics now render properly in the `gloom2.s` path, without distortion or wrong colors.
+6. **Made the level playable again**
+   Movement, collision, and the main gameplay path are working again in the new `gloom2.s` version.
+7. **Fixed menu/ESC behavior**
+   The menu now opens cleanly with a single ESC press instead of causing repeated or broken behavior.
+8. **Reworked weapon, muzzleflash, and HUD handling**
+   Weapon placement, gunbob, projectile origin, muzzleflash size, status bar elements, and health bar alignment were improved.
+9. **Improved blood splatter / messy effects**
+   Blood splatter effects work again and were moved closer to the intended original look.
+10. **Reworked distance fog / far rendering**
+    Current focus: smoother distance darkening, fewer harsh shading steps, stronger fade-out after roughly six texture widths, and dark far corridors instead of fully black gaps.
+
+
 ## Screenshots
 
 <p align="center">
