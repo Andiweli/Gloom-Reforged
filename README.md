@@ -1,4 +1,4 @@
-## Gloom Reforged
+# Gloom Reforged
 
 ![OS](https://img.shields.io/badge/OS-AmigaOS%203%2B-blue)
 ![AI Assisted Coding](https://img.shields.io/badge/AI-Assisted%20Coding-white)
@@ -8,17 +8,23 @@ This project aims to build an enhanced Amiga version of **Gloom**, based on the 
 
 The goal is **not** to turn Gloom into a completely different engine, but to modernize and extend it carefully where it makes sense on real Amiga hardware.
 
-Planned focus areas include:
+## Planned scope includes
 
-* improved keyboard and mouse controls for a smoother FPS-style experience
-* sharper graphics, including a possible dedicated AGA render path
-* support for the classic Amiga 320×256 target resolution where technically feasible
-* faster and cleaner loading behaviour compared to the current source build
-* optional visual enhancements such as muzzle flashes, atmospheric effects and subtle dynamic floor lighting for weapons, ammo and projectiles
-* keeping compatibility with real Amiga systems as a priority, not only emulators
-* maintaining the original Gloom gameplay structure, assets and atmosphere as the foundation
+- [x] Bug fixes for the original source code in gloom2.s
+- [x] Integrating the health/weapon-bar and gun/muzzleflash graphics
+- [x] Improved keyboard and mouse controls for a smoother FPS-style experience
+- [x] Integrating new options in the ingame-menu
+- [x] Improved render depth for far areas (to possibly avoid banding)
+- [ ] Faster and cleaner loading behaviour compared to the current source build
+- [ ] Optional visual enhancements such as muzzle flashes, atmospheric effects and subtle dynamic lighting
+- [ ] Keeping compatibility with real Amiga systems as a priority, not only emulators
+- [x] Maintaining the original Gloom gameplay structure, assets and atmosphere as the foundation
 
 The project will proceed step by step, with stability and authenticity taking priority over feature creep. Each improvement should feel like something that could have belonged in a polished Amiga-era enhanced edition of Gloom.
+
+## Release
+
+As soon as there is a stable basic version available. 
 
 ## Legal / Source Code Notice
 
