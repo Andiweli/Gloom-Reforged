@@ -18,10 +18,11 @@ The goal is *not* to turn Gloom into a completely different engine, but to moder
 - [x] Integrating new options in the ingame-menu
 - [x] Improved render depth for far areas (to possibly avoid banding)
 - [ ] Faster and cleaner loading behaviour compared to the current source build
-- [ ] Optional visual enhancements such as muzzle flashes, atmospheric effects and subtle dynamic lighting
+- [x] Optional visual enhancements such as muzzle flashes, atmospheric effects and subtle dynamic lighting
 - [x] Keeping compatibility with real Amiga systems as a priority, not only emulators
 - [x] Maintaining the original Gloom gameplay structure, assets and atmosphere as the foundation
-- [ ] Compatibility to Gloom Deluxe, Gloom 3 and Zombie Massacre *(Gloom has other assets, no gun, other statusbar, etc)*
+- [x] Compatibility to Gloom Deluxe, Gloom 3 and Zombie Massacre *(Gloom has other assets, no gun, other statusbar, etc)*
+- [ ] Graphicscard/P96 compatibility
 
 The project will proceed step by step, with stability and authenticity taking priority over feature creep. Each improvement should feel like something that could have belonged in a polished Amiga-era enhanced edition of Gloom.
 
