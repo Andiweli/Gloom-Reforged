@@ -52,13 +52,29 @@ The project will proceed step by step, with stability and authenticity taking pr
 
 ## Screenshots
 
+### Revised renderer
+
+- More depth
+- Depth fog softly blends in
+- Bayer dithering for better transitions
+
 <p align="center">
+<img width="867" height="647" alt="image" src="https://github.com/user-attachments/assets/78e7cc21-75ef-4ad2-9281-96649b3e8c63" />
+</p>
+
+<details>
+<summary> more Screenshots</summary>
+
+<p align="center">
+<br/>
 <img width="1026" height="800" alt="image" src="https://github.com/user-attachments/assets/885a5c9a-4c3b-48c2-b75d-d99f79149a65" />
 
 <img width="1026" height="800" alt="image" src="https://github.com/user-attachments/assets/3a7ae507-4b8d-4650-890e-ff2bb23609fa" />
 
 <img width="1026" height="800" alt="image" src="https://github.com/user-attachments/assets/f80e473c-04c7-452b-a747-42169354db2a" />
 </p>
+</details>
+
 
 ## Release
 
