@@ -5,7 +5,6 @@
 	;
 	;planar, 020+ version.
 	;v190hy: cleanup build from stable v190hx12, old DH3:gloom.log diagnostics removed.
-	;v190hy2: keep Gloom3 intermission picture palette; skip font palette override there.
 	;
 	;6 bitplanes for ECS, 8 for AGA
 	;
@@ -10058,9 +10057,6 @@ drawobjtrans	;draw transparent object (merge both colours!)
 	move.l	planar_remap(pc),a5	;remap RGB->LUT
 	move.l	planar_palette,a6
 	;
-	; v190hy4: blob shadows must be behind the sprite column.
-	; Reflections stay after the sprite via g2_draw_reflection_column_after_sprite.
-	bsr	g2_draw_blob_column_before_sprite
 .vloop	move.b	0(a3,d1),d5
 	beq.s	.skip
 	;
@@ -10082,7 +10078,7 @@ drawobjtrans	;draw transparent object (merge both colours!)
 	addx	d0,d1	;xtend
 	add.l	d7,a4
 	dbf	d4,.vloop
-	bsr	g2_draw_reflection_column_after_sprite	;v190hy4: reflections only after sprite
+	bsr	g2_draw_enemy_blob_column	;v173 reflections below transparent/invisible pickups too
 	;
 	movem.l	(a7)+,d0-d5/a5-a6
 	;
@@ -10124,15 +10120,13 @@ drawobjnorm	;normal draw object...
 	sub	d6,d1
 	add.l	d6,d1
 	;
-	; v190hy4: draw enemy blob shadow before sprite pixels so feet/gore stay on top.
-	bsr	g2_draw_blob_column_before_sprite
 .vloop	move.b	0(a3,d1),d5
 	beq.s	.skip
 	move.b	0(a2,d5),(a4)
 .skip	addx.l	d6,d1	;next src Y
 	add.l	d7,a4
 	dbf	d4,.vloop
-	bsr	g2_draw_reflection_column_after_sprite	;v190hy4: reflections only after sprite
+	bsr	g2_draw_enemy_blob_column	;v126 hard-edged dark column below enemy feet
 	;
 	movem.l	(a7)+,d0-d1/d4-d5
 	;
@@ -10265,23 +10259,6 @@ g2_setup_enemy_blob_column
 	moveq	#16,d0
 .rx_max_ok
 	move	d0,g2_shadow_rx
-	; v190hy3: anchor enemy blob shadows to the projected floor plane,
-	; not to the lower edge of the visible sprite bitmap.  Flying monsters
-	; can bob above the floor, but their shadow must stay on the ground.
-	move	camy(pc),d0
-	neg	d0
-	ext.l	d0
-	asl.l	#focshft,d0
-	divs	d2,d0
-	jsr	g2view_scale_y_d0	; keep VIEW SIZE scaling consistent with sprites
-	add	midy(pc),d0
-	cmp	#2,d0
-	blt	.done
-	move	hite(pc),d1
-	sub	#6,d1
-	cmp	d1,d0
-	bgt	.done
-	move	d0,g2_reflect_floorrow	; reused as absolute floor row for blob shadows
 	moveq	#1,d0	;v129 fallback: darker blob shadow
 	move.l	planar_remap(pc),a0
 	tst.l	a0
@@ -10536,20 +10513,6 @@ g2_reflect_dark_rgb
 g2_reflect_rgb
 	dc	$960,$0a0,$6f6,$66f,$a0a,$960,$0a0,$6f6
 
-g2_draw_blob_column_before_sprite
-	cmp	#1,g2_shadow_active
-	bne.s	.rts
-	bsr	g2_draw_enemy_blob_column
-.rts	rts
-
-; v190hy4: reflections still need the old after-sprite path because projectile
-; reflections use a4/the sprite underside as their relative floor anchor.
-g2_draw_reflection_column_after_sprite
-	cmp	#2,g2_shadow_active
-	bne.s	.rts
-	bsr	g2_draw_enemy_blob_column
-.rts	rts
-
 g2_draw_enemy_blob_column
 	; called from drawobjnorm/drawobjtrans after the current sprite column was drawn.
 	; a4 points one row below the drawn/clipped sprite column.
@@ -10591,20 +10554,9 @@ g2_draw_enemy_blob_column
 	moveq	#0,d5
 	moveq	#2,d6	;keep hard oval centre, no tall diamond peak
 .have_band
+	move.l	a4,a0
 	move.l	chunkymod(pc),d7
-	; v190hy3: draw the blob at the projected floor row.  The old path
-	; started from a4 (sprite column bottom), so flying sprites dragged the
-	; shadow upward with their animation/bob height.
-	move.l	chunky(pc),d0
-	move	g2_shadow_curx(pc),d3
-	lsl	#2,d3
-	lea	coloffs(pc),a0
-	add.l	0(a0,d3.w),d0
-	move.l	d0,a0
-	move	g2_reflect_floorrow(pc),d3
-	mulu	chunkymodw(pc),d3
-	add.l	d3,a0
-	sub.l	d7,a0	; keep the confirmed v132/v130 blob vertical bias
+	sub.l	d7,a0	;v132: one pixel lower than v131, still above v130
 	sub.l	d7,a0
 	sub.l	d7,a0
 	; skip down by start offset
@@ -13919,10 +13871,7 @@ scriptdraw	; v190hy cleanup: log marker removed
 	move.l	gloom,d0
 .use	move.l	d0,a0
 	jsr	showpic
-	cmp	#3,g2_game_profile	; v190hy2: Gloom3 intermission pictures keep their own .pal
-	beq.s	.g2v190hy2_draw_no_fontpal
 	bsr	initfontpal
-.g2v190hy2_draw_no_fontpal
 	bra	execscript
 
 fetchrest	move.l	scriptat,a0
@@ -14152,8 +14101,6 @@ scripttext	;print text on iff
 .g2v190t_show_text
 	move	#2,pdelay
 	cmp	#1,g2_game_profile	; v190cx: old Gloom intermission keeps picture palette
-	beq.s	.g2v190cx_text_no_fontpal
-	cmp	#3,g2_game_profile	; v190hy2: Gloom3 intermission keeps picture palette too
 	beq.s	.g2v190cx_text_no_fontpal
 	bsr	initfontpal
 .g2v190cx_text_no_fontpal

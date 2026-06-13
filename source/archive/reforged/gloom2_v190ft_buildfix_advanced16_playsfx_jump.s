@@ -4,8 +4,6 @@
 	;*********
 	;
 	;planar, 020+ version.
-	;v190hy: cleanup build from stable v190hx12, old DH3:gloom.log diagnostics removed.
-	;v190hy2: keep Gloom3 intermission picture palette; skip font palette override there.
 	;
 	;6 bitplanes for ECS, 8 for AGA
 	;
@@ -639,6 +637,7 @@ wb	;
 	move.l	d0,a6
 	jsr	-60(a6)
 	move.l	d0,outhand
+	jsr	g2log_open	;v22 diagnostic level/runtime log
 	;
 	move.l	wbmess(pc),d0
 	beq.s	.nocd
@@ -663,8 +662,8 @@ wb	;
 	; v41x diagnostic: bigfont returned, continue to title music start.
 	;
 .intro	jsr	g2v190p_load_title_assets	; v190p: reload title art if gameplay freed it
-	; v190go: Classic Gloom now uses embedded Gloom2 title/menu assets too,
-	; so the old unsupported-profile title-music skip must not run anymore.
+	cmp	#1,g2_game_profile	; v190dm: unsupported original Gloom shows notice without title music
+	beq.s	.g2v190cr_no_title_music
 	move.l	medat,a1
 	move.l	titlemed,d0	; v190cr: compatible installs may not have title MED
 	beq.s	.g2v190cr_no_title_music
@@ -722,7 +721,7 @@ nomem	move.l	wbmess(pc),d0
 	jsr	-378(a6)
 	clr.l	wbmess
 	;
-.bye	; v190hy cleanup: logger call removed
+.bye	jsr	g2log_close
 	rts
 
 ; ************* FAST SUBS ********************
@@ -744,10 +743,16 @@ bigfont	move	#8,fontw
 	move.l	bigfont_,font
 	rts
 
-; v190gl: all profiles, including Classic Gloom with embedded fallbacks,
-; use the normal Gloom2 bigfont2 menu font path.
+; v190ct: Original Gloom data uses the classic small font for title menus.
+; Gloom Deluxe/Gloom3/Zombie Massacre keep the Gloom2 bigfont path.
 g2v190ct_titlefont
+	cmp	#1,g2_game_profile
+	beq.s	.g1small
 	bsr	bigfont
+	rts
+.g1small	move	#8,fontw	; v190cv: Gloom Original uses safe compact menu text spacing
+	move	#8,fonth
+	move.l	smallfont_,font	; keep original smallfont.bin selected, but avoid old shape blitter
 	rts
 
 encodejoy	;a0=cntrl block to encode...
@@ -1524,7 +1529,7 @@ trainer_update_wsize_text
 	move	width(pc),d0
 	cmp	#320,d0
 	bcs.s	.notfull
-	cmp	#240,hite
+	cmp	#224,hite
 	bcs.s	.notfull
 	lea	trainer_txt_fullscreen,a1
 	bra.s	.copy
@@ -1576,7 +1581,7 @@ trainer_update_full_text
 	lea	21(a0),a0
 	cmp	#320,width
 	bne.s	.no
-	cmp	#240,hite
+	cmp	#224,hite
 	bne.s	.no
 	move.b	#'Y',(a0)+
 	move.b	#'E',(a0)+
@@ -1652,7 +1657,7 @@ g2v17_wait_menu_release
 	rts
 
 largewin	move	#320,width
-	move	#240,hite
+	move	#224,hite
 	bra	sizedone
 
 ; v115/v117: discrete view sizes from v114 ingame menu.
@@ -1660,7 +1665,7 @@ largewin	move	#320,width
 ; ALMOST FULL keeps current width but uses VERY HUGE height.
 newwsize	cmp	#320,width
 	bne.s	.nf
-	cmp	#240,hite
+	cmp	#224,hite
 	bcc	.s64		;v117: FULLSCREEN -> TINY
 .nf	move	width(pc),d0
 	cmp	#96,d0
@@ -1703,7 +1708,7 @@ newwsize	cmp	#320,width
 	move	#192,hite		;v115: ALMOST FULL same height as VERY HUGE
 	bra	sizedone
 .sfull	move	#320,width
-	move	#240,hite
+	move	#224,hite
 	bra	sizedone
 
 decwsize	move	width(pc),d0
@@ -1749,7 +1754,7 @@ decwsize	move	width(pc),d0
 	move	#192,hite		;v115: ALMOST FULL same height as VERY HUGE
 	bra	sizedone
 .sfull	move	#320,width
-	move	#240,hite
+	move	#224,hite
 	; fall through to sizedone
 
 sizedone	move	width(pc),d0
@@ -1771,7 +1776,7 @@ calcoffset	move	#320,d0
 	lsr	#4,d0
 	ext.l	d0
 	;
-	move	#240,d1
+	move	#224,d1
 	sub	hite(pc),d1
 	lsr	#1,d1
 	mulu	linemodw(pc),d1
@@ -1779,121 +1784,6 @@ calcoffset	move	#320,d0
 	move.l	d0,offset
 	;
 	rts
-
-; v190hx7: VIEW SIZE full-FOV scaling helpers.
-; Projection still computes the original 320x240 full-screen coordinates, then
-; these helpers scale the result down to the selected render window.  That makes
-; small VIEW SIZE modes render the whole scene at lower resolution instead of
-; showing only a cropped centre slice.
-g2view_scale_x_d0
-	cmp	#320,width
-	beq.s	.rts
-	movem.l	d1,-(a7)
-	ext.l	d0
-	move	width,d1
-	muls	d1,d0
-	move	#320,d1
-	divs	d1,d0
-	movem.l	(a7)+,d1
-.rts	rts
-
-g2view_scale_x_d2
-	cmp	#320,width
-	beq.s	.rts
-	movem.l	d0-d1,-(a7)
-	move	d2,d0
-	ext.l	d0
-	move	width,d1
-	muls	d1,d0
-	move	#320,d1
-	divs	d1,d0
-	move	d0,d2
-	movem.l	(a7)+,d0-d1
-.rts	rts
-
-g2view_scale_x_d3
-	cmp	#320,width
-	beq.s	.rts
-	movem.l	d0-d1,-(a7)
-	move	d3,d0
-	ext.l	d0
-	move	width,d1
-	muls	d1,d0
-	move	#320,d1
-	divs	d1,d0
-	move	d0,d3
-	movem.l	(a7)+,d0-d1
-.rts	rts
-
-g2view_scale_y_d0
-	cmp	#240,hite
-	beq.s	.rts
-	movem.l	d1,-(a7)
-	ext.l	d0
-	move	hite,d1
-	muls	d1,d0
-	move	#240,d1
-	divs	d1,d0
-	movem.l	(a7)+,d1
-.rts	rts
-
-g2view_scale_y_d1
-	cmp	#240,hite
-	beq.s	.rts
-	; v190hx10: keep d1 scaled. hx7 restored d1 here, so sprite/blood
-	; Y positions stayed full-size while their heights were already scaled.
-	movem.l	d0/d2,-(a7)
-	move	d1,d0
-	ext.l	d0
-	move	hite,d2
-	muls	d2,d0
-	move	#240,d2
-	divs	d2,d0
-	move	d0,d1
-	movem.l	(a7)+,d0/d2
-.rts	rts
-
-g2view_scale_y_d3
-	cmp	#240,hite
-	beq.s	.rts
-	movem.l	d0-d1,-(a7)
-	move	d3,d0
-	ext.l	d0
-	move	hite,d1
-	muls	d1,d0
-	move	#240,d1
-	divs	d1,d0
-	move	d0,d3
-	movem.l	(a7)+,d0-d1
-.rts	rts
-
-g2view_scale_y_d4
-	cmp	#240,hite
-	beq.s	.rts
-	movem.l	d0-d1,-(a7)
-	move	d4,d0
-	ext.l	d0
-	move	hite,d1
-	muls	d1,d0
-	move	#240,d1
-	divs	d1,d0
-	move	d0,d4
-	movem.l	(a7)+,d0-d1
-.rts	rts
-
-g2view_unscale_y_d6
-	cmp	#240,hite
-	beq.s	.rts
-	movem.l	d0-d1,-(a7)
-	move	d6,d0
-	ext.l	d0
-	move	#240,d1
-	muls	d1,d0
-	move	hite,d1
-	divs	d1,d0
-	move	d0,d6
-	movem.l	(a7)+,d0-d1
-.rts	rts
 
 refresh	jsr	dispoff
 	jsr	finitmenu
@@ -1953,11 +1843,37 @@ g2drawchunky_a0	;a0=shapetable, d0=x,d1=y,d2=shape#
 ; Retail: #48 = 320px bar, #49 = middle clear, #47/#46 are tiny pieces.
 ; Detect the shape width at runtime so both data sets work.
 g2draw_statusbar_base
-	; v190gi: lower smallfont2 statusbar background disabled.
+	movem.l	d0-d2/a0,-(a7)
+	moveq	#47,d2
+	move.l	panel(pc),a0
+	move.l	200(a0),d0	;12 + 47*4
+	beq.s	.g2dsb_draw
+	add.l	d0,a0
+	cmp	#300,4(a0)	;width >= 300 means public-source #47 is the bar
+	bcc.s	.g2dsb_draw
+	moveq	#48,d2	;retail/final data: #48 is the full statusbar
+.g2dsb_draw
+	moveq	#0,d0
+	moveq	#0,d1
+	bsr	drawchunky
+	movem.l	(a7)+,d0-d2/a0
 	rts
 
 g2draw_statusbar_clear
-	; v190gi: lower smallfont2 statusbar clear strip disabled.
+	movem.l	d0-d2/a0,-(a7)
+	moveq	#46,d2
+	move.l	panel(pc),a0
+	move.l	196(a0),d0	;12 + 46*4
+	beq.s	.g2dsc_draw
+	add.l	d0,a0
+	cmp	#16,4(a0)	;retail #46 is only a tiny 2px piece
+	bcc.s	.g2dsc_draw
+	moveq	#49,d2	;retail/final data: #49 is the clear strip
+.g2dsc_draw
+	moveq	#0,d0
+	moveq	#2,d1
+	bsr	drawchunky
+	movem.l	(a7)+,d0-d2/a0
 	rts
 
 ; v20: keep the original 224..239 chunky panel source deterministic.
@@ -1998,7 +1914,6 @@ g2clearfullchunky
 ; in one piece and maps its colours into the current display palette.
 g2drawgun
 	movem.l	d0-d7/a0-a5,-(a7)
-	; v190gl: Classic Gloom can use the embedded/physical Gloom2 gun.bin fallback.
 	move.l	gunpic(pc),d0
 	beq.w	.g2dg_done
 	; v100: during the death fall, hide the first-person weapon completely.
@@ -2039,8 +1954,8 @@ g2drawgun
 	move	#160,d1
 	sub	d0,d1		;x
 	move	6(a0),d3		;height
-	move	#266,d4		;v190gi: gun moved down by old statusbar height (~26px)
-	sub	d3,d4		;cropped naturally at lower screen edge
+	move	#245,d4
+	sub	d3,d4		;raised gun baseline behind the statusbar
 	tst.b	g2gun_recoilflag
 	beq.s	.g2dg_no_recoil_y
 	add	#4,d4		;v71: shorter, lighter firing recoil
@@ -2332,7 +2247,7 @@ g2drawgun_coloffs_shape_scalefrac
 	move.b	0(a0,d0.w),d0
 	andi.l	#$ff,d0
 	beq.s	.g2dgsf_skip
-	move.b	0(a4,d0),(a3)
+	move.b	0(a4,d0.w),(a3)
 .g2dgsf_skip
 	lea	320(a3),a3
 	addq	#1,d1
@@ -2384,8 +2299,8 @@ g2drawgun_muzzle
 	sub	d0,d1
 	asr	#1,d1		;centre by width, not xhandle
 	move	6(a0),d3		;height
-	move	#237,d4		;v190gi: muzzleflash follows gun moved down by 26px
-	sub	d3,d4		;v76 base plus removed statusbar height
+	move	#211,d4
+	sub	d3,d4		;v76: move the whole flash further up so the bright core sits
 				;right at/just above the gun muzzle instead of being hidden too low
 	; v79: keep the single-shape approach from v78, but reduce the follow-up
 	; sizes by about 20%.  The 3-frame sequence is now 1x -> 1.6x -> 2.4x
@@ -2498,7 +2413,7 @@ predrawall	;draw up everything....
 	bsr	clspic
 	bsr	clspic
 	bsr	calcoffset
-	; v190gi: no lower statusbar background.
+	bsr	g2draw_statusbar_base
 	move.l	player1(pc),a0
 	st	ob_update(a0)
 	tst	gametype
@@ -2510,36 +2425,77 @@ predrawall	;draw up everything....
 
 drawall	;
 	jsr	g2v36_hide_pointer	;v36: keep Intuition pointer hidden during gameplay
+	lea	g2log_msg_da_enter,a0
+	jsr	g2log_drawstep
 .wait	tst	doneflag
 	bne.s	.waitskip
 	bsr	vwait
 	bra.s	.wait
 .waitskip	clr	doneflag
+	lea	g2log_msg_da_wait_ok,a0
+	jsr	g2log_drawstep
 	;
 drawall_	move.l	player1(pc),player_
 	move.l	memory(pc),memat
 	;
+	lea	g2log_msg_da_calc1_b,a0
+	jsr	g2log_drawstep
 	jsr	calcscene
+	lea	g2log_msg_da_calc1_ok,a0
+	jsr	g2log_drawstep
+	lea	g2log_msg_da_draw1_b,a0
+	jsr	g2log_drawstep
 	jsr	drawscene
+	lea	g2log_msg_da_draw1_ok,a0
+	jsr	g2log_drawstep
+	lea	g2log_msg_da_blit1_b,a0
+	jsr	g2log_drawstep
 	jsr	blitscene
+	lea	g2log_msg_da_blit1_ok,a0
+	jsr	g2log_drawstep
 	;
 	move	twowins(pc),d0
 	beq.s	.show
 	;
 	move.l	player2(pc),player_
 	move.l	memory(pc),memat
+	lea	g2log_msg_da_calc2_b,a0
+	jsr	g2log_drawstep
 	jsr	calcscene
+	lea	g2log_msg_da_calc2_ok,a0
+	jsr	g2log_drawstep
+	lea	g2log_msg_da_draw2_b,a0
+	jsr	g2log_drawstep
 	jsr	drawscene
+	lea	g2log_msg_da_draw2_ok,a0
+	jsr	g2log_drawstep
+	lea	g2log_msg_da_blit2_b,a0
+	jsr	g2log_drawstep
 	jsr	blitscene
+	lea	g2log_msg_da_blit2_ok,a0
+	jsr	g2log_drawstep
 .show	;
+	lea	g2log_msg_da_wait2_b,a0
+	jsr	g2log_drawstep
 .wait2	tst	showflag
 	bne.s	.waitskip2
 	bsr	vwait
 	bra.s	.wait2
-.waitskip2	; v190hy cleanup: log marker removed
+.waitskip2	lea	g2log_msg_da_wait2_ok,a0
+	jsr	g2log_drawstep
+	lea	g2log_msg_da_doc2p_b,a0
+	jsr	g2log_drawstep
 	jsr	doc2p
+	lea	g2log_msg_da_doc2p_ok,a0
+	jsr	g2log_drawstep
+	lea	g2log_msg_da_db_b,a0
+	jsr	g2log_drawstep
 	jsr	db
+	lea	g2log_msg_da_db_ok,a0
+	jsr	g2log_drawstep
 	clr	showflag
+	lea	g2log_msg_da_exit,a0
+	jsr	g2log_drawstep
 	rts
 
 doc2p	;
@@ -2552,7 +2508,6 @@ doc2p	;
 	move.l	linemod(pc),d3		;linemod
 	move.l	c2p(pc),a2
 	jsr	(a2)
-	jsr	g2hud_post_c2p	;v190hx6: fixed top HUD pass for non-fullscreen views
 	;nop	;v16: bottom clear disabled, restore compact 240-row plane layout first
 	move	panelcnt(pc),d0
 	beq.s	.rts
@@ -2574,70 +2529,6 @@ doc2p	;
 	jsr	(a2)
 	;
 .rts	rts
-
-; v190hx6: for smaller VIEW SIZE modes the main C2P pass only converts the
-; centred game window.  Keep the HUD at its fixed 320x240 screen position by
-; drawing it after the main C2P and converting only the top strip full-width.
-g2hud_post_c2p
-	tst	g2hud_pending
-	beq.s	.done
-	clr	g2hud_pending
-	movem.l	d0-d7/a0-a6,-(a7)
-	; v190hx9: the fixed HUD pass for smaller VIEW SIZE modes must not
-	; permanently overwrite the chunky source buffer.  The grey ESC-menu
-	; preview later uses chunky as the 3D-source image; if the HUD remains
-	; there, it appears again inside the small render window, distorted.
-	jsr	g2hud_save_top_chunky
-	jsr	g2hud_clear_top_chunky
-	move.l	g2hud_pending_player(pc),a5
-	tst.l	a5
-	beq.s	.skipdraw
-	move	#-1,g2hud_force_draw
-	jsr	showstats
-	clr	g2hud_force_draw
-.skipdraw
-	move.l	chunky(pc),a0
-	move.l	drawbitmap(pc),a1
-	move	#320,d0
-	move	#32,d1
-	move.l	bpmod(pc),d2
-	move.l	linemod(pc),d3
-	move.l	c2p(pc),a2
-	jsr	(a2)
-	jsr	g2hud_restore_top_chunky
-	movem.l	(a7)+,d0-d7/a0-a6
-.done	rts
-
-; Save/restore only the fixed top HUD strip in the chunky source buffer.
-g2hud_save_top_chunky
-	movem.l	d0/a0-a1,-(a7)
-	move.l	chunky(pc),a0
-	lea	g2hud_saved_top_chunky,a1
-	move	#2559,d0		; 320*32 bytes / 4 - 1
-.loop	move.l	(a0)+,(a1)+
-	dbf	d0,.loop
-	movem.l	(a7)+,d0/a0-a1
-	rts
-
-g2hud_restore_top_chunky
-	movem.l	d0/a0-a1,-(a7)
-	move.l	chunky(pc),a0
-	lea	g2hud_saved_top_chunky,a1
-	move	#2559,d0		; 320*32 bytes / 4 - 1
-.loop	move.l	(a1)+,(a0)+
-	dbf	d0,.loop
-	movem.l	(a7)+,d0/a0-a1
-	rts
-
-; Clear only the fixed top HUD strip in the chunky source buffer.
-g2hud_clear_top_chunky
-	movem.l	d0/a0,-(a7)
-	move.l	chunky(pc),a0
-	move	#2559,d0		; 320*32 bytes / 4 - 1
-.loop	clr.l	(a0)+
-	dbf	d0,.loop
-	movem.l	(a7)+,d0/a0
-	rts
 
 
 g2v15_clear_bottom16	;clear bottom 16 visible OS lines below the 240-line game render
@@ -2713,8 +2604,10 @@ printmess	;a5=object
 	;
 printmess2	;a4=message, d0=length of message, d6=Y
 	;
-	; v190gl: Classic Gloom now receives a Gloom2-compatible bigfont2
-	; fallback, so keep the normal printmess2 renderer for every profile.
+	cmp	#1,g2_game_profile	; v190cv: old Gloom font files use a different blit-shape layout
+	bne.s	.g2v190cv_normal_printmess2
+	jsr	g2v190cv_printmess2_g1_safe
+	rts
 .g2v190cv_normal_printmess2
 	move	fontw(pc),d2
 	lsr	#1,d2
@@ -2810,205 +2703,198 @@ printhexnum	;d0=x,d1=y,d2=hex long,a5=window
 	addq	#8,d1
 	rts
 
-showstats
+showstats	;
 	;a5=player
-	; v190gi: clean restart from v190fy.
-	; Draw the new top HUD inside the existing Gloom2 chunky/C2P render path.
-	; No old Gloom planar blitter, no direct smallfont.bin parsing, no bitmap writes.
-	; v190hx6: in FULLSCREEN draw directly into the main chunky/C2P frame.
-	; For smaller VIEW SIZE modes defer the HUD until after the main C2P pass,
-	; then convert a fixed full-width top strip so the HUD stays in place.
-	movem.l	d0-d7/a0-a4,-(a7)
-	move.l	panel(pc),d0
-	beq.w	.g2hud_done
-	tst	g2hud_force_draw
-	bne.s	.g2hud_draw_now
-	cmp	#320,width
-	bne.s	.g2hud_defer
-	cmp	#240,hite
-	bne.s	.g2hud_defer
-	bra.s	.g2hud_draw_now
-.g2hud_defer
-	move.l	a5,g2hud_pending_player
-	move	#-1,g2hud_pending
-	bra.w	.g2hud_done
-.g2hud_draw_now
+	; v50: final retail smallfont2 statusbar base is correct; HUD items
+	; are shifted +1/+1 so health/weapon/lives align with the original bar.
 	;
-	; HEALTH / WEAPON labels at the original Gloom top-left positions.
-	moveq	#2,d7
-	moveq	#4,d6		;v190hm: HUD 2px lower
-	lea	hud_health(pc),a4
-	bsr	g2hud_draw_text_top
-	moveq	#2,d7
-	moveq	#14,d6		;v190hm: HUD 2px lower
-	lea	hud_weapon(pc),a4
-	bsr	g2hud_draw_text_top
+	; v49: do NOT draw the old middle-clear over the final retail
+	; smallfont2 statusbar.  The full base strip is redrawn every
+	; frame by blitscene before showstats, so this extra clear is
+	; unnecessary and was wiping the left part of the final #48 bar.
 	;
-	; LIVES label and icons at the top-right.
-	move	#236,d7
-	moveq	#4,d6		;v190hm: HUD 2px lower
-	lea	hud_lives(pc),a4
-	bsr	g2hud_draw_text_top
-	move	ob_lives(a5),d7
-	ble.s	.g2hud_no_lives
-	cmp	#5,d7
-	ble.s	.g2hud_lives_ok
-	moveq	#5,d7
-.g2hud_lives_ok
-	subq	#1,d7
-	move	#276,d6
-.g2hud_lives_loop
-	move	d6,d0
-	moveq	#4,d1		;v190hm: HUD 2px lower
-	moveq	#44,d2		; existing Gloom2 life/skull/heart slot
-	bsr	g2hud_draw_shape_top
-	addq	#8,d6
-	dbf	d7,.g2hud_lives_loop
-.g2hud_no_lives
-	;
-	; Health bar: use proven Gloom2 statusbar cell shapes, but draw at top-left.
+	;hitpoints
+	; v51: align health cells with final retail statusbar and use
+	; original colour zones: left red, middle yellow/orange, right green.
 	move	ob_hitpoints(a5),d7
-	ble.s	.g2hud_nohp
-	cmp	#25,d7
-	ble.s	.g2hud_hp_ok
-	moveq	#25,d7
-.g2hud_hp_ok
+	ble.s	.nohp
+	move	#267,d6	;v101: healthbar another 1px left, final slot alignment
 	moveq	#0,d3
-	moveq	#44,d6
 	subq	#1,d7
-.g2hud_hploop
-	moveq	#45,d2		; red/danger cells
+.hploop	moveq	#45,d2	;left danger/red cells
 	cmp	#10,d3
-	blt.s	.g2hud_hpcol_ok
-	moveq	#46,d2		; middle cells
+	blt.s	.hpcolok
+	moveq	#46,d2	;middle yellow/orange cells
 	cmp	#18,d3
-	blt.s	.g2hud_hpcol_ok
-	moveq	#47,d2		; green cells
-.g2hud_hpcol_ok
-	move	d6,d0
-	moveq	#4,d1		;v190hm: HUD 2px lower
-	bsr	g2hud_draw_shape_top
-	addq	#2,d6
+	blt.s	.hpcolok
+	moveq	#47,d2	;right green cells
+.hpcolok	move	d6,d0
+	moveq	#4,d1
+	bsr	drawchunky
 	addq	#1,d3
-	dbf	d7,.g2hud_hploop
-.g2hud_nohp
-	;
-	; Weapon/upgrade bar: same shape family as existing Gloom2 HUD cells.
+	addq	#2,d6
+	dbf	d7,.hploop
+.nohp	;
+	;lives
+	move	ob_lives(a5),d7
+	ble.s	.nolv
+	moveq	#6,d6
+	sub	d7,d6
+	lsl	#3,d6
+	add	#217,d6	;v65: skull icons 2px left
+	moveq	#44,d2
+	subq	#1,d7
+.lvloop	move	d6,d0
+	moveq	#2,d1	;v74: skull icons 1px higher
+	bsr	drawchunky
+	addq	#8,d6
+	dbf	d7,.lvloop
+.nolv	;
+	;weapon
 	moveq	#5,d7
 	sub.b	ob_reload(a5),d7
-	blt.s	.g2hud_done
-	move	ob_weapon(a5),d2
+	blt.s	.nowp
+	move	ob_weapon(a5),d2	;0...4
 	add	#39,d2
-	moveq	#44,d6
-.g2hud_wploop
-	move	d6,d0
-	moveq	#14,d1		;v190hm: HUD 2px lower
-	bsr	g2hud_draw_shape_top
-	add	#10,d6
-	dbf	d7,.g2hud_wploop
-.g2hud_done
-	movem.l	(a7)+,d0-d7/a0-a4
-	rts
-
-hud_health	dc.b	'HEALTH',0
-hud_weapon	dc.b	'WEAPON',0
-hud_lives	dc.b	'LIVES',0
-	even
-
-g2hud_draw_text_top	;a4=zero-terminated text, d7=x, d6=y
-	movem.l	d0-d2/d6-d7/a4,-(a7)
-.g2hudt_loop
-	move.b	(a4)+,d2
-	beq.s	.g2hudt_done
-	cmp.b	#' ',d2
-	beq.s	.g2hudt_space
-	cmp.b	#'0',d2
-	bcs.s	.g2hudt_notnum
-	cmp.b	#'9',d2
-	bhi.s	.g2hudt_notnum
-	sub.b	#'0',d2
-	ext	d2
-	bra.s	.g2hudt_draw
-.g2hudt_notnum
-	cmp.b	#'A',d2
-	bcs.s	.g2hudt_space
-	and	#31,d2
-	add	#9,d2
-.g2hudt_draw
-	move	d7,d0
-	move	d6,d1
-	bsr	g2hud_draw_shape_top
-.g2hudt_space
-	addq	#6,d7
-	bra.s	.g2hudt_loop
-.g2hudt_done
-	movem.l	(a7)+,d0-d2/d6-d7/a4
-	rts
-
-g2hud_draw_shape_top	;d0=x, d1=y, d2=shape# from panel/smallfont2; draw to chunky top area
-	movem.l	d0-d7/a0-a4,-(a7)
-	move.l	panel(pc),a0
-	tst.l	a0
-	beq.w	.g2hds_done
-	cmp	#0,d0
-	blt.w	.g2hds_done
-	cmp	#319,d0
-	bgt.w	.g2hds_done
-	cmp	#0,d1
-	blt.w	.g2hds_done
-	cmp	#239,d1
-	bgt.w	.g2hds_done
-	cmp	#0,d2
-	blt.w	.g2hds_done
-	cmp	#49,d2
-	bgt.w	.g2hds_done
-	move.l	12(a0,d2*4),d3
-	beq.w	.g2hds_done
-	add.l	d3,a0
-	addq	#4,a0		; same Gloom2 shape layout as drawchunky
-	movem	(a0)+,d2-d3	;width,height
-	tst	d2
-	ble.w	.g2hds_done
-	tst	d3
-	ble.w	.g2hds_done
-	move	d0,d6
-	add	d2,d6
-	cmp	#320,d6
-	bgt.w	.g2hds_done
-	move	d1,d6
+	moveq	#55,d6	;v51: first weapon pip 1px left
+	moveq	#11,d3	;v51: final retail bar slots are 11px apart
+.wploop	move	d6,d0
+	moveq	#3,d1
+	bsr	drawchunky
 	add	d3,d6
-	cmp	#240,d6
-	bgt.w	.g2hds_done
-	subq	#1,d2
-	subq	#1,d3
-	move.l	chunky(pc),a1
-	mulu	#320,d1
-	add.l	d1,a1
-	lea	coloffs,a2
-	lea	0(a2,d0*4),a2
-	move.l	palettes(pc),a4
-	moveq	#0,d0
-.g2hds_xloop
-	move	d3,d7
-	move.l	a1,a3
-	add.l	(a2)+,a3
-.g2hds_yloop
-	move.b	(a0)+,d0
-	beq.s	.g2hds_skip
-	move.b	0(a4,d0),(a3)
-.g2hds_skip
-	lea	320(a3),a3
-	dbf	d7,.g2hds_yloop
-	dbf	d2,.g2hds_xloop
-.g2hds_done
+	dbf	d7,.wploop
+.nowp	;
+	;mega
+	move	ob_mega(a5),d7
+	lsr	#5,d7
+	and	#$fffe,d7
+	ble.s	.nomg
+	cmp	#50,d7
+	ble.s	.mgok
+	moveq	#50,d7
+.mgok	moveq	#54,d6
+	sub	d7,d6
+	moveq	#45,d2
+	lsr	#1,d7
+	subq	#1,d7
+.mgloop	move	d6,d0
+	moveq	#4,d1
+	bsr	drawchunky
+	addq	#2,d6
+	dbf	d7,.mgloop
+.nomg	;
+	rts
+
+; v53: chunky-safe statusbar message scroller.  The original printmess
+; path draws through the old planar/window blitter and is bypassed by the
+; new chunky->C2P frame path.  This uses the existing 5-line chatfont and
+; draws into the black message slot of the bottom statusbar after the bar
+; and HUD items have been refreshed.
+g2draw_statusbar_scroll
+	movem.l	d0-d7/a0-a4,-(a7)
+	move	ob_messtimer(a5),d0
+	beq.w	.g2sms_done
+	bpl.s	.g2sms_timer_ok
+	neg	ob_messtimer(a5)	;first visible frame: arm old timer semantics
+	move	ob_messtimer(a5),d0
+.g2sms_timer_ok
+	move.l	ob_mess(a5),a4
+	tst.l	a4
+	beq.w	.g2sms_done
+	move	ob_messlen(a5),d5
+	ble.w	.g2sms_done
+	; v55/v56: scroll text setup.  v56 no longer draws with chatfont.bin;
+	; the actual glyph colour comes from the smallfont2 glyph shapes below.
+	move.l	panel(pc),a0
+	move.l	192(a0),d1	;12 + 45*4: red health cell shape
+	beq.s	.g2sms_red_fallback
+	add.l	d1,a0
+	addq	#8,a0		;skip handles + w/h
+	moveq	#0,d1
+	move.b	(a0),d1
+	beq.s	.g2sms_red_fallback
+	move.l	palettes(pc),a3
+	move.b	0(a3,d1),d2
+	bra.s	.g2sms_red_ok
+.g2sms_red_fallback
+	move.l	palettes(pc),a3
+	moveq	#45,d2
+	move.b	0(a3,d2),d2
+.g2sms_red_ok
+	move	#127,d6
+	sub	d0,d6		;progress: 0..127
+	add	d6,d6		;2 px/frame scroll speed
+	move	#210,d7		;start just outside right edge of status message slot
+	sub	d6,d7
+	subq	#1,d5
+.g2sms_loop
+	move.b	(a4)+,d0
+	beq.s	.g2sms_done
+	cmp.b	#'\',d0
+	beq.s	.g2sms_space
+	cmp.b	#' ',d0
+	beq.s	.g2sms_space
+	movem.l	d5/d7/a4,-(a7)
+	bsr	g2draw_statusbar_char
+	movem.l	(a7)+,d5/d7/a4
+.g2sms_space
+	addq	#6,d7
+	dbf	d5,.g2sms_loop
+.g2sms_done
 	movem.l	(a7)+,d0-d7/a0-a4
 	rts
 
-; v190gi: lower statusbar message scroller removed with the bottom panel.
-g2draw_statusbar_scroll
-	rts
-
-g2draw_statusbar_char
+g2draw_statusbar_char	;d0.b=character, d7.w=x
+	; v56: use the real smallfont2 glyph shapes instead of chatfont.bin.
+	; The statusbar message area uses the same font artwork as the retail
+	; HUD, so readability/colour now matches the original data.  Clip the
+	; full glyph to the black message slot.
+	cmp	#111,d7
+	blt.s	.g2smc_rts
+	cmp	#201,d7
+	bgt.s	.g2smc_rts
+	; v81: do not use chat calcchar here.  smallfont2/printmess2 maps
+	; punctuation differently: ! is glyph 36, . is 37 and :/? use 38.
+	cmp.b	#'0',d0
+	bcs.s	.g2smc_notnum
+	cmp.b	#'9',d0
+	bhi.s	.g2smc_notnum
+	sub.b	#'0',d0
+	ext	d0
+	bra.s	.g2smc_mapped
+.g2smc_notnum
+	cmp.b	#'!',d0
+	bne.s	.g2smc_notbang
+	moveq	#36,d0
+	bra.s	.g2smc_mapped
+.g2smc_notbang
+	cmp.b	#'.',d0
+	bne.s	.g2smc_notdot
+	moveq	#37,d0
+	bra.s	.g2smc_mapped
+.g2smc_notdot
+	cmp.b	#':',d0
+	beq.s	.g2smc_punct38
+	cmp.b	#'?',d0
+	bne.s	.g2smc_notpunct38
+.g2smc_punct38
+	moveq	#38,d0
+	bra.s	.g2smc_mapped
+.g2smc_notpunct38
+	cmp.b	#'A',d0
+	bcs.s	.g2smc_rts
+	and	#31,d0
+	add	#9,d0
+.g2smc_mapped
+	tst	d0
+	blt.s	.g2smc_rts
+	cmp	#38,d0
+	bhi.s	.g2smc_rts
+	move	d0,d2		;smallfont2 glyph shape #0..38
+	move	d7,d0		;x inside message slot
+	moveq	#4,d1		;v58: one pixel lower than v57 (224+4)
+	bsr	drawchunky
+.g2smc_rts
 	rts
 
 blit	;a0=shapetable to blit, a1=bitmap, d0=X, d1=Y, d2=char
@@ -3677,13 +3563,8 @@ flat	;
 	;
 	tst	d7
 	beq	.rts
-	move	d7,d6		; v190hx7: display Y -> full-screen projection Y
-	jsr	g2view_unscale_y_d6
-	tst	d6
-	beq	.rts
-	move.l	flatcam(pc),d0
-	divs	d6,d0	;d0.w = Z
-	move	d0,d6
+	move.l	flatcam(pc),d6
+	divs	d7,d6	;d6.w = Z
 	tst	g2_visibility
 	bgt.s	.g2v190ey_flat_adv
 	cmp	#maxz,d6
@@ -3811,11 +3692,11 @@ flat	;
 	;
 	;Find leftmost X...
 	;
-	move	#-160,d5	; v190hx7: full-FOV flat left edge
+	move	minx(pc),d5
 	muls	d6,d5
 	asr.l	#focshft,d5
 	;
-	move	#160,d4	; v190hx7: full-FOV flat right edge
+	move	maxx(pc),d4
 	muls	d6,d4
 	asr.l	#focshft,d4
 	;
@@ -4696,12 +4577,16 @@ blitscene	;
 	rts
 .g2bs_not_blackout
 	;
-	; v190gi: no lower statusbar/panel. Draw gun at the new bottom and
-	; draw top HUD through the normal chunky/C2P path.
+	;v20: redraw deterministic HUD source every frame.  The public gloom2
+	;panel path otherwise leaves stale chunky bytes in the lower strip on
+	;the OS/NewMode C2P path.
 	bclr	#7,ob_update(a5)
-	bsr	g2drawgun
+	bsr	g2clearpanelchunky
+	bsr	g2drawgun		;v63: draw weapon before statusbar so bar covers its lower part
+	bsr	g2draw_statusbar_base
 	bsr	showstats
-	clr	panelcnt
+	bsr	g2draw_statusbar_scroll	;v53: chunky-safe scrolling pickup/status message
+	move	#2,panelcnt
 	rts
 
 .noupdate	move	ob_messtimer(a5),d0
@@ -4722,19 +4607,36 @@ blitscene	;
 
 drawscene	;a5=player
 	; v28: pinpoint first-level crash inside drawscene.
+	lea	g2log_msg_ds_enter,a0
+	jsr	g2log_drawstep
+	lea	g2log_msg_ds_cast_b,a0
+	jsr	g2log_drawstep
 	bsr	castwalls
+	lea	g2log_msg_ds_cast_ok,a0
+	jsr	g2log_drawstep
+	lea	g2log_msg_ds_render_b,a0
+	jsr	g2log_drawstep
 	bsr	renderwalls
-	; v190fx: real-Amiga safe order. Do not run the v190bb wallspan
-	; void-fog pass before roof/floor; late neutral void-fog remains after flats.
+	lea	g2log_msg_ds_render_ok,a0
+	jsr	g2log_drawstep
+	; v190bb: fill far corridor openings right after wall rendering, but only
+	; across the neighbouring wall span and with one sampled dark colour.
+	; This keeps far openings dark like walls without copying horizontal
+	; texture rows, and still lets floor/ceiling render above and below.
+	jsr	g2fill_void_fog
 	;
 	move	roofflag(pc),d0
 	ble.s	.g2v190dm_roof_fog
+	lea	g2log_msg_ds_roof_b,a0
+	jsr	g2log_drawstep
 	move	#-255,d0
 	sub	camy(pc),d0
 	moveq	#1,d1
 	move	miny(pc),d7
 	move.l	roof(pc),a0
 	bsr	flat
+	lea	g2log_msg_ds_roof_ok,a0
+	jsr	g2log_drawstep
 	bra.s	.noroof
 .g2v190dm_roof_fog
 	moveq	#1,d1		; CEILING NO: fill ceiling area with neutral fog, not black bars
@@ -4743,6 +4645,8 @@ drawscene	;a5=player
 .noroof	;
 	move	floorflag(pc),d0
 	ble.s	.g2v190dm_floor_fog
+	lea	g2log_msg_ds_floor_b,a0
+	jsr	g2log_drawstep
 	move	camy(pc),d0
 	neg	d0
 	moveq	#-1,d1
@@ -4750,6 +4654,8 @@ drawscene	;a5=player
 	subq	#1,d7
 	move.l	floor(pc),a0
 	bsr	flat
+	lea	g2log_msg_ds_floor_ok,a0
+	jsr	g2log_drawstep
 	bra.s	.nofloor
 .g2v190dm_floor_fog
 	moveq	#-1,d1		; FLOOR NO: fill floor area with neutral fog, not black bars
@@ -4762,10 +4668,18 @@ drawscene	;a5=player
 	; keeps very long corridor openings dark instead of black, without
 	; interfering with wall/floor rendering or copying texture rows.
 	jsr	g2fill_void_fog_remaining
+	lea	g2log_msg_ds_shapes_b,a0
+	jsr	g2log_drawstep
 	bsr	drawshapes
+	lea	g2log_msg_ds_shapes_ok,a0
+	jsr	g2log_drawstep
 	; v17: original gloom2 had an early RTS here, making blood/pixelate reachable.
+	lea	g2log_msg_ds_blood_b,a0
+	jsr	g2log_drawstep
 	; v31: safe chunky blood renderer re-enabled, legacy screen-splat disabled.
 	bsr	drawblood
+	lea	g2log_msg_ds_blood_ok,a0
+	jsr	g2log_drawstep
 	;
 	; v99: ZGloom-style screen colour effects.  Teleport/exit uses pixsize
 	; as a blue-white fade timer, then the existing pixelate pass runs.
@@ -4788,8 +4702,14 @@ drawscene	;a5=player
 	move.l	player_(pc),a0
 	move	ob_pixsize(a0),d0
 	beq.s	.g2ds_no_pixel
+	lea	g2log_msg_ds_pixel_b,a0
+	jsr	g2log_drawstep
 	jsr	pixelate
+	lea	g2log_msg_ds_pixel_ok,a0
+	jsr	g2log_drawstep
 .g2ds_no_pixel
+	lea	g2log_msg_ds_exit,a0
+	jsr	g2log_drawstep
 	rts
 
 chatstuff	move	chatok(pc),d0
@@ -7242,18 +7162,7 @@ moveplayer	;work out movement vector into d0/d1...check still/moving!
 	move.l	d7,ob_z(a5)
 	;
 .bounce	move	ob_bounce(a5),d2
-	; v190fy: SHIFT run is 150%, so advance the footstep/bob timer
-	; by 30 instead of 20 while KEYBMOUSE SHIFT-run is active.
-	moveq	#20,d0
-	cmp	#0,ob_cntrl(a5)
-	bne.s	.g2v190fy_stepadd
-	move.l	rawtable,a0
-	move.b	12(a0),d1	; raw $60/$61 = left/right SHIFT bits
-	and.b	#3,d1
-	beq.s	.g2v190fy_stepadd
-	moveq	#30,d0
-.g2v190fy_stepadd
-	add	d0,ob_bounce(a5)
+	add	#20,ob_bounce(a5)
 	move	ob_bounce(a5),d1
 	and	#255,d2
 	cmp	#64,d2
@@ -7736,7 +7645,6 @@ drawblood	clr	scrnblood
 	ext.l	d0
 	lsl.l	#focshft,d0
 	divs	d2,d0
-	jsr	g2view_scale_x_d0	; v190hx7: full-FOV VIEW SIZE X scale
 	cmp	minx(pc),d0
 	blt	.loop
 	cmp	maxx(pc),d0
@@ -7745,7 +7653,6 @@ drawblood	clr	scrnblood
 	ext.l	d1
 	lsl.l	#focshft,d1
 	divs	d2,d1
-	jsr	g2view_scale_y_d1	; v190hx7: full-FOV VIEW SIZE Y scale
 	cmp	miny(pc),d1
 	blt	.loop
 	cmp	maxy(pc),d1
@@ -8952,7 +8859,6 @@ dothezone3	move	d0,d4
 .z1ok	ext.l	d0
 	lsl.l	#focshft,d0
 	divs	d1,d0
-	jsr	g2view_scale_x_d0	; v190hx7: full-FOV wall endpoint X
 	bvs.s	.ov1
 	subq	#1,d0
 	cmp	maxx(pc),d0
@@ -8970,7 +8876,6 @@ dothezone3	move	d0,d4
 .z2ok	ext.l	d2
 	lsl.l	#focshft,d2
 	divs	d3,d2
-	jsr	g2view_scale_x_d2	; v190hx7: full-FOV wall endpoint X
 	bvs.s	.ov2
 	addq	#1,d2
 	cmp	minx(pc),d2
@@ -9154,22 +9059,13 @@ makeoutlist2	;create outlist from inlist
 
 castwalls	;process 'walls' list
 	;
-	; v190hx7: cast the same -160..+160 field of view into the selected
-	; lower render width.  Older code started at minx, which cropped/zoomed.
+	move.l	castrots(pc),a6
 	move	minx(pc),d7
-	move.l	#-40960,g2view_cast_xfp	; -160 << 8
-	move.l	#81920,d0		; 320 << 8
-	divu	width,d0
-	and.l	#$0000ffff,d0
-	move.l	d0,g2view_cast_step
+	lea	0(a6,d7*8),a6
 	move.l	vertdraws(pc),a4
 	;
 .loop	;do this vert line!
 	;
-	move.l	g2view_cast_xfp(pc),d6
-	asr.l	#8,d6
-	move.l	castrots(pc),a6
-	lea	0(a6,d6*8),a6
 	lea	outlist(pc),a5
 	;
 .loop2	move.l	(a5),d0
@@ -9401,14 +9297,12 @@ castwalls	;process 'walls' list
 	ext.l	d3
 	lsl.l	#focshft,d3
 	divs	d2,d3	;sc Y1
-	jsr	g2view_scale_y_d3	; v190hx7: full-FOV wall Y scale
 	;
 	move	camy(pc),d4
 	neg	d4
 	ext.l	d4
 	lsl.l	#focshft,d4
 	divs	d2,d4	;sc y2
-	jsr	g2view_scale_y_d4	; v190hx7: full-FOV wall Y scale
 	;
 	sub	d3,d4	;y1,hite
 	movem	d3-d4,vd_y(a0)
@@ -9452,8 +9346,7 @@ castwalls	;process 'walls' list
 .next	;onto next display column
 	;
 	lea	vd_size(a4),a4
-	move.l	g2view_cast_step(pc),d0
-	add.l	d0,g2view_cast_xfp
+	addq	#8,a6
 	addq	#1,d7
 	cmp	maxx(pc),d7
 	blt	.loop
@@ -9796,13 +9689,11 @@ drawshapes	lea	shapelist(pc),a6
 	;
 	lsl.l	#focshft,d0
 	divs	d2,d0	;Screen X
-	jsr	g2view_scale_x_d0	; v190hx7: full-FOV object X scale
 	cmp	maxx(pc),d0
 	bge	.drawloop	;X too big!
 	;
 	lsl.l	#focshft,d1
 	divs	d2,d1	;Screen Y
-	jsr	g2view_scale_y_d1	; v190hx7: full-FOV object Y scale
 	cmp	maxy(pc),d1
 	bge	.drawloop
 	;
@@ -9816,7 +9707,6 @@ drawshapes	lea	shapelist(pc),a6
 	endc
 	;
 	divs	d2,d3	;screen width
-	jsr	g2view_scale_x_d3	; v190hx7: scale object width to render window
 	ext.l	d3
 	ble	.drawloop
 	;
@@ -9828,7 +9718,6 @@ drawshapes	lea	shapelist(pc),a6
 	endc
 	;
 	divs	d2,d4	;hite
-	jsr	g2view_scale_y_d4	; v190hx7: scale object height to render window
 	ext.l	d4
 	ble	.drawloop
 	;
@@ -10058,9 +9947,6 @@ drawobjtrans	;draw transparent object (merge both colours!)
 	move.l	planar_remap(pc),a5	;remap RGB->LUT
 	move.l	planar_palette,a6
 	;
-	; v190hy4: blob shadows must be behind the sprite column.
-	; Reflections stay after the sprite via g2_draw_reflection_column_after_sprite.
-	bsr	g2_draw_blob_column_before_sprite
 .vloop	move.b	0(a3,d1),d5
 	beq.s	.skip
 	;
@@ -10082,7 +9968,7 @@ drawobjtrans	;draw transparent object (merge both colours!)
 	addx	d0,d1	;xtend
 	add.l	d7,a4
 	dbf	d4,.vloop
-	bsr	g2_draw_reflection_column_after_sprite	;v190hy4: reflections only after sprite
+	bsr	g2_draw_enemy_blob_column	;v173 reflections below transparent/invisible pickups too
 	;
 	movem.l	(a7)+,d0-d5/a5-a6
 	;
@@ -10124,15 +10010,13 @@ drawobjnorm	;normal draw object...
 	sub	d6,d1
 	add.l	d6,d1
 	;
-	; v190hy4: draw enemy blob shadow before sprite pixels so feet/gore stay on top.
-	bsr	g2_draw_blob_column_before_sprite
 .vloop	move.b	0(a3,d1),d5
 	beq.s	.skip
 	move.b	0(a2,d5),(a4)
 .skip	addx.l	d6,d1	;next src Y
 	add.l	d7,a4
 	dbf	d4,.vloop
-	bsr	g2_draw_reflection_column_after_sprite	;v190hy4: reflections only after sprite
+	bsr	g2_draw_enemy_blob_column	;v126 hard-edged dark column below enemy feet
 	;
 	movem.l	(a7)+,d0-d1/d4-d5
 	;
@@ -10265,23 +10149,6 @@ g2_setup_enemy_blob_column
 	moveq	#16,d0
 .rx_max_ok
 	move	d0,g2_shadow_rx
-	; v190hy3: anchor enemy blob shadows to the projected floor plane,
-	; not to the lower edge of the visible sprite bitmap.  Flying monsters
-	; can bob above the floor, but their shadow must stay on the ground.
-	move	camy(pc),d0
-	neg	d0
-	ext.l	d0
-	asl.l	#focshft,d0
-	divs	d2,d0
-	jsr	g2view_scale_y_d0	; keep VIEW SIZE scaling consistent with sprites
-	add	midy(pc),d0
-	cmp	#2,d0
-	blt	.done
-	move	hite(pc),d1
-	sub	#6,d1
-	cmp	d1,d0
-	bgt	.done
-	move	d0,g2_reflect_floorrow	; reused as absolute floor row for blob shadows
 	moveq	#1,d0	;v129 fallback: darker blob shadow
 	move.l	planar_remap(pc),a0
 	tst.l	a0
@@ -10403,20 +10270,18 @@ g2_prepare_reflection_column
 	ext.l	d0
 	asl.l	#focshft,d0
 	divs	d2,d0
-	jsr	g2view_scale_y_d0	; v190hx7: reflection floor row scales with view height
 	add	midy(pc),d0
 	addq	#2,d0		; v189: back to the v186 pickup reflection baseline, but about 2px higher
-	; v190hx12: safe anchor-only clipping for floor reflections.
-	; Do not clamp an off-screen pickup reflection back into the 3D window
-	; because that makes it slide along the VIEW SIZE edge.  Unlike hx11,
-	; this does not touch the low-level reflection draw pointer path.
 	cmp	#2,d0
-	blt	.no_reflect
+	bge.s	.pick_row_min_ok
+	moveq	#2,d0
+.pick_row_min_ok
 	move	hite(pc),d1
 	sub	#12,d1
 	cmp	d1,d0
-	bgt	.no_reflect
-	move	d0,g2_reflect_floorrow
+	ble.s	.pick_row_max_ok
+	move	d1,d0
+.pick_row_max_ok	move	d0,g2_reflect_floorrow
 	bra.s	.y_done
 .projectile_floor_yoff
 	move	ob_y(a2),d0
@@ -10424,7 +10289,6 @@ g2_prepare_reflection_column
 .scale_yoff	ext.l	d0
 	asl.l	#focshft,d0
 	divs	d2,d0
-	jsr	g2view_scale_y_d0	; v190hx7: reflection y offset scales with view height
 	cmp	#30,d0
 	ble	.ymax_ok
 	moveq	#30,d0
@@ -10536,20 +10400,6 @@ g2_reflect_dark_rgb
 g2_reflect_rgb
 	dc	$960,$0a0,$6f6,$66f,$a0a,$960,$0a0,$6f6
 
-g2_draw_blob_column_before_sprite
-	cmp	#1,g2_shadow_active
-	bne.s	.rts
-	bsr	g2_draw_enemy_blob_column
-.rts	rts
-
-; v190hy4: reflections still need the old after-sprite path because projectile
-; reflections use a4/the sprite underside as their relative floor anchor.
-g2_draw_reflection_column_after_sprite
-	cmp	#2,g2_shadow_active
-	bne.s	.rts
-	bsr	g2_draw_enemy_blob_column
-.rts	rts
-
 g2_draw_enemy_blob_column
 	; called from drawobjnorm/drawobjtrans after the current sprite column was drawn.
 	; a4 points one row below the drawn/clipped sprite column.
@@ -10591,20 +10441,9 @@ g2_draw_enemy_blob_column
 	moveq	#0,d5
 	moveq	#2,d6	;keep hard oval centre, no tall diamond peak
 .have_band
+	move.l	a4,a0
 	move.l	chunkymod(pc),d7
-	; v190hy3: draw the blob at the projected floor row.  The old path
-	; started from a4 (sprite column bottom), so flying sprites dragged the
-	; shadow upward with their animation/bob height.
-	move.l	chunky(pc),d0
-	move	g2_shadow_curx(pc),d3
-	lsl	#2,d3
-	lea	coloffs(pc),a0
-	add.l	0(a0,d3.w),d0
-	move.l	d0,a0
-	move	g2_reflect_floorrow(pc),d3
-	mulu	chunkymodw(pc),d3
-	add.l	d3,a0
-	sub.l	d7,a0	; keep the confirmed v132/v130 blob vertical bias
+	sub.l	d7,a0	;v132: one pixel lower than v131, still above v130
 	sub.l	d7,a0
 	sub.l	d7,a0
 	; skip down by start offset
@@ -10925,9 +10764,6 @@ gunpic	dc.l	0	;v20 optional misc/gun first-person weapon shape table
 g2gun_firetimer	dc	0	;v65 short muzzle/firing-frame timer
 g2gun_recoilflag	dc.b	0	;v68 nonzero while firing/recoil frame is active
 	even
-g2hud_pending	dc	0	;v190hx6 non-fullscreen HUD needs a late full-width C2P pass
-g2hud_force_draw	dc	0	;v190hx6 force showstats during the late HUD pass
-g2hud_pending_player	dc.l	0	;v190hx6 player pointer for deferred HUD draw
 g2teleport_blackout	dc	0	;v103 black screen shown between teleport pixel effect and intermission
 g2teleport_black_hold	dc	0	;v105 black hold countdown before intermission
 g2teleport_black_finish	dc	0	;v105 delayed finished code after black hold
@@ -11134,19 +10970,15 @@ camrots2	dc.l	camrots2inc
 vertdraws	dc.l	0
 
 width	dc	320	;v44: fullscreen default
-hite	dc	240	;v190gi: fullscreen default uses former statusbar area
+hite	dc	224	;v44: fullscreen default leaves 16-line panel area
 minx	dc	-160	;v44: fullscreen default
 midx	;
 maxx	dc	160	;v44: fullscreen default
-miny	dc	-120	;v190gi: fullscreen default
+miny	dc	-112	;v44: fullscreen default
 midy	;
-maxy	dc	120	;v190gi: fullscreen default
+maxy	dc	112	;v44: fullscreen default
 wdiv32	dc	0
 wrem32	dc	0
-
-; v190hx7: fixed-point caster state for lower VIEW SIZE full-FOV render.
-g2view_cast_xfp	dc.l	0
-g2view_cast_step	dc.l	256
 
 coplist	dc.l	0
 slice1	dc.l	0
@@ -11895,7 +11727,7 @@ movedefplayer	move	joyx(pc),d0
 	move.l	shootsfx3(pc),a0
 	moveq	#32,d0
 	moveq	#0,d1
-	jmp	playsfx	; v190ex: GenAm range-safe tail jump
+	jmp	playsfx
 	;
 .nofire	clr	deflbut
 .rts	rts
@@ -13103,10 +12935,7 @@ initmain	;
 	bne.s	.lf
 	move.l	g2ecsfiles_ptr,a0
 .lf	bsr	loadfiles
-	jsr	g2embed_apply_g1_fallbacks	;v190gl: missing Classic-Gloom modern assets
 	jsr	g2loadgunfallback	;v61: optional misc/stuf gun.bin fallback
-	jsr	g2embed_apply_g1_fallbacks	;v190gl: gun fallback if no file exists
-	jsr	g2embed_apply_zm_title_overlay	;v190hu: embedded Zombie Massacre title overlay
 	;
 	; v41i diagnostic: progfiles/agafiles loaded OK.
 	; Continue into gloomcfg/C2P filename + C2P load stage.
@@ -13202,7 +13031,8 @@ g2_after_inline_c2p_init
 	; v46: restore original panel remap path. Final CrM2 smallfont2.bin
 	; is an anim file and must be remapped into the active game palette
 	; before drawchunky uses palettes(pc).
-	; v190gl: profile 1 now has physical/embedded smallfont2-compatible panel data.
+	cmp	#1,g2_game_profile	; v190cs: original Gloom has no smallfont2 status-panel anim
+	beq.s	.g2v190cj_no_panel_remap
 	move.l	panel,d0
 	beq.s	.g2v190cj_no_panel_remap
 	move.l	d0,a0
@@ -13837,7 +13667,8 @@ execscript	cmp	#2,gametype
 .fucked	;
 	rts
 	;
-scriptdone	; v190hy cleanup: log marker removed
+scriptdone	lea	g2log_msg_script_done,a0
+	jsr	g2log
 	bsr	dispoff
 	move.l	loadingmed(pc),d0
 	beq	gameover
@@ -13851,6 +13682,10 @@ sccont	dc.b	'cont_'
 	even
 
 scriptrest	;restart point!
+	move.l	a0,-(a7)
+	lea	g2log_msg_script_rest,a0
+	jsr	g2log
+	move.l	(a7)+,a0
 	;this changes...we add this to 'gloomgame' file now.
 	;
 	move.l	a0,d1
@@ -13889,22 +13724,26 @@ scriptrest	;restart point!
 	;
 	bra	execscript
 
-scriptloop	; v190hy cleanup: log marker removed
+scriptloop	lea	g2log_msg_script_loop,a0
+	jsr	g2log
 	move.l	script,scriptat
 	bra	execscript
 
-scripthide	; v190hy cleanup: log marker removed
+scripthide	lea	g2log_msg_script_hide,a0
+	jsr	g2log
 	bsr	dispoff
 	bra	execscript
 
-scriptshow	; v190hy cleanup: log marker removed
+scriptshow	lea	g2log_msg_script_show,a0
+	jsr	g2log
 	tst.l	g2v190i_start_offset	; v190t: while skipping earlier levels, suppress old intermission screens
 	bgt	execscript
 	clr	pdelay
 	bsr	dispon
 	bra	execscript
 
-scriptdraw	; v190hy cleanup: log marker removed
+scriptdraw	lea	g2log_msg_script_draw,a0
+	jsr	g2log
 	tst.l	g2v190i_start_offset	; v190t: skip draw_ before earlier play_ entries
 	bgt	execscript
 	tst	g2v190t_reload_pic_after_level	; v190t: reload intermission IFF after gameplay, if needed
@@ -13919,10 +13758,7 @@ scriptdraw	; v190hy cleanup: log marker removed
 	move.l	gloom,d0
 .use	move.l	d0,a0
 	jsr	showpic
-	cmp	#3,g2_game_profile	; v190hy2: Gloom3 intermission pictures keep their own .pal
-	beq.s	.g2v190hy2_draw_no_fontpal
 	bsr	initfontpal
-.g2v190hy2_draw_no_fontpal
 	bra	execscript
 
 fetchrest	move.l	scriptat,a0
@@ -13980,10 +13816,15 @@ rooftag	ds.b	32
 	even
 
 scripttile	;tile command...load in floor/roof tiles!
+	lea	g2log_msg_script_tile,a0
+	jsr	g2log
 	;
 	lea	floortag(pc),a1
 	bsr	fetchrest
+	lea	g2log_msg_tiletag,a0
+	jsr	g2log
 	lea	floortag,a0
+	jsr	g2log
 	bsr	loadtile
 	bra	execscript
 
@@ -14033,6 +13874,8 @@ ecspicpath	dc.b	'pics_ehb/',0
 	even
 
 scriptpict	;load an iff
+	lea	g2log_msg_script_pict,a0
+	jsr	g2log
 	bsr	freeiff
 	lea	agapicpath(pc),a0
 	lea	picname,a1
@@ -14043,7 +13886,10 @@ scriptpict	;load an iff
 	bne.s	.aga
 	subq	#1,a1
 	bsr	fetchrest
+	lea	g2log_msg_picname,a0
+	jsr	g2log
 	lea	picname,a0
+	jsr	g2log
 	move.l	a1,-(a7)
 	bsr	permit
 	lea	picname,a0
@@ -14105,6 +13951,8 @@ g2v190t_reload_current_pic
 .rts	rts
 
 scriptdark	;
+	lea	g2log_msg_script_dark,a0
+	jsr	g2log
 	tst.l	g2v190i_start_offset	; v190t: suppress dark_ before skipped earlier levels
 	bgt	execscript
 	tst	os
@@ -14142,26 +13990,43 @@ scriptdark	;
 	bra	execscript
 
 scripttext	;print text on iff
+	lea	g2log_msg_script_text,a0
+	jsr	g2log
 	;a6=window, a4=message, d0=length of message, d6=Y
 	;
 	tst.l	g2v190i_start_offset	; v190t: consume but do not show text_ for skipped earlier levels
 	ble.s	.g2v190t_show_text
+	lea	g2log_msg_text_skip_fetch_b,a0
+	jsr	g2log
 	lea	text,a1
 	bsr	fetchrest
+	lea	g2log_msg_text_skip_fetch_ok,a0
+	jsr	g2log
 	bra	execscript
 .g2v190t_show_text
 	move	#2,pdelay
+	lea	g2log_msg_text_font_b,a0
+	jsr	g2log
 	cmp	#1,g2_game_profile	; v190cx: old Gloom intermission keeps picture palette
-	beq.s	.g2v190cx_text_no_fontpal
-	cmp	#3,g2_game_profile	; v190hy2: Gloom3 intermission keeps picture palette too
 	beq.s	.g2v190cx_text_no_fontpal
 	bsr	initfontpal
 .g2v190cx_text_no_fontpal
+	lea	g2log_msg_text_font_ok,a0
+	jsr	g2log
 	;
+	lea	g2log_msg_text_fetch_b,a0
+	jsr	g2log
 	lea	text,a1
 	bsr	fetchrest
+	lea	g2log_msg_text_fetch_ok,a0
+	jsr	g2log
 	lea	text,a0
+	jsr	g2log
+	lea	g2log_msg_text_wrap_b,a0
+	jsr	g2log
 	bsr	g2v14_wrap_script_text
+	lea	g2log_msg_text_wrap_ok,a0
+	jsr	g2log
 	;
 	lea	text,a4
 	move	bmaphite(pc),d6
@@ -14180,15 +14045,24 @@ scripttext	;print text on iff
 	move	d1,d0
 	clr.b	-(a0)
 	sub	#11,d6
+	lea	g2log_msg_text_print1_b,a0
+	jsr	g2log
 	jsr	printmess2
+	lea	g2log_msg_text_print1_ok,a0
+	jsr	g2log
 	movem.l	(a7)+,d0/d6/a4
 	;
-.done	; v190hy cleanup: log marker removed
+.done	lea	g2log_msg_text_printf_b,a0
+	jsr	g2log
 	jsr	printmess2
+	lea	g2log_msg_text_printf_ok,a0
+	jsr	g2log
 	;
 	tst	pdelay
 	bmi	execscript
 	clr	pdelay
+	lea	g2log_msg_text_done,a0
+	jsr	g2log
 	bra	execscript
 
 g2v14_wrap_script_text	;auto-wrap long text_ script lines at a word boundary
@@ -14242,6 +14116,8 @@ g2v17_wst_done
 	rts
 
 scriptwait	;
+	lea	g2log_msg_script_wait,a0
+	jsr	g2log
 	tst.l	g2v190i_start_offset	; v190t: skip wait_ before skipped earlier levels
 	bgt	execscript
 	tst	pdelay
@@ -14388,6 +14264,8 @@ comseriesmap	dc.b	'1',0
 scriptplay	;
 	;arrives here with dispon!
 	;
+	lea	g2log_msg_scriptplay(pc),a0
+	jsr	g2log
 	lea	mapname,a1
 	;
 	cmp	#2,gametype
@@ -14417,7 +14295,10 @@ scriptplay	;
 .g2v190s_noskip
 	bsr	fetchrest
 .gotname	;
+	lea	g2log_msg_mapname,a0
+	jsr	g2log
 	lea	mapname,a0
+	jsr	g2log
 	; v11: if external C2P did not load, doc2p is a dummy and
 	; gameplay would switch to a black screen. Show a readable
 	; marker instead of entering the renderer blind.
@@ -14444,6 +14325,8 @@ scriptplay	;
 	bne.s	.use
 	move.l	#mappath,d0
 .use	move.l	d0,a0
+	lea	g2log_msg_mapload_before(pc),a0
+	jsr	g2log
 	move.l	map_test(pc),d0
 	bne.s	.g2v22_use_again
 	move.l	#mappath,d0
@@ -14463,12 +14346,22 @@ g2v11_c2pfail_scriptplay
 	bra	gameover
 g2v10_map_loaded
 	;
+	lea	g2log_msg_mapload_ok(pc),a0
+	jsr	g2log
 	bsr	initmap
+	lea	g2log_msg_initmap_ok(pc),a0
+	jsr	g2log
 	bsr	loadtxts
+	lea	g2log_msg_loadtxts_ok(pc),a0
+	jsr	g2log
 	move	#$a3f7,d0
 	jsr	seedrnd
+	lea	g2log_msg_execevent_before(pc),a0
+	jsr	g2log
 	moveq	#1,d0
 	jsr	execevent
+	lea	g2log_msg_execevent_ok(pc),a0
+	jsr	g2log
 	jsr	g2v190cx_build_g1_tables	; v190cx: synthetic palette/remap for original Gloom
 	bsr	forbid
 	;
@@ -14482,6 +14375,8 @@ g2v10_map_loaded
 	bra	gameover
 g2v10_player1_ok
 	;
+	lea	g2log_msg_player_ok(pc),a0
+	jsr	g2log
 	move.l	planar_palette(pc),d0
 	beq.s	.g2v190cj_no_game_pal
 	move.l	d0,a1
@@ -14572,17 +14467,34 @@ g2v10_player1_ok
 	;
 	clr	framecnt
 	clr	paused
+	lea	g2log_msg_predraw_before(pc),a0
+	jsr	g2log
 	jsr	predrawall
+	lea	g2log_msg_predraw_ok(pc),a0
+	jsr	g2log
 	bsr	dispon
 	bsr	chaton
+	lea	g2log_msg_dispon_ok(pc),a0
+	jsr	g2log
 	;
-mainloop	; v190hy cleanup: log frame counter removed
+mainloop	addq	#1,g2logframe
+	lea	g2log_msg_mainloop,a0
+	jsr	g2log
 	jsr	drawall
+	lea	g2log_msg_draw_ok,a0
+	jsr	g2log
+	lea	g2log_msg_after_draw,a0
+	jsr	g2log
 	move	escape(pc),d0
 	beq.s	.noesc
+	lea	g2log_msg_menu_before,a0
+	jsr	g2log
 	jsr	dogamemenu
+	lea	g2log_msg_menu_ok,a0
+	jsr	g2log
 	clr	escape
-.noesc	; v190hy cleanup: log marker removed
+.noesc	lea	g2log_msg_finish_check,a0
+	jsr	g2log
 	; v105b: after the visible exit teleport pixel frame, hold a real black
 	; screen briefly before allowing the intermission screen.
 	tst	g2teleport_black_hold
@@ -14597,6 +14509,8 @@ mainloop	; v190hy cleanup: log frame counter removed
 	beq	mainloop
 	;
 mainexit	st	paused
+	lea	g2log_msg_mainexit(pc),a0
+	jsr	g2log
 	bsr	chatoff
 	bsr	dispoff
 	bsr	qsync2
@@ -14936,13 +14850,11 @@ g2v142_draw_gloombrush_safe
 ; v145: draw the optional pics/gloom logo only for the main menu.
 ; ABOUT deliberately uses the clean title background without this overlay.
 g2v145_draw_menu_gloombrush
-	cmp	#2,g2_game_profile	; v190ht: Zombie Massacre g3-dc is allowed in title/menu even outside AGA guard
-	beq.s	.draw
 	tst	aga
 	beq.s	.rts
 	cmp	#3,g2_game_profile	; v190cr: Gloom3 title/about must not show pics/gloom overlay
 	beq.s	.rts
-.draw	jsr	g2v142_draw_gloombrush_safe	; no brush loaded = safe no-op for classic Gloom
+	jsr	g2v142_draw_gloombrush_safe	; no brush loaded = safe no-op for classic Gloom
 .rts	rts
 
 ; v145: rebuild the clean title background.  The menu overlay is added
@@ -14966,13 +14878,17 @@ g2v146_show_title_with_gloom
 
 
 dointro	;
-	clr	g2v190hx_level_select_active	; v190hx2: returning to title shows plain ONE PLAYER GAME again
-	clr	g2v190f_level_index
-	; v190gl: Classic Gloom now uses embedded Gloom2 title/menu assets,
-	; so do not show the old unsupported notice.
+	cmp	#1,g2_game_profile	; v190do: original Gloom is not supported by this executable
+	bne.s	.g2v190dl_supported_title
+	jsr	g2v190dl_g1_not_supported_screen
+	move	#3,gametype	; return to main's normal clean-exit path
+	rts
+.g2v190dl_supported_title
 	jsr	g2v145_show_clean_title
 	bsr	dispon
-	jsr	g2v145_draw_menu_gloombrush	; v190hu: ZM title overlay is visible before the menu too
+	cmp	#2,g2_game_profile	; v190ct: ZM brush appears with the menu, not before it
+	beq.s	.g2v190ct_no_prebrush
+	jsr	g2v145_draw_menu_gloombrush
 .g2v190ct_no_prebrush
 	;
 	bsr	chaton
@@ -14988,7 +14904,7 @@ dointro	;
 	jsr	g2v145_draw_menu_gloombrush
 	tst	linked
 	bne.s	.use_linked_menu
-	tst	g2_game_profile	; v190hp: all visible title menus stay classic, no START LEVEL row
+	tst	g2_game_profile	; v190co: only true Gloom Deluxe keeps START LEVEL
 	beq.s	.use_gloom2_startmenu
 	lea	compat_startmenu,a4	; Gloom/Gloom3/ZM: classic menu without START LEVEL
 	jsr	initmenu
@@ -14997,7 +14913,7 @@ dointro	;
 .use_gloom2_startmenu
 	lea	startmenu,a4
 	jsr	initmenu
-	clr	curropt	; default title selection is ONE PLAYER GAME
+	move	#2,curropt	; default title selection is ONE PLAYER GAME, not START LEVEL
 	bra.s	.sel
 .use_linked_menu
 	lea	startmenu2,a4
@@ -15037,38 +14953,45 @@ dointro	;
 	;
 .notlinked
 	move	d0,d7
-	and	#$0300,d7	; $0100=left, $0200=right for PLAYER rows
+	and	#$0300,d7	; v190f: $0100=left, $0200=right for START LEVEL / PLAYER rows
 	and	#$00ff,d0
-	tst	d7		; v190hx: LEFT/RIGHT on ONE PLAYER controls optional level select
-	beq.s	.g2v190hx_no_level_lr
-	tst	d0
-	beq	.g2v190f_level_lrsel
-.g2v190hx_no_level_lr
 	tst	g2_game_profile	; v190co: compatibility profiles use classic row mapping
 	bne	.g2compat_notlinked
 	tst	d7
 	beq.s	.g2v166_notlinked_fire
-	cmp	#4,d0		; v190hp: classic PLAYER 1 row after removing START LEVEL
+	cmp	#0,d0
+	beq	.g2v190f_level_lrsel
+	cmp	#6,d0
 	beq	.g2v166_p1lrsel
-	cmp	#5,d0		; v190hp: classic PLAYER 2 row after removing START LEVEL
+	cmp	#7,d0
 	beq	.g2v166_p2lrsel
 	bra	.sel
 .g2v166_notlinked_fire
-	cmp	#3,d0		; v190hp: rows 0/1/2 -> gametype 0/1/2
-	bcs	.newgame
-	cmp	#4,d0
-	beq	.g2v166_p1sel
+	cmp	#0,d0
+	beq	.g2v190f_level_start
+	cmp	#2,d0
+	bcs	.sel
 	cmp	#5,d0
-	beq	.g2v166_p2sel
+	bcs	.g2v190f_shifted_newgame
+	;
+	; v190f: title menu now has START LEVEL at row 0 and spacers at 1,5,8.
+	; menuskip prevents selecting spacer rows; map the shifted live rows here.
+	cmp	#6,d0
+	beq	.g2v166_p1sel
 	cmp	#7,d0
-	beq	.linksel
-	cmp	#8,d0
-	beq	.vilesel
+	beq	.g2v166_p2sel
 	cmp	#9,d0
-	beq	.about
+	beq	.linksel
 	cmp	#10,d0
+	beq	.vilesel
+	cmp	#11,d0
+	beq	.about
+	cmp	#12,d0
 	beq	.exitgloom
 	bra	.sel
+.g2v190f_shifted_newgame
+	subq	#2,d0		; rows 2/3/4 -> gametype 0/1/2
+	bra	.newgame
 .g2compat_notlinked
 	tst	d7
 	beq.s	.g2compat_fire
@@ -15187,16 +15110,7 @@ dointro	;
 	move.l	gloom(pc),a0
 	move.l	gloompal(pc),a1
 	lea	abouttext,a2
-	cmp	#2,g2_game_profile	; v190hs: Zombie Massacre has its own ABOUT text
-	bne.s	.g2v190hs_not_zm_about_text
-	lea	abouttext_zm,a2
-	bra.s	.g2v190hs_about_text_ok
-.g2v190hs_not_zm_about_text
-	cmp	#3,g2_game_profile	; v190hs: Gloom3 has its own ABOUT text
-	bne.s	.g2v190hs_about_text_ok
-	lea	abouttext_g3,a2
-.g2v190hs_about_text_ok
-	cmp	#2,g2_game_profile	; v190hs: Zombie Massacre ABOUT uses clean title without g3-dc
+	cmp	#2,g2_game_profile	; v190cs: Zombie Massacre pre-composes g3-dc while display is off
 	beq.s	.g2v190cs_about_zm
 	cmp	#3,g2_game_profile	; v190dm: Gloom3 ABOUT opens through no-clear soft path
 	beq.s	.g2v190dm_about_g3
@@ -15209,9 +15123,9 @@ dointro	;
 	bra.s	.g2v190cp_about_done
 .g2v190cs_about_zm
 	bsr	dispoff
-	; v190hv: Zombie Massacre ABOUT is title-only, without g3-dc/g3-zm overlay.
 	jsr	g2v145_show_clean_title
-	lea	abouttext_zm,a2		; show_clean_title clobbers a2, restore ZM ABOUT text/menu pointer
+	jsr	g2v142_draw_gloombrush_safe
+	lea	abouttext,a2
 	bsr	g2v190cs_pmenu_precomposed
 	bra.s	.g2v190cp_about_done
 .g2v190cp_about_soft
@@ -15239,7 +15153,6 @@ dointro	;
 	bra	.redrawmenu
 .g2v190dp_zm_about_return
 	bsr	dispoff
-	jsr	g2embed_apply_zm_title_overlay	; v190hv: restore embedded ZM title image after ABOUT
 	jsr	g2v145_show_clean_title
 	jsr	g2v142_draw_gloombrush_safe
 	bsr	dispon
@@ -15251,11 +15164,6 @@ dointro	;
 .exitgloom	moveq	#4,d0
 	;
 .newgame	clr.l	map_test	; v190f: normal title starts are not forced-map tests
-	tst	g2v190hx_level_select_active	; v190hx: optional ONE PLAYER: MAPx.y selection active?
-	beq.s	.g2v190hx_normal_start
-	bsr	g2v190f_level_start	; selected index becomes script play_ skip counter
-	bra.s	.newgame_maptest
-.g2v190hx_normal_start
 	move.l	#-1,g2v190i_start_offset	; v190r: normal menu start begins at script default
 	cmp	#1,g2_game_profile	; v190cw: classic Gloom starts directly, no continue-scan crash path
 	bne.s	.g2v190cw_ngofs_ok
@@ -15914,36 +15822,36 @@ mode1	dc.b	'MEATY VIOLENCE MODE',0
 
 mode2	dc.b	'MESSY VIOLENCE MODE',0
 
-startmenu	dc.b	11		; v190hp: START LEVEL hidden again; scanner code is retained
-	dc.b	'ONE PLAYER GAME',0	;0
-	dc.b	'TWO PLAYER GAME',0	;1
-	dc.b	'TWO PLAYER COMBAT',0	;2
-	dc.b	0			;3 spacer/separator above PLAYER 1
+startmenu	dc.b	13
+	dc.b	'START LEVEL '
+g2v190f_level_text	dc.b	'MAP1.1',0	;0 v190i script-built direct map selector, display uses dot not underscore
+	dc.b	0			;1 spacer below level selector
+	dc.b	'ONE PLAYER GAME',0	;2
+	dc.b	'TWO PLAYER GAME',0	;3
+	dc.b	'TWO PLAYER COMBAT',0	;4
+	dc.b	0			;5 v190f spacer/separator above PLAYER 1
 	dc.b	'PLAYER 1 '
 p1ctype
 	ifne	cd32
-	dc.b	'CD32 PAD 1',0	;4, fixed 10-char field
+	dc.b	'CD32 PAD 1',0	;6, fixed 10-char field
 	elseif
-	dc.b	'KEYBMOUSE  ',0		;4, fixed 10-char field
+	dc.b	'KEYBMOUSE  ',0		;6, fixed 10-char field
 	endc
 	;
 	dc.b	'PLAYER 2 '
 p2ctype
 	ifne	cd32
-	dc.b	'CD32 PAD 2',0	;5, fixed 10-char field
+	dc.b	'CD32 PAD 2',0	;7, fixed 10-char field
 	elseif
-	dc.b	'JOYSTICK 1 ',0		;5, fixed 10-char field
+	dc.b	'JOYSTICK 1 ',0		;7, fixed 10-char field
 	endc
 	;
-	dc.b	0			;6 spacer/separator above REMOTE LINK OPTIONS
-	dc.b	'REMOTE LINK OPTIONS',0	;7
+	dc.b	0			;8 v190f spacer/separator above REMOTE LINK OPTIONS
+	dc.b	'REMOTE LINK OPTIONS',0	;9
 	;
-modetxt	dc.b	'MEATY VIOLENCE MODE',0	;8
-	dc.b	'ABOUT',0		;9
-	dc.b	'EXIT',0		;10
-	even
-
-g2v190f_level_text	dc.b	'MAP1.1',0	; hidden level selector text buffer; script/stages scan kept
+modetxt	dc.b	'MEATY VIOLENCE MODE',0	;10
+	dc.b	'ABOUT GLOOM',0		;11
+	dc.b	'EXIT GLOOM',0		;12
 	even
 
 compat_startmenu	dc.b	11		; v190cp: classic compatibility menu, no START LEVEL
@@ -15970,39 +15878,31 @@ p2ctypec
 	dc.b	0			;6 spacer/dotted line above REMOTE LINK OPTIONS
 	dc.b	'REMOTE LINK OPTIONS',0	;7
 modetxtc	dc.b	'MEATY VIOLENCE MODE',0	;8
-	dc.b	'ABOUT',0		;9
-	dc.b	'EXIT',0		;10
+	dc.b	'ABOUT GLOOM',0		;9
+	dc.b	'EXIT GLOOM',0		;10
 	even
 
 g2v190f_level_index dc 0
-g2v190hx_level_select_active dc 0	; 0=plain ONE PLAYER GAME, -1=show/use selected level
 
 g2v190f_level_next
-	tst	g2v190hx_level_select_active
-	bne.s	.g2v190hx_next_already
-	move	#-1,g2v190hx_level_select_active	; first RIGHT enables optional level text
-	clr	g2v190f_level_index	; first shown level is the first script entry
-	bra	g2v190f_level_update
-.g2v190hx_next_already
 	move	g2v190i_level_count(pc),d1
 	beq	g2v190f_level_update
+	addq	#1,g2v190f_level_index
 	move	g2v190f_level_index(pc),d0
-	addq	#1,d0
 	cmp	d1,d0
-	bcs.s	.g2v190hx_next_store
-	subq	#1,d1		; stop at last level, do not wrap
-	move	d1,d0
-.g2v190hx_next_store
-	move	d0,g2v190f_level_index
+	bcs	g2v190f_level_update
+	clr	g2v190f_level_index
 	bra	g2v190f_level_update
 
 g2v190f_level_prev
-	tst	g2v190hx_level_select_active
-	beq	g2v190f_level_update	; LEFT before first RIGHT keeps plain ONE PLAYER GAME
 	move	g2v190i_level_count(pc),d1
 	beq	g2v190f_level_update
 	tst	g2v190f_level_index
-	beq	g2v190f_level_update	; stop at first level, do not wrap/remove selector
+	bne	.g2v190i_prevok
+	subq	#1,d1
+	move	d1,g2v190f_level_index
+	bra	g2v190f_level_update
+.g2v190i_prevok
 	subq	#1,g2v190f_level_index
 	bra	g2v190f_level_update
 
@@ -16031,49 +15931,6 @@ g2v190f_level_update
 	movem.l	(a7)+,d0-d2/a0-a1
 	rts
 
-; v190hx: optional ONE PLAYER level suffix.  The menu table itself stays
-; unchanged, so RETURN starts normally until LEFT/RIGHT activates this text.
-g2v190hx_level_menu_a4
-	tst	g2v190hx_level_select_active
-	beq.s	.rts
-	cmp.l	#startmenu+1,a4
-	beq.s	.use
-	cmp.l	#compat_startmenu+1,a4
-	bne.s	.rts
-.use	bsr.s	g2v190hx_level_build_row
-	lea	g2v190hx_level_row_text(pc),a4
-.rts	rts
-
-g2v190hx_level_build_row
-	movem.l	d0-d2/a0-a1,-(a7)
-	tst	g2v190i_level_count
-	bne.s	.have
-	jsr	g2v190i_level_default
-.have	lea	g2v190hx_level_prefix(pc),a0
-	lea	g2v190hx_level_row_text(pc),a1
-.pfx	move.b	(a0)+,d1
-	beq.s	.level
-	move.b	d1,(a1)+
-	bra.s	.pfx
-.level	move	g2v190f_level_index(pc),d0
-	cmp	g2v190i_level_count(pc),d0
-	bcs.s	.idxok
-	clr	g2v190f_level_index
-	moveq	#0,d0
-.idxok	jsr	g2v190i_get_name_ptr
-	moveq	#15,d2
-.copy	move.b	(a0)+,d1
-	beq.s	.done
-	move.b	d1,(a1)+
-	dbf	d2,.copy
-.done	clr.b	(a1)
-	movem.l	(a7)+,d0-d2/a0-a1
-	rts
-
-g2v190hx_level_prefix dc.b 'ONE PLAYER GAME: ',0
-g2v190hx_level_row_text ds.b 40
-	even
-
 g2v190f_level_start
 	movem.l	d0/a0,-(a7)
 	jsr	g2v190f_level_update
@@ -16101,24 +15958,28 @@ g2v190i_levelselect_loadscripts
 	move	#-1,g2v190i_level_loaded
 	clr	g2v190i_level_count
 	clr	g2v190f_level_index
-	clr	g2v190hx_level_select_active	; v190hx: title starts as plain ONE PLAYER GAME
 	bsr	permit
-	; v190hx3: Classic Gloom may have misc/script stored compressed on disk.
-	; The normal loader has already decrunched it into the script pointer, so
-	; parse that in-memory script first.  If it yields no play_ entries, fall
-	; back to the simple program-folder file scanner used by v190hx.
-	move.l	script(pc),d0
-	beq.s	.g2v190hx3_try_files
-	move.l	d0,a0
-	jsr	g2v190i_parse_script
-	tst	g2v190i_level_count
-	bne	.doneio
-.g2v190hx3_try_files
-	lea	g2v190i_script_misc(pc),a0	; v190hx: program-folder misc/script
+	lea	g2v190i_script_misc(pc),a0
 	bsr	g2v190i_try_script
 	tst	g2v190i_level_count
 	bne	.doneio
-	lea	g2v190i_script_stages(pc),a0	; v190hx: program-folder stuf/stages
+	lea	g2v190i_script_stuf(pc),a0
+	bsr	g2v190i_try_script
+	tst	g2v190i_level_count
+	bne	.doneio
+	lea	g2v190i_script_stages(pc),a0
+	bsr	g2v190i_try_script
+	tst	g2v190i_level_count
+	bne	.doneio
+	lea	g2v190i_script_gd_misc(pc),a0
+	bsr	g2v190i_try_script
+	tst	g2v190i_level_count
+	bne	.doneio
+	lea	g2v190i_script_gd_stuf(pc),a0
+	bsr	g2v190i_try_script
+	tst	g2v190i_level_count
+	bne	.doneio
+	lea	g2v190i_script_gd_stages(pc),a0
 	bsr	g2v190i_try_script
 .doneio
 	bsr	forbid
@@ -16130,21 +15991,33 @@ g2v190i_levelselect_loadscripts
 .rts	rts
 
 g2v190i_try_script
-	; v190hx4: load the script through the normal loadfile path instead of
-	; DOS Read().  Classic Gloom's misc/script can be CrM2-packed; raw scanning
-	; sees only compressed bytes and falls back to MAP1.1.  loadfile gives this
-	; scanner the same decrunched script data the game later executes.
-	movem.l	d0-d7/a0-a6,-(a7)
-	moveq	#1,d1		; public/fast memory is enough for temporary script scan
-	jsr	loadfile		; a0 = filename, returns decrunched pointer in d0 or 0
+	; v190n: read script into a bounded static buffer instead of using
+	; loadfile/allocmem.  The old temporary allocation was safe most of the
+	; time, but the title return artefact strongly points at a memlist/
+	; overread side-effect.  This path never writes outside the fixed buffer
+	; and always zero-terminates before parsing.
+	movem.l	d0-d3/d7/a0/a6,-(a7)
+	move.l	dosbase,a6
+	move.l	a0,d1
+	move.l	#1005,d2
+	jsr	-30(a6)		; Open(oldfile)
 	move.l	d0,d7
 	beq.s	.done
-	move.l	d7,a0
+	move.l	d7,d1
+	lea	g2v190i_script_static,a0
+	move.l	a0,d2
+	move.l	#g2v190i_script_static_size-1,d3
+	jsr	-42(a6)		; Read(handle, buffer, size-1)
+	move.l	d0,d3
+	move.l	d7,d1
+	jsr	-36(a6)		; Close(handle)
+	tst.l	d3
+	ble.s	.done
+	lea	g2v190i_script_static,a0
+	clr.b	0(a0,d3.w)	; guaranteed terminator for parser
 	jsr	g2v190i_parse_script
-	move.l	d7,a1
-	jsr	freemem_		; release temporary scan copy
 .done
-	movem.l	(a7)+,d0-d7/a0-a6
+	movem.l	(a7)+,d0-d3/d7/a0/a6
 	rts
 
 g2v190i_parse_script
@@ -16163,35 +16036,26 @@ g2v190i_parse_script
 	beq	.advance
 	cmp.b	#';',d0
 	beq	.skipline
-	; v190hx4: command match is case-insensitive, like execscript itself.
-	; This keeps Classic scripts safe even if commands are PLAY_/DONE_.
-	moveq	#0,d1
-	move.b	(a6),d1
-	and	#31,d1
-	add	#96,d1
-	lsl.l	#8,d1
-	moveq	#0,d2
-	move.b	1(a6),d2
-	and	#31,d2
-	add	#96,d2
-	or	d2,d1
-	lsl.l	#8,d1
-	moveq	#0,d2
-	move.b	2(a6),d2
-	and	#31,d2
-	add	#96,d2
-	or	d2,d1
-	lsl.l	#8,d1
-	moveq	#0,d2
-	move.b	3(a6),d2
-	and	#31,d2
-	add	#96,d2
-	or	d2,d1
+	cmp.b	#'d',d0
+	bne	.notdone
+	cmp.b	#'o',1(a6)
+	bne	.notdone
+	cmp.b	#'n',2(a6)
+	bne	.notdone
+	cmp.b	#'e',3(a6)
+	bne	.notdone
 	cmp.b	#'_',4(a6)
-	bne	.skipline
-	cmp.l	#'done',d1
 	beq	.done
-	cmp.l	#'play',d1
+.notdone
+	cmp.b	#'p',d0
+	bne	.skipline
+	cmp.b	#'l',1(a6)
+	bne	.skipline
+	cmp.b	#'a',2(a6)
+	bne	.skipline
+	cmp.b	#'y',3(a6)
+	bne	.skipline
+	cmp.b	#'_',4(a6)
 	bne	.skipline
 	move.l	a6,a5		; v190r: remember script command start for chain entry
 	lea	5(a6),a0
@@ -16199,8 +16063,6 @@ g2v190i_parse_script
 .skipline
 	move.b	(a6)+,d0
 	beq	.done
-	cmp.b	#13,d0		; v190hx3: Amiga/Classic scripts can be CR-only
-	beq	.loop
 	cmp.b	#10,d0
 	bne	.skipline
 	bra	.loop
@@ -16340,8 +16202,8 @@ startmenu2	dc.b	5
 	dc.b	'TWO PLAYER GAME',0	;0
 	dc.b	'TWO PLAYER COMBAT GAME',0	;1
 	dc.b	'UNLINK FROM REMOTE PLAYER',0	;2
-	dc.b	'ABOUT',0		;3
-	dc.b	'EXIT',0		;4
+	dc.b	'ABOUT GLOOM',0		;3
+	dc.b	'EXIT GLOOM',0		;4
 	even
 
 menuwindow	dc.l	0
@@ -16448,8 +16310,10 @@ initmenu2	;
 	;
 	bsr	copypic	;copy shown to draw
 	bsr	swapshow
-	; v190gl: Classic Gloom menu uses Gloom2-compatible bigfont2 now.
+	cmp	#1,g2_game_profile	; v190cv: classic Gloom smallfont.bin is not a Gloom2 font-palette block
+	beq.s	.g2v190cv_no_initfontpal
 	bsr	initfontpal
+.g2v190cv_no_initfontpal
 	;
 	move.b	(a4)+,d0	;how many
 	ext	d0
@@ -16482,11 +16346,14 @@ initmenu2	;
 	bra.s	.titlemenu_y_done
 .titlemenu_main	move	#-1,g2v154_titlemenu_lines
 	sub	fonth(pc),d6
-	sub	fonth(pc),d6	; v190hq: Gloom Deluxe title menu one row lower again
+	sub	fonth(pc),d6
+	sub	fonth(pc),d6	; v190l: main title menu one row higher
 	bra.s	.titlemenu_y_done
-.titlemenu_compat	move	#2,g2v154_titlemenu_lines	; v190hb: compat menus keep dotted lines and move whole block two rows up
-	sub	fonth(pc),d6	; v190hb: Gloom / Gloom3 / Zombie Massacre title menu up one row
-	sub	fonth(pc),d6	; v190hb: Gloom / Gloom3 / Zombie Massacre title menu up second row
+.titlemenu_compat	move	#2,g2v154_titlemenu_lines	; v190cp: two dotted lines for no-START menu
+	cmp	#3,g2_game_profile	; Gloom3 title art needs the classic menu two rows higher
+	bne.s	.titlemenu_y_done
+	sub	fonth(pc),d6
+	sub	fonth(pc),d6
 .titlemenu_y_done
 	move	d6,menuy
 	lea	menustrips(pc),a5
@@ -16524,8 +16391,6 @@ initmenu2	;
 	add.l	bpmod(pc),a0
 	dbf	d0,.sloop	;depth
 	;
-	move.l	a4,-(a7)		; v190hx: keep original menu stream pointer
-	bsr	g2v190hx_level_menu_a4	; draw optional ONE PLAYER: MAPx.y row
 	move.l	a4,a0
 	moveq	#-1,d0
 .cnt	addq	#1,d0
@@ -16533,10 +16398,6 @@ initmenu2	;
 	bne.s	.cnt
 	;
 	jsr	printmess2
-	move.l	(a7)+,a4		; restore and advance original sequential menu string
-.g2v190hx_adv_orig
-	tst.b	(a4)+
-	bne.s	.g2v190hx_adv_orig
 	;
 	add	fonth(pc),d6
 	subq	#1,(a7)
@@ -16587,7 +16448,7 @@ g2v154_draw_titlemenu_lines
 	move	fonth(pc),d1
 	move	d1,d2
 	lsr	#1,d2
-	moveq	#3,d3	; v190hr: Gloom Deluxe dotted separator one row higher
+	moveq	#5,d3
 	cmp	#2,g2v154_titlemenu_lines
 	bne.s	.g2v190cp_line1row_ok
 	moveq	#3,d3
@@ -16601,7 +16462,7 @@ g2v154_draw_titlemenu_lines
 	move	fonth(pc),d1
 	move	d1,d2
 	lsr	#1,d2
-	moveq	#6,d3	; v190hr: Gloom Deluxe dotted separator one row higher
+	moveq	#8,d3
 	cmp	#2,g2v154_titlemenu_lines
 	bne.s	.g2v190cp_line2row_ok
 	moveq	#6,d3
@@ -16744,7 +16605,6 @@ optoff	;
 opton	move	curropt(pc),d6
 	lea	menustrips(pc),a0
 	move.l	0(a0,d6*8),a4	;text!
-	bsr	g2v190hx_level_menu_a4	; v190hx: selected first row uses dynamic level text
 	mulu	fonth(pc),d6
 	add	menuy(pc),d6
 	;
@@ -16932,8 +16792,6 @@ g2v166_tplr_full
 	bra.s	g2v166_tplr_no
 g2v166_tplr_compat
 	move	curropt(pc),d1
-	tst	d1		; v190hx: ONE PLAYER GAME accepts LEFT/RIGHT for optional level select
-	beq.s	g2v166_tplr_yes
 	cmp	#4,d1
 	beq.s	g2v166_tplr_yes
 	cmp	#5,d1
@@ -17203,8 +17061,178 @@ mousexlast	dc.b	0
 mousexinit	dc	0
 keymouse_mx	dc	0
 
-; v190hy: diagnostic DH3:gloom.log logger removed for cleanup/speed.
-; v190hy: all g2log/g2log_drawstep call sites were removed.
+; v22/v94: old OS/DOS diagnostic logger for crash hunting.
+; v94 disables it on real Amiga hardware to avoid missing-volume requesters.
+g2log_open
+	rts	; v190aa: logger disabled after apostrophe diagnosis, avoid DH3 IO side effects
+	movem.l	d0-d3/a0-a1/a6,-(a7)
+	tst.l	g2loghand
+	bne.s	.g2lo_done
+	tst	os
+	beq.s	.g2lo_done
+	move.l	dosbase(pc),a6
+	lea	g2logname(pc),a0
+	move.l	a0,d1
+	move.l	#1006,d2
+	jsr	-30(a6)
+	move.l	d0,g2loghand
+	beq.s	.g2lo_done
+	lea	g2log_msg_open(pc),a0
+	jsr	g2log
+.g2lo_done
+	movem.l	(a7)+,d0-d3/a0-a1/a6
+	rts
+
+g2log_drawstep	;a0 = marker, v27 writes every frame for crash pinpointing
+	rts	;v94: logger disabled, keep call sites harmless
+	movem.l	d0-d7/a0-a6,-(a7)
+	jsr	g2log
+	movem.l	(a7)+,d0-d7/a0-a6
+	rts
+
+g2log_close
+	rts	; v190aa: logger disabled after apostrophe diagnosis
+	movem.l	d0-d1/a6,-(a7)
+	move.l	g2loghand(pc),d1
+	beq.s	.g2lc_done
+	clr.l	g2loghand
+	move.l	dosbase(pc),a6
+	jsr	-36(a6)
+.g2lc_done
+	movem.l	(a7)+,d0-d1/a6
+	rts
+
+g2log	;a0 = zero terminated marker string
+	rts	; v190aa: logger disabled after apostrophe diagnosis
+	movem.l	d0-d3/a0-a1/a6,-(a7)
+	; v190u: keep the trace file small.  Skip per-frame messages, but keep
+	; script/mapload/intermission transition markers.
+	cmp.l	#'MAIN',(a0)
+	bne.s	.g2lg_not_main
+	cmp.l	#'LOOP',4(a0)
+	beq.s	.g2lg_done
+.g2lg_not_main
+	cmp.l	#'FINI',(a0)
+	bne.s	.g2lg_not_finish
+	cmp.l	#'SHED',4(a0)
+	beq.s	.g2lg_done
+.g2lg_not_finish
+	tst	os
+	beq.s	.g2lg_done
+	move.l	g2loghand(pc),d1
+	beq.s	.g2lg_done
+	move.l	a0,a1
+	moveq	#0,d3
+.g2lg_len
+	tst.b	(a1)+
+	beq.s	.g2lg_len_done
+	addq.l	#1,d3
+	bra.s	.g2lg_len
+.g2lg_len_done
+	move.l	a0,d2
+	move.l	dosbase(pc),a6
+	jsr	-48(a6)
+	move.l	g2loghand(pc),d1
+	lea	g2log_nl(pc),a0
+	move.l	a0,d2
+	moveq	#1,d3
+	move.l	dosbase(pc),a6
+	jsr	-48(a6)
+.g2lg_done
+	movem.l	(a7)+,d0-d3/a0-a1/a6
+	rts
+
+g2logname	dc.b	'dh3:gloom.log',0	;v190u transition trace log
+g2log_nl	dc.b	10
+g2loghand	dc.l	0
+g2logframe	dc	0
+g2log_msg_open	dc.b	'G2LOG OPEN v190u',0
+
+g2log_msg_script_done	dc.b	'SCRIPT DONE',0
+g2log_msg_script_rest	dc.b	'SCRIPT REST',0
+g2log_msg_script_loop	dc.b	'SCRIPT LOOP',0
+g2log_msg_script_hide	dc.b	'SCRIPT HIDE',0
+g2log_msg_script_show	dc.b	'SCRIPT SHOW',0
+g2log_msg_script_draw	dc.b	'SCRIPT DRAW',0
+g2log_msg_script_tile	dc.b	'SCRIPT TILE',0
+g2log_msg_script_pict	dc.b	'SCRIPT PICT',0
+g2log_msg_script_dark	dc.b	'SCRIPT DARK',0
+g2log_msg_script_text	dc.b	'SCRIPT TEXT',0
+g2log_msg_text_skip_fetch_b	dc.b	'TEXT SKIP FETCH BEFORE',0
+g2log_msg_text_skip_fetch_ok	dc.b	'TEXT SKIP FETCH OK',0
+g2log_msg_text_font_b	dc.b	'TEXT INITFONT BEFORE',0
+g2log_msg_text_font_ok	dc.b	'TEXT INITFONT OK',0
+g2log_msg_text_fetch_b	dc.b	'TEXT FETCH BEFORE',0
+g2log_msg_text_fetch_ok	dc.b	'TEXT FETCH OK',0
+g2log_msg_text_wrap_b	dc.b	'TEXT WRAP BEFORE',0
+g2log_msg_text_wrap_ok	dc.b	'TEXT WRAP OK',0
+g2log_msg_text_print1_b	dc.b	'TEXT PRINT SPLIT BEFORE',0
+g2log_msg_text_print1_ok	dc.b	'TEXT PRINT SPLIT OK',0
+g2log_msg_text_printf_b	dc.b	'TEXT PRINT FINAL BEFORE',0
+g2log_msg_text_printf_ok	dc.b	'TEXT PRINT FINAL OK',0
+g2log_msg_text_done	dc.b	'TEXT DONE',0
+g2log_msg_script_wait	dc.b	'SCRIPT WAIT',0
+g2log_msg_mapname	dc.b	'MAPNAME',0
+g2log_msg_tiletag	dc.b	'TILETAG',0
+g2log_msg_picname	dc.b	'PICNAME',0
+g2log_msg_scriptplay	dc.b	'SCRIPTPLAY ENTER',0
+g2log_msg_mapload_before	dc.b	'MAP LOAD BEFORE',0
+g2log_msg_mapload_ok	dc.b	'MAP LOAD OK',0
+g2log_msg_initmap_ok	dc.b	'INITMAP OK',0
+g2log_msg_loadtxts_ok	dc.b	'LOADTXTS OK',0
+g2log_msg_execevent_before	dc.b	'EXECEVENT BEFORE',0
+g2log_msg_execevent_ok	dc.b	'EXECEVENT OK',0
+g2log_msg_player_ok	dc.b	'PLAYER1 OK',0
+g2log_msg_predraw_before	dc.b	'PREDRAW BEFORE',0
+g2log_msg_predraw_ok	dc.b	'PREDRAW OK',0
+g2log_msg_dispon_ok	dc.b	'DISPON CHATON OK',0
+g2log_msg_mainloop	dc.b	'MAINLOOP DRAWALL BEFORE',0
+g2log_msg_draw_ok	dc.b	'MAINLOOP DRAWALL OK',0
+g2log_msg_after_draw	dc.b	'MAINLOOP AFTER DRAWALL LOG OK',0
+g2log_msg_menu_before	dc.b	'MENU BEFORE',0
+g2log_msg_menu_ok	dc.b	'MENU OK',0
+g2log_msg_finish_check	dc.b	'FINISHED CHECK',0
+g2log_msg_mainexit	dc.b	'MAINEXIT',0
+g2log_msg_da_enter	dc.b	'DA ENTER',0
+g2log_msg_da_wait_ok	dc.b	'DA WAIT OK',0
+g2log_msg_da_calc1_b	dc.b	'DA CALC1 BEFORE',0
+g2log_msg_da_calc1_ok	dc.b	'DA CALC1 OK',0
+g2log_msg_da_draw1_b	dc.b	'DA DRAW1 BEFORE',0
+g2log_msg_da_draw1_ok	dc.b	'DA DRAW1 OK',0
+g2log_msg_da_blit1_b	dc.b	'DA BLIT1 BEFORE',0
+g2log_msg_da_blit1_ok	dc.b	'DA BLIT1 OK',0
+g2log_msg_da_calc2_b	dc.b	'DA CALC2 BEFORE',0
+g2log_msg_da_calc2_ok	dc.b	'DA CALC2 OK',0
+g2log_msg_da_draw2_b	dc.b	'DA DRAW2 BEFORE',0
+g2log_msg_da_draw2_ok	dc.b	'DA DRAW2 OK',0
+g2log_msg_da_blit2_b	dc.b	'DA BLIT2 BEFORE',0
+g2log_msg_da_blit2_ok	dc.b	'DA BLIT2 OK',0
+g2log_msg_da_wait2_b	dc.b	'DA WAIT2 BEFORE',0
+g2log_msg_da_wait2_ok	dc.b	'DA WAIT2 OK',0
+g2log_msg_da_doc2p_b	dc.b	'DA DOC2P BEFORE',0
+g2log_msg_da_doc2p_ok	dc.b	'DA DOC2P OK',0
+g2log_msg_da_db_b	dc.b	'DA DB BEFORE',0
+g2log_msg_da_db_ok	dc.b	'DA DB OK',0
+g2log_msg_da_exit	dc.b	'DA EXIT',0
+g2log_msg_ds_enter	dc.b	'DS ENTER',0
+g2log_msg_ds_cast_b	dc.b	'DS CAST BEFORE',0
+g2log_msg_ds_cast_ok	dc.b	'DS CAST OK',0
+g2log_msg_ds_render_b	dc.b	'DS RENDER BEFORE',0
+g2log_msg_ds_render_ok	dc.b	'DS RENDER OK',0
+g2log_msg_ds_roof_b	dc.b	'DS ROOF BEFORE',0
+g2log_msg_ds_roof_ok	dc.b	'DS ROOF OK',0
+g2log_msg_ds_floor_b	dc.b	'DS FLOOR BEFORE',0
+g2log_msg_ds_floor_ok	dc.b	'DS FLOOR OK',0
+g2log_msg_ds_shapes_b	dc.b	'DS SHAPES BEFORE',0
+g2log_msg_ds_shapes_ok	dc.b	'DS SHAPES OK',0
+g2log_msg_ds_blood_b	dc.b	'DS BLOOD BEFORE',0
+g2log_msg_ds_blood_ok	dc.b	'DS BLOOD OK',0
+g2log_msg_ds_pixel_b	dc.b	'DS PIXEL BEFORE',0
+g2log_msg_ds_pixel_ok	dc.b	'DS PIXEL OK',0
+g2log_msg_ds_exit	dc.b	'DS EXIT',0
+	even
+
+	even
 
 ; v141: small binary PROGDIR:gloom.cfg persistence.
 ; Header is exactly "GLMCFG" followed by a version word. v190eb writes version 3.
@@ -17399,7 +17427,7 @@ g2cfg_sanitize
 .size288	move	#192,hite	;ALMOST FULL height = VERY HUGE
 	rts
 .sizefull	move	#320,width
-	move	#240,hite
+	move	#224,hite
 	rts
 
 g2cfg_apply_view
@@ -17577,8 +17605,8 @@ calcpalettes	;generate 16 versions of palette
 	;
 	lea	paladjust,a5
 	move.l	map_rgbsat(pc),a4	;end
-	; v190gl: Classic Gloom receives embedded palette_8/remap_8 fallbacks,
-	; so it can use the same fog/shade path as Gloom Deluxe.
+	cmp	#1,g2_game_profile	; v190cx: classic Gloom uses its live map palette directly
+	beq.s	.g2v190cj_no_remap
 	move.l	planar_remap(pc),a1	;remap table
 	tst.l	a1
 	bne.s	.g2v190cj_have_remap
@@ -19355,34 +19383,6 @@ abouttext	dc.b	16
 	dc.b	'GLOOM REFORGED IDEA BY ANDIWELI',0
 	even
 
-abouttext_g3	dc.b	14
-	dc.b	'GLOOM3 ZOMBIE EDITION',0
-	dc.b	'A GAME BY GARETH MURFIN',0
-	dc.b	0
-	dc.b	'ADDITIONAL GFX AND SFX BY',0
-	dc.b	'JAMES CAYGILL',0
-	dc.b	'CHRIS BURNS',0
-	dc.b	'RICHARD MURFIN',0
-	dc.b	0
-	dc.b	'STORY BY',0
-	dc.b	'CHRIS MURFIN',0
-	dc.b	0
-	dc.b	'BASED ON GLOOM BY MARK SIBLY',0
-	dc.b	0
-	dc.b	'GLOOM REFORGED IDEA BY ANDIWELI',0
-	even
-
-abouttext_zm	dc.b	8
-	dc.b	'ALPHA SOFTWARE',0
-	dc.b	'QUALITY AMIGA SOFTWARE',0
-	dc.b	0
-	dc.b	'FOUNDED BY GARETH MURFIN',0
-	dc.b	0
-	dc.b	'CHECK OUT THE BOOKLET NOW!',0
-	dc.b	0
-	dc.b	'GLOOM REFORGED IDEA BY ANDIWELI',0
-	even
-
 sqrinc	incbin	sqr.bin
 
 weapon1	dc.l	bullet1,sparks1
@@ -19748,8 +19748,6 @@ g2v190p_load_title_assets
 	bne.s	.load
 	move.l	g2title_ecs_ptr,a0
 .load	jsr	loadfiles
-	jsr	g2embed_apply_g1_fallbacks	;v190gl: title/brush/palette fallback after reload
-	jsr	g2embed_apply_zm_title_overlay	;v190hu: embedded Zombie Massacre title overlay after reload
 	jsr	forbid
 .done	movem.l	(a7)+,d0/a0
 	rts
@@ -19758,27 +19756,17 @@ g2v190p_free_title_assets
 	movem.l	d0/a1,-(a7)
 	move.l	gloom,d0
 	beq.s	.skip_gloom
-	cmp.l	#g2embed_title,d0
-	beq.s	.skip_gloom
 	clr.l	gloom
 	move.l	d0,a1
 	freemem	title
 .skip_gloom
 	move.l	gloompal,d0
 	beq.s	.skip_pal
-	cmp.l	#g2embed_title_pal,d0
-	beq.s	.skip_pal
-	cmp.l	#g2embed_zm_title_pal,d0	; v190hu: embedded ZM title palette is static
-	beq.s	.skip_pal
 	clr.l	gloompal
 	move.l	d0,a1
 	freemem	titlepal
 .skip_pal
 	move.l	gloombrush,d0
-	beq.s	.skip_brush
-	cmp.l	#g2embed_gloombrush,d0
-	beq.s	.skip_brush
-	cmp.l	#g2embed_zm_titlebrush,d0	; v190hu: embedded ZM title image is static
 	beq.s	.skip_brush
 	clr.l	gloombrush
 	move.l	d0,a1
@@ -20048,23 +20036,7 @@ g2v190aj_build_grey_lut
 	addq	#1,d0
 	dbf	d7,.g2v190aj_inv_loop
 	move.l	planar_palette,d0
-	bne.s	.g2v190fy_havepal
-	; v190fy: no source palette available, still build a deterministic
-	; grey backdrop LUT instead of leaving stale LUT entries behind.
-	lea	g2v190aj_lut,a3
-	moveq	#0,d3
-	move	#255,d7
-.g2v190fy_fallback_lut
-	move	d3,d0
-	and	#15,d0
-	mulu	#11,d0
-	divu	#15,d0
-	addq	#4,d0
-	move.b	d0,0(a3,d3.w)
-	addq	#1,d3
-	dbf	d7,.g2v190fy_fallback_lut
-	bra.w	.g2v190aj_lut_done
-.g2v190fy_havepal
+	beq.w	.g2v190aj_lut_done
 	move.l	d0,a2
 	lea	g2v190aj_lut,a3
 	lea	g2v190aj_invpal,a0
@@ -20102,11 +20074,9 @@ g2v190aj_build_grey_lut
 .g2v190aj_lut_black
 	moveq	#4,d0
 .g2v190aj_lut_store
-	; v190fy: write direct safe grey palette indices 4..15 into the
-	; static menu backdrop.  Do not pass these through paladjust here:
-	; on some C2P/palette layouts that can land in font colour slots 1..3,
-	; which initmenu later turns yellow for the menu text.
-	move.b	d0,0(a3,d3.w)
+	moveq	#0,d1
+	move.b	0(a5,d0.w),d1
+	move.b	d1,0(a3,d3.w)
 	addq	#1,d3
 	dbf	d7,.g2v190aj_lut_loop
 .g2v190aj_lut_done
@@ -20148,8 +20118,6 @@ g2v190aj_lut	ds.b	256
 ; -----------------------------------------------------------------------------
 
 g2_game_profile	dc	0	;0=gloom deluxe, 1=gloom original, 2=zombie massacre, 3=gloom3/compat
-g2zm_g3dcbrush	dc.l	0	; v190hu: physical Zombie Massacre g3-dc kept for ABOUT
-g2zm_old_title_pal	dc.l	0	; v190hu: physical Zombie Massacre title/g3-dc palette for ABOUT
 g2magicfiles_ptr	dc.l	magicfiles
 g2agamagicfiles_ptr	dc.l	agamagicfiles
 g2ecsmagicfiles_ptr	dc.l	ecsmagicfiles
@@ -20161,39 +20129,20 @@ g2dataprobe_name	dc.l	scriptname
 g2title_aga_ptr	dc.l	g2v190p_title_aga
 g2title_ecs_ptr	dc.l	g2v190p_title_ecs
 
-; Gloom original: v190gl uses the normal Gloom2 asset layout with
-; physical-file-first / embedded-fallback behaviour for missing modern files.
+; Gloom original: old font/title layout.
 g1agafiles	dc.l	gloom
-	dc.b	'pics/title',0
+	dc.b	'pics/blackmagic',0
 	even
 	dc.l	gloompal
-	dc.b	'pics/title.pal',0
-	even
-	dc.l	gloombrush
-	dc.b	'pics/gloom',0
-	even
-	dc.l	planar_palette
-	dc.b	'misc/palette_8',0
-	even
-	dc.l	planar_remap
-	dc.b	'misc/remap_8',0
+	dc.b	'pics/blackmagic.pal',0
 	even
 	dc.l	0
 
 g1ecsfiles	dc.l	gloom
-	dc.b	'pics/title',0
+	dc.b	'pics/blackmagic',0
 	even
 	dc.l	gloompal
-	dc.b	'pics/title.pal',0
-	even
-	dc.l	gloombrush
-	dc.b	'pics/gloom',0
-	even
-	dc.l	planar_palette
-	dc.b	'misc/palette_8',0
-	even
-	dc.l	planar_remap
-	dc.b	'misc/remap_8',0
+	dc.b	'pics/blackmagic.pal',0
 	even
 	dc.l	0
 
@@ -20201,10 +20150,10 @@ g1progfiles	dc.l	gloomcfg
 	dc.b	'gloomcfg',0
 	even
 	dc.l	bigfont_+1
-	dc.b	'misc/bigfont2.bin',0
+	dc.b	'misc/bigfont.bin',0
 	even
-	dc.l	panel
-	dc.b	'misc/smallfont2.bin',0
+	dc.l	smallfont_+1	; v190cs: classic Gloom font, not Gloom2 status panel
+	dc.b	'misc/smallfont.bin',0
 	even
 	dc.l	gunpic
 	dc.b	'misc/gun.bin',0
@@ -20287,28 +20236,22 @@ g1progfiles	dc.l	gloomcfg
 	dc.l	0
 
 g1title_aga	dc.l	gloom
-	dc.b	'pics/title',0
+	dc.b	'pics/blackmagic',0
 	even
 	dc.l	gloompal
-	dc.b	'pics/title.pal',0
-	even
-	dc.l	gloombrush
-	dc.b	'pics/gloom',0
+	dc.b	'pics/blackmagic.pal',0
 	even
 	dc.l	0
 
 g1title_ecs	dc.l	gloom
-	dc.b	'pics/title',0
+	dc.b	'pics/blackmagic',0
 	even
 	dc.l	gloompal
-	dc.b	'pics/title.pal',0
-	even
-	dc.l	gloombrush
-	dc.b	'pics/gloom',0
+	dc.b	'pics/blackmagic.pal',0
 	even
 	dc.l	0
 
-; v190gl: retained aliases so older profile code/data references stay valid.
+; v190cr: optional classic Gloom title/overlay if a repacked data set provides it.
 g1title_optional_aga	dc.l	gloom
 	dc.b	'pics/title',0
 	even
@@ -20325,9 +20268,6 @@ g1title_optional_ecs	dc.l	gloom
 	even
 	dc.l	gloompal
 	dc.b	'pics/title.pal',0
-	even
-	dc.l	gloombrush
-	dc.b	'pics/gloom',0
 	even
 	dc.l	0
 
@@ -20353,7 +20293,7 @@ zmagafiles	dc.l	gloom
 	dc.l	gloompal
 	dc.b	'pixs/title.pal',0
 	even
-	dc.l	g2zm_g3dcbrush
+	dc.l	gloombrush
 	dc.b	'pixs/g3-dc',0
 	even
 	dc.l	planar_palette
@@ -20369,9 +20309,6 @@ zmecsfiles	dc.l	gloom
 	even
 	dc.l	gloompal
 	dc.b	'pixs/title.pal',0
-	even
-	dc.l	g2zm_g3dcbrush	; v190ht: keep Zombie Massacre g3-dc available for title/menu overlay on ECS/non-AGA paths too
-	dc.b	'pixs/g3-dc',0
 	even
 	dc.l	planar_palette
 	dc.b	'stuf/palette_6',0
@@ -20481,7 +20418,7 @@ zmtitle_aga	dc.l	gloom
 	dc.l	gloompal
 	dc.b	'pixs/title.pal',0
 	even
-	dc.l	g2zm_g3dcbrush
+	dc.l	gloombrush
 	dc.b	'pixs/g3-dc',0
 	even
 	dc.l	0
@@ -20491,9 +20428,6 @@ zmtitle_ecs	dc.l	gloom
 	even
 	dc.l	gloompal
 	dc.b	'pixs/title.pal',0
-	even
-	dc.l	g2zm_g3dcbrush	; v190ht: keep Zombie Massacre g3-dc available for title/menu overlay on ECS/non-AGA paths too
-	dc.b	'pixs/g3-dc',0
 	even
 	dc.l	0
 
@@ -20666,7 +20600,7 @@ g2detectprofile
 .g2_title_has_palette
 	lea	gamename,a0		; Gloom Deluxe has gloomgame, Gloom3 usually does not
 	jsr	g2fileexists
-	beq.s	.done		; keep profile 0: Gloom Deluxe, visible title menu stays classic
+	beq.s	.done		; keep profile 0: full Gloom Deluxe menu with START LEVEL
 	move	#3,g2_game_profile	; Gloom3 compatibility: classic menu without START LEVEL
 	rts
 .check_g1
@@ -20686,6 +20620,14 @@ g2setup_g1_profile
 	move.l	#g1progfiles,g2progfiles_ptr
 	move.l	#g1title_aga,g2title_aga_ptr
 	move.l	#g1title_ecs,g2title_ecs_ptr
+	lea	g2probe_pics_title,a0
+	jsr	g2fileexists
+	bne.s	.g2g1_no_optional_title
+	move.l	#g1title_optional_aga,g2agafiles_ptr
+	move.l	#g1title_optional_ecs,g2ecsfiles_ptr
+	move.l	#g1title_optional_aga,g2title_aga_ptr
+	move.l	#g1title_optional_ecs,g2title_ecs_ptr
+.g2g1_no_optional_title
 	rts
 
 
@@ -20839,11 +20781,6 @@ g2v190dl_msg1	dc.b	'GLOOM IS NOT SUPPORTED',0
 g2v190cx_build_g1_tables
 	cmp	#1,g2_game_profile
 	bne.s	.g2v190cx_done
-	; v190gl: if embedded/physical Gloom2 remap_8 is available, keep the
-	; normal Gloom Deluxe fog/shade path instead of replacing it with the old
-	; synthetic Gloom1 identity tables.
-	tst.l	planar_remap
-	bne.s	.g2v190cx_done
 	movem.l	d0-d7/a0-a4,-(a7)
 	lea	g2v190cx_g1_remap,a0
 	moveq	#0,d0
@@ -20889,4345 +20826,4 @@ g2v190cx_g1_palette	ds.w	512
 	
 	even
 g2v190cx_g1_remap	ds.b	4096
-	even
-
-
-
-; -----------------------------------------------------------------------------
-; v190gn embedded Gloom Deluxe asset fallbacks for Classic Gloom
-; -----------------------------------------------------------------------------
-; The physical files are still preferred.  Only profile 1 gets these pointers
-; when the modern Gloom2-style files are missing from the Classic Gloom data set.
-
-g2embed_apply_g1_fallbacks
-	cmp	#1,g2_game_profile
-	bne.w	.g2emb_done
-	movem.l	d0-d1/a0-a1,-(a7)
-	;
-	tst.l	bigfont_
-	bne.s	.g2emb_have_bigfont
-	lea	g2embed_bigfont2_crm,a0
-	lea	g2embed_bigfont2_crm_end,a1
-	moveq	#2,d1
-	bsr.w	g2embed_decrunch_asset
-	move.l	d0,bigfont_
-.g2emb_have_bigfont
-	tst.l	panel
-	bne.s	.g2emb_have_panel
-	lea	g2embed_smallfont2_crm,a0
-	lea	g2embed_smallfont2_crm_end,a1
-	moveq	#1,d1
-	bsr.w	g2embed_decrunch_asset
-	move.l	d0,panel
-.g2emb_have_panel
-	tst.l	gunpic
-	bne.s	.g2emb_have_gun
-	lea	g2embed_gun,a0
-	lea	g2embed_gun_end,a1
-	moveq	#1,d1
-	bsr.w	g2embed_decrunch_asset
-	move.l	d0,gunpic
-.g2emb_have_gun
-	tst.l	gloom
-	bne.s	.g2emb_have_title
-	lea	g2embed_title,a0
-	lea	g2embed_title_end,a1
-	moveq	#1,d1
-	bsr.w	g2embed_decrunch_asset
-	move.l	d0,gloom
-.g2emb_have_title
-	tst.l	gloompal
-	bne.s	.g2emb_have_titlepal
-	move.l	#g2embed_title_pal,gloompal
-.g2emb_have_titlepal
-	tst.l	gloombrush
-	bne.s	.g2emb_have_brush
-	lea	g2embed_gloombrush,a0
-	lea	g2embed_gloombrush_end,a1
-	moveq	#1,d1
-	bsr.w	g2embed_decrunch_asset
-	move.l	d0,gloombrush
-.g2emb_have_brush
-	tst.l	planar_palette
-	bne.s	.g2emb_have_palette
-	lea	g2embed_palette8_crm,a0
-	lea	g2embed_palette8_crm_end,a1
-	moveq	#1,d1
-	bsr.w	g2embed_decrunch_asset
-	move.l	d0,planar_palette
-.g2emb_have_palette
-	tst.l	planar_remap
-	bne.s	.g2emb_have_remap
-	lea	g2embed_remap8_crm,a0
-	lea	g2embed_remap8_crm_end,a1
-	moveq	#1,d1
-	bsr.w	g2embed_decrunch_asset
-	move.l	d0,planar_remap
-.g2emb_have_remap
-	movem.l	(a7)+,d0-d1/a0-a1
-.g2emb_done
-	rts
-
-; v190hw: Zombie Massacre uses the embedded g3-zm image for the title/menu
-; overlay.  Pixels that would be affected by the menu font palette are remapped
-; to safe unused title-palette slots so blood colours stay red when text appears.
-; ABOUT stays title-only without g3-dc/g3-zm.
-g2embed_apply_zm_title_overlay
-	cmp	#2,g2_game_profile
-	bne.s	.rts
-	movem.l	d0-d1/a0-a1,-(a7)
-	move.l	gloompal,d0
-	beq.s	.no_oldpal
-	cmp.l	#g2embed_zm_title_pal,d0
-	beq.s	.no_oldpal
-	move.l	d0,g2zm_old_title_pal
-.no_oldpal
-	lea	g2embed_zm_titlebrush,a0
-	lea	g2embed_zm_titlebrush_end,a1
-	moveq	#1,d1
-	bsr.w	g2embed_decrunch_asset
-	move.l	d0,gloombrush
-	jsr	g2zm_patch_title_palette_safe_slots	; v190hw: keep g3-zm blood colours stable after menu font palette
-	; v190hw: keep the original Zombie title palette active; g3-zm uses safe title-palette slots.
-	movem.l	(a7)+,d0-d1/a0-a1
-.rts	rts
-
-; v190hw: initfontpal overwrites AGA colour slots 0..3 in several banks
-; when menu text appears.  The embedded g3-zm overlay is remapped away from
-; those slots; patch the unused title-palette slots with the original colours.
-g2zm_patch_title_palette_safe_slots
-	movem.l	d0/a0,-(a7)
-	cmp	#2,g2_game_profile
-	bne.s	.done
-	move.l	gloompal,d0
-	beq.s	.done
-	move.l	d0,a0
-	move	#$0010,208(a0)	; slot 52 <- old slot 1
-	move	#$0010,210(a0)
-	move	#$0f20,212(a0)	; slot 53 <- old slot 3 / blood red
-	move	#$0f20,214(a0)
-	move	#$0640,216(a0)	; slot 54 <- old slot 32
-	move	#$0640,218(a0)
-	move	#$0630,220(a0)	; slot 55 <- old slot 33
-	move	#$0630,222(a0)
-	move	#$0760,224(a0)	; slot 56 <- old slot 34
-	move	#$0760,226(a0)
-	move	#$0750,228(a0)	; slot 57 <- old slot 35
-	move	#$0750,230(a0)
-.done	movem.l	(a7)+,d0/a0
-	rts
-
-; v190hu: temporary ABOUT-screen restore for Zombie Massacre.
-g2zm_prepare_about_g3dc
-	cmp	#2,g2_game_profile
-	bne.s	.rts
-	move.l	g2zm_old_title_pal,d0
-	beq.s	.no_pal
-	move.l	d0,gloompal
-.no_pal
-	move.l	g2zm_g3dcbrush,d0
-	beq.s	.rts
-	move.l	d0,gloombrush
-.rts	rts
-
-; a0=start of embedded file, a1=end of embedded file, d1=memtype.
-; Returns d0=usable pointer.  CrM2/CrM! files are decrunched through the same
-; decrm routine as loadfile; raw files are returned directly.
-; v190gn: gun/title/gloombrush are now also passed through this path, because
-; the correct Gloom Deluxe uploads are CrM2-compressed on disk.
-g2embed_decrunch_asset
-	movem.l	d1-d7/a0-a6,-(a7)
-	move.l	a0,a2		; embedded source start
-	move.l	a1,d5
-	sub.l	a2,d5		; source length
-	move.l	a2,a0
-	cmp.l	#'CrM2',(a0)
-	beq.s	.g2emb_crunched
-	cmp.l	#'CrM!',(a0)
-	beq.s	.g2emb_crunched
-	move.l	a2,d0
-	bra.w	.g2emb_return
-.g2emb_crunched
-	moveq	#0,d6
-	move.w	4(a2),d6
-	add.l	#14,d6
-	move.l	6(a2),d4	; decrunched length from CrM header
-	move.l	d4,d0
-	move.l	d1,d1
-	move.l	d6,d2
-	allocmem2	g2embed
-	tst.l	d0
-	beq.w	.g2emb_return
-	sub.l	d6,d0
-	move.l	d0,a3		; base for crunched bytes
-	move.l	a2,a0
-	move.l	a3,a1
-	move.l	d5,d7
-	beq.s	.g2emb_copied
-	subq.l	#1,d7
-.g2emb_copy
-	move.b	(a0)+,(a1)+
-	dbf	d7,.g2emb_copy
-.g2emb_copied
-	move.l	a3,a0		; decrm source
-	move.l	a3,a1
-	add.l	d6,a1		; decrm destination
-	jsr	flushc
-	jsr	decrm+32
-	jsr	flushc
-	move.l	a3,d0
-	add.l	d6,d0		; return decrunched pointer
-.g2emb_return
-	movem.l	(a7)+,d1-d7/a0-a6
-	rts
-
-	even
-g2embed_bigfont2_crm
-	dc.b	$43,$72,$4d,$32,$00,$00,$00,$00,$0d,$d2,$00,$00,$04,$42,$01,$76
-	dc.b	$67,$9a,$65,$c0,$16,$73,$4d,$7c,$d1,$ae,$01,$fc,$4c,$d3,$2e,$68
-	dc.b	$37,$00,$6b,$1e,$68,$56,$68,$b7,$02,$0e,$4f,$34,$eb,$9a,$58,$0d
-	dc.b	$fa,$9e,$68,$a7,$34,$fb,$80,$bf,$b3,$cd,$26,$e6,$89,$40,$ea,$17
-	dc.b	$9a,$2d,$cd,$05,$e0,$03,$c5,$e6,$9d,$66,$92,$f9,$a2,$5c,$0f,$bd
-	dc.b	$33,$45,$7c,$d2,$ae,$03,$df,$9c,$d3,$8e,$69,$d7,$02,$7e,$17,$34
-	dc.b	$93,$9a,$4d,$c0,$1f,$89,$e6,$8d,$73,$4d,$b8,$00,$71,$73,$44,$f8
-	dc.b	$17,$71,$7a,$fb,$bf,$8e,$39,$71,$b7,$35,$05,$44,$55,$c6,$dc,$8a
-	dc.b	$52,$ff,$fe,$59,$1a,$45,$95,$c6,$fc,$d6,$21,$a2,$4b,$f7,$ae,$31
-	dc.b	$14,$af,$c2,$33,$bd,$1b,$1b,$ce,$b8,$46,$67,$12,$5b,$37,$c2,$5e
-	dc.b	$b5,$4c,$19,$a5,$3a,$f2,$22,$8c,$86,$91,$1d,$b4,$c1,$1a,$3b,$34
-	dc.b	$70,$bd,$e2,$f4,$09,$b5,$e8,$7b,$e7,$09,$d8,$1b,$15,$7b,$6f,$8b
-	dc.b	$30,$52,$ba,$b3,$a6,$98,$13,$b7,$43,$b6,$3a,$b8,$44,$dc,$38,$b3
-	dc.b	$6e,$7a,$27,$17,$08,$c9,$3b,$a2,$3e,$d0,$a5,$02,$74,$66,$d4,$7d
-	dc.b	$6a,$1c,$73,$26,$71,$75,$e3,$49,$e2,$c2,$ec,$c2,$9d,$7c,$de,$a0
-	dc.b	$71,$0f,$7f,$a8,$73,$4c,$f0,$6f,$e7,$0f,$50,$06,$1a,$ef,$e2,$cc
-	dc.b	$14,$ad,$08,$d1,$5e,$fe,$8a,$1a,$d1,$3e,$6f,$7a,$df,$22,$4c,$59
-	dc.b	$24,$4a,$91,$58,$fe,$63,$98,$48,$94,$38,$01,$f9,$91,$24,$00,$7e
-	dc.b	$e1,$4a,$fc,$d0,$01,$fa,$1a,$3a,$43,$d0,$88,$f7,$64,$3d,$0e,$14
-	dc.b	$a6,$c6,$c2,$3d,$0f,$f1,$ee,$cb,$02,$31,$1d,$30,$eb,$7a,$1e,$ec
-	dc.b	$c2,$b4,$34,$db,$86,$3b,$24,$74,$c8,$f8,$87,$09,$1f,$b4,$4f,$dc
-	dc.b	$eb,$83,$0a,$31,$ae,$27,$30,$24,$39,$93,$be,$eb,$85,$61,$46,$a6
-	dc.b	$76,$b0,$a1,$d3,$3b,$42,$91,$e2,$82,$b9,$8d,$4c,$e5,$22,$74,$3d
-	dc.b	$1a,$44,$98,$00,$ff,$11,$4a,$7f,$0c,$3d,$0b,$47,$35,$66,$39,$e9
-	dc.b	$98,$20,$58,$cc,$a2,$cc,$cc,$62,$29,$40,$cd,$94,$4e,$cd,$33,$31
-	dc.b	$ff,$0a,$37,$51,$e3,$ce,$fa,$cf,$75,$c1,$10,$46,$37,$b7,$88,$f1
-	dc.b	$88,$a7,$27,$d0,$13,$c8,$f4,$84,$60,$99,$9b,$7e,$77,$66,$72,$95
-	dc.b	$f8,$66,$67,$29,$14,$89,$77,$66,$99,$cb,$47,$1d,$54,$31,$87,$3f
-	dc.b	$38,$70,$a1,$c5,$98,$29,$57,$30,$6a,$18,$24,$7e,$d1,$1c,$c9,$b0
-	dc.b	$8f,$3c,$a7,$1f,$38,$77,$20,$32,$ca,$16,$60,$a5,$21,$b7,$ed,$d0
-	dc.b	$6c,$49,$54,$96,$41,$54,$77,$68,$e1,$0f,$43,$bc,$76,$25,$11,$47
-	dc.b	$a3,$11,$4a,$23,$7d,$34,$d2,$3d,$1e,$47,$11,$1e,$ec,$b7,$76,$51
-	dc.b	$ee,$fc,$29,$59,$77,$c4,$48,$f7,$73,$51,$3a,$98,$8c,$3d,$c2,$87
-	dc.b	$26,$42,$59,$da,$14,$4a,$22,$8b,$f0,$c2,$ee,$4c,$c2,$b4,$cd,$04
-	dc.b	$db,$75,$c2,$31,$87,$8b,$be,$62,$11,$8a,$39,$98,$72,$e1,$0b,$4e
-	dc.b	$7b,$72,$3e,$43,$eb,$c8,$a3,$ba,$eb,$da,$14,$a2,$35,$dd,$79,$48
-	dc.b	$eb,$87,$33,$4f,$ce,$14,$74,$b7,$c2,$cc,$14,$a2,$34,$c2,$40,$91
-	dc.b	$95,$1d,$9a,$8f,$b3,$0c,$6e,$db,$8e,$b3,$c8,$ee,$1e,$71,$8c,$51
-	dc.b	$82,$cc,$14,$a1,$98,$d0,$5e,$c4,$3b,$8c,$0f,$a3,$bb,$57,$57,$29
-	dc.b	$86,$3c,$c6,$18,$99,$c5,$27,$9d,$f4,$90,$94,$31,$cc,$ef,$0a,$55
-	dc.b	$a7,$22,$77,$82,$ec,$65,$26,$72,$23,$98,$ba,$38,$97,$a3,$af,$3a
-	dc.b	$1d,$cc,$ab,$d3,$af,$68,$52,$a3,$f1,$1d,$ad,$8c,$47,$66,$8e,$68
-	dc.b	$82,$31,$4c,$7a,$03,$27,$77,$25,$98,$29,$52,$41,$d1,$27,$7c,$47
-	dc.b	$a1,$14,$4b,$8f,$51,$f6,$d2,$c9,$23,$e7,$0a,$37,$e3,$ad,$dd,$22
-	dc.b	$56,$9e,$d8,$f6,$d4,$f1,$9f,$1d,$fe,$70,$9e,$4a,$ac,$b0,$22,$95
-	dc.b	$f8,$5b,$98,$36,$e1,$98,$fb,$47,$7c,$e9,$b0,$9b,$22,$5d,$ab,$12
-	dc.b	$e3,$28,$89,$70,$a4,$48,$dd,$00,$41,$22,$54,$bb,$63,$b8,$93,$18
-	dc.b	$f0,$17,$68,$ba,$cf,$3e,$ef,$4f,$d0,$67,$ce,$8f,$79,$a2,$24,$85
-	dc.b	$23,$6b,$07,$25,$19,$c0,$b6,$7d,$44,$b9,$1c,$c2,$3a,$f4,$8b,$6b
-	dc.b	$36,$d3,$6b,$7f,$38,$5f,$57,$a0,$98,$83,$5e,$85,$98,$29,$4f,$a0
-	dc.b	$2d,$82,$af,$cc,$c4,$04,$e7,$ea,$3e,$db,$26,$d5,$f1,$26,$01,$e2
-	dc.b	$8e,$3c,$e8,$f8,$20,$e0,$ec,$19,$82,$a0,$9e,$8f,$b1,$14,$88,$8e
-	dc.b	$c3,$36,$d3,$1f,$a2,$c8,$3a,$11,$f2,$83,$32,$aa,$3b,$b5,$7e,$91
-	dc.b	$d7,$0a,$31,$ae,$d2,$fc,$44,$ad,$34,$61,$ce,$b9,$cc,$68,$c2,$94
-	dc.b	$d9,$aa,$51,$26,$27,$35,$50,$a7,$ce,$17,$cf,$19,$a1,$b4,$6d,$fa
-	dc.b	$27,$70,$7a,$4d,$51,$2e,$6b,$10,$f7,$31,$66,$0a,$51,$91,$b9,$8e
-	dc.b	$d8,$ca,$ac,$eb,$03,$46,$e5,$81,$a3,$99,$54,$55,$11,$fe,$75,$2d
-	dc.b	$59,$d0,$b3,$11,$5e,$5a,$ef,$e2,$b0,$54,$2d,$ae,$11,$06,$34,$be
-	dc.b	$06,$57,$db,$e3,$81,$69,$d9,$01,$d0,$bb,$42,$2c,$a1,$60,$a1,$40
-	dc.b	$b1,$66,$03,$04,$82,$c2,$a1,$71,$48,$cc,$76,$41,$22,$93,$4a,$27
-	dc.b	$73,$da,$05,$06,$91,$4c,$a7,$56,$2c,$56,$4b,$45,$a6,$e1,$71,$b9
-	dc.b	$5c,$ee,$97,$6b,$bd,$ee,$fb,$82,$c5,$63,$32,$99,$6c,$f6,$83,$45
-	dc.b	$a8,$d5,$6d,$37,$dc,$0e,$0f,$23,$95,$d0,$e9,$77,$3b,$de,$2f,$37
-	dc.b	$bf,$ed,$fd,$09,$41,$e1,$10,$98,$6c,$3a,$1f,$10,$8d,$47,$a5,$d3
-	dc.b	$09,$b4,$f2,$85,$6b,$ea,$7a,$3e,$5f,$3f,$d4,$72,$3f,$24,$9d,$4f
-	dc.b	$e8,$96,$6b,$3d,$bf,$f2,$11,$81,$c3,$27,$d6,$3b,$cf,$d3,$f1,$fe
-	dc.b	$ff,$83,$01,$a0,$e8,$14,$1a,$31,$34,$9c,$58,$2d,$97,$8f,$b8,$40
-	dc.b	$11,$7c,$bf,$ff,$01,$57,$ef,$80,$18,$16,$04,$01,$01,$f0,$00,$90
-	dc.b	$28,$3c,$06,$01,$00,$40,$07,$c4,$e5,$42,$39,$91,$25,$42,$00,$03
-g2embed_bigfont2_crm_end
-
-	even
-g2embed_smallfont2_crm
-	dc.b	$43,$72,$4d,$32,$00,$00,$00,$00,$23,$82,$00,$00,$07,$98,$32,$07
-	dc.b	$b7,$e2,$f8,$44,$ab,$ed,$e8,$07,$1f,$b0,$cb,$ec,$15,$fd,$84,$9f
-	dc.b	$61,$67,$a2,$3d,$fd,$f6,$06,$7b,$00,$7f,$61,$97,$a2,$69,$e1,$fb
-	dc.b	$00,$7b,$01,$7f,$60,$d7,$a2,$43,$bc,$00,$49,$33,$e0,$df,$d8,$4e
-	dc.b	$f6,$09,$7a,$20,$28,$7e,$c2,$af,$60,$4f,$ec,$2a,$f4,$4b,$84,$fd
-	dc.b	$84,$3d,$85,$c0,$23,$d3,$ec,$02,$f4,$44,$69,$c0,$d0,$7f,$b0,$b3
-	dc.b	$ec,$38,$e8,$9a,$63,$f6,$17,$bd,$84,$bf,$b0,$9b,$f6,$1a,$7a,$22
-	dc.b	$d6,$de,$c0,$af,$60,$17,$d8,$2e,$d1,$05,$93,$f6,$17,$76,$1f,$7a
-	dc.b	$24,$36,$60,$9d,$87,$6f,$60,$a7,$ec,$28,$f4,$42,$a0,$7a,$25,$9d
-	dc.b	$ee,$b7,$a7,$70,$ed,$64,$b5,$4d,$d4,$4c,$d7,$c5,$31,$e5,$5f,$f6
-	dc.b	$41,$b7,$91,$69,$01,$65,$09,$5b,$22,$dd,$2a,$ad,$d9,$4c,$2c,$87
-	dc.b	$72,$f2,$28,$f5,$ce,$27,$57,$e0,$4d,$40,$f8,$2a,$ad,$a6,$ab,$8f
-	dc.b	$23,$33,$e6,$17,$5e,$c7,$a2,$fc,$61,$2e,$35,$a2,$dc,$d4,$e8,$87
-	dc.b	$16,$7a,$2e,$3c,$e4,$a5,$75,$16,$a5,$64,$b5,$4d,$90,$eb,$65,$b9
-	dc.b	$a9,$c3,$aa,$8d,$32,$a1,$d8,$b2,$33,$90,$37,$20,$f8,$a4,$53,$2d
-	dc.b	$cc,$0f,$cb,$33,$02,$4e,$2f,$22,$6f,$d4,$39,$4a,$fb,$23,$6e,$7d
-	dc.b	$3a,$56,$a9,$bc,$ac,$fe,$dc,$ac,$f5,$48,$87,$42,$c8,$66,$29,$01
-	dc.b	$11,$0d,$93,$e9,$a1,$c0,$a9,$10,$0b,$8b,$73,$94,$ae,$d2,$b5,$41
-	dc.b	$c8,$76,$d2,$bb,$6a,$eb,$04,$25,$90,$97,$bb,$0b,$40,$de,$43,$34
-	dc.b	$4c,$c6,$2c,$e1,$99,$08,$71,$76,$54,$83,$27,$25,$b9,$cd,$bc,$4c
-	dc.b	$2c,$4e,$09,$35,$bd,$b6,$fd,$c8,$a5,$b7,$e7,$e8,$d8,$31,$75,$a7
-	dc.b	$b9,$f4,$fe,$b4,$ee,$1d,$6a,$5b,$ce,$21,$d6,$f7,$e8,$8f,$89,$90
-	dc.b	$43,$a1,$79,$cb,$6e,$14,$25,$2c,$eb,$e9,$08,$f0,$83,$45,$21,$62
-	dc.b	$f9,$98,$2f,$7e,$20,$d3,$49,$d6,$ab,$be,$c0,$ac,$af,$96,$f4,$55
-	dc.b	$1b,$04,$3b,$f4,$78,$6c,$fd,$44,$bc,$57,$36,$e0,$7a,$4b,$a2,$83
-	dc.b	$bf,$23,$e4,$cd,$c1,$09,$26,$39,$61,$17,$88,$6d,$9d,$d6,$69,$f3
-	dc.b	$98,$7c,$8c,$79,$c3,$a1,$fc,$85,$33,$a6,$35,$a9,$12,$01,$06,$84
-	dc.b	$53,$e4,$58,$ba,$c3,$a1,$cd,$cc,$59,$47,$79,$10,$1d,$6c,$85,$bf
-	dc.b	$21,$1e,$a9,$4f,$20,$d0,$50,$ac,$96,$ce,$8e,$c8,$46,$e0,$2f,$0a
-	dc.b	$99,$26,$0a,$f2,$90,$31,$b3,$28,$91,$2c,$08,$72,$03,$40,$50,$b2
-	dc.b	$04,$f8,$d5,$c4,$91,$16,$43,$8b,$92,$4c,$08,$9a,$3c,$b5,$e8,$af
-	dc.b	$f6,$b0,$60,$07,$e8,$c4,$07,$81,$a7,$38,$2e,$06,$07,$69,$6e,$32
-	dc.b	$86,$69,$cf,$e7,$e5,$78,$55,$fe,$ae,$1e,$bd,$5e,$35,$b5,$a1,$48
-	dc.b	$8e,$00,$49,$58,$40,$31,$a1,$66,$ac,$01,$00,$18,$50,$0c,$1e,$00
-	dc.b	$70,$f0,$4d,$0e,$06,$9c,$d1,$10,$14,$5e,$f8,$e6,$e7,$ad,$57,$c4
-	dc.b	$73,$73,$73,$1c,$0a,$71,$e6,$2d,$45,$b7,$07,$1c,$49,$f1,$bb,$9b
-	dc.b	$91,$72,$00,$51,$79,$d0,$01,$6b,$81,$b0,$2e,$14,$55,$a6,$62,$aa
-	dc.b	$26,$33,$0e,$1a,$1d,$c9,$d9,$a7,$6e,$68,$0e,$41,$ce,$4a,$00,$51
-	dc.b	$c2,$c5,$98,$23,$b8,$e3,$72,$10,$58,$a2,$87,$99,$de,$31,$ba,$eb
-	dc.b	$a1,$90,$18,$07,$49,$98,$76,$2a,$32,$d8,$ae,$17,$15,$20,$85,$0c
-	dc.b	$56,$00,$2a,$41,$13,$6b,$81,$d2,$a8,$d6,$3c,$15,$ca,$51,$de,$8c
-	dc.b	$2a,$a5,$30,$18,$42,$0e,$a3,$30,$30,$43,$51,$60,$eb,$e7,$00,$67
-	dc.b	$01,$7c,$32,$1d,$84,$15,$60,$95,$63,$20,$3f,$0f,$81,$80,$9c,$9b
-	dc.b	$37,$90,$86,$76,$6c,$d9,$a7,$7b,$c4,$32,$a7,$4a,$d7,$c4,$48,$70
-	dc.b	$c0,$9d,$01,$4d,$20,$a8,$f0,$31,$b5,$ab,$52,$b2,$c0,$38,$21,$5b
-	dc.b	$ac,$c8,$6b,$ae,$43,$6c,$28,$9e,$65,$75,$97,$17,$60,$01,$b5,$06
-	dc.b	$0d,$ae,$d8,$5f,$7e,$7b,$8d,$d7,$a0,$6d,$71,$9a,$fb,$68,$0a,$c0
-	dc.b	$b5,$a8,$35,$ba,$6b,$8f,$5e,$ba,$5b,$48,$5e,$06,$ba,$07,$b7,$1b
-	dc.b	$3b,$3d,$69,$6e,$de,$b5,$ad,$7a,$f6,$ed,$a4,$2c,$ec,$ee,$83,$d6
-	dc.b	$81,$eb,$ad,$ab,$5d,$b4,$85,$9d,$70,$da,$d7,$69,$5e,$92,$11,$12
-	dc.b	$ef,$5c,$67,$a3,$c6,$98,$f2,$7a,$b8,$da,$1e,$05,$1e,$5a,$47,$a9
-	dc.b	$0a,$69,$a6,$b9,$1e,$2e,$1e,$5c,$a7,$1d,$16,$bd,$8b,$a0,$dc,$1e
-	dc.b	$f1,$73,$f5,$d5,$f2,$8b,$07,$3c,$e0,$7f,$fa,$23,$7f,$fc,$61,$3f
-	dc.b	$fe,$b9,$5f,$7e,$3f,$e9,$2d,$1e,$62,$3e,$a9,$7e,$99,$8f,$d8,$b0
-	dc.b	$af,$f9,$1c,$83,$ff,$ff,$c7,$eb,$23,$3d,$e8,$ef,$4c,$fe,$16,$f5
-	dc.b	$bf,$b3,$f7,$d3,$eb,$de,$d7,$19,$ef,$ef,$d5,$fb,$e9,$b7,$d4,$6f
-	dc.b	$af,$df,$4a,$be,$b9,$63,$d5,$bc,$f5,$10,$3f,$fc,$6c,$2b,$fe,$8a
-	dc.b	$1f,$7d,$21,$7d,$e1,$60,$ff,$f9,$fd,$7a,$81,$f2,$de,$72,$5e,$bf
-	dc.b	$6b,$fb,$9f,$a9,$7a,$af,$f1,$f5,$12,$44,$63,$eb,$f1,$f5,$2c,$7d
-	dc.b	$4d,$fc,$3a,$ef,$51,$3f,$29,$f8,$67,$f3,$37,$6e,$46,$39,$9e,$47
-	dc.b	$cc,$5d,$b8,$00,$5d,$a4,$08,$37,$54,$38,$9e,$07,$18,$a8,$8c,$47
-	dc.b	$87,$b1,$b8,$1a,$7d,$45,$5c,$31,$7b,$1b,$c0,$6f,$de,$61,$c1,$72
-	dc.b	$33,$6c,$f8,$fc,$25,$29,$43,$85,$2e,$b1,$ce,$4a,$6f,$de,$70,$ef
-	dc.b	$7c,$b9,$2b,$9a,$f7,$d2,$2f,$a9,$7e,$7c,$cb,$ef,$d9,$ba,$f9,$fd
-	dc.b	$37,$9c,$ab,$e6,$57,$ef,$db,$7f,$05,$ff,$b6,$37,$9d,$5d,$0f,$bf
-	dc.b	$2d,$e1,$1d,$eb,$1f,$af,$b5,$f5,$cf,$7d,$7a,$fa,$7a,$c1,$c3,$f7
-	dc.b	$ee,$fd,$64,$fe,$74,$7f,$86,$45,$7b,$c4,$df,$a9,$7f,$d0,$de,$5e
-	dc.b	$b4,$7e,$fd,$c7,$c9,$dd,$fa,$2b,$7d,$70,$fd,$fb,$96,$fa,$a3,$bd
-	dc.b	$2d,$c6,$7b,$ed,$87,$a8,$bd,$f5,$23,$f5,$eb,$25,$fd,$fb,$7a,$14
-	dc.b	$9e,$ac,$ff,$11,$de,$9a,$e3,$fb,$80,$fd,$f6,$6f,$d6,$0f,$fd,$0f
-	dc.b	$f3,$7a,$c5,$f7,$ea,$bf,$ad,$eb,$6a,$fd,$4f,$78,$fd,$51,$37,$d7
-	dc.b	$18,$be,$a7,$fb,$7e,$b9,$6b,$7a,$a5,$d7,$ea,$07,$33,$d6,$96,$fd
-	dc.b	$62,$eb,$f5,$ab,$fc,$49,$bc,$62,$be,$58,$fe,$67,$3c,$41,$f1,$4f
-	dc.b	$c3,$65,$7f,$ac,$9f,$3e,$78,$82,$49,$3e,$22,$10,$23,$f9,$9c,$39
-	dc.b	$60,$bc,$fe,$00,$c3,$f9,$d8,$2a,$c3,$f9,$91,$cd,$e6,$2c,$5e,$2d
-	dc.b	$30,$18,$a8,$74,$62,$2f,$d3,$66,$6e,$2b,$9e,$64,$df,$28,$9e,$24
-	dc.b	$08,$30,$9b,$00,$19,$cc,$b8,$28,$7c,$dc,$1f,$9e,$02,$0c,$e0,$34
-	dc.b	$38,$72,$e6,$43,$46,$cb,$57,$95,$fd,$92,$95,$88,$13,$1b,$56,$aa
-	dc.b	$10,$07,$ac,$1a,$4c,$70,$0d,$12,$fe,$c5,$13,$78,$68,$e0,$78,$9f
-	dc.b	$10,$3f,$49,$ef,$d8,$aa,$b3,$d6,$13,$1a,$f4,$b0,$1e,$ea,$f2,$7f
-	dc.b	$f8,$43,$5e,$fc,$27,$ae,$93,$78,$c5,$13,$1b,$d7,$af,$9b,$d5,$54
-	dc.b	$f1,$25,$0e,$0a,$bd,$5e,$ab,$77,$f0,$73,$2c,$5e,$aa,$49,$df,$36
-	dc.b	$80,$be,$85,$57,$ad,$db,$df,$9d,$df,$3e,$bf,$8c,$38,$55,$27,$2f
-	dc.b	$5e,$b8,$81,$9e,$a2,$9e,$25,$ab,$55,$80,$3f,$22,$fd,$19,$e2,$0b
-	dc.b	$63,$f1,$19,$6a,$bf,$5f,$11,$42,$3e,$5b,$70,$97,$a3,$b9,$21,$63
-	dc.b	$87,$c3,$bf,$42,$f4,$6d,$aa,$4f,$cf,$b1,$c1,$ab,$0f,$86,$08,$56
-	dc.b	$0e,$90,$7c,$38,$03,$3f,$09,$47,$c5,$bc,$4d,$cc,$25,$e0,$20,$f9
-	dc.b	$f5,$70,$7c,$30,$20,$ca,$a8,$ff,$61,$29,$f2,$4f,$01,$d8,$38,$33
-	dc.b	$f4,$8d,$80,$f1,$98,$87,$39,$cf,$46,$43,$98,$f3,$ce,$62,$5a,$d9
-	dc.b	$7f,$38,$4b,$f2,$12,$d3,$00,$02,$86,$ef,$00,$3d,$96,$e3,$88,$61
-	dc.b	$86,$92,$70,$38,$94,$49,$f0,$c3,$8b,$15,$12,$2f,$36,$4b,$e7,$8b
-	dc.b	$fb,$48,$f5,$65,$fd,$67,$f5,$25,$c0,$7a,$bf,$db,$f4,$4f,$03,$6b
-	dc.b	$d5,$3f,$c4,$be,$fd,$a7,$9d,$bb,$f2,$93,$eb,$2f,$af,$b7,$a4,$3b
-	dc.b	$f4,$cc,$fe,$d3,$bd,$1d,$d3,$f6,$97,$fd,$c7,$bd,$59,$3f,$59,$3e
-	dc.b	$a5,$fc,$b7,$c6,$72,$75,$df,$d6,$13,$7d,$1c,$7c,$11,$3f,$d3,$21
-	dc.b	$fb,$6f,$e8,$43,$d7,$df,$c6,$79,$51,$2b,$d5,$de,$e9,$ea,$4f,$c6
-	dc.b	$6f,$96,$78,$87,$e5,$8f,$98,$f1,$6f,$e6,$3f,$3e,$fe,$09,$f8,$8d
-	dc.b	$f0,$4f,$1f,$54,$49,$f3,$ee,$60,$97,$83,$b9,$25,$e3,$ee,$80,$73
-	dc.b	$1f,$8e,$e6,$5f,$d1,$2c,$bc,$9d,$2b,$80,$72,$18,$87,$25,$c8,$89
-	dc.b	$0e,$79,$e5,$4a,$e6,$e0,$43,$99,$29,$5c,$82,$b9,$c0,$41,$af,$12
-	dc.b	$a8,$92,$49,$54,$b0,$c3,$0a,$7b,$e9,$0a,$23,$e9,$a1,$ff,$63,$fe
-	dc.b	$c7,$6f,$ea,$d0,$ad,$38,$a6,$ac,$53,$6e,$52,$fc,$14,$72,$25,$92
-	dc.b	$33,$b6,$06,$b0,$37,$88,$82,$4a,$6b,$fa,$42,$a8,$f2,$69,$9e,$c1
-	dc.b	$9d,$a3,$8b,$d6,$be,$ef,$19,$bc,$bb,$7b,$b6,$f4,$1f,$0d,$bf,$a7
-	dc.b	$bc,$a9,$9e,$f3,$1e,$1d,$de,$8c,$e5,$7c,$f7,$9b,$77,$18,$e7,$d0
-	dc.b	$ec,$52,$bc,$ab,$9f,$34,$8f,$79,$8e,$8c,$cd,$6c,$5e,$1f,$9d,$f7
-	dc.b	$8f,$a2,$42,$97,$26,$82,$20,$f7,$0f,$3e,$0c,$ef,$43,$74,$67,$af
-	dc.b	$3e,$97,$6f,$6f,$70,$bb,$f7,$53,$fa,$1d,$bd,$eb,$0e,$ee,$e6,$7f
-	dc.b	$46,$74,$47,$bd,$74,$ea,$e1,$dd,$82,$17,$b9,$ce,$8e,$cf,$a1,$dc
-	dc.b	$23,$41,$26,$e2,$51,$99,$82,$82,$e5,$90,$0c,$c5,$1a,$3b,$2a,$25
-	dc.b	$0a,$14,$0a,$8a,$c6,$c3,$82,$19,$4c,$ac,$81,$55,$2b,$1a,$cf,$c9
-	dc.b	$34,$9e,$59,$31,$9a,$ce,$67,$53,$fa,$45,$3a,$a5,$53,$aa,$55,$ab
-	dc.b	$96,$0b,$15,$a6,$d5,$6c,$bd,$df,$f0,$38,$5c,$3e,$23,$15,$8b,$c6
-	dc.b	$65,$b3,$3a,$4d,$76,$db,$71,$b9,$dd,$ef,$37,$bc,$2e,$37,$2b,$a1
-	dc.b	$d4,$ed,$77,$3b,$bd,$ef,$47,$c3,$e5,$f6,$fc,$7e,$82,$21,$a0,$e8
-	dc.b	$78,$42,$24,$13,$8a,$45,$a3,$b2,$64,$3a,$43,$40,$a2,$54,$2a,$b6
-	dc.b	$6b,$b5,$fb,$01,$82,$c4,$e8,$3f,$e0,$f0,$b0,$60,$3e,$22,$11,$bf
-	dc.b	$61,$91,$49,$94,$ce,$e1,$74,$bb,$ec,$3f,$81,$00,$c8,$72,$2d,$19
-	dc.b	$91,$4a,$02,$61,$70,$70,$6e,$27,$1a,$8f,$cc,$20,$40,$a9,$18,$4a
-	dc.b	$0d,$0a,$8c,$02,$e0,$31,$28,$ac,$7a,$11,$0d,$88,$44,$62,$f2,$48
-	dc.b	$5c,$96,$13,$1d,$06,$03,$64,$11,$b0,$4c,$0e,$08,$07,$87,$c1,$40
-	dc.b	$c0,$80,$2c,$1e,$38,$04,$01,$80,$a0,$00,$10,$01,$10,$50,$22,$44
-	dc.b	$e3,$20,$14,$44,$00,$07
-g2embed_smallfont2_crm_end
-
-	even
-g2embed_gun
-	dc.b	$43,$72,$4d,$32,$00,$00,$00,$00,$57,$cc,$00,$00,$11,$64,$48,$d4
-	dc.b	$7b,$e2,$f7,$f9,$bf,$b7,$f1,$9e,$aa,$b9,$e3,$7e,$aa,$a9,$f6,$bf
-	dc.b	$aa,$af,$31,$7f,$55,$49,$ff,$ce,$fb,$76,$8f,$7d,$bb,$47,$be,$dd
-	dc.b	$a3,$df,$6e,$db,$fc,$eb,$3e,$dd,$bd,$f3,$b0,$7d,$bb,$c7,$ed,$2b
-	dc.b	$60,$7d,$bb,$57,$8d,$c1,$f6,$ef,$1e,$a2,$c7,$db,$bc,$7f,$5c,$b9
-	dc.b	$7e,$f5,$cb,$9f,$e3,$ed,$d8,$bf,$4e,$9b,$ed,$df,$5e,$3f,$7c,$fb
-	dc.b	$76,$cf,$c1,$c2,$d1,$f6,$ed,$e6,$9f,$6e,$d5,$ca,$be,$dd,$dd,$c9
-	dc.b	$be,$dd,$cb,$ed,$7d,$bb,$c7,$55,$2b,$47,$db,$b5,$79,$57,$db,$bc
-	dc.b	$7a,$6f,$b7,$68,$f7,$db,$bd,$ff,$66,$47,$8e,$ae,$0e,$6e,$8f,$8d
-	dc.b	$ec,$e2,$1b,$d9,$4a,$37,$b1,$a0,$6f,$61,$58,$e6,$fe,$e1,$9b,$ec
-	dc.b	$45,$ee,$e8,$2f,$73,$71,$9b,$be,$85,$ed,$7a,$20,$ff,$28,$1d,$4a
-	dc.b	$11,$86,$80,$15,$7e,$7b,$62,$18,$bd,$fc,$a7,$80,$c2,$0f,$f2,$b6
-	dc.b	$03,$08,$b2,$4a,$4f,$f9,$4f,$63,$b3,$23,$0a,$2f,$ca,$79,$15,$f8
-	dc.b	$9e,$51,$7e,$56,$db,$10,$48,$a2,$fc,$a5,$b6,$0a,$ab,$45,$f9,$52
-	dc.b	$7d,$bb,$91,$86,$8b,$b6,$d5,$36,$27,$28,$36,$c2,$ea,$a9,$48,$17
-	dc.b	$b9,$70,$fb,$de,$e9,$6c,$93,$92,$9a,$68,$7c,$a6,$69,$7e,$7e,$68
-	dc.b	$79,$eb,$6b,$6a,$e7,$2e,$61,$68,$12,$c8,$68,$a7,$3c,$b2,$38,$d1
-	dc.b	$1f,$98,$fe,$0f,$1c,$24,$e4,$96,$d6,$d5,$cd,$bb,$d7,$8f,$48,$0f
-	dc.b	$01,$71,$b5,$33,$58,$fa,$22,$28,$6a,$ab,$6b,$68,$2f,$3d,$d6,$7a
-	dc.b	$c6,$b1,$26,$d0,$f1,$8f,$cd,$39,$e0,$8c,$61,$6d,$7c,$21,$f2,$81
-	dc.b	$8c,$0d,$39,$a9,$92,$ac,$9a,$64,$42,$a2,$d3,$4d,$2d,$b5,$b5,$b4
-	dc.b	$4f,$80,$3e,$78,$1c,$1e,$51,$11,$e9,$8c,$dc,$13,$ef,$9a,$53,$cb
-	dc.b	$97,$c1,$0b,$f5,$39,$47,$4d,$e4,$2f,$f3,$e6,$9c,$a2,$14,$f4,$74
-	dc.b	$82,$61,$59,$5b,$7d,$2e,$02,$e7,$8c,$ec,$17,$64,$48,$bd,$b3,$f0
-	dc.b	$89,$16,$74,$0b,$45,$73,$31,$27,$ca,$2b,$09,$1d,$a2,$d4,$3c,$eb
-	dc.b	$6b,$29,$eb,$96,$2d,$13,$59,$aa,$3e,$dd,$bd,$d2,$46,$a9,$75,$7c
-	dc.b	$06,$c0,$d1,$dd,$43,$9e,$09,$ca,$d8,$14,$0c,$b6,$af,$ad,$a2,$dc
-	dc.b	$b1,$63,$35,$54,$50,$1b,$47,$db,$bd,$82,$45,$64,$c1,$62,$eb,$f1
-	dc.b	$c1,$6c,$51,$21,$4b,$47,$db,$b5,$82,$52,$c7,$9a,$ee,$f8,$4d,$be
-	dc.b	$dd,$ad,$e3,$00,$47,$45,$b2,$e5,$8d,$d5,$89,$f6,$ef,$ac,$34,$21
-	dc.b	$f6,$ed,$5c,$ed,$7c,$04,$13,$11,$3e,$dd,$93,$da,$6c,$fb,$76,$af
-	dc.b	$01,$0b,$7d,$bb,$57,$fe,$3d,$c2,$8c,$5f,$45,$fb,$46,$90,$32,$78
-	dc.b	$32,$da,$3e,$dd,$e3,$fc,$09,$f6,$ec,$9f,$e2,$1b,$ed,$df,$df,$f4
-	dc.b	$cf,$b7,$68,$f7,$db,$b4,$7b,$ed,$df,$7f,$fd,$b5,$10,$fb,$76,$3f
-	dc.b	$ef,$3d,$6f,$7c,$17,$fd,$d8,$6f,$1e,$6f,$ce,$5c,$92,$ee,$f9,$bf
-	dc.b	$29,$03,$0c,$d9,$78,$fe,$6f,$c1,$78,$c2,$95,$55,$57,$9a,$86,$d5
-	dc.b	$6f,$f5,$1c,$7c,$7a,$80,$c3,$f7,$b0,$ec,$f8,$fd,$80,$e4,$fa,$86
-	dc.b	$fe,$e5,$e0,$4f,$d8,$23,$ab,$d9,$e4,$6b,$c1,$5f,$b1,$64,$7a,$bf
-	dc.b	$ff,$d9,$88,$a5,$44,$3d,$b7,$bc,$6f,$62,$c7,$8d,$62,$ff,$3e,$b9
-	dc.b	$42,$6a,$22,$a7,$13,$72,$ff,$3e,$ad,$61,$d8,$d1,$75,$34,$cb,$fb
-	dc.b	$c6,$fe,$ec,$c2,$b3,$9a,$3a,$d3,$2d,$2b,$3b,$3a,$c7,$25,$41,$b7
-	dc.b	$1d,$4c,$a5,$4a,$e5,$eb,$d7,$81,$3f,$cf,$e0,$df,$de,$b9,$10,$af
-	dc.b	$9e,$8e,$7d,$72,$ec,$4d,$3a,$43,$bd,$6b,$7f,$b5,$1a,$86,$3a,$f6
-	dc.b	$5a,$00,$a9,$5e,$98,$54,$ad,$3e,$15,$75,$35,$38,$e3,$8a,$1f,$b9
-	dc.b	$76,$a1,$46,$a6,$5e,$bd,$33,$a9,$52,$b9,$72,$fd,$fb,$c3,$ef,$e9
-	dc.b	$c5,$43,$0e,$5e,$a0,$fe,$15,$f3,$a5,$94,$ae,$52,$bd,$7a,$65,$3d
-	dc.b	$89,$f7,$98,$56,$df,$db,$52,$8a,$d8,$37,$e0,$c3,$a8,$5f,$a9,$c0
-	dc.b	$7d,$a6,$57,$2b,$5c,$a5,$78,$13,$fd,$3a,$12,$9a,$f5,$fa,$57,$b4
-	dc.b	$0e,$99,$78,$e1,$d6,$9f,$df,$b4,$f2,$b5,$01,$9b,$30,$0c,$ed,$9f
-	dc.b	$4f,$60,$fb,$d5,$a8,$bf,$87,$87,$93,$36,$ac,$cd,$83,$83,$5f,$9c
-	dc.b	$2d,$72,$fd,$eb,$96,$ff,$85,$6c,$33,$01,$32,$c2,$d6,$9b,$2c,$3d
-	dc.b	$c9,$b5,$e1,$6b,$f7,$a9,$5c,$80,$f9,$6a,$43,$89,$a9,$34,$5a,$6b
-	dc.b	$b1,$6e,$7e,$77,$7e,$65,$7e,$e5,$d8,$9d,$7e,$cb,$da,$46,$6f,$b9
-	dc.b	$82,$b0,$e0,$ad,$d8,$fd,$97,$af,$d3,$81,$be,$7f,$83,$df,$9b,$5e
-	dc.b	$96,$35,$6b,$97,$2d,$3e,$7d,$c5,$33,$4c,$a9,$5b,$9a,$fb,$ef,$33
-	dc.b	$e6,$01,$b1,$4d,$ef,$d6,$12,$a1,$85,$af,$5a,$7f,$45,$52,$77,$ea
-	dc.b	$7d,$66,$58,$36,$37,$df,$0e,$af,$9d,$38,$4e,$85,$ae,$88,$70,$23
-	dc.b	$2b,$fb,$e3,$da,$a6,$88,$32,$7e,$70,$f5,$a7,$4f,$ae,$41,$a2,$0e
-	dc.b	$5f,$e7,$09,$56,$ba,$25,$74,$4e,$58,$38,$f5,$e5,$4a,$fd,$b2,$86
-	dc.b	$0e,$e8,$98,$b2,$87,$b7,$a3,$47,$8f,$28,$0f,$1e,$13,$1d,$de,$eb
-	dc.b	$0f,$1d,$99,$1e,$3a,$b8,$39,$bc,$c1,$49,$a3,$e3,$bb,$d1,$fb,$fe
-	dc.b	$87,$10,$c9,$e5,$28,$df,$fc,$68,$1c,$dc,$2b,$1c,$df,$dc,$2f,$7b
-	dc.b	$11,$9b,$dd,$74,$19,$7f,$0d,$75,$59,$94,$dc,$4e,$f8,$5d,$cd,$c6
-	dc.b	$4f,$a1,$57,$3a,$3e,$87,$ad,$7a,$20,$ff,$29,$e4,$00,$fd,$fc,$f6
-	dc.b	$c4,$31,$7b,$f9,$4f,$01,$84,$1f,$e5,$6c,$24,$54,$c9,$28,$bf,$29
-	dc.b	$ec,$76,$64,$61,$56,$67,$18,$50,$ce,$30,$b8,$ff,$29,$e4,$71,$69
-	dc.b	$14,$f2,$c8,$78,$c6,$64,$f2,$ab,$f2,$b6,$d8,$82,$45,$17,$e5,$2d
-	dc.b	$b0,$45,$55,$69,$3f,$e5,$49,$14,$5a,$e7,$84,$89,$26,$1b,$af,$6d
-	dc.b	$aa,$7c,$0e,$79,$e5,$9b,$6d,$79,$f2,$40,$d8,$86,$1a,$38,$53,$fa
-	dc.b	$58,$8b,$fe,$6c,$97,$55,$fa,$0f,$91,$ff,$09,$81,$e6,$9c,$31,$ad
-	dc.b	$bf,$9a,$c7,$26,$49,$68,$c7,$a4,$6d,$08,$b9,$72,$88,$5b,$ae,$e7
-	dc.b	$81,$94,$51,$23,$47,$ec,$4f,$0c,$1a,$50,$d2,$b8,$2c,$d6,$4c,$e0
-	dc.b	$9d,$36,$ef,$5f,$4b,$06,$b9,$1e,$02,$e3,$68,$6d,$38,$fa,$24,$92
-	dc.b	$91,$c6,$50,$59,$b6,$e6,$db,$9b,$37,$0c,$9b,$20,$a3,$1c,$7c,$f7
-	dc.b	$5f,$45,$63,$eb,$f5,$c9,$8f,$4c,$49,$a5,$c8,$54,$69,$1b,$49,$3b
-	dc.b	$b8,$4a,$63,$0d,$97,$08,$7c,$a0,$78,$ca,$29,$1e,$b8,$f4,$73,$73
-	dc.b	$11,$0a,$8b,$32,$49,$44,$9f,$0c,$fa,$6e,$df,$cf,$b9,$1c,$f0,$c6
-	dc.b	$ee,$00,$f9,$e0,$61,$71,$85,$72,$d2,$23,$d3,$1a,$78,$27,$5c,$9a
-	dc.b	$51,$73,$c0,$4a,$fa,$38,$6c,$db,$0e,$51,$5c,$0c,$ed,$28,$1f,$8d
-	dc.b	$62,$d4,$fc,$47,$a2,$63,$5b,$a3,$6d,$77,$53,$82,$0e,$b3,$86,$dc
-	dc.b	$f0,$3b,$82,$e3,$d5,$a2,$e9,$b3,$4c,$fa,$f4,$f0,$d9,$07,$22,$c4
-	dc.b	$78,$29,$07,$0e,$19,$ca,$33,$74,$cc,$25,$08,$24,$9d,$31,$9b,$39
-	dc.b	$9a,$e9,$27,$07,$9c,$93,$e1,$2b,$b6,$67,$29,$3a,$0e,$19,$72,$2c
-	dc.b	$03,$4f,$4a,$96,$4d,$f0,$30,$d4,$69,$93,$80,$73,$c0,$2d,$14,$13
-	dc.b	$e0,$9c,$a9,$5c,$a9,$50,$67,$75,$db,$86,$73,$ea,$70,$90,$5e,$02
-	dc.b	$c5,$c9,$30,$a1,$5c,$a3,$03,$1c,$0e,$09,$ab,$51,$1c,$ef,$d2,$fd
-	dc.b	$bd,$b9,$56,$73,$68,$9a,$47,$08,$a3,$82,$1e,$14,$38,$4c,$5a,$67
-	dc.b	$49,$4c,$12,$33,$bd,$26,$f8,$84,$3c,$26,$22,$83,$e7,$02,$b4,$19
-	dc.b	$c1,$09,$d3,$c4,$78,$33,$7a,$4d,$be,$c2,$88,$14,$98,$e2,$8a,$28
-	dc.b	$a8,$87,$01,$76,$d9,$40,$11,$9e,$07,$76,$65,$ff,$25,$fc,$39,$de
-	dc.b	$12,$73,$8b,$a6,$ac,$77,$ba,$67,$0c,$d8,$f3,$46,$8b,$f8,$b0,$f8
-	dc.b	$08,$2f,$b9,$5e,$01,$4b,$86,$cb,$05,$fc,$74,$1e,$1e,$17,$c4,$13
-	dc.b	$9d,$91,$75,$60,$13,$d3,$65,$f2,$fe,$19,$b0,$ef,$05,$6e,$f8,$03
-	dc.b	$c0,$80,$1a,$58,$a5,$45,$f6,$e9,$2b,$cb,$95,$0c,$ab,$9c,$ac,$94
-	dc.b	$57,$f2,$f8,$65,$c6,$b2,$6a,$66,$8a,$ec,$e7,$4b,$83,$c5,$63,$b8
-	dc.b	$2f,$c1,$07,$6c,$eb,$55,$85,$ab,$36,$df,$2d,$c1,$69,$82,$85,$0a
-	dc.b	$4f,$e1,$5a,$b9,$50,$56,$97,$66,$cb,$d8,$2e,$9b,$7c,$96,$fd,$3c
-	dc.b	$2f,$84,$b8,$01,$d0,$ea,$42,$e5,$4b,$fb,$d1,$f0,$40,$24,$f8,$2e
-	dc.b	$fd,$60,$3a,$1d,$c4,$f7,$d3,$e4,$2f,$80,$f9,$67,$81,$74,$78,$04
-	dc.b	$67,$e0,$e5,$35,$8b,$f8,$d6,$27,$13,$9c,$6e,$f4,$00,$69,$58,$08
-	dc.b	$1f,$d3,$7d,$ca,$bb,$f0,$f3,$94,$56,$ca,$93,$40,$5d,$6d,$3a,$3e
-	dc.b	$35,$dc,$9c,$72,$83,$7c,$20,$13,$5d,$ac,$3c,$55,$85,$b8,$ff,$90
-	dc.b	$5a,$36,$21,$ce,$cc,$d3,$4d,$7c,$27,$45,$c9,$30,$bd,$13,$6c,$4d
-	dc.b	$78,$47,$87,$c0,$9f,$c6,$2d,$95,$26,$dc,$47,$c0,$7a,$7c,$db,$81
-	dc.b	$df,$e9,$89,$58,$70,$73,$6c,$4f,$d6,$1c,$5c,$09,$ff,$be,$3c,$36
-	dc.b	$b1,$49,$37,$e9,$8e,$09,$a6,$9a,$46,$3b,$38,$3a,$fd,$38,$4b,$e1
-	dc.b	$12,$a6,$43,$bb,$58,$93,$9a,$25,$2c,$cf,$09,$4d,$8b,$0b,$db,$c4
-	dc.b	$c3,$33,$c1,$ef,$e6,$a6,$e1,$8f,$fa,$6c,$78,$63,$cd,$c1,$ed,$16
-	dc.b	$a6,$e1,$77,$85,$69,$ae,$98,$ff,$86,$5d,$8b,$5f,$7c,$e0,$f6,$af
-	dc.b	$f3,$f0,$e6,$6b,$1a,$38,$cd,$f1,$7a,$30,$56,$a1,$aa,$f3,$51,$30
-	dc.b	$1f,$7a,$72,$15,$43,$5b,$bc,$45,$bc,$3e,$8c,$ef,$ac,$11,$55,$54
-	dc.b	$6a,$a3,$09,$63,$15,$4e,$11,$b0,$7b,$8c,$1c,$8d,$2c,$d5,$51,$83
-	dc.b	$0d,$cf,$e7,$a3,$f8,$b1,$6a,$c5,$46,$db,$03,$8b,$33,$10,$c6,$7a
-	dc.b	$2a,$e7,$51,$8d,$7a,$d3,$8b,$8a,$80,$27,$4d,$88,$53,$15,$5a,$bc
-	dc.b	$fc,$3a,$25,$88,$91,$00,$a1,$bd,$cd,$35,$17,$74,$0c,$37,$dc,$bf
-	dc.b	$07,$13,$a3,$e7,$c8,$41,$f3,$12,$00,$e4,$6a,$71,$2d,$28,$ed,$ab
-	dc.b	$56,$d8,$0e,$40,$8b,$68,$96,$46,$1a,$9e,$1b,$88,$82,$96,$f4,$57
-	dc.b	$5b,$70,$72,$8c,$1a,$df,$82,$19,$42,$c8,$cb,$6c,$02,$d6,$19,$3a
-	dc.b	$db,$b6,$18,$75,$d2,$22,$52,$2d,$66,$14,$32,$db,$0d,$88,$56,$c4
-	dc.b	$d2,$cb,$68,$ec,$8d,$a2,$61,$a4,$20,$4b,$ac,$31,$fa,$3b,$34,$84
-	dc.b	$b5,$cc,$26,$5a,$02,$b2,$28,$44,$b5,$6a,$de,$c2,$a3,$2b,$6d,$ab
-	dc.b	$56,$b0,$33,$03,$1f,$e2,$8b,$b0,$91,$52,$85,$3e,$2d,$bc,$74,$30
-	dc.b	$ae,$44,$e8,$c8,$45,$d6,$80,$81,$ba,$dd,$dd,$a7,$34,$44,$8f,$1d
-	dc.b	$b5,$45,$30,$d6,$0c,$18,$0c,$37,$4e,$28,$3b,$c9,$96,$ba,$ed,$1d
-	dc.b	$21,$46,$5d,$ba,$b6,$b7,$db,$54,$03,$7b,$9b,$61,$0c,$2b,$42,$dd
-	dc.b	$b0,$b1,$cd,$7a,$c2,$99,$61,$60,$cb,$6b,$76,$9d,$b5,$f6,$ad,$76
-	dc.b	$53,$cd,$02,$d8,$d4,$ef,$c5,$67,$ca,$54,$cb,$45,$45,$db,$b7,$f5
-	dc.b	$5c,$a5,$4c,$ac,$b1,$6d,$6d,$d0,$98,$9e,$ae,$a6,$59,$e2,$8d,$e1
-	dc.b	$ee,$da,$bc,$32,$c9,$22,$43,$c9,$e8,$6d,$26,$b7,$ad,$a8,$53,$28
-	dc.b	$b2,$30,$de,$1c,$63,$ba,$85,$9f,$61,$f9,$4a,$b6,$5e,$65,$91,$bc
-	dc.b	$9e,$a0,$6d,$56,$35,$9b,$2d,$3a,$85,$5d,$bb,$76,$02,$ab,$30,$27
-	dc.b	$b2,$d1,$a8,$d6,$1b,$bf,$7c,$c4,$86,$07,$73,$d2,$8b,$30,$ed,$4f
-	dc.b	$f4,$30,$97,$5d,$64,$5a,$76,$d2,$80,$da,$5d,$66,$43,$d3,$ad,$98
-	dc.b	$d0,$76,$05,$6e,$10,$61,$86,$ea,$c5,$0c,$0e,$ea,$86,$c2,$2c,$3c
-	dc.b	$27,$08,$ec,$db,$09,$bb,$31,$61,$d8,$0d,$a4,$38,$ce,$da,$58,$c3
-	dc.b	$1a,$67,$dc,$57,$1a,$ba,$c1,$4e,$23,$03,$b6,$f0,$67,$1f,$69,$90
-	dc.b	$61,$ae,$ad,$85,$83,$5e,$89,$26,$59,$59,$76,$e8,$c3,$2d,$71,$0b
-	dc.b	$61,$85,$d9,$1a,$cc,$38,$dc,$65,$b7,$4f,$f9,$7d,$11,$6b,$21,$b7
-	dc.b	$c0,$6b,$28,$f1,$56,$e9,$e9,$88,$c4,$77,$6b,$0e,$b6,$c1,$26,$45
-	dc.b	$1b,$69,$c5,$1d,$b7,$6b,$02,$bd,$7c,$2c,$32,$74,$b2,$30,$d7,$76
-	dc.b	$b4,$b3,$6f,$22,$f2,$e3,$ad,$ac,$61,$90,$dd,$5b,$0e,$d1,$f2,$51
-	dc.b	$89,$97,$58,$e8,$d6,$6a,$d5,$ab,$64,$62,$a1,$19,$a6,$c8,$c1,$78
-	dc.b	$e2,$98,$03,$1b,$16,$19,$b0,$1a,$ed,$96,$78,$ad,$76,$c5,$63,$0d
-	dc.b	$1c,$c1,$9d,$0b,$3c,$56,$e3,$09,$95,$96,$51,$e9,$d6,$c2,$b5,$86
-	dc.b	$18,$24,$47,$1c,$76,$d8,$46,$a9,$85,$dd,$5b,$37,$6c,$d9,$b2,$cf
-	dc.b	$4e,$b6,$30,$d0,$b5,$33,$1d,$14,$51,$d0,$c3,$0a,$d5,$a3,$76,$12
-	dc.b	$d0,$20,$d6,$6c,$8d,$66,$9e,$9e,$2c,$3b,$5d,$b8,$c1,$ed,$61,$db
-	dc.b	$d1,$c7,$c5,$a3,$73,$d1,$b0,$3b,$50,$d7,$6e,$8c,$55,$9a,$b6,$7a
-	dc.b	$64,$54,$74,$78,$b4,$fd,$3f,$15,$1e,$2b,$5f,$bf,$de,$11,$96,$ad
-	dc.b	$1a,$2c,$58,$a9,$1a,$0f,$56,$a6,$73,$f3,$d9,$47,$e7,$c5,$71,$8c
-	dc.b	$f9,$61,$fc,$58,$71,$86,$87,$67,$8a,$c2,$1f,$0d,$b1,$f2,$ad,$55
-	dc.b	$79,$d1,$d8,$09,$1d,$cc,$56,$78,$b1,$59,$d2,$58,$c0,$1d,$66,$0d
-	dc.b	$55,$5a,$b6,$62,$a3,$9c,$59,$73,$54,$58,$a8,$02,$80,$78,$d0,$61
-	dc.b	$96,$6c,$8c,$8f,$ce,$cf,$a3,$e7,$e7,$46,$7f,$c4,$6c,$2a,$dc,$40
-	dc.b	$6b,$35,$4e,$f8,$7d,$58,$7d,$1e,$34,$60,$af,$56,$ff,$87,$7c,$f1
-	dc.b	$23,$68,$4f,$ac,$7b,$ab,$e0,$e3,$73,$fd,$7d,$7a,$a2,$d4,$0f,$a8
-	dc.b	$1f,$d4,$16,$61,$dc,$3f,$5a,$65,$3c,$e6,$22,$90,$6f,$8d,$d0,$75
-	dc.b	$03,$95,$68,$8c,$f7,$ac,$99,$c0,$d1,$3f,$04,$a2,$26,$18,$e6,$8e
-	dc.b	$ee,$80,$0d,$22,$e1,$35,$2c,$80,$45,$0d,$12,$a5,$f9,$2c,$3f,$8b
-	dc.b	$04,$fa,$e4,$5d,$d2,$82,$e4,$3a,$a2,$86,$9b,$2b,$dd,$81,$66,$26
-	dc.b	$28,$23,$29,$8e,$01,$ad,$53,$3a,$ca,$19,$a1,$dd,$c5,$db,$16,$c8
-	dc.b	$6e,$4c,$40,$82,$e4,$a9,$9c,$91,$09,$8b,$04,$18,$99,$21,$a2,$ec
-	dc.b	$32,$19,$26,$b1,$45,$44,$c8,$52,$05,$f8,$e4,$14,$59,$4c,$37,$45
-	dc.b	$07,$80,$bc,$68,$71,$dd,$05,$a3,$00,$db,$cd,$d1,$cd,$cc,$97,$c1
-	dc.b	$76,$e8,$e3,$8e,$87,$85,$d6,$5a,$80,$db,$cc,$a1,$8b,$3b,$c8,$b1
-	dc.b	$4a,$67,$ac,$77,$75,$8d,$cb,$9f,$2f,$da,$02,$c9,$bc,$4b,$4c,$1c
-	dc.b	$96,$a5,$55,$43,$d2,$bc,$91,$65,$6e,$8a,$ea,$eb,$b1,$9d,$e4,$5d
-	dc.b	$9a,$78,$e4,$ec,$84,$8f,$d1,$79,$05,$e8,$25,$ff,$27,$1d,$e8,$ef
-	dc.b	$20,$ff,$32,$16,$94,$a8,$87,$f1,$a7,$d1,$53,$5f,$21,$eb,$db,$7c
-	dc.b	$3f,$2e,$2b,$58,$4c,$cb,$0c,$ba,$ea,$80,$56,$62,$89,$80,$fc,$14
-	dc.b	$7d,$74,$a1,$06,$53,$df,$28,$8b,$b6,$4c,$dc,$a4,$8c,$7c,$b6,$07
-	dc.b	$70,$e5,$8a,$3d,$f2,$76,$38,$b0,$c3,$25,$0d,$dc,$db,$42,$49,$47
-	dc.b	$ac,$09,$43,$4f,$58,$88,$aa,$62,$29,$10,$fb,$2a,$44,$57,$93,$14
-	dc.b	$d5,$c8,$07,$e8,$e3,$97,$f7,$ec,$30,$30,$df,$6a,$f7,$cc,$4f,$2a
-	dc.b	$33,$21,$95,$9e,$9c,$fb,$5a,$bf,$e2,$9d,$ff,$93,$e6,$3b,$d9,$c4
-	dc.b	$ec,$80,$d1,$94,$e4,$2a,$3f,$86,$91,$02,$9a,$11,$e4,$9a,$2b,$32
-	dc.b	$6b,$3d,$b1,$32,$98,$2b,$fe,$de,$fd,$52,$7f,$f6,$47,$98,$95,$2a
-	dc.b	$5f,$3e,$57,$53,$29,$92,$d5,$98,$c8,$67,$0a,$46,$79,$06,$42,$59
-	dc.b	$15,$24,$55,$c4,$94,$d9,$a9,$5e,$f9,$7a,$63,$59,$7f,$d5,$65,$18
-	dc.b	$05,$e9,$ba,$8f,$2d,$ac,$07,$9f,$24,$2d,$c1,$07,$c8,$00,$64,$6c
-	dc.b	$10,$51,$40,$f9,$e8,$e9,$8d,$ab,$90,$21,$4c,$8b,$98,$a8,$0d,$09
-	dc.b	$52,$44,$bf,$9f,$26,$35,$58,$12,$ee,$b4,$31,$a5,$c1,$06,$22,$25
-	dc.b	$4a,$f5,$ba,$a8,$63,$1d,$c8,$33,$45,$4c,$ee,$1e,$17,$80,$35,$66
-	dc.b	$a2,$8a,$41,$be,$86,$48,$c8,$f4,$e0,$95,$b6,$bc,$bc,$2e,$56,$13
-	dc.b	$70,$91,$9f,$b2,$3f,$32,$93,$d3,$a6,$34,$4a,$8d,$f7,$25,$43,$38
-	dc.b	$4c,$b0,$d7,$7a,$e4,$4b,$ce,$d1,$1d,$54,$79,$eb,$a9,$10,$f9,$8c
-	dc.b	$8a,$85,$07,$1c,$71,$21,$34,$7e,$41,$d1,$dc,$66,$fa,$9a,$74,$6e
-	dc.b	$6a,$09,$68,$02,$87,$8f,$9a,$e8,$b6,$34,$4f,$4e,$74,$49,$f2,$44
-	dc.b	$5b,$82,$17,$60,$4a,$e1,$67,$47,$1a,$d2,$df,$87,$57,$ab,$b2,$04
-	dc.b	$17,$be,$6a,$59,$d7,$58,$ea,$52,$66,$63,$32,$52,$2c,$b9,$d0,$91
-	dc.b	$80,$94,$50,$20,$fb,$fe,$75,$8f,$63,$9b,$dd,$38,$cd,$30,$6d,$62
-	dc.b	$1a,$27,$b4,$25,$04,$ab,$98,$79,$eb,$af,$33,$2c,$88,$87,$1c,$d3
-	dc.b	$3c,$94,$c9,$10,$b3,$9d,$40,$4b,$e4,$07,$ce,$fc,$39,$9d,$21,$40
-	dc.b	$38,$e9,$02,$db,$db,$ab,$6e,$44,$57,$20,$cc,$fc,$f3,$d1,$5d,$40
-	dc.b	$4f,$2b,$13,$73,$45,$d1,$c2,$c1,$24,$8c,$29,$7e,$1c,$77,$93,$ca
-	dc.b	$f8,$0b,$dd,$dd,$96,$73,$48,$a4,$90,$32,$3f,$16,$f4,$5d,$83,$00
-	dc.b	$ef,$b7,$6c,$a5,$81,$b5,$2f,$f8,$e2,$47,$42,$18,$f4,$a6,$3b,$70
-	dc.b	$40,$bd,$29,$e8,$25,$59,$c0,$f8,$0b,$80,$54,$28,$02,$95,$e8,$32
-	dc.b	$04,$4b,$3b,$67,$84,$b4,$51,$36,$f0,$87,$09,$66,$0a,$15,$86,$39
-	dc.b	$1f,$85,$f1,$e4,$30,$5e,$bd,$7a,$89,$af,$1c,$4d,$aa,$78,$07,$e3
-	dc.b	$38,$25,$26,$7c,$95,$2d,$e6,$c0,$c0,$50,$e1,$23,$3e,$9a,$64,$a9
-	dc.b	$51,$39,$91,$aa,$b9,$05,$6b,$32,$69,$a9,$6a,$4a,$f0,$9c,$9f,$10
-	dc.b	$35,$25,$4a,$94,$14,$a9,$66,$cd,$4a,$96,$68,$d5,$3c,$d6,$40,$52
-	dc.b	$c4,$c9,$b3,$66,$fd,$23,$5e,$3d,$26,$c8,$57,$de,$66,$c8,$5c,$10
-	dc.b	$41,$c7,$fa,$dc,$ac,$c8,$ff,$aa,$ed,$8b,$ff,$f3,$8c,$d4,$67,$e4
-	dc.b	$b1,$91,$e9,$f8,$6e,$a4,$4d,$5e,$d4,$66,$4e,$4d,$80,$42,$5a,$94
-	dc.b	$8b,$e4,$de,$eb,$f5,$78,$68,$d9,$18,$4d,$08,$c9,$24,$d3,$75,$3d
-	dc.b	$76,$52,$d5,$01,$cf,$eb,$22,$68,$a9,$ad,$42,$14,$b3,$b1,$9b,$05
-	dc.b	$38,$cd,$ae,$1a,$57,$8d,$61,$05,$15,$2c,$01,$e3,$af,$73,$ec,$ee
-	dc.b	$1c,$a7,$09,$ca,$56,$46,$be,$68,$f2,$13,$78,$fe,$df,$e9,$83,$16
-	dc.b	$63,$3f,$11,$2c,$e9,$67,$49,$34,$31,$a8,$18,$87,$06,$f4,$89,$bb
-	dc.b	$38,$4d,$70,$e4,$4a,$7d,$34,$27,$e9,$90,$35,$47,$d7,$4a,$90,$d6
-	dc.b	$fc,$45,$a0,$c4,$b1,$0a,$c6,$14,$2a,$30,$01,$70,$31,$39,$d3,$9b
-	dc.b	$eb,$2c,$82,$a9,$8b,$08,$a6,$92,$b4,$9a,$6d,$6c,$78,$c5,$a0,$51
-	dc.b	$58,$4a,$12,$dd,$04,$69,$91,$60,$82,$02,$62,$ed,$2a,$9d,$54,$09
-	dc.b	$50,$c5,$61,$56,$b1,$94,$72,$ec,$09,$bb,$1a,$21,$43,$00,$90,$d2
-	dc.b	$94,$2d,$74,$98,$b4,$eb,$b1,$24,$92,$81,$2c,$60,$ab,$39,$10,$87
-	dc.b	$16,$dd,$9f,$a4,$05,$c3,$95,$85,$90,$09,$8b,$bb,$28,$f3,$b7,$72
-	dc.b	$e2,$60,$cb,$39,$c9,$17,$44,$c0,$58,$11,$53,$5a,$67,$90,$83,$7b
-	dc.b	$ae,$b4,$b3,$0c,$6f,$18,$ae,$1d,$c2,$e8,$ad,$e4,$0b,$d1,$40,$46
-	dc.b	$5d,$06,$43,$1a,$c9,$1b,$52,$f4,$22,$02,$27,$7d,$95,$10,$7f,$82
-	dc.b	$85,$15,$21,$1e,$c4,$f5,$49,$33,$7a,$4e,$fd,$49,$8a,$f6,$16,$fe
-	dc.b	$0c,$a6,$25,$c6,$ed,$ee,$2a,$2b,$1b,$7b,$92,$13,$0a,$23,$ec,$a0
-	dc.b	$37,$5e,$8f,$51,$64,$01,$fa,$11,$e3,$b1,$3d,$5a,$a9,$20,$8a,$c4
-	dc.b	$bf,$08,$94,$9d,$8a,$58,$3f,$fa,$02,$3c,$ce,$d3,$75,$db,$da,$91
-	dc.b	$e2,$40,$6e,$dc,$1b,$32,$b5,$d1,$7a,$97,$49,$d9,$42,$64,$77,$d6
-	dc.b	$48,$01,$0c,$85,$a7,$e0,$04,$2c,$c4,$49,$1a,$94,$eb,$d4,$1c,$0a
-	dc.b	$37,$61,$fa,$21,$b7,$0d,$ee,$d1,$63,$23,$ea,$b1,$12,$6c,$84,$49
-	dc.b	$11,$21,$60,$de,$8e,$11,$5c,$81,$ff,$06,$e2,$d4,$58,$87,$f2,$d2
-	dc.b	$96,$24,$3c,$3e,$93,$2c,$47,$91,$5f,$d4,$fb,$0b,$5e,$e8,$08,$4a
-	dc.b	$53,$90,$58,$db,$a0,$64,$56,$10,$4f,$65,$ec,$6c,$d2,$94,$16,$48
-	dc.b	$4b,$a9,$f6,$0c,$de,$54,$22,$c2,$e4,$77,$52,$19,$32,$52,$86,$1d
-	dc.b	$5e,$ce,$da,$78,$a2,$ff,$94,$b5,$16,$0e,$ea,$19,$b8,$f8,$48,$c5
-	dc.b	$64,$75,$bd,$4d,$99,$8d,$ba,$93,$e0,$d2,$6e,$b1,$b1,$d9,$f6,$16
-	dc.b	$67,$52,$4b,$00,$68,$d1,$b6,$01,$9d,$ef,$51,$e1,$a9,$75,$4c,$38
-	dc.b	$60,$95,$cc,$4f,$9a,$ea,$4b,$b0,$f6,$06,$84,$d8,$56,$b2,$1e,$6e
-	dc.b	$a3,$c3,$6c,$42,$cd,$0e,$fd,$14,$dc,$b6,$a1,$4d,$b4,$d6,$59,$f6
-	dc.b	$a7,$1e,$12,$f4,$80,$56,$af,$e2,$75,$65,$cc,$c4,$3b,$6d,$0b,$1c
-	dc.b	$ec,$c1,$4a,$75,$6e,$eb,$42,$c6,$1a,$21,$50,$60,$16,$25,$5a,$93
-	dc.b	$21,$66,$ed,$42,$43,$86,$7e,$9d,$5c,$16,$a1,$70,$58,$b1,$fb,$56
-	dc.b	$a8,$56,$74,$b1,$9d,$0d,$25,$0b,$0f,$5c,$b0,$a2,$8a,$b1,$b5,$de
-	dc.b	$cb,$27,$0e,$1f,$30,$a1,$b3,$c5,$2c,$b0,$71,$85,$14,$37,$a2,$ac
-	dc.b	$65,$8d,$2b,$3a,$59,$37,$13,$4d,$6b,$29,$b8,$a2,$12,$75,$61,$62
-	dc.b	$49,$1b,$77,$45,$34,$17,$07,$ea,$22,$c7,$49,$75,$25,$81,$0f,$a4
-	dc.b	$41,$75,$cb,$03,$fc,$24,$6d,$37,$fc,$ea,$c0,$15,$92,$a5,$0c,$e4
-	dc.b	$a2,$0f,$c5,$62,$1e,$a4,$26,$ee,$ba,$a4,$93,$a5,$dd,$14,$c3,$fd
-	dc.b	$03,$95,$96,$57,$23,$3a,$44,$40,$ff,$95,$12,$c6,$58,$92,$63,$84
-	dc.b	$58,$4a,$71,$5e,$09,$22,$26,$7f,$99,$f2,$2f,$c2,$49,$ea,$42,$15
-	dc.b	$23,$16,$0b,$79,$03,$b4,$ce,$76,$8b,$ae,$eb,$ab,$8a,$a5,$9d,$2b
-	dc.b	$b0,$8e,$13,$fc,$c1,$65,$33,$4d,$83,$2e,$b1,$37,$70,$de,$b5,$e0
-	dc.b	$11,$29,$1e,$dd,$ae,$ea,$c6,$4f,$0c,$ee,$a6,$9a,$53,$6d,$a4,$03
-	dc.b	$a2,$86,$ea,$5d,$0c,$b2,$eb,$a9,$a8,$2f,$4b,$58,$6b,$d4,$06,$27
-	dc.b	$a8,$ce,$eb,$ae,$67,$4f,$d3,$58,$15,$0b,$be,$3e,$19,$f4,$27,$f3
-	dc.b	$ab,$01,$7a,$52,$71,$1e,$cb,$72,$7d,$2c,$0b,$78,$3a,$1d,$d2,$99
-	dc.b	$7d,$93,$e2,$b0,$f1,$c3,$c5,$9c,$7d,$c7,$e2,$bf,$e5,$56,$04,$f1
-	dc.b	$5c,$3a,$7f,$ba,$8f,$97,$4f,$d9,$9b,$33,$99,$a9,$2f,$ea,$7f,$f5
-	dc.b	$fa,$8a,$aa,$ad,$b4,$7e,$77,$d5,$2f,$cb,$35,$6e,$1f,$51,$de,$16
-	dc.b	$1e,$0f,$e6,$e7,$fd,$43,$63,$75,$4d,$57,$c1,$ff,$0f,$37,$f1,$7d
-	dc.b	$53,$4e,$fc,$df,$7c,$6e,$ef,$cd,$77,$d9,$fa,$b9,$f7,$7f,$f9,$5f
-	dc.b	$ea,$bd,$fe,$7c,$1f,$c5,$fa,$ff,$ce,$a8,$7e,$df,$aa,$77,$c6,$d9
-	dc.b	$ff,$e9,$7f,$46,$95,$1b,$3a,$37,$ac,$ff,$3f,$a3,$fb,$f3,$23,$f8
-	dc.b	$bf,$ef,$fe,$eb,$f4,$6f,$7c,$6e,$9f,$da,$c7,$f4,$62,$fe,$2f,$5b
-	dc.b	$e8,$c9,$fc,$5e,$f7,$f3,$43,$fd,$55,$be,$37,$cf,$d1,$dd,$fd,$55
-	dc.b	$bf,$aa,$77,$e8,$c6,$fd,$1e,$df,$ab,$b7,$e8,$d2,$ff,$9d,$5f,$f3
-	dc.b	$9b,$ed,$4d,$fe,$65,$7f,$cf,$2f,$d1,$8d,$f6,$82,$fd,$1e,$be,$17
-	dc.b	$69,$a2,$68,$41,$97,$13,$4e,$ca,$42,$22,$ad,$40,$c8,$76,$56,$2f
-	dc.b	$17,$cf,$27,$c4,$12,$cd,$6b,$18,$95,$d1,$28,$f4,$9a,$9d,$5a,$b5
-	dc.b	$64,$b3,$5d,$2e,$f7,$bc,$06,$17,$11,$8c,$c8,$65,$73,$39,$cd,$2e
-	dc.b	$a3,$55,$b0,$dd,$ef,$79,$3c,$ce,$87,$5f,$b1,$db,$ee,$f7,$bc,$1e
-	dc.b	$6f,$77,$e0,$52,$2a,$15,$8d,$22,$32,$5a,$15,$42,$c1,$63,$c2,$6d
-	dc.b	$b7,$3e,$bf,$e7,$fc,$4c,$2f,$18,$41,$61,$92,$f0,$e0,$78,$48,$25
-	dc.b	$16,$8b,$86,$23,$78,$1c,$6c,$44,$28,$19,$c0,$a1,$51,$70,$b8,$8c
-	dc.b	$6a,$36,$7e,$c1,$a6,$53,$80,$a0,$54,$3a,$27,$0d,$8e,$64,$f2,$80
-	dc.b	$b0,$7c,$42,$2c,$8a,$48,$25,$41,$91,$c4,$7e,$46,$12,$0c,$0e,$81
-	dc.b	$e2,$08,$0c,$c4,$23,$08,$09,$83,$83,$40,$c0,$68,$42,$1b,$15,$89
-	dc.b	$cb,$67,$70,$f0,$50,$22,$25,$30,$9b,$82,$e7,$53,$48,$24,$f2,$33
-	dc.b	$29,$85,$c7,$24,$51,$09,$0c,$ce,$73,$24,$8d,$02,$63,$d2,$e8,$b4
-	dc.b	$76,$6b,$26,$83,$81,$e6,$d3,$d0,$30,$16,$13,$2c,$9f,$43,$a0,$13
-	dc.b	$f0,$20,$0c,$00,$02,$00,$8c,$02,$01,$00,$c0,$b9,$e4,$84,$44,$61
-	dc.b	$00,$0d
-g2embed_gun_end
-
-	even
-g2embed_palette8_crm
-	dc.b	$43,$72,$4d,$32,$00,$00,$00,$00,$04,$00,$00,$00,$02,$7a,$3f,$df
-	dc.b	$5b,$b2,$43,$27,$32,$1d,$23,$32,$03,$26,$a4,$54,$94,$c9,$f4,$84
-	dc.b	$c9,$69,$31,$91,$ed,$23,$bf,$bd,$54,$6b,$be,$62,$cb,$ae,$6a,$34
-	dc.b	$30,$e2,$c8,$7e,$d4,$6e,$4c,$c5,$9c,$9d,$a8,$c7,$4d,$8b,$0e,$e7
-	dc.b	$a8,$cc,$d5,$8b,$19,$07,$a8,$c0,$9d,$c5,$80,$b5,$d4,$6d,$79,$c5
-	dc.b	$9a,$13,$a8,$ca,$30,$b0,$0a,$42,$72,$03,$90,$da,$fa,$9d,$93,$6c
-	dc.b	$86,$c8,$8c,$97,$49,$f6,$4c,$72,$4b,$23,$d9,$11,$c8,$fd,$ff,$f5
-	dc.b	$01,$6e,$df,$c4,$a1,$df,$81,$79,$ef,$89,$1c,$5f,$02,$b2,$1f,$12
-	dc.b	$05,$6c,$0b,$a1,$78,$92,$91,$e0,$5a,$61,$e2,$5f,$5d,$c0,$a4,$ad
-	dc.b	$c4,$ad,$17,$02,$e3,$a7,$12,$7a,$8e,$05,$bd,$7a,$88,$52,$13,$90
-	dc.b	$1c,$8a,$c8,$76,$4d,$b2,$1b,$22,$32,$5d,$27,$d9,$31,$c9,$2c,$8f
-	dc.b	$64,$47,$22,$9e,$91,$fe,$75,$cf,$94,$c8,$41,$8c,$e5,$51,$87,$1d
-	dc.b	$18,$ce,$d1,$80,$9a,$33,$48,$8c,$55,$c3,$29,$fa,$33,$ec,$63,$09
-	dc.b	$94,$65,$9e,$8c,$c5,$18,$c7,$94,$f7,$57,$f7,$a8,$bb,$e5,$05,$09
-	dc.b	$31,$77,$20,$c0,$8e,$06,$2e,$65,$50,$20,$55,$17,$68,$e8,$12,$8e
-	dc.b	$8b,$a9,$da,$05,$f6,$d1,$71,$26,$81,$58,$d1,$76,$28,$81,$3c,$8e
-	dc.b	$a5,$c0,$5f,$be,$89,$77,$49,$8c,$fc,$3e,$61,$4f,$cb,$98,$27,$9d
-	dc.b	$3f,$0b,$f6,$61,$c7,$5c,$1f,$b0,$b7,$a3,$31,$0a,$8c,$c6,$9d,$27
-	dc.b	$61,$3f,$f3,$bc,$49,$c9,$9b,$18,$fb,$75,$87,$3c,$7a,$c5,$5d,$ea
-	dc.b	$b0,$6f,$09,$60,$e1,$09,$ef,$94,$b1,$a1,$b3,$fa,$1f,$20,$ea,$c3
-	dc.b	$9e,$c1,$5a,$cd,$d9,$c6,$07,$6e,$18,$7a,$1b,$16,$69,$ad,$e5,$aa
-	dc.b	$2b,$b1,$a9,$d3,$fa,$1f,$d1,$6a,$c2,$4a,$e0,$ad,$b3,$9c,$e3,$62
-	dc.b	$17,$0c,$37,$96,$8b,$3e,$51,$6f,$ca,$71,$fe,$50,$2f,$f2,$83,$73
-	dc.b	$9e,$c4,$dd,$9b,$b0,$f7,$07,$6c,$65,$e8,$6c,$35,$a9,$9e,$15,$f4
-	dc.b	$95,$8d,$7f,$da,$63,$de,$4c,$58,$af,$db,$2e,$07,$f8,$d9,$c5,$9b
-	dc.b	$c1,$60,$fe,$16,$8b,$08,$42,$57,$7c,$c4,$a1,$b3,$12,$e4,$1c,$48
-	dc.b	$e6,$f8,$93,$31,$f1,$20,$6d,$e2,$5a,$97,$ff,$e9,$4f,$12,$a7,$2c
-	dc.b	$4b,$ef,$b8,$91,$3b,$71,$2b,$25,$c4,$b1,$33,$89,$3c,$c7,$dd,$44
-	dc.b	$94,$77,$52,$ab,$68,$46,$93,$74,$ad,$26,$8c,$f9,$1d,$4b,$f5,$c1
-	dc.b	$12,$7e,$e9,$52,$7e,$8c,$b6,$3d,$4b,$69,$42,$38,$bd,$d2,$b8,$bd
-	dc.b	$18,$f2,$3d,$4a,$f2,$98,$44,$66,$95,$18,$31,$5f,$e2,$02,$76,$46
-	dc.b	$79,$80,$51,$21,$16,$58,$0a,$fc,$8c,$47,$e5,$32,$f9,$8c,$d6,$73
-	dc.b	$44,$a4,$d2,$a9,$94,$ea,$ad,$6a,$b9,$64,$b3,$5b,$6d,$f7,$2b,$bd
-	dc.b	$ef,$09,$87,$c4,$62,$71,$78,$cc,$e6,$97,$55,$ac,$d6,$ed,$b7,$7b
-	dc.b	$dd,$ff,$0f,$8b,$c6,$e3,$f2,$79,$5c,$ce,$77,$5b,$af,$da,$ed,$f7
-	dc.b	$7b,$de,$2f,$27,$9f,$d3,$ee,$f7,$80,$a6,$53,$3a,$15,$0e,$a9,$63
-	dc.b	$b2,$da,$ee,$97,$6c,$2e,$1b,$2b,$97,$cc,$e9,$b7,$3e,$b8,$8c,$86
-	dc.b	$45,$53,$d4,$78,$22,$1a,$0e,$87,$d2,$41,$90,$e0,$40,$68,$15,$0f
-	dc.b	$e5,$80,$03,$30,$d8,$7d,$e0,$70,$58,$4c,$2e,$1b,$70,$81,$41,$a1
-	dc.b	$50,$ec,$04,$12,$19,$f8,$83,$c2,$3f,$f0,$0f,$80,$02,$1e,$3c,$18
-	dc.b	$16,$89,$88,$89,$16,$89,$00,$00
-g2embed_palette8_crm_end
-
-	even
-g2embed_remap8_crm
-	dc.b	$43,$72,$4d,$32,$00,$00,$00,$00,$10,$00,$00,$00,$06,$7e,$7f,$fd
-	dc.b	$48,$b3,$35,$50,$3f,$bf,$f7,$a4,$fb,$ed,$76,$be,$f2,$91,$7f,$e6
-	dc.b	$6f,$3b,$9f,$f9,$9b,$ce,$73,$fe,$16,$f5,$ac,$ff,$85,$bd,$63,$4f
-	dc.b	$cc,$de,$31,$a7,$e1,$6f,$51,$8f,$c2,$de,$23,$1f,$8e,$f3,$ff,$67
-	dc.b	$e1,$b7,$81,$e7,$e1,$ab,$6b,$6b,$4f,$3f,$2d,$fc,$6f,$cb,$16,$99
-	dc.b	$7e,$38,$df,$8b,$ca,$19,$57,$1d,$f8,$bd,$e9,$34,$f6,$be,$f4,$91
-	dc.b	$7d,$5e,$af,$1b,$de,$7b,$9f,$1b,$fc,$1b,$ce,$73,$fe,$16,$f5,$ac
-	dc.b	$ff,$85,$bd,$63,$3f,$e5,$6f,$1b,$4f,$f8,$6d,$ea,$34,$fc,$ad,$e2
-	dc.b	$34,$fc,$ad,$e2,$34,$fc,$7a,$b4,$c7,$e5,$ab,$7f,$8b,$f1,$c5,$a5
-	dc.b	$a7,$9f,$8e,$fe,$2f,$cf,$89,$f2,$7e,$2d,$8d,$8c,$c5,$6b,$5f,$17
-	dc.b	$d8,$f7,$94,$d3,$d9,$f6,$3d,$e5,$24,$fa,$bf,$3f,$bd,$26,$37,$1b
-	dc.b	$c3,$de,$79,$cf,$87,$87,$54,$de,$75,$9f,$0f,$f3,$37,$ac,$67,$33
-	dc.b	$fe,$16,$f1,$b4,$ff,$86,$de,$a5,$3f,$e7,$d5,$12,$7f,$cb,$6f,$10
-	dc.b	$9f,$f1,$db,$d8,$69,$f9,$6d,$e0,$69,$f8,$a4,$c7,$e7,$d0,$4c,$7e
-	dc.b	$3c,$b7,$5b,$ad,$d8,$c9,$49,$75,$fa,$fa,$9b,$1e,$2b,$15,$92,$ef
-	dc.b	$3d,$8f,$15,$fd,$f7,$94,$93,$d4,$fe,$fb,$d2,$5d,$60,$f0,$7e,$f2
-	dc.b	$9c,$3c,$34,$39,$de,$f3,$c8,$68,$75,$4d,$ef,$90,$fc,$ea,$37,$ad
-	dc.b	$a7,$e0,$15,$1b,$d4,$a7,$53,$fe,$56,$f5,$49,$ff,$2d,$bc,$42,$7f
-	dc.b	$c7,$6f,$67,$1f,$f3,$ed,$e0,$c7,$fc,$7a,$0c,$18,$26,$9f,$8a,$4d
-	dc.b	$3f,$14,$cd,$e6,$f3,$71,$59,$29,$29,$a5,$68,$0e,$07,$53,$25,$de
-	dc.b	$78,$0e,$a6,$a6,$4a,$eb,$bd,$f3,$af,$03,$37,$9c,$eb,$75,$91,$7b
-	dc.b	$ba,$ef,$3d,$6b,$43,$9d,$ce,$f7,$94,$a1,$f9,$ff,$0d,$e7,$79,$d5
-	dc.b	$2c,$ef,$3b,$cc,$af,$5c,$de,$b7,$00,$a8,$de,$a9,$3f,$01,$55,$37
-	dc.b	$88,$4f,$c0,$66,$d0,$3d,$ec,$e3,$f1,$ff,$1d,$bc,$18,$ff,$8f,$41
-	dc.b	$fe,$1f,$8f,$45,$8b,$47,$fc,$92,$6a,$68,$37,$25,$75,$57,$ab,$cc
-	dc.b	$54,$0d,$c6,$ea,$64,$5e,$fb,$df,$23,$d1,$e4,$48,$ba,$ef,$3c,$44
-	dc.b	$89,$1e,$a6,$f5,$ad,$64,$40,$f6,$f7,$9e,$b5,$da,$c0,$f6,$f2,$d7
-	dc.b	$77,$9e,$23,$e5,$e5,$e5,$ef,$3d,$e6,$57,$b3,$66,$ce,$f7,$c5,$78
-	dc.b	$38,$38,$3a,$34,$77,$9d,$07,$f8,$3b,$77,$9c,$3b,$5a,$de,$ae,$02
-	dc.b	$a8,$de,$2e,$03,$7e,$08,$31,$62,$b1,$f8,$2d,$f9,$91,$59,$ec,$ff
-	dc.b	$c9,$34,$7f,$c9,$26,$a6,$33,$6e,$ae,$a6,$95,$2c,$de,$6f,$36,$44
-	dc.b	$8b,$ae,$f3,$a5,$72,$b2,$20,$40,$ae,$ef,$3a,$57,$2b,$02,$07,$b7
-	dc.b	$bc,$f0,$10,$3d,$cd,$e3,$77,$37,$be,$23,$91,$dc,$b9,$bb,$d9,$9d
-	dc.b	$de,$f8,$d7,$66,$cd,$9a,$3b,$df,$1a,$e0,$ec,$d1,$a3,$47,$79,$d0
-	dc.b	$63,$a3,$a3,$b8,$70,$ef,$38,$74,$76,$a3,$97,$7a,$dd,$bd,$b5,$2d
-	dc.b	$e3,$70,$65,$46,$f1,$70,$1a,$a9,$bd,$9c,$0e,$fd,$dc,$14,$7e,$0f
-	dc.b	$bf,$81,$88,$f8,$15,$d9,$7c,$be,$b4,$69,$1f,$02,$07,$79,$dd,$40
-	dc.b	$2e,$57,$77,$9d,$0f,$87,$81,$ee,$6f,$3c,$e6,$ef,$bc,$ed,$3d,$37
-	dc.b	$39,$2d,$ea,$ea,$6a,$f0,$0d,$e7,$92,$e8,$89,$d1,$ef,$3b,$0e,$ab
-	dc.b	$46,$8e,$1d,$e7,$87,$68,$e1,$c3,$87,$7b,$ee,$de,$de,$dc,$3c,$bc
-	dc.b	$bb,$ce,$ed,$a8,$8d,$8d,$de,$33,$6b,$6d,$4a,$4f,$7a,$b8,$32,$b9
-	dc.b	$bc,$5c,$15,$51,$bd,$9c,$16,$fc,$c3,$c0,$fa,$e9,$a5,$48,$d0,$3e
-	dc.b	$e5,$ca,$ee,$f5,$b4,$f3,$93,$bb,$d6,$d3,$d3,$72,$e7,$57,$56,$77
-	dc.b	$7b,$ec,$01,$d4,$de,$b6,$ae,$aa,$aa,$5a,$5d,$1e,$f1,$8d,$66,$bd
-	dc.b	$55,$55,$54,$bd,$e7,$61,$f0,$f8,$15,$bd,$6d,$58,$91,$22,$78,$77
-	dc.b	$94,$e1,$ca,$6f,$7d,$67,$87,$0f,$2f,$2c,$6e,$f3,$9b,$5b,$5b,$7f
-	dc.b	$06,$f5,$9b,$40,$ea,$9d,$ce,$37,$a8,$0c,$0e,$b8,$64,$ce,$f5,$70
-	dc.b	$0a,$e0,$6e,$f6,$70,$57,$b0,$0a,$17,$c9,$92,$6e,$76,$3f,$34,$a8
-	dc.b	$31,$54,$9d,$de,$32,$6d,$36,$9b,$34,$d5,$9d,$de,$37,$46,$52,$8f
-	dc.b	$78,$df,$bf,$df,$ef,$00,$09,$ef,$3b,$00,$09,$ef,$5b,$02,$b7,$ac
-	dc.b	$1e,$98,$03,$a9,$bc,$5a,$bd,$5e,$ac,$4c,$ab,$2b,$2b,$28,$5e,$f5
-	dc.b	$ac,$e5,$65,$59,$79,$77,$9e,$b3,$95,$c8,$de,$71,$9f,$2f,$2f,$e0
-	dc.b	$de,$70,$18,$1e,$f0,$33,$bd,$6c,$bd,$53,$b9,$f3,$78,$b2,$e1,$ba
-	dc.b	$e1,$90,$d0,$dd,$e2,$e0,$1f,$59,$dc,$e0,$eb,$ae,$17,$0b,$85,$eb
-	dc.b	$87,$9d,$7e,$e5,$70,$d3,$af,$ab,$54,$a3,$de,$ae,$e5,$52,$8f,$7a
-	dc.b	$9f,$6f,$b7,$da,$aa,$a8,$91,$22,$7b,$d2,$44,$b2,$b6,$f7,$ab,$00
-	dc.b	$db,$ce,$c0,$0c,$ac,$bb,$c6,$0f,$4a,$21,$bd,$f6,$e0,$a5,$a5,$dd
-	dc.b	$23,$de,$f9,$36,$96,$37,$7b,$e3,$3e,$31,$b5,$1b,$ce,$8d,$8d,$93
-	dc.b	$c8,$de,$b6,$5c,$37,$f8,$5b,$c6,$0d,$86,$ff,$7e,$b0,$f7,$7a,$8c
-	dc.b	$7e,$fe,$67,$9c,$d3,$af,$7a,$a9,$a5,$41,$95,$53,$7a,$8c,$7b,$d5
-	dc.b	$6a,$9b,$d4,$69,$90,$25,$b7,$bd,$57,$bb,$dd,$ec,$4e,$00,$e8,$de
-	dc.b	$ac,$0c,$65,$0b,$de,$93,$4a,$17,$bc,$54,$46,$a5,$23,$de,$2b,$3b
-	dc.b	$3c,$0a,$de,$ae,$a6,$01,$6f,$58,$cf,$00,$90,$df,$0e,$97,$1e,$3b
-	dc.b	$b2,$68,$50,$d6,$f7,$8c,$ab,$15,$15,$ce,$6f,$59,$0f,$27,$27,$f9
-	dc.b	$9b,$d6,$fd,$fc,$ad,$e3,$7e,$fe,$1b,$37,$34,$cc,$ef,$f3,$f9,$eb
-	dc.b	$86,$55,$43,$15,$43,$0e,$f1,$35,$46,$de,$f1,$74,$09,$34,$95,$0b
-	dc.b	$de,$23,$4c,$95,$2e,$f1,$1e,$cf,$67,$b9,$5c,$0c,$a5,$de,$b6,$06
-	dc.b	$52,$ee,$91,$ef,$66,$03,$88,$f7,$ab,$00,$d5,$bd,$ec,$33,$33,$c0
-	dc.b	$36,$f1,$75,$30,$06,$ee,$f1,$95,$6a,$b5,$5e,$01,$75,$37,$ab,$70
-	dc.b	$19,$33,$a7,$49,$6f,$78,$c8,$75,$d9,$9a,$83,$dd,$e3,$41,$cc,$99
-	dc.b	$c9,$6f,$1b,$f4,$37,$f2,$b3,$5c,$ce,$d6,$f3,$4a,$a1,$d5,$53,$78
-	dc.b	$8f,$2d,$f9,$18,$43,$fa,$a5,$6a,$30,$84,$18,$3f,$c2,$54,$d1,$37
-	dc.b	$89,$1e,$f6,$1a,$2b,$f4,$83,$a9,$bd,$9d,$18,$05,$bd,$6c,$0a,$de
-	dc.b	$2c,$07,$5f,$0f,$ec,$c0,$c4,$28,$50,$96,$f7,$87,$f0,$c0,$cd,$ea
-	dc.b	$ea,$60,$1b,$7b,$0d,$10,$f8,$15,$bd,$9d,$14,$40,$37,$d7,$d7,$d7
-	dc.b	$6f,$bd,$50,$76,$39,$ad,$eb,$06,$86,$9e,$fd,$65,$ab,$99,$d8,$df
-	dc.b	$5b,$5a,$68,$5a,$66,$37,$a6,$a6,$ef,$67,$f5,$26,$d5,$37,$b3,$f8
-	dc.b	$93,$6a,$37,$b3,$fb,$33,$9b,$bb,$d9,$fc,$13,$4d,$38,$8a,$ee,$c5
-	dc.b	$de,$06,$92,$fd,$20,$15,$15,$43,$5b,$de,$1d,$4a,$4c,$15,$ca,$6f
-	dc.b	$0d,$de,$ef,$77,$80,$48,$50,$ef,$63,$eb,$eb,$ee,$01,$af,$87,$f0
-	dc.b	$86,$1d,$4d,$3d,$1e,$6f,$6f,$6f,$70,$2d,$4f,$f9,$f3,$fd,$6d,$3b
-	dc.b	$d4,$69,$07,$c0,$36,$f0,$ed,$65,$38,$f8,$ce,$f6,$b6,$ae,$66,$2d
-	dc.b	$f6,$2c,$4f,$4f,$4d,$07,$76,$b6,$be,$b3,$73,$fe,$5a,$5b,$54,$33
-	dc.b	$1f,$fc,$78,$96,$9a,$41,$3a,$df,$f2,$90,$60,$d5,$0c,$97,$fe,$35
-	dc.b	$48,$26,$91,$4f,$27,$fe,$35,$08,$62,$c5,$35,$35,$30,$3f,$f1,$ae
-	dc.b	$75,$0d,$4d,$4d,$3b,$f3,$4a,$84,$26,$a6,$a1,$42,$9a,$37,$f9,$2d
-	dc.b	$3a,$4b,$61,$42,$85,$4b,$a5,$d2,$e2,$a2,$b5,$cd,$3a,$7d,$42,$85
-	dc.b	$f2,$fa,$fa,$fa,$69,$51,$a7,$a3,$cc,$5e,$2f,$17,$5d,$ae,$f2,$6f
-	dc.b	$3e,$73,$6f,$6f,$6f,$4f,$3a,$9e,$bd,$4c,$d3,$4a,$fc,$c3,$1f,$5a
-	dc.b	$a6,$df,$35,$cc,$d0,$bf,$34,$63,$eb,$9c,$b5,$73,$31,$9f,$b1,$62
-	dc.b	$c7,$8f,$8f,$8f,$29,$6b,$eb,$30,$9f,$b1,$62,$7a,$3b,$1d,$9a,$1d
-	dc.b	$fd,$7e,$b0,$4c,$d4,$80,$37,$22,$d2,$01,$0f,$88,$48,$24,$32,$29
-	dc.b	$1c,$92,$4b,$26,$96,$4b,$65,$d2,$f9,$9d,$02,$83,$50,$af,$58,$2c
-	dc.b	$36,$cb,$6d,$c7,$05,$91,$d6,$40,$60,$d0,$88,$5c,$32,$1b,$0e,$98
-	dc.b	$4c,$66,$54,$2a,$1d,$3a,$a3,$52,$b1,$59,$2c,$d8,$3c,$96,$4f,$2b
-	dc.b	$9f,$d6,$c0,$a0,$70,$48,$54,$46,$25,$17,$8e,$ca,$25,$53,$49,$ad
-	dc.b	$12,$8b,$46,$a4,$52,$69,$54,$ba,$65,$36,$9f,$55,$ab,$d7,$2b,$b6
-	dc.b	$3b,$45,$a6,$d5,$6b,$b7,$5f,$b0,$98,$fc,$a6,$9f,$55,$ab,$82,$c2
-	dc.b	$62,$71,$e9,$fd,$4e,$a9,$56,$ac,$56,$ec,$b7,$2c,$2e,$5b,$41,$a8
-	dc.b	$8b,$4f,$ab,$35,$ab,$3d,$cf,$17,$97,$cf,$68,$74,$da,$98,$a4,$56
-	dc.b	$31,$1c,$8f,$ca,$65,$78,$ec,$d6,$93,$4b,$19,$8d,$46,$e6,$d3,$79
-	dc.b	$ed,$ef,$15,$8d,$ce,$e8,$f5,$d3,$ab,$bd,$e2,$f5,$7d,$c4,$e6,$33
-	dc.b	$3a,$29,$cc,$ee,$79,$76,$c3,$63,$33,$80,$a0,$5d,$e6,$f9,$7f,$c3
-	dc.b	$dd,$31,$19,$b9,$c5,$d4,$10,$09,$03,$81,$80,$a0,$40,$18,$08,$00
-	dc.b	$01,$0e,$12,$8c,$09,$04,$34,$22,$89,$04,$00,$02
-g2embed_remap8_crm_end
-
-	even
-g2embed_title
-	dc.b	$43,$72,$4d,$32,$00,$00,$00,$00,$c3,$52,$00,$00,$86,$a6,$32,$e0
-	dc.b	$04,$0c,$1d,$f8,$88,$94,$86,$1a,$65,$1f,$17,$c0,$99,$b9,$da,$26
-	dc.b	$ce,$f7,$44,$1d,$93,$fb,$5a,$26,$de,$84,$8d,$0c,$f8,$ea,$97,$1a
-	dc.b	$33,$e7,$ac,$8a,$22,$4d,$e5,$1d,$28,$90,$2f,$ac,$b3,$c4,$34,$55
-	dc.b	$cf,$b0,$22,$86,$19,$87,$b3,$66,$8c,$e0,$30,$a0,$22,$88,$1e,$16
-	dc.b	$b2,$7e,$dc,$d9,$eb,$43,$04,$0b,$3e,$1b,$30,$6f,$5f,$c4,$d3,$20
-	dc.b	$ff,$1c,$40,$d9,$8d,$00,$77,$07,$78,$27,$67,$f4,$7f,$69,$12,$16
-	dc.b	$9e,$4c,$d2,$24,$ae,$22,$3d,$fe,$90,$d3,$38,$f9,$70,$15,$1a,$80
-	dc.b	$0a,$97,$bf,$7c,$a2,$f3,$49,$03,$54,$a6,$e9,$f5,$48,$ea,$18,$16
-	dc.b	$62,$32,$7e,$fd,$2d,$20,$ee,$2e,$e0,$ef,$35,$7e,$ca,$8e,$f1,$90
-	dc.b	$ff,$4a,$a6,$cd,$ce,$a8,$3b,$bf,$f9,$53,$19,$d1,$c6,$34,$0c,$3e
-	dc.b	$b5,$c6,$77,$ed,$50,$0c,$96,$41,$be,$d3,$2c,$33,$b7,$1f,$23,$e2
-	dc.b	$00,$c8,$12,$49,$90,$88,$0b,$29,$d9,$3d,$69,$f9,$88,$9a,$a1,$8f
-	dc.b	$7d,$20,$32,$7e,$e9,$96,$69,$88,$83,$b7,$4a,$66,$d9,$af,$d8,$6a
-	dc.b	$44,$a5,$37,$bf,$23,$70,$2b,$34,$bb,$9e,$40,$77,$cb,$b5,$c8,$19
-	dc.b	$2d,$03,$a8,$d0,$c4,$dc,$eb,$8e,$60,$99,$b3,$6b,$81,$07,$e0,$88
-	dc.b	$2e,$9e,$59,$10,$da,$1c,$12,$11,$10,$16,$88,$a4,$b4,$19,$73,$d1
-	dc.b	$26,$18,$08,$b9,$d8,$76,$84,$08,$32,$de,$a4,$99,$d1,$0c,$a8,$23
-	dc.b	$29,$23,$79,$64,$40,$d9,$8d,$2a,$40,$b4,$67,$61,$da,$da,$7c,$07
-	dc.b	$65,$bd,$c7,$87,$62,$25,$f9,$cf,$27,$6d,$a7,$08,$76,$f3,$d1,$d9
-	dc.b	$6f,$c1,$e2,$6f,$84,$34,$bf,$19,$15,$44,$89,$3b,$79,$23,$ca,$ce
-	dc.b	$c6,$58,$76,$e6,$2c,$ec,$65,$b1,$7b,$54,$88,$1f,$09,$0a,$43,$b1
-	dc.b	$29,$c4,$c2,$5b,$12,$76,$f3,$7a,$79,$a6,$56,$64,$43,$3e,$04,$4c
-	dc.b	$9c,$61,$a7,$99,$da,$75,$c7,$8a,$b9,$ac,$4a,$ef,$ce,$79,$4d,$3b
-	dc.b	$72,$70,$85,$a0,$69,$d4,$07,$14,$30,$1e,$66,$63,$38,$3c,$4d,$f0
-	dc.b	$e7,$76,$fc,$22,$a6,$26,$e2,$2e,$b3,$37,$08,$d9,$b8,$27,$54,$66
-	dc.b	$12,$f5,$f4,$49,$bb,$01,$56,$7a,$22,$17,$b5,$ed,$52,$25,$5d,$85
-	dc.b	$92,$e0,$31,$20,$3e,$a7,$97,$11,$3d,$6c,$15,$d4,$f5,$e6,$1f,$c8
-	dc.b	$05,$38,$c1,$4b,$e7,$1d,$03,$fd,$26,$e3,$34,$1c,$73,$d8,$ca,$91
-	dc.b	$bf,$d0,$79,$0b,$ee,$7d,$01,$92,$d0,$14,$c6,$81,$72,$48,$cd,$1c
-	dc.b	$d5,$0e,$82,$8d,$e5,$35,$6a,$84,$99,$3b,$65,$31,$cb,$d2,$dc,$d3
-	dc.b	$d3,$95,$45,$b3,$e5,$c3,$15,$54,$44,$bd,$f4,$0a,$91,$45,$4b,$95
-	dc.b	$ef,$82,$45,$65,$48,$ef,$e5,$04,$60,$d8,$ca,$63,$15,$7b,$76,$cd
-	dc.b	$ca,$b2,$f2,$4b,$94,$14,$de,$0d,$74,$bb,$f8,$17,$a8,$b7,$e9,$6d
-	dc.b	$cc,$0d,$bc,$22,$a7,$40,$3b,$ab,$ad,$b9,$a9,$e4,$b4,$30,$62,$9e
-	dc.b	$63,$6c,$77,$f2,$70,$10,$43,$21,$91,$48,$51,$a6,$13,$78,$21,$3e
-	dc.b	$ed,$81,$d9,$ff,$25,$82,$13,$d4,$a8,$27,$06,$43,$33,$44,$08,$62
-	dc.b	$2d,$b7,$48,$47,$80,$9a,$05,$8c,$4b,$b9,$5c,$fb,$95,$e4,$4c,$1c
-	dc.b	$cc,$83,$dc,$92,$0e,$83,$89,$cd,$2e,$05,$75,$1f,$71,$ad,$c8,$3b
-	dc.b	$59,$83,$6f,$c9,$21,$08,$6e,$67,$7c,$38,$4b,$82,$e7,$49,$0f,$e0
-	dc.b	$46,$5d,$41,$16,$67,$89,$f8,$2d,$ff,$02,$22,$50,$16,$72,$b2,$b6
-	dc.b	$4d,$b9,$6d,$2e,$2b,$61,$cd,$25,$04,$44,$c6,$e1,$16,$ab,$8b,$c6
-	dc.b	$09,$a7,$a4,$60,$9f,$7c,$f2,$f2,$a7,$0b,$ce,$71,$48,$b0,$52,$a2
-	dc.b	$54,$89,$a7,$41,$0c,$ea,$68,$21,$87,$79,$87,$6a,$44,$86,$9d,$27
-	dc.b	$97,$10,$f5,$05,$59,$b4,$d3,$74,$84,$70,$25,$a2,$01,$f8,$5f,$7c
-	dc.b	$59,$95,$f8,$a2,$b7,$e0,$0c,$88,$47,$c5,$ff,$28,$92,$38,$fb,$7c
-	dc.b	$4e,$f6,$eb,$01,$18,$57,$72,$40,$7e,$08,$9d,$fe,$f2,$df,$85,$bc
-	dc.b	$b6,$c8,$3e,$13,$56,$7e,$32,$a0,$1b,$d3,$ae,$9a,$45,$2c,$4a,$02
-	dc.b	$33,$43,$04,$a3,$77,$e2,$77,$03,$a3,$c6,$09,$c5,$08,$08,$95,$7e
-	dc.b	$85,$b5,$8c,$e1,$58,$0b,$5f,$28,$52,$37,$ac,$04,$d8,$da,$19,$a7
-	dc.b	$f2,$d4,$85,$36,$43,$9d,$99,$53,$f3,$2c,$08,$d4,$4a,$5b,$64,$50
-	dc.b	$40,$1e,$62,$3e,$c8,$98,$c6,$17,$50,$6b,$08,$17,$87,$43,$e2,$92
-	dc.b	$3f,$4b,$91,$d3,$2c,$87,$db,$3e,$b6,$a0,$a2,$89,$46,$7e,$72,$4e
-	dc.b	$c1,$dd,$58,$9b,$fe,$4d,$b5,$7e,$74,$3e,$45,$bc,$b4,$74,$34,$ec
-	dc.b	$80,$29,$03,$18,$27,$ad,$01,$5f,$9a,$37,$a2,$a4,$35,$b5,$75,$92
-	dc.b	$50,$46,$8f,$4e,$1b,$69,$8f,$df,$74,$8a,$7f,$0c,$0a,$0e,$8b,$a3
-	dc.b	$7b,$19,$83,$a8,$71,$a5,$be,$e9,$0a,$89,$49,$8d,$fc,$c9,$99,$0e
-	dc.b	$a8,$34,$84,$e3,$9d,$e6,$ed,$f6,$e7,$d9,$b7,$5f,$b7,$05,$75,$0a
-	dc.b	$33,$41,$fc,$92,$0c,$08,$22,$28,$c1,$78,$7f,$7c,$95,$d9,$e8,$c0
-	dc.b	$32,$33,$48,$ed,$a2,$f3,$41,$12,$95,$c3,$b7,$62,$65,$f3,$78,$6b
-	dc.b	$85,$b5,$8e,$bf,$f0,$d9,$b6,$9f,$ec,$7f,$0f,$3e,$be,$04,$05,$f0
-	dc.b	$12,$fc,$a3,$43,$0c,$eb,$f7,$25,$00,$4e,$10,$81,$f8,$30,$24,$df
-	dc.b	$49,$96,$c9,$73,$6d,$82,$de,$75,$e7,$b1,$57,$d1,$c3,$f7,$b1,$93
-	dc.b	$88,$0a,$b7,$0e,$b4,$2b,$bf,$89,$a3,$14,$8c,$63,$47,$17,$f1,$24
-	dc.b	$ea,$19,$4e,$d2,$3d,$24,$8e,$08,$72,$9a,$82,$67,$fc,$ed,$d7,$e6
-	dc.b	$c1,$12,$e2,$da,$c5,$4f,$80,$08,$0d,$61,$97,$ca,$59,$80,$11,$89
-	dc.b	$c2,$b7,$99,$8d,$2d,$75,$fc,$eb,$8b,$ea,$f3,$af,$c5,$2c,$38,$09
-	dc.b	$63,$da,$fa,$e6,$19,$de,$09,$92,$a7,$40,$88,$35,$56,$47,$b1,$6f
-	dc.b	$ff,$8d,$95,$65,$ff,$fb,$f8,$f3,$37,$91,$fc,$08,$b4,$75,$d7,$c0
-	dc.b	$7c,$86,$19,$87,$85,$13,$09,$7c,$43,$1b,$51,$f7,$c5,$e4,$9f,$4f
-	dc.b	$35,$60,$48,$8a,$fa,$85,$5d,$25,$46,$12,$25,$5f,$83,$6f,$4a,$7f
-	dc.b	$5a,$f8,$51,$22,$c2,$88,$e4,$ae,$88,$e1,$43,$d8,$4d,$c4,$47,$e0
-	dc.b	$d2,$38,$6a,$de,$68,$2a,$6f,$c4,$5a,$40,$2a,$74,$11,$22,$3a,$7b
-	dc.b	$11,$ff,$81,$de,$d5,$7c,$6a,$ca,$80,$ee,$c2,$78,$8d,$05,$be,$42
-	dc.b	$a2,$ff,$78,$95,$a5,$a5,$12,$67,$d7,$ca,$5b,$36,$a9,$06,$f1,$bf
-	dc.b	$cf,$c0,$54,$e8,$ec,$9d,$17,$19,$0f,$c0,$69,$21,$70,$c7,$db,$fe
-	dc.b	$c1,$5e,$6f,$41,$44,$83,$12,$df,$94,$04,$c1,$2c,$85,$00,$c7,$c1
-	dc.b	$2c,$8d,$bb,$c1,$2e,$0a,$09,$37,$95,$c0,$88,$04,$57,$26,$9f,$74
-	dc.b	$9d,$06,$5e,$8a,$e8,$a1,$1c,$f8,$18,$5a,$68,$62,$e0,$46,$58,$d2
-	dc.b	$6e,$9e,$81,$6c,$ca,$45,$82,$06,$22,$70,$bd,$ac,$ca,$62,$e9,$04
-	dc.b	$81,$d7,$e6,$d8,$89,$0b,$05,$63,$25,$03,$cc,$95,$a0,$3f,$8d,$5d
-	dc.b	$9f,$11,$0a,$ce,$1a,$48,$c9,$fc,$40,$58,$93,$ae,$df,$81,$71,$9d
-	dc.b	$a0,$cf,$a8,$0a,$53,$01,$d1,$3e,$c9,$90,$3c,$2f,$c4,$49,$31,$58
-	dc.b	$cd,$4f,$d9,$10,$de,$bb,$10,$57,$78,$60,$2f,$2d,$0c,$ba,$fd,$bc
-	dc.b	$6b,$76,$61,$15,$93,$64,$b8,$35,$33,$72,$18,$3a,$54,$15,$c1,$41
-	dc.b	$2e,$f3,$b3,$35,$93,$f4,$29,$9f,$a1,$01,$09,$0a,$01,$75,$34,$20
-	dc.b	$4b,$3f,$06,$9a,$e3,$03,$28,$67,$cf,$22,$0d,$54,$9b,$00,$e5,$0a
-	dc.b	$58,$81,$1e,$b4,$3d,$82,$06,$18,$e0,$c6,$0b,$29,$65,$d4,$91,$40
-	dc.b	$03,$c2,$e6,$aa,$90,$66,$33,$ad,$e9,$15,$6f,$f6,$99,$1e,$7d,$24
-	dc.b	$c2,$04,$21,$62,$ec,$06,$99,$6d,$bd,$e2,$1b,$64,$43,$70,$eb,$ec
-	dc.b	$7c,$92,$3f,$b6,$01,$19,$22,$e7,$d8,$fb,$1f,$7a,$13,$48,$b0,$dd
-	dc.b	$e8,$80,$8c,$bf,$bc,$b4,$ca,$be,$2b,$9e,$6d,$24,$1a,$97,$18,$12
-	dc.b	$9d,$3f,$06,$e0,$ca,$7c,$3e,$f3,$88,$39,$ae,$27,$b6,$91,$30,$6e
-	dc.b	$07,$fe,$50,$cb,$22,$60,$dc,$03,$2c,$d1,$18,$81,$0c,$68,$7b,$06
-	dc.b	$23,$19,$a0,$dc,$fb,$f7,$f1,$5c,$02,$2e,$17,$83,$6c,$c7,$fd,$7e
-	dc.b	$22,$f9,$ac,$10,$f8,$99,$f8,$92,$89,$d0,$6d,$9b,$4c,$6d,$99,$ee
-	dc.b	$47,$5e,$b7,$07,$9e,$6e,$93,$52,$01,$d6,$ee,$c9,$90,$57,$08,$b9
-	dc.b	$f6,$3e,$67,$e5,$ec,$88,$0e,$94,$6e,$fa,$b3,$02,$bc,$a1,$b7,$e7
-	dc.b	$b4,$09,$72,$af,$8b,$0e,$27,$4a,$73,$e2,$43,$dc,$86,$75,$57,$d4
-	dc.b	$06,$36,$6a,$8c,$60,$8f,$29,$b9,$c4,$6f,$9b,$5d,$45,$15,$e6,$4d
-	dc.b	$3f,$70,$43,$33,$3d,$e2,$f3,$e5,$0c,$e3,$16,$24,$a8,$26,$d4,$5b
-	dc.b	$80,$40,$d4,$b8,$a2,$11,$1a,$94,$06,$5d,$88,$d6,$de,$fe,$22,$80
-	dc.b	$0a,$56,$42,$df,$c3,$ff,$33,$81,$04,$d2,$25,$11,$78,$ba,$b7,$13
-	dc.b	$bb,$71,$18,$f6,$94,$75,$e8,$5b,$df,$10,$6f,$c7,$94,$38,$2e,$a6
-	dc.b	$13,$66,$bf,$65,$e4,$fe,$2e,$1d,$98,$4b,$92,$43,$f3,$ff,$77,$15
-	dc.b	$f8,$44,$8b,$ad,$1a,$7d,$40,$25,$e5,$a0,$7e,$06,$95,$02,$c4,$be
-	dc.b	$79,$58,$bb,$28,$52,$d4,$7c,$48,$79,$53,$a9,$92,$d5,$cc,$3e,$0e
-	dc.b	$11,$4b,$2c,$70,$8e,$ba,$b5,$3a,$18,$cd,$22,$98,$33,$f0,$ad,$b4
-	dc.b	$c5,$0d,$6e,$81,$7d,$81,$f9,$43,$1a,$85,$6d,$6b,$a7,$cc,$84,$58
-	dc.b	$9c,$0e,$fd,$0a,$9a,$15,$b3,$16,$f8,$f9,$c5,$a4,$54,$6f,$b0,$d6
-	dc.b	$7c,$13,$5e,$75,$fd,$de,$17,$d2,$2b,$da,$d8,$51,$27,$71,$1a,$43
-	dc.b	$84,$84,$fd,$34,$a8,$84,$32,$4a,$d4,$1e,$dd,$94,$75,$d0,$90,$73
-	dc.b	$59,$e1,$20,$5c,$8e,$55,$3a,$12,$da,$6f,$96,$ec,$72,$be,$11,$51
-	dc.b	$03,$8d,$3e,$4e,$12,$e7,$5e,$0f,$c4,$bb,$2b,$86,$80,$b1,$26,$26
-	dc.b	$c3,$8c,$64,$cc,$10,$2e,$b4,$d7,$3f,$92,$99,$ba,$8b,$b6,$82,$03
-	dc.b	$1f,$48,$2d,$d9,$51,$fe,$09,$16,$9f,$50,$50,$29,$31,$25,$77,$06
-	dc.b	$7c,$e7,$3c,$39,$9f,$ca,$52,$22,$f2,$a4,$65,$14,$f1,$e3,$2c,$7e
-	dc.b	$85,$5d,$1e,$d8,$02,$ff,$ba,$98,$ff,$14,$f3,$24,$3e,$9c,$54,$82
-	dc.b	$4c,$67,$31,$01,$6a,$a5,$07,$30,$56,$6e,$20,$20,$39,$83,$29,$73
-	dc.b	$dd,$4c,$89,$5b,$43,$e4,$86,$cd,$e2,$95,$94,$74,$d4,$58,$96,$dd
-	dc.b	$44,$b6,$60,$6d,$a2,$5c,$2d,$01,$72,$48,$23,$4d,$c0,$5c,$6d,$2a
-	dc.b	$24,$45,$35,$5f,$ac,$98,$bb,$1c,$92,$13,$f8,$f2,$c0,$69,$01,$02
-	dc.b	$32,$21,$ca,$de,$05,$ca,$d1,$3e,$fc,$5f,$31,$0c,$7a,$14,$87,$df
-	dc.b	$8b,$48,$81,$11,$4b,$2c,$50,$47,$38,$16,$cd,$88,$10,$33,$a0,$8a
-	dc.b	$32,$23,$c5,$4f,$ca,$82,$1f,$08,$13,$4e,$10,$bf,$16,$0d,$3e,$a1
-	dc.b	$9d,$a8,$81,$f8,$fd,$a4,$b3,$9c,$88,$54,$18,$8a,$5f,$b7,$6c,$de
-	dc.b	$08,$68,$6b,$3a,$ae,$fd,$a4,$ed,$1c,$bc,$ce,$c8,$14,$06,$d0,$a7
-	dc.b	$e0,$ec,$fd,$09,$db,$3b,$fa,$6d,$37,$c1,$19,$9f,$f4,$32,$0f,$f8
-	dc.b	$bb,$f6,$41,$05,$86,$0d,$8b,$bc,$46,$89,$f9,$53,$91,$d6,$90,$eb
-	dc.b	$1c,$cb,$b0,$81,$3e,$7f,$7e,$29,$2e,$fe,$07,$e1,$01,$51,$91,$0e
-	dc.b	$78,$25,$59,$01,$97,$5c,$2e,$e3,$2b,$b0,$48,$c0,$9d,$48,$45,$46
-	dc.b	$5e,$53,$65,$04,$46,$02,$03,$74,$02,$6a,$03,$51,$03,$54,$54,$37
-	dc.b	$7f,$6c,$c9,$50,$63,$55,$41,$12,$29,$f6,$34,$e7,$f2,$21,$59,$68
-	dc.b	$13,$79,$71,$92,$6e,$1b,$bc,$70,$d9,$05,$e5,$ca,$38,$21,$a6,$dc
-	dc.b	$7f,$e9,$73,$e2,$25,$ee,$95,$c8,$e8,$34,$61,$f0,$2d,$be,$39,$b2
-	dc.b	$23,$3d,$17,$e1,$b1,$ac,$3a,$91,$f0,$e0,$99,$43,$8f,$29,$0b,$ed
-	dc.b	$40,$b0,$c8,$39,$3f,$7b,$f3,$48,$32,$55,$80,$d7,$d4,$9f,$99,$b9
-	dc.b	$bd,$ec,$10,$4e,$de,$08,$93,$19,$d8,$07,$14,$d8,$0c,$f8,$2d,$58
-	dc.b	$fe,$14,$50,$85,$8a,$27,$ba,$bf,$08,$15,$9c,$73,$48,$86,$e4,$11
-	dc.b	$95,$43,$2f,$a0,$d3,$50,$1b,$74,$08,$39,$50,$73,$a2,$f8,$21,$03
-	dc.b	$02,$92,$97,$94,$32,$97,$db,$94,$3e,$c1,$d0,$46,$d8,$51,$50,$1a
-	dc.b	$a8,$a1,$47,$ca,$25,$ff,$6a,$7b,$72,$cc,$10,$d3,$ed,$3f,$b2,$94
-	dc.b	$74,$c4,$bc,$69,$d4,$d6,$03,$59,$02,$4d,$d7,$3b,$3e,$8e,$6a,$ff
-	dc.b	$7a,$6f,$41,$19,$72,$a4,$fe,$fa,$0c,$d1,$bc,$c6,$cd,$01,$61,$8c
-	dc.b	$4b,$ef,$09,$7c,$1a,$55,$72,$3a,$92,$08,$b5,$47,$c0,$82,$72,$e1
-	dc.b	$04,$15,$9d,$b7,$84,$0b,$d4,$15,$33,$a1,$5e,$a1,$02,$55,$c0,$2a
-	dc.b	$84,$35,$e4,$3e,$20,$20,$3e,$5e,$c9,$4e,$92,$94,$12,$fc,$4d,$a1
-	dc.b	$6c,$fc,$1b,$d7,$00,$b7,$02,$37,$d0,$fc,$13,$cd,$5f,$62,$45,$1f
-	dc.b	$62,$1a,$91,$e5,$09,$82,$b0,$e0,$aa,$fd,$ae,$75,$63,$f5,$1e,$f7
-	dc.b	$88,$56,$0c,$0d,$f8,$ec,$88,$88,$4b,$cc,$fe,$eb,$27,$00,$86,$f0
-	dc.b	$22,$4f,$a2,$67,$c3,$84,$ba,$ee,$8f,$0f,$fe,$e2,$3b,$df,$87,$0b
-	dc.b	$40,$07,$ca,$81,$20,$fd,$68,$67,$5f,$22,$0f,$11,$4f,$ac,$d4,$4b
-	dc.b	$f2,$8e,$60,$d4,$9f,$01,$09,$14,$10,$94,$5e,$d3,$c1,$08,$cb,$9e
-	dc.b	$f8,$32,$da,$4e,$26,$b8,$08,$74,$21,$56,$8d,$2d,$a4,$5e,$34,$c6
-	dc.b	$85,$39,$6a,$4c,$99,$79,$1f,$68,$6b,$f1,$4e,$f3,$ed,$54,$3b,$52
-	dc.b	$78,$92,$4d,$de,$22,$12,$2f,$7c,$44,$a5,$8e,$e8,$db,$cb,$8c,$6a
-	dc.b	$1b,$d5,$f9,$50,$3f,$f6,$94,$8d,$0d,$c6,$d7,$08,$84,$82,$5e,$ca
-	dc.b	$c9,$2a,$30,$3b,$7a,$11,$6c,$99,$f4,$db,$b7,$a3,$b2,$42,$da,$af
-	dc.b	$eb,$97,$a7,$28,$e0,$33,$17,$e8,$20,$5f,$c8,$84,$fc,$ce,$44,$ac
-	dc.b	$86,$80,$96,$4f,$80,$53,$42,$06,$05,$19,$65,$82,$70,$8f,$e6,$08
-	dc.b	$4b,$55,$5c,$bf,$e0,$85,$33,$29,$7e,$d2,$8d,$28,$1e,$c3,$04,$ee
-	dc.b	$d9,$f6,$e4,$7d,$ba,$00,$ea,$fd,$ea,$45,$9b,$a9,$66,$07,$e3,$52
-	dc.b	$00,$f2,$2f,$94,$8d,$7c,$30,$a5,$0f,$b2,$a2,$ae,$5b,$2b,$db,$f2
-	dc.b	$0d,$60,$3e,$18,$a1,$83,$70,$c0,$bb,$6e,$08,$8d,$17,$bf,$cd,$c1
-	dc.b	$9d,$4b,$37,$0b,$f6,$07,$fd,$69,$de,$8e,$05,$35,$cd,$73,$3c,$43
-	dc.b	$3d,$d2,$81,$f4,$19,$42,$ab,$e8,$15,$68,$65,$ae,$25,$cb,$21,$14
-	dc.b	$89,$b9,$0c,$53,$67,$d4,$29,$05,$8b,$a6,$ef,$2a,$19,$8c,$70,$a3
-	dc.b	$dc,$e7,$40,$d0,$0e,$7d,$08,$08,$56,$79,$9d,$af,$bf,$23,$e6,$28
-	dc.b	$26,$34,$cd,$72,$3e,$92,$05,$6b,$7a,$35,$21,$1c,$08,$03,$65,$94
-	dc.b	$04,$fc,$e8,$e0,$1c,$c9,$10,$86,$25,$06,$09,$4d,$0f,$78,$d9,$a7
-	dc.b	$3f,$94,$5e,$03,$8c,$b0,$ce,$8b,$55,$f8,$ff,$9f,$1a,$d5,$a3,$e5
-	dc.b	$25,$12,$f5,$67,$ce,$05,$60,$29,$44,$25,$c2,$b6,$f8,$9d,$22,$c0
-	dc.b	$ff,$62,$27,$d6,$a5,$73,$92,$d2,$fe,$36,$64,$12,$ef,$c0,$ab,$43
-	dc.b	$35,$7e,$72,$e8,$4e,$80,$bd,$6d,$be,$0b,$bc,$81,$dd,$d6,$45,$34
-	dc.b	$60,$e7,$22,$9c,$7b,$41,$87,$00,$cf,$fd,$22,$22,$ba,$4f,$65,$2b
-	dc.b	$27,$ce,$db,$e7,$f4,$af,$c7,$9c,$ce,$09,$94,$5d,$5c,$ed,$ff,$a7
-	dc.b	$7e,$4c,$ea,$38,$99,$32,$83,$33,$2e,$81,$e9,$d9,$47,$ab,$52,$64
-	dc.b	$c4,$da,$17,$a0,$01,$81,$a8,$4a,$40,$56,$ca,$de,$d8,$24,$81,$b2
-	dc.b	$ac,$96,$46,$99,$f3,$d5,$c0,$6f,$e3,$0e,$2d,$e6,$6f,$4e,$aa,$e6
-	dc.b	$6f,$10,$a8,$2f,$43,$95,$af,$77,$fe,$81,$96,$d0,$dd,$69,$35,$56
-	dc.b	$86,$06,$d0,$b8,$69,$16,$72,$19,$35,$d5,$02,$8c,$99,$fb,$8a,$36
-	dc.b	$40,$0e,$7c,$a6,$e7,$f4,$69,$81,$37,$c4,$80,$aa,$53,$2d,$ce,$15
-	dc.b	$e5,$b3,$53,$b9,$90,$14,$99,$ce,$90,$00,$d9,$83,$0e,$93,$6b,$55
-	dc.b	$51,$ea,$40,$02,$2a,$e6,$58,$33,$b6,$05,$28,$fb,$08,$2e,$36,$fa
-	dc.b	$20,$4d,$38,$31,$6c,$5a,$9e,$4d,$4f,$1b,$32,$d0,$19,$ae,$25,$2d
-	dc.b	$bf,$14,$ce,$e7,$92,$42,$20,$30,$8e,$cd,$bf,$93,$3b,$d9,$b3,$af
-	dc.b	$57,$b3,$95,$26,$ea,$ff,$61,$37,$73,$44,$9f,$46,$55,$e1,$71,$10
-	dc.b	$0d,$c4,$4e,$84,$e0,$84,$2c,$fc,$10,$98,$ed,$fc,$e0,$21,$04,$f8
-	dc.b	$92,$8d,$91,$d6,$10,$4e,$21,$4a,$72,$34,$c3,$25,$7a,$44,$9c,$91
-	dc.b	$99,$d9,$99,$c5,$ca,$83,$4c,$a1,$2d,$cc,$00,$bf,$70,$b7,$b8,$2b
-	dc.b	$98,$00,$ac,$a8,$6a,$2a,$5b,$e4,$67,$d2,$e0,$d3,$cd,$4a,$3e,$63
-	dc.b	$4a,$dc,$81,$1c,$15,$75,$24,$8d,$46,$c5,$e1,$6d,$6d,$85,$17,$f9
-	dc.b	$c8,$6a,$8f,$99,$cb,$60,$84,$28,$4a,$0c,$03,$ed,$46,$fe,$0c,$ef
-	dc.b	$27,$3e,$74,$de,$4e,$56,$fa,$da,$ff,$21,$1e,$9d,$0a,$42,$59,$1c
-	dc.b	$5b,$78,$98,$6e,$43,$0c,$22,$27,$e8,$22,$fd,$93,$55,$9c,$7c,$90
-	dc.b	$73,$aa,$fe,$56,$00,$2a,$14,$00,$46,$ba,$5b,$ef,$00,$38,$1a,$61
-	dc.b	$3f,$02,$35,$da,$d3,$a9,$4a,$f2,$d9,$92,$68,$e4,$7c,$cf,$d0,$a1
-	dc.b	$02,$45,$7c,$fc,$66,$1d,$ac,$16,$25,$57,$df,$20,$67,$38,$21,$a9
-	dc.b	$87,$4a,$f4,$8a,$40,$be,$d6,$86,$a8,$1a,$87,$06,$4d,$87,$bb,$c5
-	dc.b	$bd,$b6,$45,$cc,$f4,$df,$c0,$98,$1b,$e4,$91,$77,$c9,$11,$cd,$e7
-	dc.b	$1d,$ce,$81,$d4,$7e,$c7,$93,$ff,$9c,$7b,$d7,$0b,$f8,$4f,$3f,$f0
-	dc.b	$4b,$15,$23,$e7,$bd,$2b,$43,$18,$f1,$d0,$c3,$24,$f4,$10,$1f,$df
-	dc.b	$9d,$75,$e5,$01,$e6,$98,$4c,$cc,$1e,$ed,$87,$b5,$b4,$50,$95,$b2
-	dc.b	$84,$c5,$05,$ea,$2e,$02,$9a,$64,$fb,$eb,$4b,$9b,$f2,$f2,$e4,$98
-	dc.b	$25,$39,$0d,$55,$ff,$95,$90,$35,$94,$84,$16,$ae,$76,$3b,$9d,$04
-	dc.b	$07,$69,$7b,$83,$ad,$28,$fb,$b6,$e5,$df,$c0,$6d,$c1,$ab,$be,$64
-	dc.b	$39,$0d,$5f,$b4,$31,$cc,$8d,$48,$bf,$f1,$f4,$e2,$ee,$09,$3f,$44
-	dc.b	$d5,$85,$da,$2b,$0a,$33,$f1,$b3,$5f,$91,$1f,$82,$44,$db,$5f,$84
-	dc.b	$63,$28,$06,$df,$bd,$b6,$d7,$bb,$5a,$18,$b3,$a3,$a1,$86,$0c,$47
-	dc.b	$05,$4f,$db,$ab,$5f,$96,$d4,$ea,$7c,$8b,$13,$0f,$2b,$14,$22,$ac
-	dc.b	$4c,$0f,$72,$18,$91,$d6,$c4,$c6,$04,$dd,$c1,$f9,$f3,$25,$b6,$81
-	dc.b	$c5,$e3,$43,$b6,$a8,$c1,$b9,$28,$90,$98,$d6,$d2,$58,$30,$48,$75
-	dc.b	$a5,$0b,$03,$86,$79,$c2,$73,$0c,$24,$56,$69,$e9,$47,$c2,$69,$76
-	dc.b	$bd,$0b,$38,$83,$35,$94,$00,$92,$3a,$a8,$77,$63,$c6,$64,$c0,$24
-	dc.b	$42,$34,$97,$31,$ef,$e2,$f3,$32,$be,$dd,$31,$eb,$f2,$73,$cd,$93
-	dc.b	$9d,$ed,$d9,$26,$1d,$ce,$c7,$b2,$2b,$a8,$d3,$7a,$60,$e2,$26,$bb
-	dc.b	$f1,$22,$c3,$66,$45,$d1,$19,$6a,$40,$2e,$66,$44,$52,$d7,$f0,$e5
-	dc.b	$7d,$ba,$0a,$26,$c0,$30,$f9,$d0,$c8,$97,$71,$35,$09,$30,$65,$b2
-	dc.b	$f4,$a1,$08,$9a,$3a,$d8,$98,$e0,$90,$8c,$22,$2e,$dd,$eb,$ad,$7d
-	dc.b	$5a,$8f,$2a,$4a,$fc,$16,$1a,$5c,$d2,$50,$d3,$18,$cb,$ef,$38,$02
-	dc.b	$90,$d6,$8b,$b5,$30,$56,$33,$3d,$be,$da,$4f,$98,$c7,$08,$24,$37
-	dc.b	$39,$fb,$52,$22,$56,$18,$d0,$44,$56,$65,$86,$35,$19,$9d,$9d,$97
-	dc.b	$0e,$cf,$6a,$fc,$4c,$62,$7e,$f2,$55,$e4,$05,$b3,$9f,$f9,$51,$98
-	dc.b	$32,$5d,$0e,$06,$e4,$ab,$65,$5c,$aa,$97,$73,$3a,$d9,$8c,$13,$4e
-	dc.b	$8f,$49,$27,$9c,$e8,$cc,$1e,$96,$d8,$e0,$ac,$81,$e7,$5b,$2a,$ca
-	dc.b	$04,$3b,$bf,$91,$8c,$eb,$66,$33,$78,$85,$c3,$f2,$74,$3b,$a4,$d3
-	dc.b	$2a,$65,$74,$ea,$76,$0f,$b6,$43,$34,$61,$4b,$3a,$f3,$bb,$b2,$cd
-	dc.b	$f6,$df,$c9,$d4,$12,$bd,$a0,$77,$2e,$67,$4f,$1a,$e9,$22,$59,$af
-	dc.b	$42,$48,$fc,$6f,$a1,$e5,$b5,$de,$92,$14,$32,$df,$ab,$fa,$44,$0f
-	dc.b	$d1,$fd,$22,$f7,$e7,$7b,$f7,$9c,$6c,$af,$5e,$65,$12,$b7,$9d,$f6
-	dc.b	$69,$6a,$4e,$a4,$67,$04,$71,$83,$2c,$b8,$a3,$04,$f7,$f5,$8b,$7b
-	dc.b	$5b,$96,$08,$4e,$1a,$6f,$73,$c7,$05,$47,$a7,$e0,$89,$11,$89,$1b
-	dc.b	$de,$69,$43,$0d,$6a,$db,$76,$cd,$b8,$c9,$80,$6e,$ad,$3b,$2c,$b3
-	dc.b	$0e,$95,$26,$bd,$98,$2b,$3a,$a0,$a5,$a9,$d8,$2d,$ae,$dc,$40,$49
-	dc.b	$86,$e3,$68,$72,$ca,$15,$d1,$e4,$02,$68,$1c,$27,$c3,$75,$ff,$23
-	dc.b	$3f,$09,$c4,$a2,$7b,$cb,$70,$5d,$35,$f4,$b0,$d1,$ea,$01,$49,$ba
-	dc.b	$52,$46,$f6,$8c,$70,$87,$9b,$d9,$84,$08,$bb,$53,$c6,$ae,$94,$20
-	dc.b	$4e,$d6,$32,$e1,$71,$01,$22,$ce,$94,$23,$df,$79,$a7,$98,$db,$6e
-	dc.b	$99,$44,$4a,$64,$f8,$8e,$18,$67,$6c,$f1,$1f,$69,$41,$e1,$a3,$c8
-	dc.b	$c8,$38,$45,$5b,$aa,$0a,$4d,$7d,$6b,$49,$76,$68,$20,$35,$87,$30
-	dc.b	$4f,$2c,$60,$56,$62,$c1,$12,$e2,$85,$9c,$73,$a0,$bf,$37,$f1,$0d
-	dc.b	$40,$20,$4c,$11,$d4,$a5,$6d,$61,$5a,$ab,$05,$5f,$6e,$99,$40,$23
-	dc.b	$49,$8b,$e8,$ef,$a3,$58,$be,$18,$fc,$6b,$00,$d9,$69,$91,$1b,$98
-	dc.b	$02,$56,$13,$aa,$14,$63,$5e,$b1,$bf,$6e,$f9,$f1,$8b,$01,$de,$dd
-	dc.b	$2d,$2f,$95,$14,$0a,$e9,$95,$4f,$d2,$6d,$fe,$a8,$e6,$3e,$75,$a7
-	dc.b	$4b,$75,$05,$43,$d4,$bc,$ae,$55,$30,$ca,$1d,$7e,$90,$bb,$5e,$5b
-	dc.b	$42,$fd,$60,$f1,$96,$de,$8c,$41,$9f,$1a,$38,$d2,$c0,$ad,$85,$30
-	dc.b	$a6,$c0,$23,$8f,$c8,$7b,$9d,$49,$f1,$27,$9b,$3c,$90,$84,$78,$f5
-	dc.b	$21,$f0,$c0,$89,$34,$59,$74,$0b,$5f,$37,$d8,$28,$ad,$24,$84,$6d
-	dc.b	$f8,$c3,$44,$54,$a0,$1a,$d1,$ec,$9a,$ba,$5a,$d9,$16,$a0,$1b,$22
-	dc.b	$37,$33,$2f,$bc,$22,$86,$23,$02,$d3,$a5,$96,$83,$ad,$90,$60,$94
-	dc.b	$7b,$46,$04,$30,$bf,$14,$70,$fe,$04,$63,$0f,$cf,$a6,$58,$bf,$10
-	dc.b	$71,$4e,$85,$49,$d6,$ae,$2d,$e6,$01,$7a,$17,$04,$91,$d1,$ca,$39
-	dc.b	$4a,$5b,$29,$b6,$3d,$2d,$51,$85,$d0,$bc,$de,$c4,$7f,$bc,$c6,$41
-	dc.b	$30,$ec,$17,$03,$e4,$9c,$2b,$86,$ba,$f6,$bf,$38,$de,$69,$19,$5a
-	dc.b	$6e,$26,$33,$87,$a1,$e9,$6f,$6f,$1a,$38,$91,$94,$2b,$6d,$16,$e8
-	dc.b	$5b,$59,$81,$14,$4a,$72,$3a,$a2,$19,$64,$2e,$12,$10,$8f,$35,$40
-	dc.b	$8f,$1e,$3d,$16,$72,$7d,$01,$9f,$9f,$a7,$32,$33,$37,$d8,$ed,$99
-	dc.b	$f4,$90,$81,$6b,$78,$e7,$35,$34,$a0,$06,$c1,$1a,$72,$ed,$d2,$8e
-	dc.b	$c3,$87,$5b,$b1,$42,$f6,$8a,$2f,$0b,$8b,$96,$4e,$89,$73,$54,$dc
-	dc.b	$3c,$37,$82,$73,$ec,$cc,$31,$22,$59,$b1,$b3,$8a,$32,$68,$58,$be
-	dc.b	$c3,$9e,$ad,$24,$78,$f1,$07,$4d,$84,$f7,$50,$e8,$4f,$53,$0b,$51
-	dc.b	$6e,$b8,$7c,$43,$b1,$5d,$71,$b9,$eb,$9a,$56,$86,$20,$7d,$24,$46
-	dc.b	$7a,$21,$99,$f9,$fe,$c9,$f9,$e0,$d8,$76,$f3,$bd,$93,$8b,$f4,$b8
-	dc.b	$db,$51,$9b,$ae,$77,$1e,$5d,$e7,$1b,$19,$ad,$ef,$72,$6e,$4f,$63
-	dc.b	$47,$17,$5c,$56,$76,$91,$63,$40,$2f,$bd,$20,$d6,$e7,$23,$a3,$55
-	dc.b	$9a,$a4,$39,$12,$99,$a0,$a1,$fb,$b1,$52,$59,$3b,$f2,$6b,$67,$11
-	dc.b	$f9,$35,$51,$f6,$09,$dc,$55,$74,$d8,$2a,$8c,$69,$a1,$30,$f6,$83
-	dc.b	$d5,$84,$43,$3a,$db,$4c,$8c,$5a,$32,$ec,$75,$29,$0e,$ee,$6c,$8e
-	dc.b	$6d,$26,$81,$17,$34,$89,$d2,$2f,$f6,$8c,$3d,$14,$d9,$82,$b2,$aa
-	dc.b	$1f,$3b,$d0,$58,$03,$c9,$8e,$d4,$84,$66,$d0,$08,$57,$9e,$c8,$9a
-	dc.b	$88,$3e,$2f,$c6,$db,$dc,$cd,$c9,$ec,$eb,$62,$d1,$c6,$66,$73,$8a
-	dc.b	$0b,$a8,$6e,$bc,$ea,$03,$c6,$8f,$e9,$20,$50,$3a,$68,$fd,$24,$13
-	dc.b	$4e,$c2,$ef,$78,$7f,$7b,$7f,$b3,$0e,$24,$7e,$42,$c7,$da,$c4,$c6
-	dc.b	$7a,$f9,$e8,$28,$c6,$89,$5d,$30,$27,$f0,$69,$d3,$9f,$87,$6e,$4a
-	dc.b	$20,$da,$45,$91,$46,$d8,$1b,$f8,$21,$4b,$9f,$85,$d1,$fd,$c9,$8c
-	dc.b	$b5,$3e,$f9,$0e,$ad,$36,$1e,$67,$7f,$4f,$47,$c0,$f0,$25,$a7,$3d
-	dc.b	$2a,$44,$c4,$5c,$4c,$45,$ea,$62,$2e,$85,$16,$f8,$08,$95,$a9,$40
-	dc.b	$ee,$a8,$70,$2a,$2d,$9b,$d1,$20,$0e,$bd,$aa,$b0,$9d,$04,$4a,$a9
-	dc.b	$44,$9f,$83,$e7,$5b,$d1,$8c,$df,$e8,$9f,$4c,$3b,$51,$9d,$00,$f1
-	dc.b	$ad,$d1,$8c,$30,$59,$1e,$9a,$bb,$03,$89,$1f,$d5,$bd,$39,$3e,$c8
-	dc.b	$5e,$e2,$8c,$87,$a0,$74,$86,$e9,$54,$ab,$72,$4e,$68,$5c,$f1,$47
-	dc.b	$34,$83,$bb,$50,$7e,$24,$bd,$82,$04,$8b,$b6,$98,$96,$6b,$75,$2d
-	dc.b	$e9,$6a,$b7,$d2,$52,$fc,$df,$69,$18,$b8,$cf,$46,$b8,$b8,$de,$2e
-	dc.b	$34,$4a,$66,$70,$65,$54,$52,$c6,$50,$90,$e7,$4e,$59,$00,$8c,$33
-	dc.b	$6f,$80,$7d,$bd,$79,$66,$04,$57,$e5,$51,$93,$75,$d5,$d6,$a7,$d4
-	dc.b	$7b,$23,$3b,$9b,$06,$62,$63,$72,$23,$14,$06,$58,$8f,$c1,$99,$df
-	dc.b	$bc,$85,$82,$14,$b2,$e4,$da,$a4,$c6,$3f,$2e,$1f,$33,$f0,$93,$59
-	dc.b	$63,$c0,$4a,$8d,$31,$f9,$d2,$45,$7b,$04,$7a,$ae,$ca,$00,$11,$ff
-	dc.b	$ee,$03,$ae,$a6,$ba,$a9,$a6,$07,$45,$b3,$61,$b5,$83,$33,$87,$71
-	dc.b	$a8,$50,$22,$36,$2c,$f7,$12,$43,$ed,$d4,$15,$8a,$5f,$9f,$48,$61
-	dc.b	$f8,$bf,$4d,$fb,$61,$3f,$8a,$fb,$b1,$c3,$20,$c3,$bf,$82,$bf,$0e
-	dc.b	$e4,$d4,$15,$5a,$a2,$77,$9f,$4d,$cd,$ef,$db,$7e,$be,$95,$ba,$3a
-	dc.b	$33,$7e,$27,$5f,$8d,$c7,$0e,$f8,$89,$63,$97,$fd,$e6,$70,$41,$22
-	dc.b	$68,$be,$f3,$7c,$76,$d0,$5f,$55,$6b,$b9,$01,$99,$48,$8a,$07,$1d
-	dc.b	$4b,$b6,$c1,$1f,$3c,$33,$26,$e5,$68,$75,$f9,$5b,$0d,$0a,$4c,$18
-	dc.b	$8b,$23,$08,$c7,$72,$35,$03,$cc,$9a,$81,$16,$a8,$9c,$50,$ce,$b8
-	dc.b	$ef,$3f,$0d,$59,$52,$64,$58,$92,$07,$1d,$c9,$de,$f6,$33,$f0,$8c
-	dc.b	$c7,$2f,$b7,$c4,$71,$87,$e2,$f1,$26,$94,$ab,$4c,$a9,$f6,$df,$15
-	dc.b	$53,$a9,$06,$25,$13,$9f,$f6,$b1,$02,$4a,$f2,$cb,$d4,$15,$54,$c9
-	dc.b	$9b,$cf,$a6,$e9,$c3,$4a,$7c,$e2,$b5,$da,$96,$65,$49,$25,$19,$13
-	dc.b	$bb,$ca,$76,$fd,$2c,$10,$af,$ca,$e4,$df,$83,$49,$83,$31,$18,$1f
-	dc.b	$39,$9c,$da,$0b,$f9,$c6,$e3,$91,$3e,$9c,$8b,$4e,$70,$41,$75,$17
-	dc.b	$de,$90,$3a,$a9,$a6,$c7,$4a,$9f,$55,$76,$fe,$9f,$e3,$72,$fc,$4a
-	dc.b	$b0,$b8,$0e,$b6,$56,$62,$b9,$88,$82,$c1,$76,$2b,$cf,$9c,$92,$93
-	dc.b	$72,$89,$90,$a4,$ad,$86,$35,$47,$db,$4a,$a9,$3a,$42,$83,$28,$73
-	dc.b	$1f,$da,$2d,$96,$fb,$55,$50,$22,$a6,$4c,$c5,$0d,$a6,$4d,$54,$d3
-	dc.b	$4d,$a5,$34,$c5,$14,$da,$85,$18,$c3,$5a,$18,$cf,$5d,$91,$38,$f9
-	dc.b	$af,$cd,$30,$47,$d4,$61,$df,$f8,$f6,$49,$e8,$74,$ab,$b7,$e7,$46
-	dc.b	$09,$f1,$b8,$9b,$30,$44,$23,$7e,$06,$c2,$f2,$e5,$8f,$87,$6a,$b2
-	dc.b	$a8,$ab,$9e,$5e,$34,$c1,$d1,$6c,$21,$7d,$4b,$bf,$0f,$b6,$64,$b2
-	dc.b	$3e,$40,$b8,$d1,$c5,$ef,$39,$8c,$dd,$08,$05,$e6,$65,$80,$1b,$99
-	dc.b	$e1,$20,$d1,$2c,$f5,$9e,$09,$09,$e1,$0f,$75,$05,$59,$56,$ca,$a3
-	dc.b	$27,$0e,$b8,$69,$04,$d7,$4a,$8a,$55,$a6,$ef,$4f,$61,$4c,$11,$d5
-	dc.b	$28,$4d,$c6,$d5,$1e,$87,$91,$f2,$a1,$a9,$3e,$6a,$7c,$51,$cb,$03
-	dc.b	$73,$82,$aa,$91,$92,$a1,$6e,$4d,$d4,$c4,$29,$26,$02,$89,$18,$a5
-	dc.b	$88,$0b,$ee,$a9,$14,$d6,$d4,$14,$c9,$97,$28,$a1,$99,$55,$05,$55
-	dc.b	$51,$8f,$18,$9a,$34,$58,$2a,$81,$aa,$28,$5a,$91,$97,$9f,$a7,$d2
-	dc.b	$31,$f8,$3c,$df,$72,$a4,$9c,$3a,$a6,$a3,$42,$8a,$f1,$bc,$e4,$48
-	dc.b	$2e,$bf,$f9,$d8,$7d,$e5,$56,$0e,$08,$53,$e2,$fe,$45,$27,$b9,$7c
-	dc.b	$b9,$26,$bb,$4c,$b8,$fa,$75,$b5,$57,$30,$ec,$68,$e2,$c7,$86,$10
-	dc.b	$db,$21,$70,$62,$2e,$d5,$e1,$26,$a5,$63,$89,$e1,$2e,$3c,$10,$af
-	dc.b	$50,$7d,$83,$55,$c2,$6f,$ec,$aa,$0a,$39,$79,$60,$64,$9a,$e1,$b4
-	dc.b	$38,$3d,$48,$34,$a4,$fd,$d2,$25,$dc,$fc,$cc,$ff,$88,$aa,$80,$9a
-	dc.b	$3f,$3e,$7e,$b8,$92,$b4,$85,$26,$ea,$e6,$25,$5a,$d0,$b7,$4e,$da
-	dc.b	$71,$1d,$40,$62,$5a,$3a,$18,$17,$cc,$52,$1a,$c2,$ea,$0a,$60,$cd
-	dc.b	$fc,$14,$45,$76,$aa,$2c,$ea,$03,$4a,$4c,$24,$57,$47,$82,$11,$28
-	dc.b	$37,$4a,$88,$d3,$0e,$ce,$e9,$3e,$67,$2c,$30,$0a,$ed,$3d,$75,$39
-	dc.b	$43,$9e,$87,$b7,$b9,$ee,$94,$a3,$a6,$14,$5f,$fe,$76,$60,$7e,$44
-	dc.b	$c7,$4a,$2f,$7c,$5d,$ad,$17,$7f,$5e,$8b,$f7,$c6,$7c,$73,$7d,$fa
-	dc.b	$22,$e9,$d4,$a6,$b2,$71,$a0,$77,$b6,$f6,$c8,$bd,$64,$51,$59,$ac
-	dc.b	$0a,$54,$cf,$06,$94,$fc,$0c,$0c,$e6,$8c,$8a,$0f,$33,$e0,$36,$73
-	dc.b	$28,$bb,$96,$87,$47,$fa,$71,$d1,$65,$8d,$74,$b8,$85,$be,$d1,$74
-	dc.b	$97,$71,$32,$ed,$95,$59,$cb,$12,$69,$c6,$08,$fa,$a7,$59,$26,$74
-	dc.b	$3d,$ec,$12,$10,$2c,$89,$15,$07,$f4,$f6,$97,$3c,$fe,$05,$20,$6a
-	dc.b	$0a,$58,$e7,$78,$29,$a5,$d8,$34,$d3,$38,$b7,$49,$a2,$fd,$fa,$5c
-	dc.b	$10,$4a,$76,$ca,$67,$bf,$3b,$c9,$ba,$f4,$05,$80,$a5,$0b,$dd,$69
-	dc.b	$56,$61,$76,$a7,$72,$b1,$74,$c3,$63,$73,$c2,$5a,$68,$d9,$e1,$32
-	dc.b	$1e,$22,$6d,$68,$2b,$e8,$7e,$5c,$41,$e8,$49,$77,$39,$2f,$09,$13
-	dc.b	$3c,$d7,$0f,$19,$93,$d9,$af,$b7,$31,$a0,$d5,$66,$f0,$19,$aa,$49
-	dc.b	$61,$87,$30,$56,$5a,$1a,$62,$af,$99,$0a,$39,$14,$a0,$47,$7d,$9e
-	dc.b	$18,$fe,$f1,$71,$07,$8e,$a1,$b9,$f0,$e8,$34,$fe,$32,$81,$74,$51
-	dc.b	$c4,$33,$35,$9e,$74,$a0,$99,$bf,$18,$a9,$98,$49,$59,$76,$97,$36
-	dc.b	$90,$95,$d0,$c5,$a6,$cd,$57,$3b,$5e,$74,$c0,$3a,$a8,$50,$f0,$81
-	dc.b	$09,$00,$d4,$e0,$81,$3a,$eb,$45,$d2,$c5,$d2,$a6,$34,$fd,$e2,$e9
-	dc.b	$cb,$dc,$4b,$0b,$e1,$1c,$92,$05,$a2,$bb,$bc,$5c,$d1,$05,$20,$54
-	dc.b	$20,$02,$a3,$dc,$2a,$63,$ae,$5b,$b5,$9e,$72,$74,$b6,$4e,$3b,$bf
-	dc.b	$ca,$df,$2b,$9c,$c4,$86,$e5,$e8,$3b,$d6,$92,$b9,$77,$98,$5f,$2a
-	dc.b	$e0,$f1,$96,$15,$7d,$95,$12,$d0,$16,$44,$5a,$b8,$58,$1d,$34,$ef
-	dc.b	$c4,$8a,$12,$4b,$43,$48,$61,$f8,$1c,$1d,$aa,$f2,$b0,$c7,$f7,$aa
-	dc.b	$0e,$91,$6d,$95,$8b,$c3,$8b,$e0,$79,$55,$22,$00,$bb,$bc,$e0,$3e
-	dc.b	$d1,$cf,$2d,$0a,$b7,$a5,$0a,$35,$61,$81,$36,$3c,$f2,$42,$da,$f3
-	dc.b	$93,$37,$46,$ab,$da,$2b,$1e,$e2,$94,$74,$80,$4a,$a0,$41,$cc,$40
-	dc.b	$22,$33,$98,$13,$22,$de,$94,$1a,$8b,$bb,$ba,$1d,$34,$d0,$22,$54
-	dc.b	$10,$df,$0b,$08,$51,$7f,$ba,$35,$ee,$32,$08,$0a,$fa,$55,$7b,$cd
-	dc.b	$6e,$03,$73,$57,$b9,$a6,$bd,$e4,$75,$3b,$1a,$70,$ad,$eb,$c6,$44
-	dc.b	$91,$05,$0e,$a7,$6e,$65,$51,$63,$32,$d0,$17,$8d,$78,$cd,$1f,$5e
-	dc.b	$47,$fd,$53,$f1,$36,$e2,$6e,$34,$91,$6b,$de,$4b,$46,$6c,$62,$7a
-	dc.b	$d5,$01,$a6,$9c,$e8,$f6,$05,$1c,$1a,$5e,$52,$2d,$c8,$c8,$55,$58
-	dc.b	$99,$48,$30,$d6,$b8,$1a,$3e,$9a,$52,$4a,$ea,$9b,$32,$66,$d8,$88
-	dc.b	$f3,$a8,$75,$00,$21,$5f,$6d,$41,$56,$09,$c3,$4d,$88,$c9,$d0,$fc
-	dc.b	$43,$a0,$7a,$80,$a6,$b6,$c4,$45,$5d,$88,$c8,$56,$04,$09,$29,$43
-	dc.b	$e6,$3b,$60,$36,$53,$34,$f7,$21,$4f,$cc,$03,$64,$2d,$c3,$e1,$dd
-	dc.b	$5f,$98,$5a,$f7,$7f,$16,$23,$72,$58,$9b,$9f,$9e,$08,$82,$87,$d3
-	dc.b	$b7,$32,$a8,$b5,$d2,$d0,$6e,$0f,$c6,$34,$70,$1a,$65,$ae,$5d,$06
-	dc.b	$01,$e0,$89,$64,$74,$aa,$85,$e8,$68,$26,$ea,$48,$11,$5c,$2f,$60
-	dc.b	$4b,$71,$1b,$e1,$d4,$33,$63,$04,$75,$52,$48,$a4,$5f,$2e,$d4,$70
-	dc.b	$64,$ba,$84,$88,$f8,$8a,$08,$55,$92,$50,$63,$51,$41,$17,$8b,$c1
-	dc.b	$f8,$c9,$38,$22,$04,$66,$47,$98,$b7,$c4,$66,$73,$a9,$bf,$0a,$6b
-	dc.b	$7e,$31,$b7,$30,$12,$d6,$2c,$49,$c3,$a0,$ce,$85,$32,$ad,$b7,$e0
-	dc.b	$c0,$49,$e6,$74,$55,$56,$b4,$3d,$9a,$82,$16,$76,$79,$60,$92,$f0
-	dc.b	$07,$6e,$1a,$5a,$a0,$0d,$f2,$b0,$63,$25,$5b,$e1,$92,$0f,$42,$ce
-	dc.b	$39,$2b,$69,$dc,$30,$88,$65,$0e,$de,$6f,$86,$13,$8f,$e6,$18,$29
-	dc.b	$12,$b6,$61,$be,$96,$b0,$fc,$fa,$5d,$ba,$91,$10,$d3,$b8,$21,$90
-	dc.b	$bf,$55,$01,$d7,$a1,$89,$66,$ff,$de,$fc,$e8,$74,$a0,$24,$e0,$93
-	dc.b	$14,$16,$62,$65,$07,$de,$dd,$58,$6c,$81,$b5,$44,$e0,$b6,$f7,$6b
-	dc.b	$5d,$32,$2b,$e7,$53,$7d,$b0,$c1,$0b,$3a,$20,$e3,$2f,$02,$cc,$c1
-	dc.b	$87,$81,$42,$ac,$de,$5d,$46,$e9,$56,$3d,$50,$e9,$89,$42,$8c,$31
-	dc.b	$52,$50,$a1,$f3,$45,$0c,$32,$74,$c3,$aa,$18,$51,$4a,$bd,$02,$cb
-	dc.b	$57,$f2,$45,$65,$b7,$d9,$b9,$26,$7c,$df,$9f,$7c,$02,$98,$58,$de
-	dc.b	$64,$2a,$37,$a0,$ab,$fd,$6b,$cf,$19,$5a,$10,$52,$32,$c5,$d3,$a0
-	dc.b	$05,$af,$fe,$12,$5d,$07,$f0,$22,$c1,$76,$cc,$b7,$bf,$ce,$0d,$8d
-	dc.b	$0c,$52,$75,$41,$ab,$bd,$50,$d4,$07,$ee,$86,$24,$87,$36,$24,$4d
-	dc.b	$5d,$c0,$d4,$29,$19,$27,$c0,$35,$c3,$ed,$f1,$1c,$c1,$fe,$1f,$87
-	dc.b	$57,$a5,$69,$81,$d1,$c0,$94,$f0,$4b,$9d,$ce,$0d,$a8,$4a,$45,$0d
-	dc.b	$58,$21,$66,$ea,$00,$d0,$b6,$f8,$84,$e9,$16,$70,$d5,$05,$56,$49
-	dc.b	$54,$14,$d9,$c3,$6f,$c9,$11,$48,$86,$50,$52,$56,$53,$24,$1a,$85
-	dc.b	$93,$50,$06,$03,$bb,$85,$d7,$c0,$45,$5e,$dc,$33,$f8,$d2,$c0,$ce
-	dc.b	$7f,$f3,$ad,$78,$cf,$df,$8c,$2a,$d5,$c6,$3d,$f0,$18,$07,$a6,$20
-	dc.b	$75,$eb,$0a,$54,$8a,$62,$8d,$24,$3b,$c6,$5c,$8e,$18,$78,$61,$18
-	dc.b	$ff,$91,$01,$86,$11,$96,$db,$86,$32,$72,$3e,$4a,$d9,$91,$9e,$ac
-	dc.b	$c2,$25,$ed,$d6,$95,$82,$54,$08,$89,$d3,$18,$d2,$7a,$d9,$ee,$d5
-	dc.b	$06,$5b,$42,$43,$47,$04,$f5,$02,$40,$46,$ab,$56,$7d,$56,$d8,$bc
-	dc.b	$66,$f5,$82,$9e,$88,$ae,$0c,$bb,$e3,$8c,$5e,$2c,$c4,$24,$d7,$22
-	dc.b	$2a,$81,$00,$66,$36,$f8,$ab,$62,$42,$5c,$bd,$11,$1b,$b2,$77,$c4
-	dc.b	$57,$c6,$69,$2e,$04,$42,$e3,$f0,$e1,$aa,$51,$4e,$64,$a8,$59,$b5
-	dc.b	$c6,$ac,$9e,$d5,$a3,$15,$8c,$9c,$e0,$aa,$0d,$23,$7e,$54,$21,$7b
-	dc.b	$55,$9b,$83,$f2,$94,$0e,$a9,$5d,$8e,$bc,$5a,$ef,$55,$47,$5f,$fa
-	dc.b	$7b,$23,$19,$65,$82,$a0,$43,$36,$02,$11,$70,$c2,$29,$d6,$05,$45
-	dc.b	$94,$93,$53,$b3,$dd,$40,$16,$d4,$5c,$8c,$3b,$a5,$d2,$d4,$67,$7b
-	dc.b	$74,$24,$08,$58,$a4,$23,$f2,$11,$37,$1a,$b7,$0d,$25,$7e,$49,$87
-	dc.b	$30,$f3,$34,$27,$ae,$04,$8f,$59,$47,$e4,$d4,$db,$5d,$66,$2b,$f8
-	dc.b	$f1,$ce,$03,$e0,$0d,$56,$c3,$bf,$1b,$ec,$b5,$b8,$10,$90,$db,$04
-	dc.b	$7d,$15,$b4,$3e,$69,$e2,$16,$d7,$40,$0f,$f5,$34,$21,$a7,$6c,$57
-	dc.b	$f0,$56,$3f,$2a,$e0,$5f,$24,$8e,$e9,$28,$f4,$22,$59,$b2,$69,$35
-	dc.b	$b5,$48,$e6,$99,$16,$7a,$29,$9f,$26,$d0,$0c,$94,$b4,$5d,$2d,$69
-	dc.b	$5c,$a3,$4a,$0d,$7a,$93,$89,$9e,$69,$5f,$c3,$a1,$14,$4e,$4d,$ea
-	dc.b	$db,$74,$04,$da,$be,$24,$75,$0c,$b8,$ab,$cc,$af,$48,$de,$d9,$13
-	dc.b	$e5,$66,$22,$05,$79,$78,$a9,$1f,$ac,$e9,$1c,$8f,$53,$81,$e9,$c8
-	dc.b	$7a,$d2,$52,$6c,$dd,$16,$d8,$12,$6c,$4b,$38,$e3,$a8,$31,$6b,$4f
-	dc.b	$81,$23,$9f,$5a,$a8,$44,$fb,$68,$1f,$9e,$4a,$1a,$5f,$82,$03,$5a
-	dc.b	$7c,$13,$40,$d4,$7f,$c1,$2e,$52,$2f,$81,$1c,$11,$f0,$ae,$00,$cc
-	dc.b	$bc,$a8,$06,$17,$69,$0b,$28,$f6,$e9,$de,$f9,$04,$62,$cf,$ed,$a4
-	dc.b	$c5,$02,$75,$14,$d2,$22,$da,$3f,$8c,$9a,$7d,$07,$5a,$b5,$5e,$3d
-	dc.b	$8e,$a6,$63,$88,$f2,$ea,$46,$6e,$8a,$26,$ff,$4f,$d9,$97,$2c,$c1
-	dc.b	$01,$62,$90,$8a,$f7,$ea,$90,$b8,$df,$a6,$3a,$1a,$3c,$d7,$de,$37
-	dc.b	$b2,$10,$c4,$db,$1e,$be,$90,$0d,$c4,$5b,$3e,$f4,$9a,$b6,$bd,$9b
-	dc.b	$9d,$a9,$5e,$56,$6f,$b5,$8f,$9d,$e0,$6d,$9d,$1a,$80,$d0,$4c,$7a
-	dc.b	$cc,$28,$04,$4e,$0a,$4c,$2f,$a8,$da,$31,$14,$c2,$93,$32,$7e,$d9
-	dc.b	$b9,$01,$bd,$d3,$ab,$5d,$bc,$a5,$9d,$10,$f0,$f4,$1a,$64,$48,$2b
-	dc.b	$1b,$e1,$e3,$19,$12,$10,$eb,$36,$f2,$cb,$af,$e2,$dd,$e9,$8e,$c6
-	dc.b	$86,$fb,$e4,$c0,$29,$c0,$de,$b9,$d4,$b1,$c1,$2a,$8a,$5c,$f6,$90
-	dc.b	$0d,$42,$ce,$1c,$a8,$ea,$89,$b1,$b6,$47,$53,$db,$3a,$b0,$13,$d4
-	dc.b	$74,$99,$ed,$33,$36,$e3,$c0,$82,$6d,$55,$38,$6f,$dd,$c0,$b6,$ee
-	dc.b	$42,$94,$22,$4c,$bb,$5e,$16,$16,$33,$3d,$bc,$65,$ee,$5f,$dd,$e3
-	dc.b	$2d,$f0,$c5,$5f,$aa,$ba,$94,$2d,$b3,$1d,$a8,$ec,$33,$db,$b3,$47
-	dc.b	$1a,$d2,$e0,$52,$0d,$dd,$f8,$63,$3f,$1a,$a8,$d7,$64,$e2,$34,$f3
-	dc.b	$fb,$e5,$91,$b2,$de,$82,$72,$c3,$05,$bf,$ef,$2b,$ff,$ea,$96,$42
-	dc.b	$2c,$9b,$c2,$16,$b0,$89,$d0,$b6,$72,$5a,$8d,$16,$23,$55,$3a,$8d
-	dc.b	$1e,$a1,$79,$b5,$81,$96,$38,$76,$41,$97,$e2,$60,$52,$49,$ea,$87
-	dc.b	$1c,$3d,$c1,$a9,$26,$b3,$a2,$ce,$35,$20,$c6,$ec,$c4,$a1,$0e,$1e
-	dc.b	$73,$1a,$17,$06,$83,$27,$6d,$43,$d6,$17,$1a,$95,$bb,$de,$8e,$e9
-	dc.b	$ef,$9d,$d9,$72,$14,$f1,$c0,$d5,$b5,$59,$11,$19,$9d,$de,$35,$9f
-	dc.b	$fd,$fc,$66,$c4,$38,$5e,$2f,$7e,$db,$1e,$ff,$c4,$5b,$3f,$5c,$fe
-	dc.b	$70,$d3,$bb,$e6,$57,$07,$a1,$d5,$09,$09,$03,$79,$ec,$a1,$89,$11
-	dc.b	$d2,$2e,$20,$e6,$2f,$39,$be,$65,$1b,$19,$d2,$82,$43,$0a,$68,$99
-	dc.b	$ae,$41,$c6,$81,$76,$83,$52,$5e,$15,$dd,$0b,$60,$b4,$2e,$49,$a5
-	dc.b	$54,$54,$e7,$50,$d6,$e5,$d6,$b6,$ac,$6f,$ce,$38,$52,$b1,$d4,$22
-	dc.b	$35,$39,$ab,$78,$95,$13,$59,$c5,$7c,$d5,$c0,$28,$a6,$f0,$3c,$38
-	dc.b	$91,$39,$e7,$42,$e7,$d0,$40,$51,$20,$33,$ac,$58,$1a,$50,$bd,$01
-	dc.b	$63,$cc,$e7,$3e,$3b,$90,$a4,$08,$52,$f4,$ee,$7b,$11,$6c,$fd,$7f
-	dc.b	$22,$97,$e4,$bc,$34,$5b,$1f,$ca,$b3,$4b,$e7,$b8,$7c,$7c,$45,$b3
-	dc.b	$e9,$4f,$89,$91,$68,$1a,$e5,$61,$4f,$c0,$38,$dd,$42,$46,$b8,$5f
-	dc.b	$8a,$a1,$89,$30,$08,$8a,$41,$c2,$59,$01,$10,$90,$09,$2d,$1c,$bd
-	dc.b	$62,$b5,$72,$6d,$03,$f3,$da,$20,$e1,$42,$48,$44,$a4,$f8,$40,$f2
-	dc.b	$81,$15,$82,$3a,$02,$03,$16,$aa,$84,$70,$a9,$c0,$d1,$35,$e5,$96
-	dc.b	$00,$9d,$49,$50,$2b,$32,$ef,$29,$6a,$0f,$b2,$78,$06,$82,$94,$24
-	dc.b	$06,$e9,$1a,$25,$c4,$e2,$1d,$bc,$93,$c0,$6b,$d1,$2e,$79,$74,$ef
-	dc.b	$5a,$7c,$bf,$05,$8f,$cd,$9c,$3a,$75,$ce,$ae,$42,$91,$21,$e2,$7c
-	dc.b	$1e,$32,$8b,$62,$7f,$f7,$c5,$67,$d8,$f8,$39,$ef,$77,$94,$69,$12
-	dc.b	$fe,$7c,$7c,$3c,$3b,$63,$a6,$45,$ae,$29,$f2,$45,$75,$8b,$82,$f5
-	dc.b	$09,$71,$13,$73,$ac,$68,$9c,$41,$07,$38,$d4,$11,$6c,$eb,$be,$28
-	dc.b	$3e,$8c,$9f,$50,$8d,$c6,$8d,$35,$db,$fb,$55,$b0,$fe,$1c,$08,$fc
-	dc.b	$3a,$0d,$59,$d5,$12,$f2,$06,$24,$4a,$6e,$e9,$bb,$4b,$e7,$2d,$44
-	dc.b	$e5,$82,$74,$84,$58,$70,$91,$68,$96,$41,$11,$6a,$40,$8d,$e5,$6d
-	dc.b	$42,$c9,$12,$b4,$85,$5e,$57,$d8,$d3,$7a,$9a,$ef,$0c,$fe,$1c,$06
-	dc.b	$02,$06,$c2,$db,$b2,$14,$67,$d5,$0a,$6d,$c5,$1e,$fc,$ee,$7e,$35
-	dc.b	$be,$92,$bc,$75,$49,$f8,$22,$5f,$f3,$66,$f6,$08,$88,$fc,$be,$1f
-	dc.b	$52,$1e,$08,$ae,$30,$13,$df,$f7,$fc,$1d,$87,$fb,$32,$13,$1e,$a8
-	dc.b	$68,$cc,$52,$c8,$be,$63,$7c,$4f,$c5,$a1,$af,$86,$b8,$60,$82,$7c
-	dc.b	$60,$50,$b1,$81,$09,$dc,$87,$92,$cb,$1d,$47,$f1,$33,$de,$86,$98
-	dc.b	$c7,$2c,$cc,$25,$32,$14,$d8,$97,$9c,$4d,$22,$c9,$a7,$b4,$c3,$a3
-	dc.b	$1e,$5d,$de,$97,$87,$16,$8a,$5f,$66,$a8,$fd,$12,$e2,$58,$23,$e4
-	dc.b	$d8,$0c,$e3,$2b,$ef,$81,$a4,$f4,$76,$27,$66,$c5,$b6,$98,$61,$98
-	dc.b	$4b,$f6,$0e,$66,$eb,$db,$6e,$7e,$39,$1c,$7e,$35,$db,$e1,$f7,$a7
-	dc.b	$e5,$76,$7c,$d8,$2a,$cc,$fb,$f3,$af,$c1,$01,$f1,$7b,$d2,$7e,$6d
-	dc.b	$d0,$2e,$3a,$7f,$dd,$d3,$b0,$b1,$da,$e8,$b2,$f8,$6e,$bf,$c1,$d9
-	dc.b	$53,$b7,$f1,$2c,$fa,$a6,$c1,$df,$74,$5b,$c9,$d6,$86,$80,$c6,$ad
-	dc.b	$1c,$27,$11,$c2,$32,$c6,$45,$a7,$85,$e5,$fb,$1d,$91,$24,$bf,$a7
-	dc.b	$c3,$ea,$a9,$63,$f2,$28,$d5,$8e,$08,$4c,$6b,$77,$99,$f6,$1c,$71
-	dc.b	$91,$15,$19,$a6,$f0,$96,$e8,$6b,$2d,$b9,$0f,$00,$a0,$82,$ea,$4c
-	dc.b	$94,$15,$4c,$8c,$29,$a0,$4c,$67,$5f,$50,$e3,$c7,$73,$a8,$ab,$d8
-	dc.b	$5c,$e6,$54,$4e,$4b,$a0,$47,$f1,$0c,$5a,$f8,$7f,$0f,$77,$75,$ae
-	dc.b	$bd,$04,$f9,$09,$14,$f7,$cf,$a3,$e5,$7c,$8b,$29,$e3,$57,$e0,$b2
-	dc.b	$32,$29,$ff,$61,$2f,$90,$cd,$55,$22,$d3,$b1,$f2,$5e,$c3,$bb,$fa
-	dc.b	$f4,$65,$e4,$b7,$26,$cc,$36,$36,$c1,$30,$84,$a8,$d8,$58,$70,$99
-	dc.b	$31,$3a,$b4,$35,$c4,$66,$86,$10,$4f,$c1,$01,$78,$f8,$60,$89,$73
-	dc.b	$b2,$be,$95,$4f,$d4,$21,$ee,$d7,$78,$e5,$14,$16,$2e,$12,$2a,$3d
-	dc.b	$58,$cf,$2e,$a4,$c7,$e0,$b3,$d4,$38,$b6,$c1,$f0,$8d,$e7,$a1,$86
-	dc.b	$d8,$81,$00,$43,$15,$80,$2a,$32,$26,$dc,$d0,$2e,$1d,$f0,$47,$d7
-	dc.b	$b9,$e0,$97,$74,$55,$ce,$63,$27,$95,$9b,$47,$8f,$a0,$c6,$08,$63
-	dc.b	$08,$c0,$04,$ab,$9d,$9b,$06,$33,$e0,$2b,$af,$7c,$79,$ea,$cc,$4a
-	dc.b	$a9,$50,$08,$bc,$1a,$bd,$a8,$d9,$00,$5b,$0f,$fe,$4f,$24,$d2,$97
-	dc.b	$c7,$d1,$a5,$1e,$4d,$60,$15,$2f,$db,$2d,$be,$07,$f1,$fc,$45,$e8
-	dc.b	$c9,$84,$e9,$a3,$46,$8d,$7d,$ae,$6b,$e3,$02,$99,$8c,$09,$4f,$b6
-	dc.b	$d5,$6d,$bd,$6a,$89,$a3,$11,$3b,$ac,$21,$18,$e2,$6d,$fd,$c4,$3b
-	dc.b	$fb,$cb,$6d,$b3,$67,$e5,$1c,$37,$28,$78,$70,$81,$9a,$e0,$32,$df
-	dc.b	$16,$fe,$34,$fa,$f2,$46,$10,$2a,$5d,$c0,$69,$ed,$b8,$ae,$a3,$a8
-	dc.b	$77,$b0,$34,$5e,$e8,$31,$28,$01,$26,$af,$04,$72,$cb,$eb,$9f,$55
-	dc.b	$c2,$4b,$b3,$73,$b6,$d5,$9d,$d7,$3a,$a5,$ce,$47,$f3,$b0,$42,$5d
-	dc.b	$9e,$48,$e9,$b5,$3c,$93,$4a,$5d,$28,$a6,$b1,$82,$d6,$ec,$33,$52
-	dc.b	$2a,$2b,$69,$13,$01,$bd,$22,$38,$a0,$24,$86,$ca,$8d,$54,$87,$f1
-	dc.b	$97,$4d,$f0,$41,$1d,$9f,$8a,$09,$4f,$85,$59,$1e,$a6,$82,$5c,$8e
-	dc.b	$f4,$b5,$38,$a6,$c4,$79,$75,$06,$bb,$7c,$bc,$1f,$29,$b4,$7b,$59
-	dc.b	$f5,$67,$e5,$25,$19,$37,$86,$1a,$23,$32,$84,$f7,$ac,$97,$10,$8a
-	dc.b	$f4,$a8,$41,$2e,$03,$c1,$0a,$a2,$7f,$68,$1a,$78,$8a,$da,$3b,$4b
-	dc.b	$dc,$9e,$58,$2a,$78,$7d,$52,$0d,$23,$01,$11,$45,$15,$90,$b9,$b6
-	dc.b	$a8,$06,$e9,$b2,$ee,$bb,$74,$e3,$f1,$80,$21,$54,$9f,$9b,$04,$35
-	dc.b	$d8,$32,$47,$03,$d8,$10,$3e,$ca,$50,$2f,$a3,$ae,$ac,$29,$7c,$8f
-	dc.b	$96,$33,$48,$92,$98,$62,$61,$0f,$da,$22,$12,$05,$2e,$8e,$5b,$b2
-	dc.b	$9c,$10,$47,$b8,$df,$80,$db,$b0,$d7,$43,$af,$fa,$14,$bb,$5a,$b3
-	dc.b	$c1,$9b,$71,$93,$4c,$8c,$46,$1e,$57,$d3,$7f,$38,$e1,$28,$0d,$30
-	dc.b	$9a,$f5,$9c,$11,$91,$e1,$72,$06,$91,$44,$22,$14,$fd,$71,$56,$08
-	dc.b	$55,$d5,$f1,$f8,$0e,$7b,$2a,$18,$6f,$2d,$ad,$44,$35,$ad,$6b,$bf
-	dc.b	$9f,$94,$6c,$66,$55,$35,$94,$16,$53,$3a,$f4,$b8,$d5,$f6,$42,$db
-	dc.b	$7a,$d0,$df,$39,$a4,$ae,$c2,$d2,$81,$9a,$63,$c8,$cf,$47,$9a,$df
-	dc.b	$a0,$56,$7f,$a0,$95,$22,$a7,$1f,$e8,$33,$52,$46,$34,$72,$5a,$09
-	dc.b	$61,$f8,$d6,$88,$a0,$80,$46,$da,$23,$42,$57,$71,$02,$76,$c5,$f8
-	dc.b	$ae,$35,$69,$64,$7c,$9b,$75,$3d,$bb,$27,$88,$19,$13,$94,$d6,$e0
-	dc.b	$6e,$58,$92,$bc,$e2,$15,$9c,$a9,$25,$26,$90,$20,$c2,$37,$20,$62
-	dc.b	$2d,$6d,$80,$f1,$88,$0f,$f1,$88,$0f,$ef,$f8,$ae,$17,$79,$34,$a3
-	dc.b	$6e,$8f,$49,$a5,$59,$a3,$e3,$32,$7d,$46,$d5,$a5,$c2,$ae,$bd,$01
-	dc.b	$78,$9e,$fe,$21,$92,$c5,$82,$89,$ce,$c2,$c4,$a7,$20,$89,$88,$92
-	dc.b	$dd,$bc,$f3,$30,$90,$60,$ba,$3c,$59,$fc,$c2,$54,$f3,$95,$b7,$5e
-	dc.b	$76,$2b,$aa,$62,$94,$8c,$68,$e4,$0a,$28,$7c,$61,$c0,$7f,$60,$44
-	dc.b	$c1,$2a,$43,$05,$06,$77,$e8,$f1,$ab,$49,$5e,$a0,$3a,$9e,$c2,$c6
-	dc.b	$a7,$50,$ce,$51,$b9,$e4,$58,$da,$38,$bb,$66,$40,$d2,$c0,$d6,$2a
-	dc.b	$84,$52,$1d,$6c,$80,$e0,$29,$42,$1f,$b8,$b1,$65,$d7,$a5,$4f,$d5
-	dc.b	$83,$04,$8d,$04,$2a,$a9,$e5,$fa,$3c,$2e,$eb,$f8,$80,$e8,$f5,$29
-	dc.b	$57,$1f,$87,$85,$75,$46,$82,$9a,$f0,$50,$27,$6f,$59,$06,$92,$75
-	dc.b	$1f,$ae,$5b,$52,$1d,$67,$81,$1c,$2b,$1a,$de,$65,$39,$7e,$ca,$5d
-	dc.b	$55,$36,$8b,$65,$2d,$19,$da,$f1,$b7,$24,$ec,$e0,$b2,$6b,$29,$a9
-	dc.b	$50,$08,$53,$84,$45,$0d,$1c,$72,$d0,$a6,$40,$dc,$1f,$81,$93,$a8
-	dc.b	$4d,$69,$f8,$55,$4d,$39,$6b,$7f,$a0,$cd,$af,$a0,$2a,$ea,$e5,$d8
-	dc.b	$bd,$9f,$9d,$0a,$68,$34,$5a,$0d,$64,$74,$50,$2e,$c2,$1a,$f8,$cd
-	dc.b	$b2,$b3,$ab,$6b,$23,$3e,$c3,$ae,$76,$fc,$db,$c5,$22,$a9,$af,$9e
-	dc.b	$94,$29,$d2,$8b,$53,$f7,$49,$34,$14,$60,$1c,$95,$f5,$f8,$56,$5d
-	dc.b	$78,$01,$9b,$b7,$9f,$0c,$05,$23,$48,$b9,$6e,$19,$bf,$81,$0d,$72
-	dc.b	$08,$c9,$73,$d1,$e6,$21,$dd,$c8,$8f,$d8,$f4,$cf,$f8,$d2,$d5,$d5
-	dc.b	$82,$e1,$e4,$32,$cd,$5e,$7c,$40,$40,$d8,$c3,$4c,$28,$34,$16,$08
-	dc.b	$b0,$4a,$a9,$10,$dc,$73,$20,$61,$92,$3f,$75,$96,$3d,$2e,$f6,$3d
-	dc.b	$17,$60,$d5,$f0,$60,$84,$80,$bb,$8a,$f7,$52,$a0,$d2,$16,$ab,$41
-	dc.b	$a9,$50,$38,$86,$5c,$d0,$dd,$9a,$94,$80,$d5,$6a,$29,$3e,$d5,$5d
-	dc.b	$b1,$e9,$51,$3f,$f8,$91,$49,$55,$05,$56,$1b,$f8,$37,$59,$93,$4c
-	dc.b	$ff,$a7,$9f,$87,$06,$ac,$df,$af,$87,$80,$7f,$5c,$95,$dd,$1e,$7c
-	dc.b	$0b,$c0,$21,$0c,$9e,$36,$b1,$b1,$f7,$80,$35,$c1,$0c,$ca,$ac,$d2
-	dc.b	$66,$41,$79,$f6,$29,$77,$5a,$ac,$f6,$37,$72,$29,$3d,$8f,$2e,$bd
-	dc.b	$59,$01,$a5,$56,$2c,$6d,$fb,$22,$2e,$a0,$2f,$5c,$82,$32,$93,$80
-	dc.b	$c5,$35,$bf,$13,$26,$b7,$7f,$88,$9d,$69,$bd,$ad,$3c,$44,$56,$51
-	dc.b	$25,$5e,$df,$86,$f5,$54,$18,$96,$37,$ad,$23,$f7,$f2,$4f,$39,$5c
-	dc.b	$86,$a8,$30,$a4,$19,$e7,$da,$41,$71,$91,$36,$69,$93,$be,$44,$bb
-	dc.b	$ed,$12,$a2,$ac,$f7,$8f,$17,$bb,$26,$f9,$d9,$0f,$05,$e8,$fb,$d8
-	dc.b	$f7,$f1,$af,$48,$6b,$20,$24,$67,$83,$55,$17,$ba,$bc,$6d,$df,$63
-	dc.b	$18,$a4,$64,$ee,$a7,$52,$67,$0f,$b8,$25,$80,$6f,$8f,$70,$87,$b6
-	dc.b	$77,$07,$ac,$e6,$35,$22,$ea,$f4,$b7,$65,$f1,$a1,$3e,$cc,$73,$94
-	dc.b	$9f,$1a,$60,$da,$d9,$01,$38,$cd,$3f,$2b,$a8,$76,$e1,$b6,$99,$6a
-	dc.b	$db,$0b,$bb,$e8,$2f,$80,$4d,$c6,$c2,$f2,$e0,$02,$a4,$6e,$b4,$1a
-	dc.b	$c8,$a1,$91,$0f,$5c,$5e,$c9,$06,$7e,$1a,$89,$00,$4b,$00,$95,$69
-	dc.b	$4e,$b2,$56,$b0,$f5,$d5,$ce,$6c,$a1,$9c,$36,$07,$b0,$36,$db,$62
-	dc.b	$d2,$e0,$f5,$fe,$dc,$ac,$d2,$f3,$fa,$10,$b6,$89,$2b,$e3,$53,$4b
-	dc.b	$17,$46,$4a,$06,$62,$6e,$23,$50,$b7,$5e,$09,$95,$3f,$5b,$3c,$b0
-	dc.b	$cf,$79,$22,$bc,$ce,$f7,$4b,$0b,$e3,$b9,$c6,$93,$70,$58,$3b,$69
-	dc.b	$2d,$eb,$40,$dc,$82,$6d,$1f,$c5,$6b,$50,$03,$02,$c3,$4d,$31,$fa
-	dc.b	$fe,$4c,$9a,$a1,$a3,$13,$3e,$ee,$8a,$e1,$e7,$f7,$e2,$fb,$9b,$81
-	dc.b	$86,$7d,$ca,$b5,$06,$ba,$c2,$4b,$00,$14,$a6,$95,$13,$98,$87,$a0
-	dc.b	$1b,$32,$a1,$4b,$04,$22,$58,$fe,$c4,$45,$27,$f7,$9e,$5a,$c3,$d4
-	dc.b	$d6,$17,$2a,$3f,$b2,$7f,$76,$66,$d2,$f6,$fc,$10,$6b,$a4,$31,$0f
-	dc.b	$55,$d1,$2f,$63,$0a,$49,$3a,$f4,$ad,$1c,$58,$50,$9b,$37,$ad,$ea
-	dc.b	$c9,$78,$61,$9e,$04,$53,$85,$e1,$86,$96,$6a,$14,$85,$fa,$19,$35
-	dc.b	$1b,$97,$24,$2f,$bd,$6d,$d6,$bc,$da,$ba,$fc,$f7,$73,$b4,$5b,$9d
-	dc.b	$83,$ce,$34,$1a,$cc,$0f,$6e,$02,$6e,$90,$64,$ae,$50,$2c,$31,$8f
-	dc.b	$f7,$14,$e6,$6e,$b0,$35,$eb,$e9,$6a,$b4,$06,$66,$9a,$1c,$fd,$3e
-	dc.b	$b5,$41,$4e,$91,$20,$4f,$3e,$6f,$c6,$b0,$c5,$e9,$6c,$44,$b0,$e3
-	dc.b	$28,$a2,$8f,$75,$ab,$a6,$1f,$1a,$a6,$7f,$3d,$70,$bd,$76,$1d,$dc
-	dc.b	$2a,$74,$48,$75,$58,$76,$e3,$01,$00,$77,$ad,$ed,$95,$87,$ab,$a7
-	dc.b	$c1,$40,$69,$a2,$f4,$50,$dd,$2f,$bd,$3f,$02,$1a,$f2,$b7,$26,$dc
-	dc.b	$dc,$29,$e8,$c9,$80,$dc,$29,$18,$c7,$41,$45,$e8,$71,$34,$b6,$80
-	dc.b	$8c,$a9,$c9,$36,$38,$f4,$d1,$d9,$bb,$0d,$e1,$fd,$d8,$f8,$24,$63
-	dc.b	$83,$e6,$42,$0f,$1a,$08,$c5,$91,$1d,$c3,$ec,$dd,$40,$2d,$04,$0f
-	dc.b	$9c,$86,$41,$de,$4a,$04,$3f,$58,$29,$b4,$84,$53,$96,$fb,$ed,$a1
-	dc.b	$95,$f0,$cd,$e1,$c1,$46,$f8,$5e,$d2,$2e,$a8,$34,$d3,$18,$31,$2e
-	dc.b	$bb,$4b,$c6,$01,$95,$27,$68,$56,$d5,$c2,$c7,$57,$4a,$81,$ab,$0e
-	dc.b	$18,$51,$f5,$c0,$8c,$b5,$70,$ad,$d6,$18,$79,$3c,$d0,$43,$47,$83
-	dc.b	$fa,$1b,$cd,$e7,$f6,$14,$03,$9e,$94,$d3,$45,$eb,$37,$f2,$9f,$90
-	dc.b	$62,$29,$95,$96,$ac,$ae,$4f,$85,$65,$cd,$29,$ff,$4e,$79,$fc,$a8
-	dc.b	$a2,$54,$19,$6b,$5b,$d2,$77,$4d,$8e,$b1,$6b,$ab,$4b,$9b,$03,$da
-	dc.b	$c4,$4c,$8f,$82,$43,$b5,$65,$74,$89,$8d,$16,$e3,$47,$ac,$59,$6e
-	dc.b	$dc,$1a,$65,$c1,$90,$b8,$21,$98,$54,$e3,$f8,$9d,$72,$a9,$43,$08
-	dc.b	$e2,$02,$d3,$67,$42,$8b,$be,$af,$b5,$14,$87,$e1,$31,$37,$01,$4a
-	dc.b	$1d,$88,$87,$25,$ca,$71,$0e,$51,$9b,$b5,$ca,$80,$41,$61,$58,$c5
-	dc.b	$19,$8d,$6c,$25,$01,$80,$b8,$87,$6a,$41,$58,$4a,$61,$7a,$54,$11
-	dc.b	$87,$62,$cd,$05,$9d,$30,$ee,$ce,$0b,$ba,$46,$8c,$c0,$65,$b0,$cd
-	dc.b	$24,$0d,$90,$ee,$9d,$b2,$37,$6e,$82,$38,$94,$fb,$e6,$fa,$a5,$46
-	dc.b	$1d,$5c,$31,$7a,$36,$c3,$d5,$7a,$0c,$be,$a1,$f6,$ad,$71,$9f,$41
-	dc.b	$24,$37,$d3,$64,$40,$6b,$ef,$6c,$dc,$ef,$c4,$04,$6f,$c1,$09,$15
-	dc.b	$5c,$b0,$43,$a6,$e6,$4c,$04,$99,$6c,$af,$7e,$22,$36,$72,$63,$e0
-	dc.b	$df,$94,$4b,$8d,$94,$7b,$f5,$0f,$56,$2d,$70,$f0,$7e,$35,$f4,$a4
-	dc.b	$d9,$43,$0f,$78,$d8,$88,$9d,$db,$3a,$ca,$91,$b3,$aa,$1c,$6d,$68
-	dc.b	$f1,$52,$a2,$c8,$02,$44,$76,$15,$c1,$78,$20,$15,$e5,$0a,$69,$64
-	dc.b	$10,$bf,$ac,$8b,$a6,$74,$3a,$a5,$44,$93,$86,$3a,$93,$7d,$50,$61
-	dc.b	$cf,$ae,$4a,$8d,$ad,$5f,$3f,$07,$a0,$5d,$b2,$a8,$e9,$c4,$9a,$51
-	dc.b	$05,$b6,$97,$d2,$3e,$8a,$5d,$93,$3c,$3d,$02,$0d,$13,$e9,$ce,$91
-	dc.b	$ec,$8c,$e9,$56,$3f,$a1,$9a,$a7,$22,$c3,$ea,$42,$a8,$61,$af,$a4
-	dc.b	$05,$28,$b9,$2f,$b2,$96,$62,$e2,$49,$ce,$2d,$40,$34,$4f,$66,$2c
-	dc.b	$9c,$80,$dd,$28,$72,$c1,$a9,$84,$bd,$bc,$f5,$94,$74,$56,$54,$63
-	dc.b	$2a,$a0,$fb,$75,$0a,$6d,$22,$22,$ae,$e6,$fc,$d2,$06,$9c,$2f,$1b
-	dc.b	$e6,$0d,$80,$4a,$58,$47,$21,$09,$14,$8a,$41,$75,$d3,$a8,$e2,$c5
-	dc.b	$54,$43,$fb,$51,$ee,$52,$01,$d2,$eb,$bb,$21,$67,$bf,$e7,$ef,$a0
-	dc.b	$4d,$c6,$56,$3e,$74,$b5,$aa,$92,$39,$11,$cd,$e7,$83,$cb,$ee,$7f
-	dc.b	$68,$96,$07,$7a,$51,$37,$8f,$ee,$04,$cb,$aa,$76,$5f,$0f,$7e,$cf
-	dc.b	$ea,$0d,$5c,$87,$e7,$56,$c0,$34,$64,$5c,$6d,$3c,$ca,$17,$f5,$0f
-	dc.b	$50,$37,$30,$cb,$dd,$97,$e2,$62,$21,$a9,$d4,$b7,$91,$ca,$3a,$6d
-	dc.b	$62,$6d,$1f,$6a,$a7,$1e,$32,$47,$ce,$d6,$d6,$2f,$63,$de,$f9,$5c
-	dc.b	$08,$d2,$ea,$f2,$5a,$23,$1c,$a0,$75,$77,$2e,$5c,$87,$71,$a9,$37
-	dc.b	$13,$d1,$46,$85,$ba,$a8,$87,$2b,$c3,$4b,$9b,$cf,$e8,$35,$5d,$e7
-	dc.b	$ea,$b9,$78,$e8,$fb,$68,$7c,$e9,$27,$55,$24,$72,$25,$41,$9d,$71
-	dc.b	$f9,$36,$6f,$bf,$7c,$3a,$95,$9b,$17,$da,$c2,$27,$b1,$e2,$69,$76
-	dc.b	$26,$b8,$d0,$1b,$64,$49,$9f,$82,$bf,$8e,$66,$be,$d0,$98,$92,$d2
-	dc.b	$32,$c6,$7e,$3e,$aa,$e0,$4e,$15,$71,$4b,$1f,$36,$dc,$32,$f7,$6f
-	dc.b	$6b,$7f,$7f,$fb,$95,$3f,$88,$ad,$3e,$ad,$34,$87,$b3,$5c,$02,$55
-	dc.b	$18,$ba,$61,$aa,$9c,$6b,$40,$c7,$ce,$d6,$4e,$2f,$63,$de,$f0,$5c
-	dc.b	$44,$55,$06,$29,$82,$08,$42,$81,$38,$6b,$4b,$13,$49,$0f,$ed,$18
-	dc.b	$41,$73,$31,$45,$6a,$21,$72,$04,$09,$05,$69,$43,$27,$77,$3e,$08
-	dc.b	$78,$1e,$c8,$c1,$b8,$53,$87,$81,$4d,$c9,$db,$80,$15,$f7,$36,$61
-	dc.b	$6c,$f8,$e2,$17,$b2,$f2,$5e,$a7,$1e,$a7,$2a,$87,$c9,$af,$40,$bc
-	dc.b	$04,$1a,$84,$31,$b4,$06,$87,$44,$4b,$40,$05,$09,$54,$81,$04,$60
-	dc.b	$40,$82,$cd,$f7,$82,$93,$f1,$dd,$4e,$35,$cf,$71,$84,$60,$d9,$b2
-	dc.b	$8e,$83,$59,$a4,$6d,$7e,$d2,$f2,$aa,$24,$d5,$65,$0e,$1b,$e1,$19
-	dc.b	$8a,$ca,$0f,$16,$d4,$10,$90,$90,$8e,$c8,$ab,$fc,$11,$d3,$08,$0a
-	dc.b	$91,$61,$9b,$d5,$14,$b8,$fe,$67,$93,$4a,$6e,$e4,$ca,$c2,$75,$0f
-	dc.b	$e6,$1d,$bf,$32,$53,$48,$d9,$7b,$18,$83,$bd,$0e,$b6,$f9,$dc,$fc
-	dc.b	$17,$e3,$c4,$d6,$ca,$c0,$9d,$67,$cd,$54,$e3,$cc,$41,$7c,$db,$12
-	dc.b	$ea,$f7,$04,$37,$6d,$96,$a2,$f7,$38,$ec,$e9,$4c,$41,$46,$81,$90
-	dc.b	$80,$bb,$94,$d3,$ab,$ce,$c6,$02,$08,$6f,$f2,$8f,$a6,$61,$af,$b4
-	dc.b	$e2,$91,$68,$b7,$b3,$83,$5e,$d6,$d8,$40,$8e,$c4,$38,$76,$81,$37
-	dc.b	$1d,$49,$94,$0e,$ea,$85,$2b,$b9,$30,$db,$98,$2b,$7d,$8f,$cc,$00
-	dc.b	$de,$77,$92,$bb,$75,$86,$83,$1f,$57,$e0,$1e,$ae,$d5,$bc,$53,$77
-	dc.b	$c9,$fc,$7a,$6f,$33,$6b,$f3,$66,$35,$a5,$06,$17,$98,$03,$00,$cb
-	dc.b	$b4,$76,$cb,$d6,$4c,$dd,$18,$63,$00,$9a,$7e,$f3,$01,$ca,$d1,$37
-	dc.b	$f3,$8b,$40,$30,$0e,$cf,$0d,$6c,$f0,$0d,$b3,$1c,$a6,$9b,$fc,$37
-	dc.b	$82,$7b,$63,$85,$fa,$bd,$db,$24,$aa,$0f,$64,$5b,$ab,$b1,$87,$ce
-	dc.b	$4c,$68,$1b,$a1,$8e,$a4,$69,$8f,$73,$72,$41,$d7,$8a,$59,$33,$79
-	dc.b	$9d,$13,$f2,$5e,$a7,$7b,$05,$09,$6f,$ca,$1d,$0d,$9b,$87,$98,$69
-	dc.b	$ec,$29,$d5,$e8,$f6,$11,$f8,$d2,$80,$23,$28,$04,$58,$ef,$94,$32
-	dc.b	$e9,$31,$2c,$f8,$90,$2e,$f3,$89,$f4,$75,$c5,$f9,$66,$01,$08,$9d
-	dc.b	$e8,$ed,$01,$29,$34,$04,$64,$fa,$c2,$5e,$a9,$65,$ba,$b4,$ce,$92
-	dc.b	$4e,$fc,$ce,$1b,$a7,$55,$de,$75,$4c,$a7,$57,$53,$b2,$4d,$8f,$8c
-	dc.b	$09,$37,$30,$2a,$d0,$df,$d7,$e3,$0a,$4a,$03,$48,$e1,$a9,$30,$97
-	dc.b	$57,$e9,$bd,$ac,$2d,$43,$8f,$cc,$fd,$ca,$7b,$02,$4f,$bb,$de,$e1
-	dc.b	$f7,$24,$80,$63,$26,$bb,$87,$9f,$2f,$dc,$cd,$f3,$52,$5c,$14,$b9
-	dc.b	$22,$1a,$99,$4e,$0d,$6e,$81,$85,$6d,$18,$d7,$51,$0f,$c6,$61,$d3
-	dc.b	$77,$3f,$db,$e7,$54,$9d,$80,$d9,$87,$05,$c7,$d2,$a4,$73,$85,$5c
-	dc.b	$3d,$72,$fc,$2b,$2d,$66,$1d,$fc,$ef,$0b,$bd,$cf,$ae,$80,$90,$d6
-	dc.b	$6c,$30,$49,$ef,$56,$0d,$0d,$33,$59,$46,$6e,$48,$69,$ef,$7d,$43
-	dc.b	$0b,$d4,$e8,$7d,$4f,$dc,$0a,$26,$5a,$72,$e0,$16,$e9,$50,$c3,$26
-	dc.b	$b0,$e8,$0c,$08,$cc,$2a,$08,$cd,$d2,$e6,$82,$f8,$5c,$0c,$8f,$33
-	dc.b	$c9,$75,$0e,$e1,$77,$f5,$c6,$02,$19,$61,$aa,$09,$09,$a2,$f7,$80
-	dc.b	$74,$40,$53,$78,$6b,$4e,$17,$d5,$cf,$7f,$3f,$ab,$ad,$ca,$87,$89
-	dc.b	$30,$14,$7c,$08,$ee,$ca,$3c,$03,$90,$43,$de,$5a,$f2,$84,$9e,$b7
-	dc.b	$77,$8f,$f7,$78,$3c,$9d,$d8,$7a,$76,$ce,$88,$b1,$6b,$3f,$85,$91
-	dc.b	$c8,$f5,$f8,$0f,$a4,$17,$c1,$74,$be,$d6,$3e,$78,$29,$a3,$e0,$4d
-	dc.b	$76,$69,$6d,$c6,$08,$77,$6f,$11,$8e,$5c,$50,$8a,$1b,$fe,$97,$fa
-	dc.b	$7e,$b1,$ae,$7b,$18,$e3,$c0,$29,$55,$62,$50,$63,$17,$ac,$1a,$c2
-	dc.b	$1a,$ca,$3d,$60,$e1,$ae,$3f,$9b,$ab,$2b,$d1,$e7,$6b,$ca,$eb,$00
-	dc.b	$d1,$8e,$0d,$16,$e9,$53,$29,$e7,$fe,$44,$d5,$3b,$42,$8c,$df,$91
-	dc.b	$36,$ca,$6a,$ff,$cb,$5c,$dc,$ef,$6d,$b9,$34,$b0,$2c,$aa,$b2,$87
-	dc.b	$01,$9d,$61,$a6,$06,$2e,$bd,$23,$47,$a9,$1c,$34,$a6,$a7,$81,$be
-	dc.b	$ec,$73,$79,$5f,$5b,$f8,$08,$8c,$91,$80,$88,$df,$2f,$c1,$1f,$95
-	dc.b	$5d,$ac,$8b,$c5,$f3,$5b,$5e,$bb,$3d,$f0,$9d,$65,$fd,$53,$56,$4b
-	dc.b	$6c,$60,$8c,$b6,$ff,$7f,$dc,$ed,$61,$b7,$78,$29,$92,$c6,$e6,$16
-	dc.b	$f4,$86,$12,$e6,$07,$19,$03,$04,$54,$c5,$68,$d8,$d2,$9b,$ba,$dc
-	dc.b	$6e,$f8,$61,$97,$d2,$b4,$f9,$c6,$1d,$38,$a0,$b3,$40,$51,$41,$51
-	dc.b	$0d,$71,$f0,$3c,$7c,$17,$a9,$67,$27,$c9,$72,$50,$2c,$5d,$1e,$95
-	dc.b	$1c,$94,$0a,$0d,$68,$7e,$24,$30,$46,$6d,$36,$60,$38,$1e,$07,$da
-	dc.b	$ee,$6b,$3b,$3e,$9b,$24,$a1,$67,$0d,$43,$1c,$66,$19,$1a,$6a,$8c
-	dc.b	$4c,$c1,$5d,$4a,$27,$ae,$98,$f5,$53,$ab,$fc,$f8,$d9,$af,$f5,$67
-	dc.b	$73,$f3,$6a,$40,$d1,$02,$95,$ba,$84,$6c,$2a,$a1,$a5,$be,$57,$29
-	dc.b	$65,$aa,$df,$fe,$36,$34,$37,$df,$f6,$57,$0f,$9a,$07,$f8,$75,$e1
-	dc.b	$f4,$b5,$f4,$a3,$33,$7e,$57,$b9,$da,$c7,$17,$82,$92,$a9,$72,$96
-	dc.b	$29,$b2,$41,$0b,$fa,$3e,$f8,$89,$09,$14,$a3,$dd,$9c,$6a,$9c,$d1
-	dc.b	$60,$d0,$59,$f4,$ab,$3c,$c9,$6b,$26,$87,$bf,$a9,$1b,$2c,$12,$99
-	dc.b	$aa,$44,$63,$84,$0e,$ea,$7b,$c1,$7e,$57,$5b,$0f,$c9,$f0,$4a,$02
-	dc.b	$4b,$c5,$22,$dd,$a5,$1e,$63,$52,$22,$94,$5e,$16,$02,$82,$30,$43
-	dc.b	$19,$25,$54,$a7,$bd,$85,$89,$fb,$dd,$6d,$ed,$f6,$52,$cf,$b4,$a3
-	dc.b	$20,$a6,$03,$8a,$ad,$5b,$cb,$0a,$1d,$65,$01,$7d,$47,$4a,$7c,$1e
-	dc.b	$6b,$15,$e8,$b7,$f4,$f8,$e5,$2c,$35,$45,$f1,$57,$f6,$52,$76,$47
-	dc.b	$0d,$18,$9a,$97,$db,$e6,$75,$59,$e9,$4d,$73,$65,$e2,$7c,$9f,$e7
-	dc.b	$95,$4f,$1e,$0d,$0b,$55,$66,$eb,$6c,$da,$b8,$d6,$f3,$7f,$08,$b0
-	dc.b	$4f,$43,$dd,$76,$b1,$65,$c8,$23,$07,$2a,$8a,$6a,$8c,$ec,$a0,$49
-	dc.b	$7d,$c1,$66,$51,$b7,$6c,$cc,$d7,$13,$2c,$ae,$68,$b3,$3e,$70,$c7
-	dc.b	$9d,$85,$02,$22,$29,$42,$2e,$7e,$82,$66,$02,$59,$94,$61,$cc,$21
-	dc.b	$d6,$a7,$bc,$27,$89,$d2,$fc,$3e,$fb,$d2,$ca,$a9,$e1,$29,$03,$2a
-	dc.b	$a4,$9e,$83,$a4,$18,$20,$88,$6c,$52,$09,$5c,$8b,$36,$9b,$33,$22
-	dc.b	$a7,$fc,$dc,$bc,$f0,$75,$af,$78,$b9,$54,$19,$da,$88,$31,$40,$05
-	dc.b	$d2,$24,$91,$9f,$1b,$e5,$fb,$05,$b2,$2a,$fe,$b3,$5b,$ff,$9f,$86
-	dc.b	$ef,$3d,$33,$bc,$ad,$31,$b1,$06,$0b,$27,$6f,$82,$50,$ae,$9f,$41
-	dc.b	$1a,$b5,$d8,$da,$76,$57,$b5,$5a,$b7,$28,$eb,$cf,$ab,$a2,$f2,$78
-	dc.b	$7f,$b5,$a0,$00,$80,$62,$7a,$70,$75,$ce,$f3,$61,$f0,$40,$1a,$3f
-	dc.b	$9d,$38,$88,$4f,$cd,$b9,$d6,$c6,$1d,$c8,$fe,$2c,$34,$04,$68,$9c
-	dc.b	$e0,$8d,$3f,$5b,$ce,$64,$94,$50,$91,$4c,$ed,$40,$19,$65,$72,$17
-	dc.b	$ad,$05,$8d,$45,$92,$36,$19,$29,$51,$1b,$29,$27,$82,$08,$8c,$50
-	dc.b	$e3,$48,$1f,$02,$ea,$8a,$ba,$7b,$0f,$a1,$f3,$ba,$ff,$7d,$ea,$2a
-	dc.b	$ac,$2a,$bb,$25,$08,$93,$51,$a3,$d0,$42,$aa,$69,$42,$8e,$86,$87
-	dc.b	$e1,$52,$6d,$48,$f2,$ff,$38,$3c,$7e,$af,$55,$ef,$8e,$d6,$5c,$05
-	dc.b	$bf,$02,$d4,$24,$9b,$89,$0d,$4f,$89,$69,$99,$0d,$6a,$65,$9d,$bb
-	dc.b	$a1,$5e,$4f,$ee,$fd,$df,$2b,$35,$0f,$29,$03,$4c,$e0,$60,$b1,$87
-	dc.b	$f7,$cb,$13,$52,$f8,$b6,$02,$dd,$6f,$0c,$eb,$fe,$1b,$6f,$6f,$75
-	dc.b	$ed,$56,$e9,$24,$92,$ae,$52,$eb,$97,$e4,$e2,$f8,$d5,$38,$c8,$84
-	dc.b	$49,$66,$87,$fa,$d9,$c3,$9e,$e4,$11,$55,$a6,$bc,$38,$de,$89,$2c
-	dc.b	$17,$c5,$09,$06,$2a,$96,$0a,$d5,$8c,$4d,$c8,$d6,$f7,$bf,$ac,$1a
-	dc.b	$1a,$c1,$66,$08,$1b,$34,$97,$a5,$4f,$39,$e9,$7b,$c1,$04,$51,$7b
-	dc.b	$17,$0e,$a8,$0e,$ee,$8a,$99,$6f,$3d,$f0,$7b,$bc,$af,$7d,$ea,$29
-	dc.b	$63,$92,$c3,$da,$45,$61,$a2,$c4,$82,$92,$50,$c2,$4d,$01,$f8,$d5
-	dc.b	$2b,$c4,$35,$b1,$b9,$cb,$76,$fe,$3b,$5e,$9e,$82,$81,$c1,$f6,$f5
-	dc.b	$dc,$02,$d8,$89,$2e,$22,$91,$f3,$8a,$11,$6b,$fe,$e2,$0f,$8d,$95
-	dc.b	$fd,$bf,$a5,$6b,$67,$04,$16,$9d,$d9,$ac,$8f,$85,$33,$f3,$02,$10
-	dc.b	$6d,$b3,$33,$b3,$8d,$3f,$f2,$c1,$e4,$bf,$de,$af,$27,$dd,$f6,$ae
-	dc.b	$41,$38,$f5,$99,$8a,$c9,$f1,$5f,$57,$a8,$d1,$c7,$34,$11,$86,$8e
-	dc.b	$ff,$cd,$66,$e1,$f4,$f5,$c3,$f1,$0e,$7b,$44,$8f,$8f,$bc,$4e,$cb
-	dc.b	$04,$5f,$e0,$6a,$c0,$55,$ca,$fe,$d7,$ed,$30,$7c,$ba,$86,$27,$fb
-	dc.b	$23,$61,$50,$59,$b5,$d4,$68,$f4,$9f,$5b,$f4,$65,$c1,$04,$75,$7f
-	dc.b	$72,$e6,$96,$bd,$df,$6f,$dd,$d5,$4f,$73,$c9,$fe,$ad,$f7,$a5,$a8
-	dc.b	$15,$a3,$21,$7e,$4b,$d4,$0e,$96,$b8,$22,$0c,$b0,$54,$40,$93,$2b
-	dc.b	$fb,$57,$a9,$92,$fd,$d9,$f9,$6c,$cf,$3d,$5e,$4f,$95,$a8,$69,$d5
-	dc.b	$04,$2c,$e5,$f7,$c4,$33,$39,$8e,$25,$15,$48,$b3,$ea,$59,$7b,$21
-	dc.b	$19,$7e,$e7,$15,$0f,$d6,$5b,$3b,$56,$67,$8a,$da,$c0,$64,$5f,$56
-	dc.b	$98,$be,$e9,$df,$66,$df,$88,$85,$c8,$32,$16,$dc,$59,$a7,$85,$dd
-	dc.b	$44,$fe,$d4,$3c,$99,$5d,$9f,$ae,$a6,$86,$72,$d6,$0f,$e6,$63,$c3
-	dc.b	$ff,$ef,$1c,$bb,$f1,$32,$8f,$50,$22,$cf,$2a,$54,$fd,$ac,$3d,$d4
-	dc.b	$66,$a5,$03,$21,$c9,$7a,$37,$15,$f5,$e1,$10,$44,$1d,$5f,$64,$d7
-	dc.b	$f0,$4d,$df,$77,$fe,$fd,$31,$0e,$69,$aa,$6b,$ee,$d7,$b6,$e6,$fb
-	dc.b	$ab,$a8,$b8,$3e,$64,$90,$a5,$04,$fd,$ae,$2e,$33,$73,$09,$c7,$f0
-	dc.b	$5c,$09,$14,$9e,$14,$b9,$e6,$a1,$f0,$3c,$9f,$f7,$7b,$4f,$e0,$e6
-	dc.b	$b0,$aa,$9d,$56,$fd,$fb,$7d,$26,$a8,$59,$65,$30,$b7,$94,$6e,$fb
-	dc.b	$bf,$2f,$59,$92,$a3,$d5,$f4,$fe,$9b,$c5,$d2,$57,$1b,$8c,$0c,$aa
-	dc.b	$82,$cb,$7e,$74,$46,$9e,$b1,$9b,$8a,$d9,$e7,$01,$4d,$67,$9f,$c2
-	dc.b	$3d,$21,$f7,$b9,$8e,$5e,$2b,$ca,$1c,$51,$03,$c4,$b9,$3a,$76,$cf
-	dc.b	$93,$b8,$b3,$6b,$17,$6a,$fe,$b9,$78,$6f,$ff,$c9,$c5,$de,$ef,$61
-	dc.b	$b8,$b0,$35,$94,$c3,$34,$a9,$5b,$fb,$9f,$8e,$d8,$6b,$d0,$22,$70
-	dc.b	$04,$97,$1b,$04,$48,$dc,$09,$bc,$0e,$38,$ee,$3f,$2b,$a6,$0e,$c1
-	dc.b	$e3,$60,$97,$fe,$4c,$1e,$67,$b4,$08,$cf,$5c,$05,$5a,$c8,$c8,$24
-	dc.b	$bc,$2a,$b9,$d9,$0b,$e8,$e0,$8c,$a1,$c1,$10,$ac,$de,$88,$d4,$52
-	dc.b	$41,$ae,$ec,$9a,$a0,$01,$c1,$c7,$f4,$59,$81,$97,$45,$df,$97,$fe
-	dc.b	$8d,$28,$31,$49,$1b,$27,$6e,$c4,$22,$c0,$92,$c2,$26,$02,$1f,$7f
-	dc.b	$5c,$7a,$c3,$6c,$79,$b7,$a2,$29,$bd,$11,$84,$6e,$5d,$b9,$06,$00
-	dc.b	$af,$0d,$53,$3c,$c5,$da,$bc,$8f,$af,$8e,$ec,$64,$36,$ed,$c0,$ce
-	dc.b	$5c,$bc,$9c,$ca,$20,$66,$dc,$b9,$75,$ca,$97,$c5,$ca,$07,$3f,$1b
-	dc.b	$77,$55,$91,$83,$b1,$bf,$59,$5f,$72,$db,$ee,$e5,$b0,$6d,$cb,$90
-	dc.b	$7a,$aa,$36,$bf,$90,$79,$a9,$92,$f4,$38,$a9,$18,$e8,$f0,$ab,$d7
-	dc.b	$c3,$85,$e9,$a5,$b6,$02,$48,$79,$bd,$35,$16,$ae,$c4,$22,$68,$64
-	dc.b	$03,$2a,$55,$9a,$df,$5b,$af,$ea,$06,$d3,$6b,$b6,$bb,$6e,$4f,$4b
-	dc.b	$ab,$da,$6d,$77,$3c,$bc,$8e,$6f,$3b,$a9,$d6,$eb,$b7,$be,$5f,$4c
-	dc.b	$d6,$8b,$49,$aa,$d5,$ab,$56,$6b,$56,$27,$17,$9a,$d1,$75,$41,$72
-	dc.b	$5a,$75,$97,$1b,$92,$ca,$e9,$b6,$3b,$6e,$6d,$2e,$c9,$69,$b6,$5d
-	dc.b	$73,$3a,$4d,$3f,$b6,$53,$36,$a5,$55,$2d,$d8,$5c,$56,$5b,$2f,$a1
-	dc.b	$e2,$f4,$fb,$52,$ea,$35,$4f,$55,$ba,$dd,$82,$64,$52,$ba,$e5,$9e
-	dc.b	$ed,$a3,$d7,$f3,$3a,$5d,$bf,$5c,$ca,$69,$51,$af,$65,$36,$7b,$7e
-	dc.b	$4f,$2b,$a9,$de,$93,$5c,$6e,$59,$ed,$66,$cb,$9d,$d1,$ee,$ca,$a7
-	dc.b	$77,$a8,$ac,$b2,$5b,$47,$a4,$53,$2c,$58,$7c,$e7,$66,$7b,$42,$ab
-	dc.b	$d8,$6f,$7a,$8e,$27,$b8,$15,$31,$a2,$5b,$ee,$97,$9c,$36,$22,$c7
-	dc.b	$68,$c7,$71,$bb,$9e,$69,$cd,$62,$e7,$ec,$8b,$46,$a4,$f3,$79,$d7
-	dc.b	$8f,$c9,$33,$c2,$73,$f7,$dc,$80,$44,$86,$ef,$90,$f3,$c6,$73,$1e
-	dc.b	$2c,$fe,$e3,$79,$d8,$ef,$c8,$e9,$f5,$09,$7e,$c2,$49,$7d,$e1,$71
-	dc.b	$e3,$be,$8f,$ac,$6e,$87,$8c,$e8,$01,$e2,$74,$1c,$7c,$4a,$29,$e1
-	dc.b	$f9,$60,$bd,$f2,$8b,$e7,$0f,$ef,$17,$af,$fc,$62,$31,$ee,$0d,$fb
-	dc.b	$06,$06,$86,$e8,$27,$9f,$4f,$b5,$c3,$7f,$f3,$84,$c2,$af,$18,$18
-	dc.b	$5c,$fa,$39,$38,$fd,$fe,$ac,$10,$e0,$27,$e6,$30,$05,$98,$41,$6f
-	dc.b	$f2,$08,$64,$3e,$7f,$06,$8f,$c2,$3f,$bf,$08,$87,$e2,$81,$e0,$01
-	dc.b	$ff,$38,$10,$78,$24,$0b,$fd,$80,$81,$80,$00,$50,$1f,$f8,$06,$00
-	dc.b	$04,$09,$0d,$08,$63,$72,$22,$a6,$18,$08,$d8,$df,$6d,$ed,$ac,$c9
-	dc.b	$b6,$64,$e9,$18,$ef,$2a,$62,$d6,$3c,$00,$9a,$49,$a6,$d0,$ab,$84
-	dc.b	$f9,$2c,$5f,$da,$49,$ff,$22,$eb,$65,$bc,$9e,$ce,$46,$5a,$74,$3c
-	dc.b	$ad,$de,$9f,$44,$a4,$47,$fd,$d8,$32,$f3,$6d,$cc,$f6,$4b,$b9,$1f
-	dc.b	$34,$bb,$e6,$b5,$a1,$cd,$3f,$5e,$21,$1b,$d3,$ec,$ea,$6f,$27,$59
-	dc.b	$70,$68,$b4,$26,$eb,$d9,$fa,$db,$ee,$b7,$09,$64,$d8,$79,$d0,$70
-	dc.b	$96,$58,$6d,$89,$0d,$d1,$32,$6b,$a2,$1a,$b8,$86,$9f,$17,$d8,$f0
-	dc.b	$2d,$52,$86,$b5,$50,$c2,$eb,$0d,$83,$1c,$1c,$02,$22,$e1,$cb,$67
-	dc.b	$28,$f3,$4a,$cf,$f6,$9f,$17,$de,$70,$71,$9f,$ae,$5b,$99,$20,$0e
-	dc.b	$1f,$bd,$51,$23,$d9,$6d,$44,$36,$59,$32,$9e,$a3,$ca,$49,$08,$4d
-	dc.b	$d9,$1c,$df,$e4,$6f,$e5,$fd,$b4,$b2,$72,$d9,$f6,$41,$a8,$87,$32
-	dc.b	$d2,$88,$f6,$c1,$d1,$08,$d4,$44,$ae,$e0,$48,$d6,$9f,$ee,$92,$f3
-	dc.b	$ff,$0f,$98,$b6,$2b,$4b,$a6,$a0,$52,$04,$ac,$bc,$aa,$7c,$ec,$c8
-	dc.b	$47,$76,$24,$0e,$99,$89,$10,$35,$76,$3e,$d7,$ae,$5f,$b5,$99,$6d
-	dc.b	$a1,$c3,$86,$86,$a9,$5d,$75,$8f,$f3,$1a,$b2,$07,$03,$f4,$46,$a4
-	dc.b	$62,$25,$0f,$20,$f2,$be,$0e,$ef,$3c,$9f,$65,$4d,$d8,$c6,$8a,$0b
-	dc.b	$5b,$1b,$86,$db,$d8,$6c,$32,$62,$06,$9d,$86,$96,$de,$80,$45,$f8
-	dc.b	$6a,$99,$a9,$0d,$0d,$50,$50,$c9,$a4,$8c,$8d,$fa,$0f,$5b,$51,$0d
-	dc.b	$56,$a0,$55,$0f,$34,$91,$13,$69,$ed,$ba,$df,$97,$67,$3f,$96,$19
-	dc.b	$1c,$82,$35,$c8,$6c,$fb,$2b,$5a,$ab,$2b,$34,$05,$80,$8e,$b8,$b2
-	dc.b	$ba,$ae,$f3,$b5,$9b,$d0,$cf,$7d,$6d,$bf,$79,$f6,$5c,$f8,$a8,$b6
-	dc.b	$46,$cc,$b0,$0f,$61,$02,$ab,$34,$b5,$e6,$f0,$0e,$fa,$cc,$27,$e8
-	dc.b	$f9,$5d,$37,$05,$37,$fb,$ec,$3e,$a2,$06,$5b,$bd,$87,$79,$fb,$3c
-	dc.b	$33,$6c,$fb,$21,$72,$e8,$00,$5f,$1f,$16,$cf,$09,$9f,$3a,$f3,$99
-	dc.b	$16,$1d,$81,$6a,$65,$ad,$be,$8a,$69,$d4,$e0,$b5,$61,$f1,$4c,$23
-	dc.b	$ae,$bf,$3b,$c7,$ce,$19,$3f,$3e,$17,$d3,$6d,$b0,$56,$6a,$ac,$f0
-	dc.b	$fd,$7e,$b5,$06,$d8,$04,$96,$c1,$24,$28,$f6,$f8,$5a,$00,$57,$d3
-	dc.b	$14,$17,$72,$32,$e4,$a8,$ad,$a9,$09,$4d,$35,$f0,$23,$64,$35,$47
-	dc.b	$f9,$ce,$f6,$10,$14,$77,$90,$ef,$e2,$21,$7f,$70,$dc,$a8,$90,$b0
-	dc.b	$c9,$dc,$b2,$63,$36,$7d,$cb,$d3,$8a,$8f,$28,$e0,$a6,$78,$c0,$21
-	dc.b	$9e,$2d,$3d,$ca,$56,$bc,$fd,$a3,$75,$b0,$ca,$64,$4a,$3e,$32,$56
-	dc.b	$4b,$00,$24,$43,$97,$be,$8e,$b7,$84,$09,$4f,$46,$3b,$fd,$e6,$64
-	dc.b	$b6,$d9,$db,$b9,$ae,$3a,$fa,$1f,$ad,$9e,$65,$a4,$fd,$2c,$a2,$77
-	dc.b	$84,$60,$3e,$eb,$3f,$85,$89,$da,$d5,$e5,$6a,$25,$f4,$32,$6d,$12
-	dc.b	$10,$9f,$e9,$c3,$ab,$cf,$a5,$f4,$da,$5f,$e8,$db,$9f,$74,$36,$94
-	dc.b	$67,$35,$c4,$43,$dc,$25,$bb,$fa,$ba,$62,$88,$3f,$c3,$67,$cb,$76
-	dc.b	$7e,$32,$9d,$a3,$d4,$80,$2b,$ad,$6c,$6d,$12,$38,$57,$01,$23,$a4
-	dc.b	$0d,$63,$ac,$df,$f4,$3c,$40,$97,$93,$4f,$77,$f8,$ca,$1d,$d5,$59
-	dc.b	$18,$cc,$12,$2a,$b5,$31,$b5,$d4,$99,$f7,$13,$42,$a9,$f2,$84,$3f
-	dc.b	$48,$4e,$f8,$8d,$cb,$77,$dc,$b6,$9d,$93,$1d,$16,$38,$5b,$d0,$79
-	dc.b	$01,$64,$3a,$92,$0f,$4c,$90,$0f,$74,$02,$3f,$8d,$e7,$f1,$0e,$8b
-	dc.b	$69,$47,$c8,$bc,$e8,$35,$5b,$7a,$33,$20,$c2,$76,$39,$72,$d4,$05
-	dc.b	$7d,$c3,$dd,$b1,$94,$4e,$f2,$10,$ad,$1d,$5f,$11,$5f,$c9,$4f,$aa
-	dc.b	$8c,$9a,$60,$46,$b6,$c9,$8a,$f4,$2c,$a0,$c6,$46,$e1,$9c,$bc,$d8
-	dc.b	$fe,$eb,$c9,$e5,$f5,$3e,$df,$ec,$b6,$3a,$5c,$4f,$27,$54,$44,$b6
-	dc.b	$b9,$fe,$3b,$20,$fe,$a6,$99,$47,$ac,$50,$d1,$2f,$f3,$bc,$a7,$e4
-	dc.b	$a6,$c7,$50,$35,$c7,$4a,$6a,$77,$81,$2a,$44,$74,$0f,$8e,$87,$f6
-	dc.b	$58,$3d,$87,$cd,$76,$6d,$31,$19,$c3,$d5,$12,$20,$d4,$76,$c9,$28
-	dc.b	$19,$c2,$ac,$60,$dc,$72,$41,$99,$7c,$9e,$68,$b1,$37,$96,$92,$0f
-	dc.b	$2b,$fe,$2d,$83,$bc,$99,$40,$12,$aa,$07,$1f,$7b,$98,$18,$5d,$51
-	dc.b	$61,$b4,$7e,$60,$5b,$1e,$59,$38,$9e,$cb,$aa,$3d,$78,$65,$88,$11
-	dc.b	$df,$37,$55,$7b,$b2,$30,$cc,$86,$19,$45,$0f,$1a,$3c,$9e,$9f,$6b
-	dc.b	$fa,$fa,$8c,$34,$f7,$fa,$9d,$7b,$6d,$40,$74,$e3,$1c,$bf,$2e,$b6
-	dc.b	$46,$da,$ea,$f0,$40,$17,$17,$1e,$9b,$a0,$91,$61,$6a,$24,$35,$08
-	dc.b	$0d,$4b,$68,$d5,$b0,$57,$ee,$0c,$ba,$07,$be,$b6,$8b,$ff,$5c,$85
-	dc.b	$97,$65,$19,$56,$8a,$b6,$35,$6e,$ce,$cc,$03,$2c,$4b,$40,$d1,$7b
-	dc.b	$9c,$e8,$5a,$3c,$d0,$d8,$e0,$ff,$bc,$42,$a2,$25,$48,$ba,$9e,$96
-	dc.b	$d5,$ca,$cf,$bb,$2a,$40,$9b,$a4,$a1,$d4,$e4,$3c,$60,$fc,$9a,$9e
-	dc.b	$90,$9f,$17,$9f,$8e,$3c,$a2,$8b,$df,$bb,$d4,$91,$59,$f0,$39,$20
-	dc.b	$f1,$65,$1e,$a4,$1a,$64,$40,$fa,$d7,$55,$4e,$91,$cb,$83,$27,$6d
-	dc.b	$8e,$89,$6f,$85,$ae,$cf,$fb,$b5,$12,$5f,$7a,$00,$3e,$65,$d2,$e1
-	dc.b	$07,$d9,$62,$23,$53,$d4,$7d,$4d,$67,$dc,$6d,$68,$3d,$a9,$f6,$4b
-	dc.b	$62,$16,$76,$74,$ea,$0a,$03,$d2,$9a,$94,$46,$83,$cb,$a9,$03,$f9
-	dc.b	$eb,$23,$a3,$ce,$fd,$df,$3a,$97,$0b,$ba,$65,$6c,$57,$9c,$72,$f2
-	dc.b	$b2,$aa,$66,$9e,$35,$1b,$73,$de,$d6,$6a,$7b,$53,$55,$31,$a1,$4c
-	dc.b	$b2,$be,$32,$05,$1a,$24,$2c,$04,$0f,$5b,$f4,$dc,$f4,$d3,$2c,$66
-	dc.b	$34,$e9,$93,$23,$a1,$29,$10,$d4,$b2,$9e,$33,$b2,$30,$13,$21,$4a
-	dc.b	$18,$f1,$76,$f2,$12,$fe,$56,$59,$e3,$67,$78,$79,$8c,$2d,$47,$12
-	dc.b	$19,$64,$3b,$d9,$2c,$dc,$01,$d7,$14,$d5,$a7,$e0,$b9,$a2,$d5,$4d
-	dc.b	$d7,$c7,$66,$6b,$9d,$19,$34,$5c,$25,$30,$83,$92,$43,$cf,$e9,$78
-	dc.b	$1b,$99,$47,$94,$a5,$c8,$d3,$2a,$22,$fe,$5b,$31,$84,$0d,$eb,$d0
-	dc.b	$1b,$61,$30,$a3,$10,$84,$d9,$06,$97,$f9,$a9,$5f,$84,$d4,$86,$4b
-	dc.b	$c7,$31,$f6,$a0,$2a,$fe,$bd,$1e,$8d,$94,$51,$81,$35,$3c,$86,$ea
-	dc.b	$b9,$52,$76,$43,$b3,$82,$72,$05,$68,$85,$5c,$b8,$fd,$68,$c3,$0f
-	dc.b	$ae,$10,$d1,$90,$8e,$64,$32,$be,$15,$03,$ee,$31,$d2,$be,$d2,$8b
-	dc.b	$65,$18,$6a,$fe,$fb,$59,$cd,$e1,$34,$0b,$80,$44,$0d,$7a,$60,$e2
-	dc.b	$32,$b2,$a0,$60,$cc,$a1,$a7,$33,$24,$90,$62,$30,$99,$df,$c4,$38
-	dc.b	$e2,$a8,$cb,$01,$0d,$1d,$5a,$2a,$64,$a3,$35,$02,$dc,$83,$37,$49
-	dc.b	$25,$e9,$4a,$d5,$48,$4b,$0b,$2e,$8d,$0e,$d0,$1d,$93,$08,$6a,$f2
-	dc.b	$fe,$fa,$66,$25,$ec,$4e,$06,$33,$5b,$09,$d9,$1e,$07,$d8,$b8,$07
-	dc.b	$19,$74,$38,$00,$5c,$8d,$d9,$f3,$62,$68,$a4,$9e,$cf,$c8,$ed,$01
-	dc.b	$93,$2f,$7f,$f3,$47,$2b,$14,$61,$c2,$e7,$ef,$2c,$3b,$d6,$f6,$45
-	dc.b	$33,$14,$44,$6c,$03,$b1,$0a,$29,$47,$dc,$a3,$11,$49,$5c,$c1,$6c
-	dc.b	$fb,$d4,$a6,$cc,$98,$be,$0e,$42,$18,$4a,$ef,$01,$f1,$3b,$14,$58
-	dc.b	$80,$45,$cc,$5e,$58,$b1,$9b,$24,$9c,$a7,$66,$52,$b4,$a1,$a6,$bd
-	dc.b	$44,$90,$75,$c8,$8a,$4a,$f4,$60,$71,$30,$c3,$d4,$0c,$35,$8d,$7a
-	dc.b	$62,$8e,$53,$b2,$64,$55,$25,$aa,$61,$a6,$af,$f2,$3b,$40,$8e,$50
-	dc.b	$b8,$7a,$8f,$f6,$0e,$42,$3d,$45,$c3,$d1,$7a,$63,$0f,$f2,$c5,$9f
-	dc.b	$3e,$c8,$c2,$b0,$f5,$c3,$04,$37,$9d,$cd,$f8,$a4,$69,$ea,$26,$a9
-	dc.b	$26,$e9,$ec,$89,$59,$83,$12,$61,$9c,$20,$87,$f8,$c0,$4c,$de,$b2
-	dc.b	$de,$4c,$7a,$38,$9a,$90,$81,$d1,$37,$57,$7c,$ea,$65,$01,$48,$0a
-	dc.b	$72,$92,$00,$f3,$ac,$38,$38,$70,$f8,$ae,$1c,$12,$4e,$1c,$a0,$64
-	dc.b	$8e,$c0,$6b,$e2,$1a,$b4,$bd,$d7,$df,$38,$e2,$0d,$2b,$c6,$d7,$5a
-	dc.b	$12,$41,$a6,$20,$77,$69,$9d,$7c,$0f,$ef,$58,$1c,$72,$94,$05,$ca
-	dc.b	$74,$6e,$0b,$0e,$69,$dd,$19,$72,$18,$3c,$32,$4b,$d1,$9e,$50,$c5
-	dc.b	$51,$bc,$a9,$2b,$01,$92,$21,$d8,$1a,$f5,$70,$fd,$07,$8c,$04,$bc
-	dc.b	$5a,$b3,$89,$3d,$18,$c0,$d5,$08,$eb,$f0,$f3,$b2,$56,$f8,$0d,$4a
-	dc.b	$40,$1c,$eb,$08,$a7,$09,$a5,$56,$3f,$71,$44,$92,$46,$45,$20,$2a
-	dc.b	$c6,$20,$44,$4c,$85,$cb,$3b,$08,$39,$62,$72,$02,$af,$44,$d1,$9b
-	dc.b	$5b,$2e,$eb,$57,$ab,$6a,$b6,$3c,$e8,$02,$46,$11,$a9,$6c,$96,$cd
-	dc.b	$11,$3d,$e5,$31,$58,$0a,$c6,$80,$aa,$c5,$a3,$91,$05,$2e,$94,$4c
-	dc.b	$44,$64,$87,$49,$12,$db,$3e,$78,$12,$45,$2e,$5a,$c1,$22,$e0,$2f
-	dc.b	$a5,$a6,$33,$22,$6b,$19,$ac,$d3,$2d,$a8,$89,$11,$eb,$1e,$b3,$90
-	dc.b	$ec,$cd,$0a,$8b,$d2,$1c,$e2,$27,$23,$d7,$21,$ae,$fb,$8e,$88,$75
-	dc.b	$9a,$0d,$c9,$d6,$ce,$b1,$fd,$42,$bd,$f3,$de,$50,$2d,$4d,$20,$12
-	dc.b	$78,$a5,$55,$48,$1a,$ed,$45,$95,$15,$8d,$41,$10,$9b,$89,$3c,$e8
-	dc.b	$12,$a3,$0e,$d0,$30,$b0,$dd,$97,$4b,$d9,$48,$73,$2c,$de,$c2,$29
-	dc.b	$d2,$dd,$6c,$43,$8a,$fc,$c6,$8c,$e9,$19,$48,$4c,$07,$8e,$30,$4c
-	dc.b	$6f,$a4,$36,$cb,$ae,$3d,$a7,$a5,$8c,$a8,$f1,$c3,$75,$24,$5a,$7b
-	dc.b	$b1,$0b,$0d,$a9,$06,$e5,$cf,$2b,$94,$f1,$ef,$cc,$fd,$95,$37,$01
-	dc.b	$51,$d0,$06,$70,$07,$de,$48,$59,$cd,$24,$a3,$e1,$84,$cf,$41,$e5
-	dc.b	$c1,$f2,$b9,$b3,$2d,$ab,$66,$0b,$59,$c4,$0c,$d3,$9d,$51,$36,$e3
-	dc.b	$f7,$64,$5b,$50,$53,$c6,$2d,$09,$19,$4c,$2c,$b1,$e9,$0e,$09,$a3
-	dc.b	$90,$d6,$49,$26,$a4,$99,$25,$10,$d6,$50,$aa,$08,$0d,$ce,$3a,$c1
-	dc.b	$bc,$af,$9b,$12,$31,$ab,$ca,$02,$f0,$80,$7b,$0d,$34,$c7,$42,$08
-	dc.b	$8d,$98,$93,$8b,$93,$a3,$0d,$c4,$39,$01,$c3,$5e,$f0,$0e,$8f,$bf
-	dc.b	$ab,$af,$29,$a8,$10,$13,$61,$e6,$9e,$43,$47,$2a,$43,$9c,$75,$d9
-	dc.b	$c7,$63,$ac,$97,$85,$c4,$4a,$72,$44,$c0,$d2,$26,$0d,$f1,$95,$1a
-	dc.b	$1b,$1a,$5f,$16,$36,$7f,$51,$83,$54,$68,$33,$58,$4e,$f3,$e2,$c8
-	dc.b	$66,$22,$57,$d7,$be,$1f,$64,$55,$34,$05,$9f,$8d,$a8,$8e,$74,$f2
-	dc.b	$dc,$1a,$35,$e2,$9b,$98,$30,$56,$98,$d5,$cb,$8e,$26,$35,$24,$03
-	dc.b	$2c,$55,$e4,$44,$91,$7b,$b3,$6a,$39,$85,$39,$61,$a3,$92,$5d,$44
-	dc.b	$a6,$50,$ea,$41,$ac,$aa,$0b,$7d,$91,$92,$5c,$7d,$91,$89,$88,$3e
-	dc.b	$57,$10,$5c,$14,$c8,$81,$af,$a8,$f9,$41,$12,$0f,$61,$a2,$76,$80
-	dc.b	$b7,$86,$b9,$ab,$80,$47,$22,$20,$88,$6a,$8f,$a1,$b2,$c2,$14,$44
-	dc.b	$32,$da,$cb,$1b,$3d,$d9,$9b,$5a,$d9,$8c,$7c,$56,$12,$9b,$b6,$29
-	dc.b	$ab,$6c,$5c,$7b,$4f,$07,$b0,$e5,$cc,$70,$35,$0c,$cf,$42,$47,$77
-	dc.b	$97,$0c,$99,$3a,$15,$10,$e9,$91,$2b,$0d,$a8,$36,$b9,$df,$28,$54
-	dc.b	$47,$54,$1e,$d5,$96,$3f,$d8,$05,$ed,$96,$b3,$a0,$cb,$1c,$b8,$0d
-	dc.b	$5b,$46,$6d,$95,$a3,$3e,$e0,$15,$11,$19,$90,$e6,$5b,$51,$ad,$46
-	dc.b	$bb,$0f,$51,$28,$31,$43,$5b,$38,$8f,$24,$81,$52,$b2,$2b,$2b,$2c
-	dc.b	$5f,$60,$5b,$e3,$e5,$bb,$11,$5d,$76,$0c,$c7,$39,$9a,$01,$19,$88
-	dc.b	$da,$30,$11,$d1,$c2,$95,$d7,$f5,$69,$b4,$03,$32,$b0,$e4,$c2,$d8
-	dc.b	$7c,$f8,$7b,$5d,$fc,$56,$12,$31,$cf,$3b,$c4,$00,$29,$75,$24,$31
-	dc.b	$ee,$f4,$b9,$46,$93,$fd,$aa,$3c,$70,$35,$63,$3d,$09,$10,$b4,$b2
-	dc.b	$dd,$c0,$e3,$93,$a2,$31,$2e,$99,$12,$bb,$0b,$3c,$cd,$aa,$0f,$39
-	dc.b	$89,$44,$42,$73,$b6,$dc,$89,$32,$40,$44,$cd,$68,$f7,$ca,$e4,$df
-	dc.b	$2d,$28,$53,$0b,$2b,$80,$78,$f6,$92,$3a,$a5,$7b,$43,$6a,$0e,$a3
-	dc.b	$c0,$46,$25,$33,$21,$cc,$b6,$a3,$5a,$88,$d6,$14,$78,$dc,$06,$11
-	dc.b	$c4,$a0,$d2,$40,$ab,$11,$7b,$e5,$4c,$97,$42,$11,$d8,$e9,$96,$c3
-	dc.b	$88,$ec,$f2,$20,$24,$bb,$f4,$41,$64,$64,$70,$21,$00,$88,$2a,$79
-	dc.b	$70,$38,$28,$e9,$e1,$66,$80,$0d,$a1,$43,$0c,$72,$00,$5b,$ca,$9b
-	dc.b	$77,$6d,$f1,$53,$e0,$f0,$e2,$7c,$a9,$0a,$39,$6c,$2f,$98,$3d,$c9
-	dc.b	$dc,$1a,$06,$3d,$a7,$f8,$f4,$71,$cf,$ae,$f7,$8b,$7f,$3e,$d7,$0b
-	dc.b	$99,$f4,$1e,$3b,$e1,$43,$fe,$7a,$c1,$7e,$0c,$ef,$b5,$c5,$64,$30
-	dc.b	$00,$7c,$f7,$4e,$54,$c5,$bd,$cb,$b0,$99,$94,$7c,$0f,$6b,$34,$a9
-	dc.b	$4d,$f2,$9a,$e0,$ae,$5a,$51,$5e,$c4,$f6,$64,$20,$3d,$e7,$a3,$91
-	dc.b	$a0,$fd,$3a,$e1,$0e,$b4,$5a,$02,$7c,$10,$94,$d3,$7a,$e6,$16,$56
-	dc.b	$95,$87,$32,$6d,$d8,$46,$f1,$2a,$f4,$47,$93,$44,$fe,$c4,$02,$cc
-	dc.b	$82,$23,$1c,$51,$10,$fc,$c7,$4a,$e6,$1f,$43,$b5,$5a,$f7,$ba,$1e
-	dc.b	$83,$2a,$38,$20,$5c,$64,$10,$fa,$9b,$a0,$f5,$1c,$85,$27,$e0,$cc
-	dc.b	$fe,$ab,$bd,$95,$ca,$08,$dd,$7a,$d9,$9a,$b3,$e6,$f3,$a2,$75,$b8
-	dc.b	$60,$b8,$1f,$49,$5d,$81,$dc,$dd,$7e,$77,$b6,$88,$97,$76,$48,$b1
-	dc.b	$7a,$24,$40,$18,$4f,$96,$6d,$8f,$6e,$e7,$b7,$f9,$05,$d3,$59,$85
-	dc.b	$9f,$e8,$a1,$bb,$4a,$51,$db,$eb,$3d,$01,$1a,$b3,$d1,$d4,$db,$44
-	dc.b	$f5,$cd,$21,$36,$57,$02,$33,$49,$53,$e9,$a7,$2e,$c6,$a6,$a2,$47
-	dc.b	$09,$88,$79,$1f,$f3,$9c,$30,$07,$56,$a4,$25,$0b,$ec,$41,$be,$41
-	dc.b	$4b,$10,$2d,$3f,$47,$0f,$14,$85,$5f,$78,$45,$4d,$d6,$11,$59,$0b
-	dc.b	$60,$c6,$81,$b4,$18,$ea,$de,$24,$b8,$1a,$a7,$20,$7d,$9b,$ca,$22
-	dc.b	$1c,$2b,$33,$1c,$31,$ab,$10,$f0,$df,$6e,$95,$20,$40,$d4,$2b,$13
-	dc.b	$85,$8d,$5c,$82,$e9,$9c,$84,$c7,$9c,$c3,$53,$6e,$3b,$0e,$97,$67
-	dc.b	$9c,$01,$6c,$e0,$b2,$48,$31,$ec,$f2,$ff,$29,$32,$d9,$35,$b8,$40
-	dc.b	$33,$fa,$87,$8a,$d4,$27,$96,$fc,$93,$60,$64,$c5,$6a,$93,$15,$87
-	dc.b	$8c,$56,$b0,$16,$c2,$f3,$ad,$c3,$be,$85,$ad,$4e,$e3,$6c,$ca,$54
-	dc.b	$d3,$5f,$47,$3a,$72,$72,$ae,$3a,$d9,$fb,$33,$ed,$81,$3c,$16,$be
-	dc.b	$54,$59,$86,$5f,$f5,$03,$37,$ec,$31,$35,$b3,$f3,$62,$90,$d5,$10
-	dc.b	$f8,$d4,$e3,$5a,$ab,$68,$46,$77,$d5,$29,$b1,$45,$f4,$0c,$44,$71
-	dc.b	$b6,$6b,$e2,$74,$fb,$0a,$d9,$b0,$e6,$43,$02,$d5,$84,$70,$6d,$83
-	dc.b	$18,$9b,$3e,$92,$65,$b2,$51,$08,$06,$af,$20,$95,$99,$11,$21,$1a
-	dc.b	$ca,$6e,$cc,$6a,$14,$84,$6f,$42,$4a,$d4,$7a,$e3,$10,$d1,$49,$68
-	dc.b	$5b,$6b,$09,$af,$a1,$69,$5c,$b9,$9b,$75,$48,$65,$d3,$ed,$f3,$01
-	dc.b	$63,$99,$be,$a9,$00,$60,$f5,$90,$ce,$70,$5f,$bf,$d3,$69,$0d,$2c
-	dc.b	$44,$ff,$79,$03,$23,$aa,$6f,$71,$2c,$b4,$74,$51,$25,$9c,$bc,$3f
-	dc.b	$7f,$0e,$6c,$c9,$5b,$05,$d7,$74,$2c,$63,$1e,$b7,$f1,$1b,$d1,$5a
-	dc.b	$47,$06,$30,$17,$b6,$c4,$b7,$8b,$b0,$08,$bc,$a0,$e7,$4d,$c2,$b0
-	dc.b	$8b,$32,$1c,$83,$11,$de,$3c,$f5,$b0,$e6,$cd,$d1,$53,$8e,$6a,$d9
-	dc.b	$80,$33,$78,$e6,$ab,$dd,$cd,$1c,$df,$da,$aa,$29,$77,$49,$a3,$84
-	dc.b	$7c,$31,$1e,$22,$2c,$4e,$cc,$65,$35,$c4,$35,$29,$6c,$19,$38,$f2
-	dc.b	$98,$c4,$d6,$43,$53,$8e,$fa,$b4,$10,$69,$08,$94,$cb,$a7,$91,$1d
-	dc.b	$77,$16,$5a,$3a,$2a,$24,$82,$4b,$ca,$b8,$d7,$d7,$df,$c2,$a6,$64
-	dc.b	$1b,$0a,$9f,$ca,$b6,$e9,$ae,$53,$34,$c3,$4a,$81,$cb,$9d,$d9,$38
-	dc.b	$16,$c1,$a5,$28,$23,$63,$13,$0e,$39,$99,$6e,$db,$3a,$8c,$8e,$40
-	dc.b	$0d,$4b,$f2,$81,$6a,$cf,$6b,$46,$77,$dc,$b2,$0d,$3f,$5e,$73,$c3
-	dc.b	$f8,$bd,$9e,$2a,$66,$ff,$56,$69,$a7,$a9,$90,$a6,$de,$3b,$a1,$29
-	dc.b	$d6,$62,$fc,$81,$9c,$a2,$8f,$a8,$68,$7d,$ca,$35,$60,$77,$22,$62
-	dc.b	$3e,$1a,$b5,$67,$b0,$b8,$cf,$63,$d6,$7a,$c9,$c2,$7b,$53,$6c,$06
-	dc.b	$bc,$49,$cf,$0f,$8b,$2d,$dc,$9a,$25,$0f,$ef,$cd,$3d,$7c,$c6,$4f
-	dc.b	$0e,$c2,$44,$4d,$29,$d8,$34,$8b,$29,$a0,$47,$94,$83,$1b,$ff,$54
-	dc.b	$a8,$13,$07,$91,$4d,$20,$e8,$d2,$c8,$64,$35,$0e,$a1,$24,$9f,$01
-	dc.b	$ee,$d7,$b2,$3b,$3a,$4a,$1e,$97,$47,$29,$0d,$4e,$73,$f3,$8b,$95
-	dc.b	$e2,$c0,$74,$24,$ee,$a6,$43,$d4,$d4,$7a,$1a,$df,$b1,$97,$79,$a7
-	dc.b	$0b,$f3,$90,$46,$db,$8e,$31,$ab,$4b,$f7,$f9,$68,$cf,$dd,$b6,$34
-	dc.b	$29,$9a,$df,$70,$29,$ef,$c4,$47,$b1,$fb,$ef,$75,$73,$d7,$cf,$2b
-	dc.b	$84,$69,$2d,$27,$50,$72,$2e,$0f,$aa,$d3,$c8,$8e,$95,$1d,$08,$f3
-	dc.b	$39,$75,$2a,$ca,$f8,$56,$e9,$25,$bd,$ae,$40,$3b,$38,$df,$00,$b5
-	dc.b	$aa,$b3,$62,$b8,$25,$48,$c9,$da,$62,$60,$23,$fb,$be,$ea,$2c,$3c
-	dc.b	$58,$1f,$89,$42,$33,$b9,$dd,$45,$1e,$05,$7d,$b4,$da,$a5,$89,$65
-	dc.b	$d9,$8e,$9c,$e5,$0e,$c2,$83,$8b,$7a,$19,$88,$0c,$5f,$63,$88,$9e
-	dc.b	$4a,$da,$41,$cd,$2a,$14,$4c,$32,$2d,$f7,$11,$12,$52,$44,$06,$70
-	dc.b	$12,$8e,$5c,$89,$01,$b7,$e2,$eb,$d3,$e8,$c8,$5d,$00,$66,$3a,$f0
-	dc.b	$0a,$8b,$10,$1f,$1b,$96,$10,$25,$6e,$b7,$cb,$c9,$a0,$34,$b9,$1c
-	dc.b	$7f,$3f,$3a,$14,$99,$22,$d5,$ec,$e8,$8b,$8f,$09,$a9,$e6,$db,$bd
-	dc.b	$1c,$fd,$96,$77,$1e,$d9,$45,$58,$bd,$9e,$27,$ce,$69,$ab,$2d,$66
-	dc.b	$33,$78,$2f,$42,$1b,$8d,$5a,$3a,$3c,$d4,$af,$c9,$77,$86,$cb,$71
-	dc.b	$52,$b9,$73,$0a,$63,$e7,$c3,$56,$37,$05,$11,$c1,$db,$ea,$f4,$4a
-	dc.b	$e6,$f3,$b9,$ef,$2f,$8c,$69,$45,$e6,$d8,$b6,$88,$29,$f1,$7e,$fa
-	dc.b	$d6,$69,$1d,$df,$b8,$91,$85,$2b,$a7,$c3,$19,$cc,$d6,$0e,$57,$f0
-	dc.b	$eb,$de,$6b,$d0,$8b,$60,$07,$96,$a9,$ed,$b5,$88,$06,$4d,$7c,$b6
-	dc.b	$14,$c9,$46,$90,$67,$75,$c7,$8f,$5e,$25,$d7,$ad,$07,$30,$79,$43
-	dc.b	$bc,$b3,$91,$95,$10,$41,$0d,$21,$22,$43,$ab,$08,$c3,$dd,$0a,$e8
-	dc.b	$35,$d1,$89,$37,$8b,$da,$01,$a7,$d5,$a6,$ec,$f2,$82,$34,$23,$36
-	dc.b	$1b,$52,$ae,$ef,$93,$e0,$f9,$c0,$3c,$25,$aa,$86,$95,$80,$06,$41
-	dc.b	$27,$fc,$fc,$77,$7f,$52,$41,$9f,$d5,$5e,$f0,$d4,$7c,$09,$c8,$75
-	dc.b	$f7,$36,$14,$4d,$ce,$03,$50,$50,$17,$63,$d4,$11,$34,$91,$19,$38
-	dc.b	$c7,$b9,$1e,$50,$2a,$62,$52,$04,$d6,$cc,$ac,$73,$67,$18,$cb,$cf
-	dc.b	$07,$46,$ee,$11,$bf,$9d,$67,$1d,$7c,$27,$6a,$68,$41,$52,$5f,$e2
-	dc.b	$0f,$0c,$75,$5e,$6c,$28,$68,$0f,$87,$f2,$8e,$75,$0a,$81,$44,$07
-	dc.b	$58,$06,$76,$6c,$b4,$19,$22,$2f,$89,$69,$ac,$46,$b8,$63,$cb,$6b
-	dc.b	$94,$f1,$36,$15,$aa,$e7,$65,$0e,$de,$19,$4b,$f5,$35,$d8,$21,$7b
-	dc.b	$90,$c7,$40,$84,$5c,$7e,$ba,$8c,$b0,$53,$e5,$c1,$9e,$e5,$ff,$56
-	dc.b	$a8,$01,$6d,$b9,$61,$fe,$a9,$92,$04,$76,$98,$bf,$3d,$7b,$3a,$bc
-	dc.b	$da,$14,$2f,$97,$64,$62,$bf,$d9,$32,$6b,$b7,$7b,$29,$6e,$ab,$50
-	dc.b	$70,$bb,$31,$ef,$b2,$60,$9e,$11,$82,$b9,$44,$5b,$aa,$fe,$5f,$ea
-	dc.b	$53,$d8,$0f,$db,$a2,$b8,$cc,$58,$33,$7d,$09,$7d,$c3,$26,$1e,$b7
-	dc.b	$bb,$be,$6a,$e1,$9c,$6e,$0a,$c2,$06,$45,$32,$85,$73,$6a,$e3,$f4
-	dc.b	$0c,$dc,$01,$f9,$59,$b4,$f9,$71,$8b,$d4,$ea,$9c,$5e,$cb,$db,$07
-	dc.b	$b8,$8b,$0a,$3d,$b3,$3e,$06,$b1,$4d,$fb,$95,$b6,$2f,$d0,$16,$7b
-	dc.b	$29,$97,$76,$39,$11,$a2,$01,$4b,$70,$5b,$18,$e7,$ad,$bf,$ee,$eb
-	dc.b	$97,$ac,$31,$c8,$4b,$10,$d0,$fd,$48,$e1,$7e,$58,$e3,$2e,$58,$42
-	dc.b	$f7,$34,$43,$e2,$ca,$e4,$d6,$52,$dd,$5d,$30,$70,$c7,$cd,$ca,$64
-	dc.b	$69,$00,$78,$e5,$9b,$8b,$62,$ca,$38,$40,$75,$bf,$17,$94,$a4,$60
-	dc.b	$67,$60,$9b,$60,$27,$75,$85,$6c,$1f,$32,$da,$ae,$7d,$10,$79,$ee
-	dc.b	$ec,$0b,$21,$46,$8e,$ef,$b4,$da,$c0,$6f,$f2,$5e,$8d,$da,$58,$1d
-	dc.b	$ad,$1f,$28,$a6,$c8,$ab,$03,$33,$74,$18,$91,$ed,$92,$d4,$88,$78
-	dc.b	$ac,$da,$79,$19,$0f,$b9,$39,$42,$32,$41,$dc,$bb,$3b,$18,$8a,$79
-	dc.b	$61,$aa,$8b,$08,$5d,$08,$c0,$4d,$03,$3d,$4d,$fa,$72,$c1,$97,$07
-	dc.b	$2b,$50,$75,$2c,$77,$10,$01,$66,$f7,$66,$37,$d2,$ad,$9d,$47,$fa
-	dc.b	$01,$eb,$e1,$c4,$fe,$76,$2c,$bc,$58,$b5,$99,$b7,$62,$35,$64,$25
-	dc.b	$72,$86,$8a,$f5,$35,$ba,$d7,$57,$55,$6d,$63,$8b,$8b,$24,$fb,$14
-	dc.b	$76,$36,$33,$09,$b8,$38,$7b,$50,$14,$6b,$97,$70,$19,$6c,$1d,$58
-	dc.b	$d5,$f0,$39,$d6,$58,$43,$58,$44,$af,$32,$f0,$38,$ca,$5a,$cf,$d2
-	dc.b	$d6,$19,$a3,$6a,$b3,$aa,$91,$75,$17,$06,$7f,$0d,$9a,$3f,$2d,$b6
-	dc.b	$c2,$ac,$26,$e8,$80,$a7,$16,$b3,$e9,$91,$1a,$9e,$54,$6c,$c8,$43
-	dc.b	$ae,$12,$d4,$80,$e3,$dc,$24,$0f,$f3,$35,$95,$09,$b3,$22,$10,$6a
-	dc.b	$0f,$2a,$38,$0d,$e1,$6c,$0c,$bd,$75,$ac,$ce,$31,$ef,$05,$cc,$d3
-	dc.b	$52,$3a,$7a,$f1,$37,$05,$be,$68,$c8,$39,$f3,$2d,$8c,$bb,$b2,$18
-	dc.b	$a6,$b0,$80,$23,$b6,$e1,$d4,$a7,$e2,$dc,$ef,$4b,$6a,$78,$75,$24
-	dc.b	$34,$be,$9c,$08,$a7,$91,$60,$7f,$5a,$91,$c0,$20,$99,$7f,$17,$dd
-	dc.b	$7b,$63,$c1,$9f,$af,$69,$ee,$d9,$14,$50,$d6,$78,$7b,$d2,$1e,$b8
-	dc.b	$46,$cc,$1a,$88,$66,$b4,$3a,$e8,$bf,$2f,$82,$a2,$2c,$65,$92,$c4
-	dc.b	$6a,$ea,$e0,$27,$78,$fb,$9f,$f6,$cf,$0f,$67,$c1,$bb,$73,$b8,$6d
-	dc.b	$86,$35,$0d,$6c,$7d,$9e,$35,$9a,$90,$38,$4a,$00,$bb,$fb,$3a,$ef
-	dc.b	$9c,$8a,$91,$74,$c1,$b2,$2c,$d5,$dc,$ae,$05,$c3,$b0,$f9,$ea,$f1
-	dc.b	$59,$17,$ad,$76,$62,$4f,$3d,$d9,$af,$6f,$14,$3c,$bb,$48,$27,$a0
-	dc.b	$7b,$b0,$6e,$3d,$90,$78,$2e,$5a,$9e,$bb,$96,$a5,$9f,$99,$bc,$37
-	dc.b	$be,$80,$b8,$d0,$bb,$6c,$30,$5c,$ae,$5e,$5a,$9f,$ca,$66,$2f,$ea
-	dc.b	$e2,$8b,$31,$9e,$ea,$32,$39,$5a,$b4,$fc,$f4,$3c,$b6,$41,$63,$2e
-	dc.b	$03,$bb,$56,$13,$31,$38,$eb,$60,$be,$1d,$fd,$60,$a2,$1b,$50,$2f
-	dc.b	$5c,$97,$e4,$2e,$98,$1c,$46,$11,$dd,$1f,$24,$5a,$bd,$c9,$d6,$c4
-	dc.b	$27,$57,$e8,$4c,$a0,$7e,$49,$79,$41,$a1,$71,$49,$e5,$8a,$77,$21
-	dc.b	$c3,$d7,$0f,$5e,$c3,$de,$59,$a5,$a1,$80,$2a,$c3,$e7,$32,$5d,$5b
-	dc.b	$9c,$c7,$00,$e2,$9b,$fd,$df,$6e,$93,$1b,$2c,$db,$1a,$32,$ad,$db
-	dc.b	$e5,$86,$89,$20,$80,$5a,$b4,$e3,$6f,$17,$00,$ae,$c5,$9e,$1e,$59
-	dc.b	$ee,$a6,$e4,$52,$4c,$ee,$45,$e9,$c2,$0c,$ab,$2e,$e5,$65,$cf,$65
-	dc.b	$39,$30,$6a,$e9,$45,$6c,$bd,$ee,$45,$6e,$b9,$01,$9e,$e5,$bb,$91
-	dc.b	$43,$31,$bd,$cd,$dc,$99,$5b,$ba,$ee,$4c,$9d,$88,$75,$72,$9c,$00
-	dc.b	$c1,$70,$b2,$f4,$2c,$f7,$0b,$83,$1e,$70,$2b,$74,$04,$a3,$80,$40
-	dc.b	$c9,$64,$77,$02,$91,$76,$65,$16,$e0,$c5,$2e,$16,$5d,$f6,$c0,$d1
-	dc.b	$24,$28,$d2,$03,$7c,$a9,$0f,$53,$93,$6c,$79,$b7,$8b,$21,$3b,$75
-	dc.b	$b2,$81,$c7,$03,$dd,$d3,$b5,$33,$1e,$3b,$ba,$c9,$9d,$c9,$bd,$38
-	dc.b	$64,$ca,$95,$f3,$98,$db,$b6,$66,$63,$8b,$7c,$f5,$28,$93,$ab,$8e
-	dc.b	$07,$57,$58,$fa,$ec,$e4,$d4,$7b,$66,$a8,$a2,$d4,$9c,$93,$61,$3a
-	dc.b	$ae,$6c,$6f,$77,$75,$dc,$3f,$5c,$ea,$fd,$58,$96,$31,$13,$0b,$28
-	dc.b	$42,$3a,$b8,$88,$74,$b4,$13,$56,$c1,$53,$a1,$67,$b4,$b9,$d1,$64
-	dc.b	$30,$90,$58,$8d,$8f,$45,$72,$63,$62,$92,$e0,$a0,$88,$14,$80,$ae
-	dc.b	$1a,$ec,$cc,$2c,$97,$d4,$d9,$b8,$7e,$64,$75,$fd,$50,$5b,$2a,$e0
-	dc.b	$0e,$43,$31,$47,$2e,$3d,$ab,$0a,$2a,$72,$c3,$00,$8b,$67,$e5,$e9
-	dc.b	$28,$68,$57,$c7,$ff,$ea,$b3,$8f,$78,$ff,$12,$95,$6c,$44,$d3,$52
-	dc.b	$e7,$dc,$ff,$89,$4d,$38,$4d,$b3,$82,$55,$52,$89,$23,$06,$82,$9d
-	dc.b	$66,$50,$d6,$f2,$e5,$69,$04,$88,$8b,$08,$f0,$97,$55,$d1,$3a,$0e
-	dc.b	$22,$c8,$aa,$b4,$22,$35,$91,$0a,$9a,$44,$d7,$01,$d5,$05,$bb,$3d
-	dc.b	$6c,$01,$79,$2c,$34,$66,$4b,$96,$1e,$a8,$72,$38,$4d,$d2,$2e,$fd
-	dc.b	$4a,$c1,$6f,$4e,$08,$c5,$2b,$b0,$4a,$2c,$33,$9c,$34,$ec,$05,$68
-	dc.b	$ee,$54,$de,$13,$ca,$44,$44,$63,$c6,$42,$6c,$a8,$6b,$30,$1b,$63
-	dc.b	$40,$a7,$4e,$45,$10,$47,$46,$ef,$3b,$60,$7e,$b0,$c3,$14,$01,$64
-	dc.b	$4a,$5d,$45,$e5,$54,$20,$0c,$a3,$1b,$0a,$fe,$4f,$cf,$43,$e3,$5d
-	dc.b	$93,$28,$d6,$04,$cc,$70,$59,$80,$f3,$a1,$30,$3b,$fc,$ac,$a1,$a0
-	dc.b	$46,$4a,$f9,$54,$65,$8f,$b9,$db,$a8,$b1,$7b,$66,$33,$50,$af,$ea
-	dc.b	$8b,$17,$b0,$df,$56,$e2,$22,$19,$29,$d4,$26,$ce,$34,$3a,$c6,$5a
-	dc.b	$ed,$b2,$e5,$2c,$3d,$48,$83,$aa,$07,$67,$50,$ee,$93,$5c,$86,$82
-	dc.b	$bf,$14,$08,$db,$be,$10,$23,$7e,$37,$51,$d5,$0c,$56,$11,$66,$73
-	dc.b	$84,$85,$d9,$30,$06,$6d,$f1,$f7,$ec,$1a,$7a,$d3,$ae,$ce,$e9,$42
-	dc.b	$a2,$03,$77,$8e,$17,$22,$8f,$c8,$43,$6e,$d3,$ce,$af,$81,$5d,$e3
-	dc.b	$8b,$a7,$8d,$4f,$5e,$c6,$f1,$60,$ce,$e7,$14,$fd,$4c,$af,$8e,$f5
-	dc.b	$b7,$78,$e9,$e6,$60,$6c,$94,$03,$90,$04,$61,$cf,$ae,$19,$9a,$72
-	dc.b	$cd,$c6,$59,$cb,$93,$6c,$d7,$03,$a4,$46,$6a,$3d,$ef,$3d,$ce,$28
-	dc.b	$fe,$35,$c5,$d6,$99,$19,$b2,$c5,$80,$39,$58,$76,$00,$c5,$5a,$29
-	dc.b	$9d,$2c,$3d,$72,$fa,$54,$51,$e8,$d0,$4e,$06,$72,$1a,$39,$57,$6c
-	dc.b	$d3,$92,$2e,$8f,$b7,$9a,$e1,$ca,$36,$cd,$73,$50,$a5,$61,$3b,$e3
-	dc.b	$92,$d2,$0c,$a4,$71,$ca,$d1,$9f,$cf,$ce,$ed,$01,$82,$12,$0c,$12
-	dc.b	$52,$1c,$65,$ec,$94,$51,$8a,$30,$d5,$93,$06,$87,$f2,$76,$af,$86
-	dc.b	$14,$40,$a4,$f4,$4e,$de,$84,$cc,$f7,$30,$3f,$dd,$98,$1b,$c8,$ed
-	dc.b	$aa,$7c,$b3,$60,$5c,$b6,$33,$30,$05,$6c,$8b,$ca,$0f,$bc,$cb,$f9
-	dc.b	$b9,$5d,$81,$4d,$12,$b2,$d7,$a3,$ed,$e8,$8a,$19,$28,$1c,$6e,$cc
-	dc.b	$2a,$e2,$63,$a1,$68,$67,$27,$f5,$d1,$60,$41,$10,$c5,$20,$f3,$ec
-	dc.b	$c9,$ed,$d0,$d0,$f2,$d8,$94,$3a,$d1,$52,$2f,$73,$2c,$27,$e6,$69
-	dc.b	$6d,$59,$5c,$1e,$2d,$b2,$1b,$aa,$e2,$bf,$5f,$00,$be,$3d,$bd,$2d
-	dc.b	$32,$85,$76,$46,$bc,$84,$42,$d5,$63,$2c,$8c,$c9,$cb,$36,$c0,$24
-	dc.b	$7c,$e5,$74,$b8,$49,$8a,$20,$05,$50,$91,$01,$c5,$e8,$29,$0b,$a5
-	dc.b	$36,$d5,$cc,$05,$16,$aa,$43,$12,$29,$3d,$36,$85,$8a,$f7,$e4,$95
-	dc.b	$b0,$63,$20,$7e,$91,$e4,$bf,$35,$0b,$f8,$f3,$11,$01,$f5,$e2,$4d
-	dc.b	$e5,$1c,$5b,$0e,$cd,$26,$83,$1e,$50,$1c,$bb,$48,$6c,$40,$86,$76
-	dc.b	$61,$01,$96,$f2,$69,$26,$9e,$f6,$bf,$5e,$16,$2c,$27,$2c,$79,$e6
-	dc.b	$c0,$8d,$23,$c8,$dd,$d6,$57,$d3,$f8,$8e,$ac,$64,$3e,$02,$a9,$11
-	dc.b	$26,$ec,$05,$70,$be,$f0,$41,$a6,$33,$95,$c7,$62,$43,$8c,$cc,$ac
-	dc.b	$76,$74,$10,$e7,$39,$fd,$e4,$86,$d5,$e0,$a8,$98,$75,$63,$97,$60
-	dc.b	$ef,$9e,$7d,$12,$e3,$dd,$ce,$d0,$b1,$02,$ed,$01,$04,$0f,$28,$3c
-	dc.b	$37,$16,$66,$5a,$c8,$19,$5e,$28,$5a,$88,$30,$e8,$90,$f0,$19,$f1
-	dc.b	$96,$26,$2a,$9e,$57,$e9,$ab,$84,$76,$32,$c8,$0a,$18,$bf,$9b,$aa
-	dc.b	$ef,$83,$5a,$b1,$48,$64,$a7,$e2,$04,$ff,$7d,$43,$09,$a9,$88,$4d
-	dc.b	$44,$48,$e4,$57,$db,$77,$54,$3f,$ce,$a2,$9e,$50,$95,$b8,$f9,$5d
-	dc.b	$ca,$f3,$1d,$89,$01,$fb,$48,$51,$0a,$05,$ce,$4f,$4e,$57,$9d,$39
-	dc.b	$0d,$51,$35,$03,$a5,$aa,$cb,$77,$dc,$6b,$dc,$98,$88,$e9,$02,$8a
-	dc.b	$44,$40,$03,$c8,$b4,$97,$2e,$9f,$40,$b1,$a5,$f0,$25,$2b,$a4,$f7
-	dc.b	$95,$cb,$07,$da,$ae,$c7,$cd,$0f,$12,$e1,$e2,$b7,$95,$37,$07,$6a
-	dc.b	$75,$eb,$84,$78,$9f,$da,$59,$0c,$3a,$92,$03,$90,$ea,$ef,$05,$b0
-	dc.b	$77,$c9,$34,$40,$5b,$ee,$89,$26,$2b,$53,$57,$64,$ec,$56,$0c,$f2
-	dc.b	$b2,$0b,$e5,$43,$4d,$31,$5d,$42,$89,$09,$5b,$8e,$57,$55,$33,$9f
-	dc.b	$5e,$b9,$12,$75,$98,$d3,$79,$c5,$0a,$e1,$ec,$1e,$b3,$a1,$68,$66
-	dc.b	$bf,$7a,$98,$b0,$5e,$56,$c0,$8c,$53,$17,$55,$00,$b6,$9b,$d0,$04
-	dc.b	$7a,$06,$2f,$43,$63,$c8,$e6,$a6,$52,$49,$22,$96,$79,$54,$57,$3e
-	dc.b	$cf,$dc,$a9,$38,$28,$79,$52,$b9,$6e,$f2,$ad,$0d,$60,$c2,$da,$1c
-	dc.b	$e7,$4b,$a5,$e2,$8d,$c2,$58,$b0,$91,$00,$56,$b0,$4e,$a3,$9f,$a9
-	dc.b	$36,$bd,$5d,$6d,$6f,$e3,$32,$47,$c6,$e2,$83,$b2,$31,$aa,$79,$76
-	dc.b	$51,$d5,$71,$0c,$f2,$4e,$36,$00,$67,$23,$5a,$bf,$46,$5e,$b1,$3b
-	dc.b	$5d,$14,$61,$5d,$d7,$d3,$52,$c6,$ac,$2d,$bc,$d1,$12,$d9,$f4,$42
-	dc.b	$58,$93,$62,$99,$71,$56,$c1,$3d,$4c,$6a,$a7,$4b,$46,$6d,$64,$fa
-	dc.b	$40,$72,$2c,$70,$d6,$4b,$b1,$0c,$82,$38,$27,$a4,$ea,$75,$79,$4e
-	dc.b	$c6,$5d,$20,$15,$8c,$05,$39,$7f,$ee,$d6,$c6,$a4,$51,$e8,$03,$23
-	dc.b	$1b,$60,$b6,$2f,$cf,$fa,$75,$55,$fc,$7f,$a7,$54,$6c,$49,$05,$d0
-	dc.b	$b6,$8c,$ec,$7f,$75,$cb,$79,$42,$cc,$e5,$02,$91,$2d,$8c,$7b,$6b
-	dc.b	$0a,$e2,$a9,$cc,$79,$10,$70,$dc,$6a,$c1,$5e,$96,$19,$79,$5f,$5c
-	dc.b	$79,$c4,$aa,$6b,$56,$1b,$29,$8e,$a8,$3c,$65,$eb,$9b,$6f,$eb,$d7
-	dc.b	$cf,$3d,$f3,$a6,$a0,$75,$e6,$d6,$cc,$c2,$2a,$ba,$4e,$f0,$4a,$4c
-	dc.b	$7d,$9e,$57,$08,$82,$63,$a9,$8c,$02,$32,$19,$eb,$3c,$33,$ce,$ba
-	dc.b	$30,$02,$70,$99,$62,$db,$26,$74,$40,$d0,$d4,$47,$9c,$51,$fc,$40
-	dc.b	$21,$a1,$cd,$42,$40,$36,$bd,$0f,$8c,$a2,$e2,$13,$35,$22,$2d,$5f
-	dc.b	$b2,$bd,$58,$91,$92,$2a,$73,$65,$23,$a8,$b9,$5c,$e5,$d6,$48,$45
-	dc.b	$f9,$86,$ba,$4f,$e4,$b4,$31,$48,$88,$1b,$06,$4e,$89,$6d,$82,$9a
-	dc.b	$7e,$3d,$3a,$a0,$d6,$7e,$9d,$4f,$b1,$bb,$9b,$b9,$f5,$5e,$ec,$77
-	dc.b	$fa,$88,$97,$4e,$a4,$5d,$89,$08,$e1,$6c,$09,$3b,$28,$86,$b0,$f5
-	dc.b	$e3,$3a,$98,$a4,$56,$08,$8e,$51,$8e,$a9,$38,$54,$83,$9c,$03,$24
-	dc.b	$54,$b4,$87,$3c,$a6,$cc,$75,$23,$f1,$35,$69,$d1,$55,$62,$76,$75
-	dc.b	$bf,$ae,$3b,$97,$88,$ac,$5a,$16,$c3,$d6,$d4,$4c,$1a,$19,$e9,$75
-	dc.b	$6d,$49,$0e,$61,$35,$29,$d5,$f3,$1e,$aa,$a8,$1b,$73,$d0,$bc,$d8
-	dc.b	$5f,$d0,$1f,$36,$a1,$35,$ab,$91,$bf,$1d,$93,$24,$a4,$8b,$b6,$90
-	dc.b	$e4,$cd,$23,$1a,$87,$45,$18,$d8,$87,$d6,$a8,$b8,$82,$59,$78,$d2
-	dc.b	$8b,$b1,$55,$15,$44,$c9,$bf,$25,$b7,$ff,$ca,$74,$ec,$1a,$e7,$1c
-	dc.b	$3a,$cc,$d3,$a2,$b7,$86,$15,$de,$ed,$33,$94,$d7,$1f,$0e,$b2,$b2
-	dc.b	$51,$ba,$f7,$0a,$be,$ce,$a9,$3f,$f6,$cc,$a3,$59,$35,$de,$d3,$c3
-	dc.b	$8c,$2b,$44,$10,$64,$1b,$28,$42,$39,$bb,$12,$c0,$1f,$85,$7a,$64
-	dc.b	$69,$ac,$98,$a6,$c8,$a6,$ba,$01,$8f,$ae,$8d,$ee,$0e,$60,$34,$8a
-	dc.b	$bb,$22,$bf,$4e,$6f,$46,$de,$d6,$d5,$75,$68,$7c,$89,$8d,$41,$77
-	dc.b	$7b,$23,$1f,$44,$a2,$36,$8a,$d0,$d1,$0f,$a0,$70,$26,$9a,$94,$75
-	dc.b	$2d,$1b,$4f,$44,$ac,$f0,$e0,$7b,$ac,$d6,$ae,$98,$8d,$58,$3b,$b2
-	dc.b	$7a,$cd,$76,$18,$b3,$c0,$c9,$16,$48,$64,$fa,$0c,$de,$d2,$02,$a3
-	dc.b	$56,$e2,$09,$79,$f1,$37,$4d,$94,$08,$3d,$9f,$a4,$91,$fc,$d0,$3e
-	dc.b	$d0,$d5,$d8,$34,$d5,$1c,$5a,$cb,$59,$65,$f8,$d1,$6a,$ef,$6c,$5e
-	dc.b	$25,$79,$4d,$be,$9b,$03,$cb,$25,$1e,$9d,$7f,$84,$da,$7f,$57,$2e
-	dc.b	$65,$21,$44,$76,$3a,$f5,$3e,$dd,$e3,$24,$66,$49,$24,$fc,$ea,$b9
-	dc.b	$fa,$a8,$67,$d5,$0c,$dd,$e3,$57,$79,$47,$bb,$11,$6a,$f0,$b9,$15
-	dc.b	$a9,$6c,$31,$d5,$c1,$7c,$2b,$5a,$3b,$e0,$6c,$1a,$e0,$49,$48,$c9
-	dc.b	$ad,$43,$b0,$73,$fd,$c4,$e2,$2f,$0b,$a9,$a7,$4d,$6a,$07,$a3,$1b
-	dc.b	$35,$78,$b9,$05,$8e,$e9,$e8,$58,$89,$50,$1a,$e5,$2d,$51,$4c,$87
-	dc.b	$a8,$d2,$4b,$b8,$ac,$c4,$dc,$ba,$90,$6a,$e5,$26,$05,$79,$19,$50
-	dc.b	$8e,$e5,$d3,$f2,$01,$79,$e6,$5c,$90,$75,$7d,$16,$a4,$70,$2f,$70
-	dc.b	$ea,$c0,$e2,$ba,$29,$92,$ea,$7a,$cb,$af,$2b,$a1,$7b,$e0,$bb,$e3
-	dc.b	$a8,$12,$5e,$c2,$2b,$11,$ab,$31,$2d,$36,$61,$72,$bd,$04,$4d,$97
-	dc.b	$2b,$d6,$65,$93,$29,$33,$dc,$56,$3b,$39,$df,$b6,$51,$bd,$1b,$bc
-	dc.b	$ef,$be,$db,$8b,$eb,$57,$b2,$7c,$20,$54,$ad,$86,$b7,$d9,$e6,$6b
-	dc.b	$91,$27,$54,$07,$f1,$84,$14,$cb,$76,$1d,$eb,$c0,$d4,$95,$3e,$bc
-	dc.b	$96,$ff,$b0,$3e,$52,$13,$16,$5e,$8c,$34,$78,$a0,$a0,$f0,$88,$74
-	dc.b	$e4,$6a,$f3,$87,$2b,$74,$14,$d9,$2c,$18,$af,$a5,$9c,$11,$00,$13
-	dc.b	$b6,$01,$58,$81,$33,$2c,$f6,$6f,$15,$3e,$28,$27,$e2,$9b,$27,$7a
-	dc.b	$cc,$8c,$a8,$5e,$9a,$4c,$34,$74,$04,$c8,$32,$41,$d6,$d4,$4c,$fa
-	dc.b	$64,$7a,$d9,$ab,$9e,$60,$7b,$97,$39,$53,$9a,$79,$58,$47,$2c,$d6
-	dc.b	$2e,$1c,$e6,$9f,$93,$98,$b8,$cc,$77,$e9,$b2,$8f,$3a,$75,$51,$95
-	dc.b	$16,$be,$ae,$5f,$0f,$f3,$80,$74,$79,$c2,$af,$67,$39,$66,$bc,$ad
-	dc.b	$ea,$fc,$e1,$4d,$10,$d9,$9c,$b3,$46,$71,$82,$2c,$e9,$0d,$9c,$58
-	dc.b	$72,$eb,$9c,$e5,$e6,$f3,$ae,$c9,$a7,$ac,$d1,$d1,$25,$62,$ec,$f3
-	dc.b	$1e,$58,$4c,$f7,$2c,$e9,$e2,$7e,$da,$3b,$50,$39,$30,$a4,$02,$ca
-	dc.b	$84,$d9,$99,$ec,$5f,$8c,$f0,$1a,$5f,$77,$2e,$af,$76,$48,$70,$ae
-	dc.b	$59,$98,$dd,$7f,$33,$22,$fb,$f3,$15,$52,$20,$11,$93,$2e,$54,$68
-	dc.b	$9f,$59,$28,$9e,$e2,$be,$9b,$28,$8a,$89,$16,$a2,$22,$e7,$7d,$69
-	dc.b	$cc,$fd,$75,$5a,$de,$c9,$c1,$25,$48,$4a,$c0,$f5,$90,$30,$4e,$44
-	dc.b	$93,$2d,$59,$ff,$7e,$10,$dc,$8a,$3c,$79,$44,$b5,$7c,$c6,$71,$49
-	dc.b	$8a,$33,$8f,$54,$25,$64,$5e,$fe,$4b,$67,$17,$c9,$9a,$ae,$eb,$07
-	dc.b	$27,$84,$29,$f1,$b1,$18,$6e,$55,$1c,$b9,$c5,$28,$8e,$a3,$99,$92
-	dc.b	$5a,$be,$57,$ee,$46,$96,$3c,$4a,$dc,$46,$e3,$a7,$ca,$16,$dd,$63
-	dc.b	$54,$e9,$87,$46,$89,$f1,$be,$ee,$59,$9d,$1e,$72,$d0,$a4,$61,$39
-	dc.b	$05,$2a,$c0,$87,$95,$03,$67,$0d,$78,$11,$b4,$12,$4f,$8c,$58,$02
-	dc.b	$47,$eb,$a5,$f9,$2b,$31,$1f,$64,$0f,$d7,$36,$f7,$0f,$45,$d2,$e0
-	dc.b	$fd,$1a,$39,$a3,$af,$85,$09,$fe,$ac,$93,$6d,$f2,$de,$67,$cb,$9b
-	dc.b	$83,$3e,$6c,$2e,$9b,$45,$f4,$4b,$d9,$39,$e2,$c0,$d1,$ce,$26,$82
-	dc.b	$c4,$9c,$dd,$d9,$5d,$6f,$8b,$be,$f8,$51,$1f,$d0,$d1,$6e,$b0,$f3
-	dc.b	$f6,$1d,$61,$ab,$ee,$3a,$cb,$5c,$99,$57,$48,$8e,$fc,$21,$cc,$df
-	dc.b	$9e,$b7,$ab,$21,$36,$11,$d5,$f5,$2f,$b7,$ad,$46,$8c,$e5,$e2,$87
-	dc.b	$4a,$d4,$79,$f8,$a2,$57,$bc,$11,$7a,$28,$4f,$f6,$9f,$fa,$e9,$7c
-	dc.b	$93,$2f,$f1,$0a,$a2,$b4,$7b,$c0,$b7,$a6,$72,$a9,$00,$f6,$06,$60
-	dc.b	$09,$4e,$5c,$f5,$66,$69,$29,$7f,$ce,$29,$ba,$0a,$16,$f4,$17,$d9
-	dc.b	$f5,$d9,$e1,$f1,$5d,$a3,$c3,$d1,$04,$58,$b9,$80,$63,$c1,$b5,$92
-	dc.b	$6e,$3e,$4f,$33,$b2,$b0,$9b,$96,$b6,$b8,$dd,$0f,$7b,$0f,$6c,$9c
-	dc.b	$ed,$60,$68,$e6,$5c,$a0,$b1,$24,$4f,$79,$23,$16,$1e,$01,$81,$58
-	dc.b	$d1,$e2,$6a,$3d,$af,$14,$e8,$33,$57,$cc,$e5,$57,$23,$4a,$9c,$9d
-	dc.b	$6b,$61,$bd,$f1,$aa,$44,$6d,$94,$b6,$aa,$23,$65,$13,$a6,$4b,$8e
-	dc.b	$6b,$34,$bd,$4f,$aa,$3c,$a7,$e6,$7a,$d1,$16,$94,$69,$46,$0d,$1d
-	dc.b	$60,$8b,$98,$eb,$02,$bc,$1b,$db,$b4,$53,$20,$95,$98,$1c,$7c,$a7
-	dc.b	$2a,$ff,$95,$b3,$d7,$d0,$13,$b8,$32,$03,$c8,$5b,$42,$f8,$06,$d1
-	dc.b	$93,$04,$6e,$eb,$ec,$b1,$94,$69,$eb,$4f,$59,$f7,$fe,$49,$fe,$6a
-	dc.b	$e6,$c4,$05,$2f,$85,$09,$bd,$b2,$4c,$b4,$ae,$e7,$e4,$60,$73,$65
-	dc.b	$d3,$3d,$d5,$85,$e7,$3d,$b7,$7e,$cf,$0b,$03,$47,$26,$b5,$f2,$8f
-	dc.b	$94,$ff,$bf,$57,$e4,$9e,$09,$9b,$b0,$7b,$11,$bb,$4b,$dc,$fe,$2d
-	dc.b	$d8,$02,$22,$a2,$b5,$69,$69,$d4,$ee,$3e,$82,$5b,$f6,$e3,$94,$a5
-	dc.b	$15,$f6,$3c,$60,$27,$22,$ec,$b7,$0d,$dc,$5b,$8b,$e0,$1c,$85,$28
-	dc.b	$dd,$e0,$c8,$9b,$64,$9a,$66,$43,$07,$f1,$b4,$5b,$12,$1b,$a2,$64
-	dc.b	$7e,$4f,$44,$cb,$22,$98,$02,$69,$78,$dc,$8d,$dc,$ba,$62,$63,$c1
-	dc.b	$70,$d4,$07,$92,$15,$c6,$7c,$03,$93,$ab,$55,$0d,$04,$d5,$dd,$d6
-	dc.b	$2c,$d5,$c2,$d1,$9d,$66,$86,$98,$f4,$89,$d9,$99,$ca,$48,$71,$8c
-	dc.b	$4e,$c8,$0e,$d2,$b2,$71,$c1,$f2,$f4,$76,$49,$e6,$f7,$3b,$2c,$e7
-	dc.b	$c7,$92,$46,$b9,$4a,$0d,$12,$4e,$e5,$00,$e1,$5c,$3e,$bd,$e2,$7e
-	dc.b	$d6,$06,$0d,$0d,$2a,$54,$1b,$fe,$69,$dd,$12,$83,$87,$2a,$d9,$46
-	dc.b	$90,$dc,$4f,$df,$65,$9d,$d9,$89,$cf,$eb,$73,$e5,$fb,$7d,$bd,$b1
-	dc.b	$47,$21,$1f,$4a,$66,$87,$57,$8b,$03,$35,$34,$46,$c9,$d4,$0d,$4b
-	dc.b	$24,$8e,$33,$e5,$61,$b1,$7d,$75,$b1,$21,$a5,$8e,$37,$e2,$aa,$32
-	dc.b	$db,$88,$5f,$1c,$e2,$b2,$51,$bb,$94,$98,$c2,$05,$c7,$8f,$41,$ca
-	dc.b	$7f,$6c,$16,$93,$91,$59,$35,$4e,$65,$b1,$3f,$60,$61,$fe,$ae,$13
-	dc.b	$79,$65,$82,$da,$43,$fd,$db,$cd,$4a,$36,$03,$0f,$64,$05,$76,$27
-	dc.b	$4f,$e1,$a7,$da,$1d,$53,$1c,$47,$bd,$9a,$9a,$fe,$1c,$76,$4f,$ba
-	dc.b	$4a,$0d,$1f,$31,$4d,$00,$37,$b8,$49,$e6,$1f,$69,$81,$da,$43,$86
-	dc.b	$88,$d8,$0b,$c6,$c8,$fd,$2f,$3b,$6b,$8e,$c1,$a5,$db,$d1,$1a,$b4
-	dc.b	$aa,$d7,$47,$74,$b9,$77,$6f,$76,$72,$df,$8d,$8a,$f4,$ff,$5e,$e5
-	dc.b	$45,$99,$d6,$6f,$cb,$7a,$be,$84,$4d,$01,$3b,$d2,$50,$99,$45,$46
-	dc.b	$d0,$d9,$92,$35,$ed,$a1,$59,$dd,$60,$49,$0d,$84,$5c,$34,$80,$92
-	dc.b	$bb,$43,$c4,$34,$9d,$bc,$b5,$1c,$ab,$1d,$4d,$f3,$48,$6a,$51,$fd
-	dc.b	$42,$bb,$5f,$bf,$72,$9e,$31,$74,$a0,$3c,$15,$c2,$bf,$e6,$77,$87
-	dc.b	$89,$3f,$66,$a7,$82,$9c,$88,$16,$be,$87,$50,$2f,$69,$06,$54,$ed
-	dc.b	$2f,$13,$ff,$93,$95,$3f,$68,$78,$b2,$d3,$c7,$2c,$26,$a5,$82,$58
-	dc.b	$eb,$47,$61,$34,$a2,$bc,$13,$f9,$2f,$16,$41,$57,$63,$d3,$26,$48
-	dc.b	$b4,$17,$33,$d4,$9e,$d3,$d6,$2f,$37,$93,$d7,$a6,$51,$02,$4d,$17
-	dc.b	$a7,$ff,$b4,$ab,$03,$ae,$23,$90,$0a,$6e,$d5,$a7,$26,$3e,$0d,$8f
-	dc.b	$f3,$b4,$c9,$15,$50,$87,$ba,$c6,$b7,$6a,$d9,$01,$e5,$44,$a2,$a2
-	dc.b	$d7,$d0,$ea,$05,$e3,$22,$a4,$77,$60,$0a,$b1,$95,$2b,$19,$7c,$39
-	dc.b	$8b,$b8,$49,$06,$66,$26,$87,$f2,$08,$a0,$da,$95,$5f,$6c,$55,$6d
-	dc.b	$71,$e8,$90,$bd,$56,$0d,$63,$af,$10,$4e,$d1,$b2,$b5,$9f,$2e,$70
-	dc.b	$ce,$03,$4a,$15,$a8,$e8,$3e,$da,$c7,$da,$b4,$70,$03,$93,$28,$8a
-	dc.b	$15,$e5,$8b,$65,$67,$5d,$6a,$97,$d0,$cc,$e8,$1b,$b6,$6e,$c9,$fd
-	dc.b	$e1,$b5,$b0,$75,$02,$d1,$04,$77,$95,$54,$a1,$8b,$cc,$40,$99,$8b
-	dc.b	$4b,$f9,$6c,$e2,$1b,$93,$de,$9e,$6b,$87,$3e,$72,$dc,$1e,$bb,$88
-	dc.b	$a8,$77,$08,$b0,$ff,$60,$df,$db,$4d,$62,$3c,$03,$84,$c1,$ec,$fe
-	dc.b	$d5,$b2,$49,$ad,$83,$e6,$f8,$a6,$7e,$da,$0d,$58,$32,$8f,$7f,$d4
-	dc.b	$b9,$9c,$c8,$2b,$27,$c0,$85,$06,$8f,$b3,$fc,$17,$1f,$0a,$e1,$24
-	dc.b	$eb,$59,$6e,$ef,$2e,$d9,$5d,$95,$44,$8f,$a6,$cd,$37,$f3,$55,$49
-	dc.b	$79,$5c,$78,$5e,$c3,$e6,$3a,$55,$ed,$2f,$2c,$b3,$2e,$f7,$63,$a0
-	dc.b	$d6,$b1,$fb,$bf,$3b,$63,$a8,$96,$a9,$ae,$cb,$c9,$68,$9b,$0d,$0a
-	dc.b	$3b,$bb,$86,$91,$2e,$53,$f6,$f2,$dd,$ba,$d6,$51,$d4,$bc,$4b,$b2
-	dc.b	$4c,$d3,$44,$8f,$f1,$bb,$67,$54,$2d,$10,$4b,$be,$76,$11,$72,$07
-	dc.b	$f5,$4a,$a9,$68,$47,$31,$04,$c5,$76,$72,$0f,$ae,$f5,$b2,$50,$af
-	dc.b	$de,$84,$5f,$39,$3b,$fc,$30,$f2,$d7,$00,$5a,$69,$70,$d4,$c5,$3d
-	dc.b	$c2,$96,$9e,$e5,$20,$e4,$9b,$df,$64,$e3,$f2,$07,$c9,$d4,$47,$e4
-	dc.b	$f1,$76,$db,$2f,$a6,$5e,$57,$4d,$06,$ca,$d9,$d4,$ca,$14,$59,$e5
-	dc.b	$0c,$83,$44,$97,$bd,$62,$76,$71,$4f,$69,$57,$2a,$4d,$ef,$da,$47
-	dc.b	$73,$00,$e7,$47,$fb,$b8,$83,$67,$32,$1d,$3c,$db,$24,$ae,$60,$3a
-	dc.b	$2f,$27,$c7,$7c,$d8,$cb,$e4,$c8,$6a,$29,$aa,$34,$6f,$0d,$a2,$49
-	dc.b	$bb,$fb,$be,$18,$a1,$dc,$34,$a3,$cd,$3b,$44,$a1,$4d,$dc,$fb,$da
-	dc.b	$dd,$15,$6f,$b4,$4c,$ca,$4d,$ee,$1b,$d2,$43,$8d,$b5,$10,$44,$ba
-	dc.b	$ea,$8a,$5b,$02,$b4,$fa,$38,$24,$86,$88,$fd,$d5,$03,$1d,$69,$86
-	dc.b	$81,$9b,$01,$53,$3e,$1a,$53,$2d,$02,$63,$e8,$c0,$4c,$58,$0a,$89
-	dc.b	$e6,$fa,$d6,$b8,$a6,$5a,$95,$f2,$a8,$8a,$13,$d6,$40,$4b,$70,$6c
-	dc.b	$b9,$e0,$ea,$8a,$14,$51,$d2,$b0,$b1,$39,$ea,$64,$bf,$27,$66,$ce
-	dc.b	$a6,$51,$05,$4f,$28,$1c,$1a,$24,$b6,$c6,$f8,$b1,$8a,$66,$ab,$6c
-	dc.b	$d2,$27,$a6,$14,$bc,$40,$51,$16,$e8,$b0,$dc,$f4,$87,$1f,$0c,$59
-	dc.b	$a5,$e4,$91,$0f,$1c,$6f,$c2,$18,$9a,$ed,$46,$f5,$73,$1a,$b6,$02
-	dc.b	$be,$58,$ff,$14,$45,$98,$68,$3e,$d4,$a4,$03,$5b,$0d,$dc,$90,$b5
-	dc.b	$00,$ef,$5d,$e5,$1b,$42,$fe,$ce,$bd,$35,$45,$09,$e8,$f3,$d8,$49
-	dc.b	$ad,$88,$e1,$26,$f2,$a4,$34,$e5,$46,$67,$ad,$c0,$51,$aa,$3e,$b9
-	dc.b	$ee,$89,$23,$e5,$d8,$bb,$53,$b0,$30,$4f,$61,$b8,$13,$da,$28,$29
-	dc.b	$0e,$45,$e9,$60,$14,$8c,$c2,$76,$5a,$97,$a5,$76,$9f,$19,$69,$f0
-	dc.b	$33,$7a,$82,$a3,$76,$49,$b6,$15,$e1,$b3,$4f,$e1,$d5,$17,$87,$56
-	dc.b	$91,$0e,$de,$f5,$68,$bf,$ca,$4d,$6b,$27,$c2,$85,$25,$1c,$6b,$94
-	dc.b	$be,$b3,$ec,$cd,$90,$e3,$ef,$2e,$b1,$91,$54,$1d,$d9,$94,$6b,$19
-	dc.b	$96,$3e,$ab,$53,$9f,$31,$a9,$08,$a4,$38,$c1,$8d,$ad,$a2,$20,$85
-	dc.b	$a9,$ca,$2b,$65,$10,$a3,$85,$ad,$be,$ca,$5b,$57,$0e,$ac,$3d,$e6
-	dc.b	$97,$a4,$80,$1d,$80,$7a,$6b,$61,$19,$80,$94,$4b,$e9,$db,$86,$37
-	dc.b	$14,$0d,$f3,$b3,$5e,$0d,$31,$51,$a8,$b5,$bd,$20,$0f,$2b,$62,$61
-	dc.b	$74,$c6,$f5,$a8,$18,$d4,$59,$c2,$95,$48,$35,$a7,$0f,$ad,$33,$1d
-	dc.b	$65,$71,$6c,$a6,$60,$2a,$44,$30,$d3,$45,$70,$a6,$49,$f1,$39,$a2
-	dc.b	$61,$dd,$bb,$ef,$db,$37,$cb,$91,$a2,$e7,$dc,$f8,$fb,$e8,$8a,$0d
-	dc.b	$ec,$93,$26,$bd,$fd,$9f,$2c,$41,$83,$0a,$67,$c0,$3d,$e6,$9a,$27
-	dc.b	$55,$93,$e1,$22,$92,$8e,$29,$a5,$b0,$1f,$3b,$80,$21,$59,$4d,$6e
-	dc.b	$58,$f2,$e4,$69,$19,$90,$6d,$d4,$ef,$87,$fa,$a4,$c6,$98,$d4,$3b
-	dc.b	$85,$21,$c6,$63,$55,$ac,$55,$a8,$2b,$49,$0a,$ee,$87,$c0,$38,$f4
-	dc.b	$7e,$a6,$96,$d4,$93,$ab,$f7,$b7,$fc,$a2,$6d,$f4,$52,$1c,$a5,$89
-	dc.b	$c8,$39,$ed,$54,$ec,$db,$b7,$88,$c8,$88,$44,$d1,$37,$99,$2a,$46
-	dc.b	$06,$c6,$16,$6d,$59,$3c,$38,$2e,$3f,$49,$08,$b4,$44,$ee,$79,$45
-	dc.b	$d0,$22,$28,$8c,$eb,$48,$c2,$de,$2a,$b6,$5b,$62,$42,$4a,$96,$26
-	dc.b	$7d,$76,$2a,$3f,$66,$7f,$52,$51,$ba,$d3,$08,$9a,$5b,$05,$80,$d4
-	dc.b	$2b,$8a,$91,$0a,$5d,$e5,$29,$83,$e5,$46,$ae,$c4,$3b,$f6,$75,$fc
-	dc.b	$6a,$34,$3f,$f3,$da,$ce,$fd,$bd,$71,$ca,$65,$e3,$63,$90,$d6,$ef
-	dc.b	$15,$83,$7e,$69,$f2,$81,$95,$19,$8a,$d2,$b1,$45,$ef,$f6,$51,$9f
-	dc.b	$cd,$75,$5b,$f4,$23,$b0,$c5,$98,$73,$12,$83,$69,$6b,$39,$9d,$33
-	dc.b	$83,$4e,$d4,$de,$36,$07,$16,$1c,$4b,$58,$6a,$cf,$dc,$2f,$c5,$10
-	dc.b	$af,$d8,$0d,$5a,$c3,$2c,$21,$ee,$24,$9e,$bb,$21,$12,$32,$22,$59
-	dc.b	$20,$af,$0a,$e2,$33,$11,$e6,$6a,$8e,$74,$da,$2e,$37,$f1,$ea,$da
-	dc.b	$e7,$96,$8f,$ac,$84,$0c,$8a,$36,$d3,$8f,$94,$17,$fa,$18,$5b,$28
-	dc.b	$13,$82,$a8,$9d,$bf,$d7,$b9,$ec,$38,$d9,$71,$c6,$01,$8d,$68,$7e
-	dc.b	$09,$81,$cb,$4b,$42,$0d,$7a,$2e,$77,$a6,$56,$01,$a8,$79,$49,$23
-	dc.b	$76,$ff,$5d,$ef,$80,$b3,$67,$01,$2a,$0d,$24,$5e,$64,$2a,$5e,$79
-	dc.b	$7c,$f4,$22,$dc,$a6,$41,$ac,$72,$1a,$7b,$e4,$b5,$3d,$d9,$44,$71
-	dc.b	$c8,$e0,$e5,$ac,$11,$52,$5a,$f3,$09,$2b,$39,$66,$2e,$d5,$af,$39
-	dc.b	$e5,$c2,$e2,$88,$14,$ed,$e5,$bd,$8f,$d0,$7b,$bf,$94,$8f,$47,$0e
-	dc.b	$6a,$bd,$e3,$74,$b3,$96,$3d,$ae,$c5,$98,$7f,$44,$48,$8f,$d8,$31
-	dc.b	$fd,$e2,$64,$1c,$1a,$17,$4c,$b8,$96,$f1,$65,$19,$06,$49,$1a,$a3
-	dc.b	$dd,$6a,$be,$21,$5e,$7a,$55,$48,$71,$b5,$2a,$00,$b8,$83,$90,$5f
-	dc.b	$a8,$ca,$1b,$32,$b6,$76,$31,$11,$14,$80,$37,$a6,$53,$4f,$88,$0c
-	dc.b	$42,$8c,$e2,$72,$e2,$fc,$4b,$2d,$29,$f6,$84,$ee,$ff,$3e,$54,$e2
-	dc.b	$0f,$fe,$ef,$88,$53,$99,$dd,$75,$4c,$4b,$12,$dd,$d4,$38,$9a,$76
-	dc.b	$38,$98,$fc,$29,$02,$7a,$7e,$54,$fc,$38,$8b,$ff,$17,$f1,$0a,$4a
-	dc.b	$a5,$37,$10,$ad,$9e,$24,$9e,$c7,$10,$9f,$b5,$f8,$85,$49,$f2,$bb
-	dc.b	$f1,$0a,$1b,$10,$9f,$a6,$e2,$62,$e9,$62,$14,$8a,$ac,$78,$85,$4a
-	dc.b	$e2,$49,$ec,$71,$19,$25,$88,$b0,$e5,$f8,$62,$ac,$18,$d8,$f2,$5a
-	dc.b	$93,$68,$49,$6a,$04,$4b,$1f,$cf,$92,$5a,$bf,$70,$aa,$82,$a7,$16
-	dc.b	$48,$c9,$b8,$a2,$53,$fc,$31,$52,$92,$32,$36,$08,$e7,$72,$bc,$6f
-	dc.b	$4a,$17,$76,$a6,$25,$d4,$b7,$75,$54,$45,$bc,$3d,$b0,$55,$8b,$0c
-	dc.b	$8c,$ff,$9c,$46,$31,$62,$01,$39,$8c,$d7,$cb,$a3,$01,$33,$3f,$2a
-	dc.b	$78,$65,$fa,$0d,$39,$a9,$14,$8d,$be,$72,$06,$47,$b3,$8d,$5a,$39
-	dc.b	$5e,$37,$c2,$c2,$fe,$3c,$53,$ae,$7f,$17,$2a,$a3,$37,$d8,$f8,$07
-	dc.b	$fc,$e8,$39,$62,$0d,$4f,$41,$9d,$f4,$4e,$5c,$1d,$b2,$df,$8d,$df
-	dc.b	$3b,$bc,$ed,$97,$d3,$ed,$99,$21,$3a,$3c,$fa,$e3,$5a,$8e,$51,$77
-	dc.b	$ae,$a5,$b0,$40,$d6,$68,$b0,$a4,$38,$d2,$0b,$38,$8d,$3e,$65,$61
-	dc.b	$bb,$08,$e7,$23,$88,$f7,$80,$44,$0c,$90,$04,$15,$2a,$bf,$3f,$c3
-	dc.b	$d5,$f6,$ec,$b1,$10,$18,$77,$f5,$fb,$b6,$0c,$71,$78,$32,$8f,$21
-	dc.b	$de,$d0,$97,$93,$57,$d0,$e9,$37,$f5,$47,$02,$7d,$70,$e1,$b4,$ec
-	dc.b	$3d,$43,$5e,$51,$06,$1d,$e2,$fc,$70,$ad,$dc,$09,$d6,$1d,$b6,$ec
-	dc.b	$d7,$7c,$f5,$9f,$e8,$2d,$fc,$8e,$30,$59,$b9,$4c,$88,$98,$b0,$ca
-	dc.b	$4c,$2d,$98,$05,$3c,$9a,$46,$7b,$da,$11,$e2,$16,$57,$f8,$99,$15
-	dc.b	$1f,$01,$8d,$2e,$ea,$62,$fd,$8d,$4a,$23,$8b,$e3,$8e,$07,$70,$bc
-	dc.b	$58,$93,$e9,$17,$75,$42,$d5,$51,$07,$02,$a2,$e6,$6b,$d3,$65,$cd
-	dc.b	$6a,$3d,$a8,$cc,$1f,$9e,$8f,$b9,$af,$f6,$c2,$35,$af,$14,$51,$cf
-	dc.b	$cc,$4e,$88,$73,$2c,$88,$1b,$85,$32,$40,$5a,$06,$e1,$61,$68,$a4
-	dc.b	$32,$0d,$62,$c4,$b0,$12,$a9,$06,$29,$1c,$d4,$26,$83,$0e,$30,$74
-	dc.b	$5d,$08,$71,$4e,$c4,$80,$22,$63,$1c,$bb,$26,$e7,$6c,$20,$60,$b9
-	dc.b	$3a,$fb,$cc,$f7,$3d,$83,$18,$1e,$05,$75,$69,$b0,$d6,$2d,$3c,$2d
-	dc.b	$52,$f3,$68,$f3,$8a,$97,$02,$bf,$40,$c6,$ec,$f3,$5e,$f1,$9c,$78
-	dc.b	$68,$93,$af,$ba,$18,$05,$62,$91,$fb,$d5,$91,$f6,$be,$b9,$85,$4c
-	dc.b	$6f,$e5,$fc,$bb,$cf,$d3,$ce,$72,$c9,$f2,$41,$ac,$b7,$dd,$98,$1a
-	dc.b	$8e,$62,$37,$59,$fa,$2f,$4b,$1c,$af,$63,$0c,$ef,$4d,$bc,$26,$dc
-	dc.b	$33,$8e,$e6,$0f,$76,$1a,$a6,$2c,$cd,$0a,$6b,$1d,$f5,$9b,$76,$85
-	dc.b	$88,$0f,$bd,$d0,$57,$84,$b7,$d2,$26,$b9,$e1,$35,$b4,$5a,$c3,$5a
-	dc.b	$8e,$41,$34,$87,$78,$be,$35,$a8,$28,$63,$a3,$ae,$d3,$44,$89,$79
-	dc.b	$ab,$43,$68,$eb,$12,$59,$25,$c1,$bf,$28,$75,$b6,$19,$0e,$3c,$31
-	dc.b	$2c,$3f,$65,$58,$ee,$61,$74,$0c,$34,$ba,$e3,$05,$52,$38,$9c,$40
-	dc.b	$74,$a7,$68,$c4,$3d,$bf,$f2,$73,$3d,$75,$b9,$db,$01,$e0,$6b,$a4
-	dc.b	$79,$e8,$fd,$83,$19,$ce,$20,$f9,$bf,$37,$6b,$43,$13,$b1,$c6,$47
-	dc.b	$b4,$d8,$45,$e1,$77,$17,$08,$92,$e3,$3d,$83,$2c,$09,$f9,$44,$9d
-	dc.b	$d1,$08,$09,$49,$be,$26,$f9,$5c,$87,$5b,$33,$c3,$bc,$e7,$62,$f6
-	dc.b	$5e,$dc,$4e,$bb,$c9,$51,$a1,$1a,$ac,$9d,$7d,$9b,$4b,$22,$7a,$c6
-	dc.b	$50,$d0,$f2,$c3,$81,$db,$4b,$34,$76,$da,$30,$4f,$17,$c5,$54,$83
-	dc.b	$df,$12,$b1,$77,$c5,$34,$65,$73,$26,$b3,$6c,$6f,$16,$1a,$01,$c4
-	dc.b	$bb,$32,$04,$d0,$e1,$0d,$e3,$ff,$a2,$1a,$90,$64,$72,$58,$7b,$25
-	dc.b	$11,$ba,$47,$14,$79,$bc,$fc,$a7,$1d,$ac,$bc,$a4,$18,$3d,$f3,$21
-	dc.b	$e9,$de,$70,$f8,$df,$13,$70,$c1,$3f,$2e,$47,$ec,$a8,$9d,$1f,$09
-	dc.b	$70,$61,$c6,$d1,$00,$f3,$a3,$02,$74,$49,$6c,$01,$12,$4b,$9c,$88
-	dc.b	$b1,$af,$6f,$76,$c2,$32,$67,$42,$bf,$2b,$c7,$04,$2f,$43,$ee,$e4
-	dc.b	$c8,$de,$ca,$96,$9e,$02,$a5,$f4,$9d,$71,$70,$d5,$e1,$5b,$c5,$69
-	dc.b	$be,$25,$80,$c7,$92,$43,$25,$ba,$08,$68,$af,$df,$99,$b1,$46,$48
-	dc.b	$ef,$a5,$89,$e8,$d7,$96,$b7,$99,$82,$a4,$4a,$54,$68,$26,$ab,$dd
-	dc.b	$81,$ec,$0e,$62,$2f,$74,$ed,$da,$17,$14,$9c,$35,$46,$94,$61,$f3
-	dc.b	$dc,$30,$d5,$49,$ef,$85,$60,$cb,$59,$b7,$e8,$af,$e0,$6d,$1c,$ac
-	dc.b	$b3,$46,$de,$9d,$78,$ec,$ca,$08,$95,$11,$a4,$47,$03,$70,$73,$50
-	dc.b	$ec,$65,$06,$cb,$f9,$4b,$74,$cc,$ba,$17,$a3,$8a,$06,$b4,$d1,$1a
-	dc.b	$fe,$aa,$5b,$35,$45,$c7,$27,$69,$6a,$25,$87,$d1,$29,$9d,$4f,$5e
-	dc.b	$14,$11,$2f,$48,$7c,$1b,$85,$3b,$04,$dd,$3c,$39,$90,$37,$11,$03
-	dc.b	$a1,$29,$be,$22,$1e,$b8,$c5,$f3,$b1,$f7,$aa,$32,$32,$96,$b9,$1e
-	dc.b	$1a,$01,$f4,$79,$4a,$6f,$ad,$c3,$50,$36,$1d,$5e,$db,$97,$d4,$c8
-	dc.b	$55,$88,$6e,$6e,$c5,$c4,$87,$00,$94,$92,$35,$a7,$79,$b6,$51,$d3
-	dc.b	$67,$50,$1f,$35,$28,$62,$f4,$51,$b8,$5d,$67,$2b,$32,$33,$2a,$35
-	dc.b	$da,$02,$ac,$06,$06,$3e,$ce,$ef,$94,$99,$a5,$f3,$34,$9b,$c3,$a9
-	dc.b	$6b,$cc,$66,$18,$ca,$e0,$75,$5a,$a2,$cd,$f9,$1b,$ed,$b1,$37,$0c
-	dc.b	$8c,$ef,$21,$29,$d3,$63,$e2,$74,$b8,$47,$38,$6a,$54,$bb,$18,$c8
-	dc.b	$40,$99,$90,$3d,$a6,$31,$f3,$80,$a2,$b1,$36,$a9,$1f,$2d,$b5,$9c
-	dc.b	$1a,$f2,$95,$41,$ce,$0b,$51,$b5,$20,$d0,$34,$3c,$da,$cb,$ca,$71
-	dc.b	$93,$90,$f5,$e6,$87,$f6,$c3,$fa,$f1,$79,$40,$4a,$57,$8c,$e2,$18
-	dc.b	$92,$38,$1b,$64,$d7,$53,$b5,$b1,$f4,$64,$0b,$d7,$37,$05,$b3,$82
-	dc.b	$1c,$ed,$11,$51,$ca,$2d,$c9,$4b,$e3,$bf,$af,$95,$e0,$d7,$48,$35
-	dc.b	$e0,$94,$bd,$8d,$33,$a3,$5f,$10,$fd,$b5,$67,$eb,$e0,$0c,$5a,$ac
-	dc.b	$88,$0e,$49,$79,$24,$8d,$a3,$e0,$7c,$d3,$90,$de,$1d,$44,$5a,$0b
-	dc.b	$f6,$68,$fd,$15,$5e,$eb,$37,$ce,$73,$5b,$ab,$2a,$35,$ca,$24,$ac
-	dc.b	$33,$72,$d9,$7c,$50,$9d,$97,$6a,$44,$e9,$ca,$00,$f1,$5f,$9f,$95
-	dc.b	$e0,$2c,$7d,$25,$d4,$77,$85,$d8,$ec,$35,$5a,$eb,$87,$b8,$5a,$83
-	dc.b	$4b,$be,$6f,$24,$2c,$58,$69,$77,$2c,$57,$51,$87,$19,$ee,$a7,$ac
-	dc.b	$f7,$a3,$8f,$12,$5d,$40,$5b,$d5,$bd,$b7,$d7,$7c,$52,$47,$b5,$22
-	dc.b	$3c,$d2,$49,$da,$c3,$67,$2d,$4f,$5b,$18,$79,$10,$f6,$5c,$b6,$b7
-	dc.b	$c7,$7e,$b9,$de,$54,$97,$86,$58,$3d,$f3,$57,$4c,$7b,$cb,$e4,$20
-	dc.b	$17,$94,$09,$85,$9a,$c5,$e3,$5f,$d7,$5e,$80,$cd,$2d,$ce,$fe,$f4
-	dc.b	$f9,$44,$95,$2c,$ec,$2d,$ce,$f2,$5f,$7d,$3f,$47,$c1,$1e,$6e,$0d
-	dc.b	$79,$57,$a4,$84,$ef,$b6,$a7,$ac,$32,$cb,$63,$7d,$9e,$90,$28,$87
-	dc.b	$02,$85,$7f,$b6,$79,$44,$48,$cd,$47,$5b,$03,$53,$b5,$f7,$92,$9f
-	dc.b	$84,$c4,$fc,$ea,$df,$31,$07,$da,$f9,$1f,$58,$be,$65,$ae,$08,$f6
-	dc.b	$cd,$cb,$28,$5c,$b5,$d3,$1c,$f4,$77,$e0,$fe,$42,$d8,$5b,$37,$d4
-	dc.b	$85,$05,$a0,$b2,$cf,$63,$bd,$d8,$6a,$f3,$a1,$f3,$be,$f2,$61,$d5
-	dc.b	$bb,$e2,$9c,$a0,$37,$5b,$93,$ed,$9d,$f0,$61,$15,$4e,$29,$9d,$86
-	dc.b	$9f,$04,$68,$0c,$fb,$ef,$c3,$c7,$71,$80,$f8,$09,$41,$1a,$8f,$28
-	dc.b	$1b,$33,$a2,$76,$8e,$22,$52,$d9,$9a,$87,$93,$95,$37,$95,$e6,$d2
-	dc.b	$29,$15,$b0,$57,$cf,$43,$a4,$87,$cf,$ee,$21,$e7,$68,$ee,$42,$07
-	dc.b	$21,$03,$48,$18,$0e,$99,$63,$78,$cc,$de,$54,$5b,$42,$d7,$04,$77
-	dc.b	$8c,$78,$0f,$85,$f5,$80,$d9,$d2,$1a,$78,$89,$d2,$9c,$1a,$1e,$8b
-	dc.b	$de,$da,$c7,$c6,$d5,$01,$8a,$96,$c2,$92,$06,$b2,$78,$d1,$16,$b5
-	dc.b	$f9,$f8,$75,$22,$70,$ea,$1d,$34,$99,$73,$9d,$67,$52,$d3,$74,$d8
-	dc.b	$c5,$a9,$e3,$2a,$35,$b0,$e3,$08,$0e,$c4,$19,$28,$dd,$e6,$18,$24
-	dc.b	$41,$e2,$c5,$96,$c7,$d6,$3f,$d6,$a8,$2c,$0a,$e4,$f1,$ec,$c3,$fc
-	dc.b	$40,$ce,$57,$65,$d0,$49,$8b,$4c,$3a,$95,$fa,$23,$6d,$2f,$55,$ea
-	dc.b	$5b,$15,$3c,$e8,$07,$5d,$66,$02,$8d,$d1,$c6,$80,$cf,$89,$d7,$7f
-	dc.b	$1e,$a3,$56,$c6,$5d,$83,$4f,$3c,$a5,$ce,$9d,$56,$c0,$88,$5a,$36
-	dc.b	$ad,$e6,$ec,$3d,$da,$a7,$4d,$10,$80,$d4,$9e,$31,$92,$0c,$71,$a9
-	dc.b	$76,$48,$42,$e9,$ae,$42,$1a,$a8,$40,$3a,$97,$d0,$81,$7c,$d5,$9f
-	dc.b	$89,$09,$94,$da,$a2,$18,$bb,$0e,$39,$5d,$16,$0f,$b6,$5e,$26,$5b
-	dc.b	$11,$77,$df,$af,$b9,$86,$a7,$13,$cf,$06,$8a,$40,$5f,$57,$81,$fe
-	dc.b	$bb,$44,$9a,$2c,$46,$cf,$0b,$43,$cb,$f8,$c4,$05,$22,$2c,$d7,$8d
-	dc.b	$8d,$af,$bd,$c2,$b9,$2a,$ec,$eb,$a9,$79,$c9,$5e,$fd,$39,$3b,$3e
-	dc.b	$4d,$4d,$1c,$6d,$94,$2d,$76,$1c,$c9,$a6,$a6,$23,$bd,$e7,$56,$1d
-	dc.b	$ce,$a4,$f7,$e2,$8a,$a3,$4e,$bf,$15,$8a,$e0,$58,$15,$8a,$a9,$f6
-	dc.b	$e1,$7c,$2d,$bf,$14,$37,$3e,$08,$19,$15,$c9,$36,$42,$cb,$a2,$06
-	dc.b	$e6,$d2,$c9,$79,$5c,$8f,$ce,$60,$38,$7b,$19,$89,$38,$b0,$a2,$d5
-	dc.b	$26,$ad,$da,$df,$e6,$0f,$aa,$6e,$ce,$28,$37,$c3,$ca,$05,$ee,$51
-	dc.b	$3a,$9d,$55,$f8,$8e,$f4,$b0,$44,$49,$d7,$e3,$9c,$ea,$49,$60,$aa
-	dc.b	$98,$80,$69,$ba,$6d,$83,$04,$d0,$b8,$cc,$48,$08,$de,$99,$2c,$26
-	dc.b	$8d,$f0,$3b,$00,$76,$74,$4b,$57,$a4,$2d,$71,$36,$55,$11,$ea,$b3
-	dc.b	$42,$58,$83,$2e,$97,$cf,$47,$30,$f5,$63,$39,$ad,$ed,$47,$89,$57
-	dc.b	$74,$57,$47,$9b,$02,$b7,$37,$d8,$85,$d2,$77,$a6,$84,$7c,$d8,$89
-	dc.b	$b3,$4d,$3a,$7d,$ad,$7e,$c5,$c7,$f7,$c9,$67,$f9,$d7,$4b,$97,$62
-	dc.b	$fd,$75,$a4,$fa,$5d,$19,$9a,$e4,$e0,$d5,$d8,$46,$b4,$02,$e8,$1c
-	dc.b	$63,$88,$72,$0f,$f1,$12,$5f,$29,$51,$e2,$1f,$39,$b8,$84,$16,$10
-	dc.b	$6a,$0d,$f0,$aa,$b4,$d1,$3b,$5a,$17,$c7,$7e,$ed,$79,$19,$c5,$47
-	dc.b	$44,$e3,$f6,$7d,$29,$ae,$bc,$39,$a0,$e1,$31,$6f,$00,$fd,$30,$35
-	dc.b	$41,$96,$1f,$f3,$87,$07,$db,$11,$92,$41,$6c,$72,$ba,$a7,$c5,$2b
-	dc.b	$7d,$21,$48,$dd,$1f,$6f,$31,$18,$73,$a9,$cd,$c1,$a3,$59,$33,$08
-	dc.b	$51,$78,$71,$ed,$68,$60,$f7,$ef,$90,$80,$ea,$98,$0f,$bd,$32,$5f
-	dc.b	$88,$b9,$de,$8f,$db,$00,$61,$74,$65,$44,$1a,$bf,$b1,$d8,$3b,$e1
-	dc.b	$ac,$6f,$33,$a0,$84,$cf,$f0,$e8,$e3,$cb,$35,$5e,$34,$74,$b5,$bc
-	dc.b	$3d,$0a,$85,$e0,$dc,$ed,$d5,$6a,$b1,$3c,$37,$ab,$9f,$ee,$6b,$28
-	dc.b	$e4,$92,$37,$8c,$de,$3a,$9b,$43,$d8,$bc,$b8,$ea,$65,$a8,$9b,$80
-	dc.b	$bf,$d3,$85,$ea,$e4,$f0,$71,$33,$2a,$34,$97,$50,$fd,$61,$c6,$96
-	dc.b	$d8,$31,$e5,$22,$38,$db,$12,$2e,$32,$69,$12,$c0,$c3,$fc,$14,$82
-	dc.b	$c1,$a8,$3b,$0e,$1b,$df,$14,$45,$a8,$51,$6b,$71,$6d,$27,$bf,$f7
-	dc.b	$fb,$bf,$29,$e7,$8f,$be,$fd,$72,$3e,$7c,$6f,$92,$13,$68,$ea,$fd
-	dc.b	$f2,$a7,$3e,$8e,$74,$09,$e5,$a2,$5c,$0c,$d2,$13,$be,$3a,$c9,$d9
-	dc.b	$e5,$2e,$af,$db,$e3,$b0,$2e,$a6,$b5,$27,$b2,$16,$58,$cc,$79,$39
-	dc.b	$fd,$6d,$0c,$70,$8c,$1c,$2e,$3c,$ba,$4b,$43,$de,$0c,$0e,$c5,$e4
-	dc.b	$21,$c4,$61,$cb,$bd,$78,$5e,$42,$60,$ee,$40,$2f,$23,$2d,$6d,$77
-	dc.b	$a8,$7e,$3a,$1d,$86,$7d,$88,$b5,$2d,$12,$20,$3a,$fb,$5e,$0c,$84
-	dc.b	$d6,$c6,$79,$4f,$1c,$d8,$9a,$73,$cd,$66,$0d,$53,$f3,$3e,$4f,$dc
-	dc.b	$de,$e9,$d5,$29,$57,$7d,$b2,$4e,$89,$b0,$29,$49,$05,$9f,$6f,$39
-	dc.b	$70,$3f,$fb,$33,$2d,$05,$a6,$f4,$eb,$76,$ff,$8e,$08,$f3,$2c,$92
-	dc.b	$6e,$49,$aa,$f4,$2a,$c3,$84,$7a,$48,$31,$6d,$2b,$67,$3a,$fd,$e0
-	dc.b	$e2,$d2,$3c,$18,$1b,$3a,$33,$72,$84,$1a,$a9,$66,$fe,$4f,$14,$3c
-	dc.b	$55,$47,$53,$21,$f9,$c2,$3a,$f9,$76,$fc,$ad,$c7,$d7,$2f,$eb,$3d
-	dc.b	$2c,$11,$f6,$13,$71,$54,$cd,$11,$27,$7b,$a5,$01,$1a,$ae,$47,$ee
-	dc.b	$11,$c2,$00,$4a,$20,$b2,$f2,$ca,$87,$76,$a5,$8e,$bb,$88,$e6,$b0
-	dc.b	$ec,$d3,$a5,$6c,$99,$2c,$31,$94,$e8,$fa,$1a,$69,$89,$38,$84,$6e
-	dc.b	$32,$22,$a8,$42,$39,$db,$90,$98,$cc,$d6,$19,$2e,$fd,$3b,$9c,$1e
-	dc.b	$33,$11,$d3,$2a,$d9,$76,$ce,$82,$6f,$42,$e5,$49,$ed,$39,$50,$7a
-	dc.b	$e2,$af,$e4,$5c,$ca,$63,$4d,$bb,$5c,$a1,$ff,$e3,$e5,$15,$17,$cc
-	dc.b	$e9,$65,$14,$b2,$9f,$ca,$27,$fc,$79,$4c,$58,$0a,$a1,$04,$0c,$2b
-	dc.b	$be,$67,$2c,$ce,$66,$3f,$3a,$e3,$56,$91,$f5,$ef,$b5,$98,$c1,$f6
-	dc.b	$1c,$c2,$7f,$c7,$99,$8f,$f4,$fc,$df,$6c,$c6,$1d,$73,$ee,$65,$ff
-	dc.b	$85,$d2,$87,$99,$5f,$f8,$f3,$18,$d6,$4f,$31,$24,$08,$c8,$cc,$83
-	dc.b	$d7,$3c,$a0,$87,$ef,$35,$8e,$03,$14,$d0,$0e,$ef,$6e,$47,$b9,$e1
-	dc.b	$89,$d8,$92,$43,$54,$76,$d1,$03,$57,$44,$58,$cb,$e5,$5a,$b3,$5c
-	dc.b	$b8,$1e,$67,$42,$fe,$87,$8e,$fa,$39,$94,$0e,$0c,$c6,$fd,$bf,$94
-	dc.b	$92,$4b,$2f,$12,$a6,$2c,$06,$6f,$61,$17,$97,$02,$05,$2e,$b7,$10
-	dc.b	$6b,$f3,$6b,$74,$86,$4c,$47,$d4,$65,$60,$56,$3b,$60,$7d,$55,$4e
-	dc.b	$96,$7f,$45,$ab,$0c,$d7,$1a,$b4,$92,$1b,$df,$e2,$2e,$e5,$ee,$9a
-	dc.b	$f5,$f8,$19,$07,$f6,$be,$11,$36,$69,$ac,$f6,$1a,$f9,$b1,$a0,$fa
-	dc.b	$57,$c3,$eb,$82,$48,$32,$c4,$a2,$0d,$cf,$32,$ff,$37,$49,$16,$fd
-	dc.b	$c3,$75,$0d,$c0,$19,$3d,$bf,$94,$b8,$96,$36,$ae,$02,$76,$1a,$8e
-	dc.b	$df,$41,$4f,$06,$87,$f5,$fc,$3c,$cd,$01,$6c,$85,$c9,$9a,$24,$ef
-	dc.b	$1d,$69,$35,$ac,$27,$76,$bb,$00,$4e,$65,$c2,$89,$7e,$6c,$78,$18
-	dc.b	$bc,$52,$38,$0c,$e2,$05,$ab,$da,$fc,$78,$ac,$0b,$ff,$a6,$58,$0c
-	dc.b	$b9,$16,$90,$7c,$05,$ff,$95,$8f,$d4,$38,$4c,$ab,$f0,$b9,$6a,$70
-	dc.b	$a7,$fc,$ec,$26,$26,$f0,$4c,$bb,$d1,$4f,$ea,$5f,$c2,$3f,$f8,$5f
-	dc.b	$19,$1c,$e1,$e8,$2d,$38,$70,$8f,$fc,$d7,$b7,$85,$8f,$f8,$7b,$79
-	dc.b	$5b,$02,$31,$5c,$dc,$ee,$1f,$92,$b8,$9c,$65,$9a,$fc,$41,$7a,$18
-	dc.b	$69,$23,$15,$15,$e4,$ff,$5e,$b8,$69,$6a,$b4,$83,$c3,$a4,$40,$1b
-	dc.b	$29,$51,$dc,$93,$57,$bd,$a8,$b4,$e5,$7b,$a5,$2f,$42,$f0,$e3,$57
-	dc.b	$6d,$e8,$6a,$59,$1a,$e5,$4a,$6b,$0d,$1f,$3e,$26,$f0,$03,$de,$18
-	dc.b	$14,$5e,$74,$25,$e5,$0d,$26,$46,$1b,$90,$58,$cb,$c3,$07,$bb,$41
-	dc.b	$60,$d3,$24,$d3,$49,$5e,$f0,$29,$d7,$7a,$29,$75,$7d,$d1,$1a,$b9
-	dc.b	$9f,$05,$91,$e2,$0c,$6f,$3e,$ed,$78,$f4,$a6,$b4,$19,$26,$fc,$85
-	dc.b	$3b,$06,$5b,$6a,$2f,$2a,$0c,$34,$64,$9b,$f0,$f4,$10,$5a,$d4,$20
-	dc.b	$d5,$a1,$5f,$de,$29,$87,$8d,$07,$d6,$7d,$00,$2b,$1d,$0c,$20,$d6
-	dc.b	$0d,$2a,$8b,$80,$1d,$c8,$5c,$45,$a3,$91,$01,$b5,$61,$77,$0d,$5e
-	dc.b	$d4,$19,$76,$7a,$a5,$6a,$9f,$2a,$53,$5d,$f1,$5a,$40,$ea,$c0,$8f
-	dc.b	$75,$56,$10,$f8,$cf,$ee,$70,$08,$f1,$73,$d0,$e7,$52,$bb,$b7,$51
-	dc.b	$47,$a7,$f4,$38,$cc,$56,$a5,$1c,$29,$13,$e6,$57,$1c,$9c,$48,$24
-	dc.b	$e6,$1f,$d1,$63,$1e,$dd,$fe,$df,$c9,$49,$d9,$21,$75,$12,$6c,$cd
-	dc.b	$4b,$23,$40,$b5,$4a,$c4,$93,$de,$30,$8b,$58,$df,$48,$35,$eb,$a6
-	dc.b	$03,$18,$9a,$9a,$c2,$ae,$03,$3a,$7b,$f3,$bb,$1c,$95,$2b,$15,$27
-	dc.b	$4e,$69,$9a,$39,$86,$da,$b1,$13,$84,$ab,$a8,$2b,$e9,$7b,$e7,$f0
-	dc.b	$08,$23,$f8,$e6,$af,$87,$36,$f5,$d6,$90,$6a,$39,$11,$2e,$09,$2d
-	dc.b	$19,$48,$6e,$0d,$06,$ac,$ba,$22,$b0,$14,$53,$fa,$32,$a0,$de,$e5
-	dc.b	$05,$95,$a0,$7e,$20,$a5,$52,$0c,$bb,$50,$1e,$a3,$55,$fd,$18,$f6
-	dc.b	$da,$20,$31,$d9,$21,$d9,$d5,$7b,$bc,$2a,$81,$ea,$95,$ae,$6b,$7b
-	dc.b	$79,$37,$c5,$6a,$b1,$42,$b0,$23,$6b,$2f,$53,$e4,$3e,$f8,$cc,$66
-	dc.b	$a5,$dd,$07,$18,$85,$35,$67,$b5,$c5,$71,$3e,$57,$2f,$ec,$b0,$7e
-	dc.b	$db,$1c,$29,$10,$04,$ae,$3b,$bf,$d1,$ed,$b6,$b4,$f7,$56,$35,$11
-	dc.b	$34,$5b,$cd,$48,$0d,$58,$b1,$21,$00,$4f,$59,$1a,$09,$a8,$34,$69
-	dc.b	$69,$b7,$d5,$02,$67,$e8,$4d,$5b,$83,$73,$db,$96,$c4,$26,$75,$7b
-	dc.b	$5c,$57,$b8,$d6,$a5,$5a,$5e,$ac,$d6,$c8,$2f,$25,$00,$f5,$ab,$21
-	dc.b	$53,$46,$f7,$8a,$11,$01,$7a,$b9,$8c,$27,$fb,$72,$3d,$af,$80,$7e
-	dc.b	$3d,$7b,$73,$5a,$b2,$1c,$55,$f0,$ee,$43,$ac,$c8,$93,$30,$70,$91
-	dc.b	$4c,$3b,$a2,$d5,$b1,$6c,$52,$9a,$90,$92,$27,$a7,$bf,$49,$5d,$ae
-	dc.b	$cf,$b6,$66,$e9,$29,$dd,$c7,$9a,$99,$77,$bc,$0c,$ab,$7a,$45,$c6
-	dc.b	$3b,$a0,$1e,$d3,$b3,$ae,$d5,$dd,$ae,$2b,$81,$ba,$8b,$b9,$bc,$35
-	dc.b	$d6,$47,$f0,$36,$c6,$98,$ce,$8c,$e4,$0a,$c5,$53,$ec,$e3,$f7,$d2
-	dc.b	$76,$ca,$78,$ac,$90,$15,$e6,$2f,$36,$3f,$8a,$8a,$ff,$59,$e2,$f2
-	dc.b	$97,$62,$22,$90,$06,$c8,$9f,$76,$6f,$e8,$c5,$ff,$f7,$e0,$fe,$32
-	dc.b	$f5,$ac,$06,$a0,$57,$60,$3b,$b3,$eb,$3f,$64,$69,$77,$46,$59,$58
-	dc.b	$15,$98,$e1,$ba,$72,$d9,$ba,$f3,$45,$b6,$12,$50,$ff,$d3,$e5,$32
-	dc.b	$a0,$d4,$d7,$f0,$9c,$85,$ac,$14,$b6,$23,$fc,$28,$95,$4e,$1f,$a7
-	dc.b	$b3,$e2,$25,$dd,$24,$04,$ef,$b0,$a2,$c7,$7d,$ef,$09,$35,$b6,$7e
-	dc.b	$4c,$a0,$82,$3e,$50,$80,$24,$84,$5e,$79,$4d,$85,$57,$85,$e7,$21
-	dc.b	$6a,$70,$ea,$0b,$cc,$5e,$68,$80,$fa,$cf,$19,$12,$8e,$d1,$ed,$83
-	dc.b	$95,$09,$68,$5a,$e9,$20,$ea,$27,$88,$70,$68,$5f,$98,$3d,$ba,$d6
-	dc.b	$97,$ca,$e6,$df,$cd,$49,$28,$8c,$ea,$44,$a2,$57,$74,$65,$be,$db
-	dc.b	$38,$a7,$d3,$90,$2b,$fb,$3a,$df,$fa,$78,$41,$42,$f7,$92,$cf,$a4
-	dc.b	$05,$5a,$43,$88,$4d,$d8,$fb,$d4,$bc,$b6,$c2,$36,$10,$f8,$a0,$48
-	dc.b	$18,$9e,$d6,$64,$32,$7e,$e7,$e5,$f9,$66,$4b,$3e,$13,$54,$92,$38
-	dc.b	$e8,$0c,$9f,$7e,$13,$2b,$52,$37,$95,$81,$56,$2a,$69,$41,$c8,$5a
-	dc.b	$13,$e8,$97,$24,$01,$e6,$2d,$96,$53,$9a,$9a,$fc,$38,$63,$49,$68
-	dc.b	$e5,$8a,$78,$ac,$c5,$48,$6f,$73,$73,$ab,$50,$80,$9a,$77,$2d,$eb
-	dc.b	$61,$ad,$9e,$f3,$f4,$03,$54,$58,$dc,$11,$2a,$25,$54,$04,$bc,$ec
-	dc.b	$79,$10,$67,$89,$73,$b8,$97,$7a,$f2,$9a,$1b,$61,$47,$27,$de,$7b
-	dc.b	$d0,$6c,$30,$d6,$12,$34,$cd,$e9,$a8,$b5,$67,$21,$13,$41,$0e,$41
-	dc.b	$60,$d0,$a0,$70,$46,$24,$e9,$03,$c2,$01,$5a,$2d,$27,$57,$b4,$eb
-	dc.b	$03,$2a,$36,$9c,$56,$e8,$13,$4d,$b5,$65,$76,$3b,$3e,$6f,$56,$9d
-	dc.b	$56,$ad,$dd,$73,$7b,$6d,$ce,$ef,$b4,$0a,$07,$4a,$a5,$b3,$2a,$5d
-	dc.b	$4a,$bb,$6d,$c9,$67,$74,$ba,$ed,$af,$53,$db,$66,$cb,$e8,$f6,$5b
-	dc.b	$7e,$2f,$27,$d7,$25,$a5,$59,$2d,$78,$dc,$8e,$6b,$49,$a9,$de,$f4
-	dc.b	$7b,$b2,$6a,$35,$66,$bd,$74,$bc,$e5,$b3,$3a,$ad,$6f,$1b,$97,$e5
-	dc.b	$9b,$53,$29,$f5,$4a,$d5,$96,$d9,$8e,$c9,$e5,$34,$dd,$3e,$df,$70
-	dc.b	$11,$2b,$9a,$5b,$b5,$1a,$cf,$4f,$aa,$53,$2e,$a2,$55,$6a,$f8,$9d
-	dc.b	$16,$9f,$85,$d7,$9a,$ce,$ac,$f8,$5d,$0f,$32,$7b,$42,$b8,$e7,$b9
-	dc.b	$54,$8b,$96,$fb,$b3,$53,$ae,$5d,$af,$5b,$c0,$3c,$ce,$73,$58,$b4
-	dc.b	$62,$f9,$d2,$c9,$8d,$8a,$e7,$8c,$03,$4d,$e7,$76,$fb,$bd,$ee,$fb
-	dc.b	$86,$dc,$79,$b8,$9e,$cf,$74,$8a,$87,$61,$ce,$7c,$a2,$52,$4b,$1f
-	dc.b	$23,$9f,$23,$cc,$78,$a4,$3a,$fe,$c7,$7b,$c9,$19,$a3,$e1,$3e,$d2
-	dc.b	$70,$2c,$76,$83,$8f,$d8,$78,$7c,$7f,$58,$a7,$9e,$a1,$82,$c8,$71
-	dc.b	$fe,$78,$8f,$8c,$6f,$0f,$c3,$97,$c5,$62,$d8,$38,$d5,$7e,$f9,$9f
-	dc.b	$02,$44,$e7,$92,$8e,$84,$36,$fd,$81,$9f,$7a,$3d,$fc,$1e,$fd,$c2
-	dc.b	$f1,$17,$fb,$c2,$62,$33,$88,$e4,$7b,$41,$30,$85,$7d,$3f,$3f,$a8
-	dc.b	$5c,$3b,$7f,$fb,$01,$c6,$21,$96,$08,$2c,$fe,$ff,$10,$84,$48,$28
-	dc.b	$1f,$08,$34,$12,$3f,$f8,$87,$ff,$7f,$90,$7f,$07,$02,$04,$00,$01
-	dc.b	$40,$ff,$d8,$08,$08,$07,$ff,$00,$02,$03,$88,$04,$41,$b1,$29,$13
-	dc.b	$c6,$24,$6d,$76,$25,$61,$0e,$e6,$d3,$8c,$8e,$d3,$62,$3c,$5e,$0c
-	dc.b	$4b,$69,$7e,$ef,$cd,$8e,$5d,$78,$14,$a9,$12,$76,$d9,$7b,$97,$9a
-	dc.b	$bb,$96,$97,$c7,$ea,$1b,$a7,$94,$41,$d5,$c3,$cd,$7d,$01,$0c,$2e
-	dc.b	$e1,$ea,$fb,$6b,$a0,$f0,$b4,$56,$ed,$6b,$b2,$4a,$5a,$f0,$0e,$ed
-	dc.b	$d0,$66,$59,$bf,$b6,$ec,$69,$e0,$7f,$eb,$b9,$a2,$6a,$c4,$11,$c3
-	dc.b	$45,$81,$da,$1f,$33,$02,$e1,$20,$cb,$79,$2b,$d8,$f0,$ea,$6b,$49
-	dc.b	$b2,$f8,$2d,$63,$fd,$54,$fc,$8b,$b8,$73,$16,$a6,$55,$65,$c9,$53
-	dc.b	$eb,$0c,$cb,$d7,$61,$06,$81,$d3,$f0,$dc,$c6,$a8,$59,$95,$5b,$22
-	dc.b	$ef,$1c,$05,$31,$6b,$33,$2a,$30,$7c,$af,$32,$12,$bd,$d2,$7c,$fc
-	dc.b	$52,$0a,$21,$c5,$26,$f6,$12,$02,$b3,$79,$87,$07,$e4,$29,$43,$41
-	dc.b	$ab,$12,$a2,$e6,$00,$ee,$8b,$f4,$fb,$7b,$cb,$20,$c4,$d8,$0d,$3c
-	dc.b	$9b,$dc,$ef,$7a,$b6,$21,$ab,$0e,$a8,$4d,$f9,$bc,$5f,$10,$36,$11
-	dc.b	$95,$bc,$95,$ef,$3e,$b9,$79,$55,$a8,$75,$33,$fe,$1d,$b2,$56,$2f
-	dc.b	$74,$a0,$e6,$aa,$6a,$cd,$a6,$a1,$df,$48,$4a,$d7,$dc,$f2,$b1,$d5
-	dc.b	$60,$38,$81,$c2,$bb,$1f,$01,$7f,$bb,$7d,$7f,$c5,$a2,$69,$87,$70
-	dc.b	$9f,$c3,$6a,$71,$e9,$70,$7b,$91,$84,$57,$f6,$c7,$87,$57,$3f,$31
-	dc.b	$c9,$db,$6a,$20,$e8,$82,$23,$45,$01,$50,$fa,$a2,$7c,$9b,$55,$1b
-	dc.b	$4b,$c2,$85,$30,$76,$ff,$36,$e0,$df,$a5,$ee,$33,$57,$62,$46,$de
-	dc.b	$e9,$b5,$4c,$ab,$e9,$4d,$72,$99,$7d,$8f,$dc,$c2,$92,$bf,$bd,$82
-	dc.b	$29,$b9,$21,$86,$6c,$f9,$83,$af,$ea,$56,$bd,$5a,$55,$c1,$ac,$3d
-	dc.b	$cb,$13,$43,$7c,$85,$3e,$fe,$d7,$ec,$e8,$23,$55,$cc,$51,$fa,$78
-	dc.b	$6c,$0c,$cb,$35,$7e,$f4,$10,$de,$ed,$ef,$44,$1b,$7f,$01,$0b,$e8
-	dc.b	$98,$8d,$1b,$35,$80,$6b,$f6,$7c,$49,$65,$70,$0b,$72,$cb,$9a,$56
-	dc.b	$a1,$f5,$9f,$12,$06,$e5,$8d,$54,$48,$06,$71,$a4,$ef,$db,$1f,$ca
-	dc.b	$9c,$15,$61,$6f,$28,$a8,$16,$b1,$47,$41,$05,$0a,$ef,$48,$2e,$06
-	dc.b	$95,$f6,$68,$2f,$7f,$0f,$79,$f1,$f7,$ec,$6f,$79,$4b,$c7,$a6,$46
-	dc.b	$7d,$73,$1e,$3e,$6c,$bb,$a0,$6b,$b5,$96,$dd,$a6,$7b,$9b,$22,$2c
-	dc.b	$ae,$44,$6a,$36,$5e,$44,$ac,$46,$c9,$13,$07,$3c,$df,$34,$eb,$82
-	dc.b	$71,$fa,$a8,$eb,$36,$a2,$05,$c4,$6e,$5f,$c2,$5c,$56,$25,$51,$5f
-	dc.b	$a9,$bd,$6f,$1d,$33,$e9,$de,$c1,$10,$bd,$01,$a0,$d7,$73,$03,$2c
-	dc.b	$42,$54,$2b,$e2,$29,$38,$45,$2d,$c1,$5b,$e3,$e2,$5e,$a7,$d1,$e1
-	dc.b	$00,$39,$58,$a3,$c8,$96,$1f,$5e,$48,$d6,$35,$fb,$cf,$42,$18,$ab
-	dc.b	$da,$c8,$00,$30,$f4,$2c,$63,$fa,$32,$44,$2d,$46,$86,$20,$7b,$eb
-	dc.b	$ae,$9c,$60,$da,$5a,$09,$a3,$4e,$16,$fa,$14,$73,$af,$61,$4e,$50
-	dc.b	$f0,$73,$63,$f5,$d0,$fb,$ec,$d7,$08,$b0,$56,$fb,$62,$cd,$ac,$76
-	dc.b	$e9,$2b,$f0,$85,$e6,$65,$78,$6a,$15,$a4,$c5,$46,$9f,$d9,$c8,$14
-	dc.b	$88,$d5,$15,$ae,$57,$61,$84,$7e,$8a,$aa,$2b,$e8,$84,$83,$3e,$6f
-	dc.b	$05,$70,$1c,$c7,$01,$c9,$dc,$99,$38,$cb,$93,$f3,$23,$aa,$4a,$39
-	dc.b	$57,$b9,$36,$28,$ed,$4b,$68,$24,$d8,$87,$f4,$d9,$61,$e1,$ba,$bb
-	dc.b	$7c,$3b,$4f,$1d,$15,$cb,$13,$f5,$42,$50,$b2,$03,$19,$ca,$49,$6f
-	dc.b	$00,$52,$44,$1d,$5b,$51,$3a,$05,$bc,$c3,$0f,$65,$57,$9f,$15,$e8
-	dc.b	$f3,$42,$64,$7c,$ac,$76,$f2,$95,$c1,$3f,$fe,$a0,$ee,$c8,$73,$9f
-	dc.b	$15,$a2,$af,$c3,$e4,$06,$22,$77,$63,$92,$6f,$3b,$80,$55,$d8,$86
-	dc.b	$21,$57,$ae,$4d,$e6,$0b,$7c,$f2,$13,$48,$8e,$64,$37,$69,$13,$d4
-	dc.b	$90,$b2,$ed,$ce,$e3,$85,$3b,$3c,$29,$e1,$80,$f6,$89,$2f,$a2,$af
-	dc.b	$a0,$17,$aa,$20,$35,$d6,$61,$dc,$76,$9e,$e1,$de,$38,$e8,$a2,$77
-	dc.b	$d4,$1c,$a1,$20,$c4,$8b,$bc,$a2,$c1,$b6,$c5,$80,$ed,$93,$1e,$ff
-	dc.b	$52,$78,$73,$84,$a6,$f1,$87,$b1,$8c,$97,$ea,$fa,$19,$f9,$3c,$60
-	dc.b	$34,$0f,$05,$ae,$ab,$06,$ba,$fa,$fe,$7b,$02,$ad,$9a,$8d,$16,$c5
-	dc.b	$fa,$e2,$5a,$8e,$e6,$1b,$7e,$cb,$f7,$92,$1f,$28,$1a,$df,$46,$90
-	dc.b	$a0,$0d,$9a,$92,$53,$b1,$c0,$1e,$86,$02,$f5,$27,$aa,$b8,$52,$1d
-	dc.b	$e7,$34,$14,$dc,$1b,$bb,$37,$69,$3c,$ef,$a2,$af,$b1,$f1,$84,$d7
-	dc.b	$90,$e0,$51,$a7,$53,$b8,$e5,$61,$f5,$b1,$0c,$3a,$2f,$e8,$ea,$37
-	dc.b	$c2,$c4,$11,$0b,$1b,$2d,$50,$53,$41,$38,$c1,$6e,$51,$98,$59,$78
-	dc.b	$29,$58,$34,$29,$10,$a2,$c6,$cd,$37,$f7,$07,$34,$73,$e5,$e7,$c6
-	dc.b	$27,$37,$c5,$c9,$4b,$6c,$6b,$30,$95,$38,$ad,$ac,$2c,$81,$4e,$4c
-	dc.b	$d1,$58,$ae,$5c,$d8,$e9,$bd,$c9,$2f,$64,$1e,$84,$ec,$c3,$d5,$1c
-	dc.b	$91,$0f,$dd,$21,$7e,$fd,$76,$72,$66,$c7,$01,$81,$56,$78,$2b,$e5
-	dc.b	$d8,$17,$24,$a7,$4a,$99,$18,$11,$f2,$1f,$47,$51,$b2,$15,$7c,$ef
-	dc.b	$03,$ae,$a9,$0b,$e5,$9d,$8e,$cf,$57,$21,$dd,$16,$e8,$9f,$fa,$49
-	dc.b	$0d,$fc,$a6,$1b,$35,$a3,$43,$0a,$b1,$f3,$30,$c1,$ef,$e8,$10,$ae
-	dc.b	$a0,$52,$03,$47,$c2,$10,$36,$68,$80,$e6,$88,$48,$ef,$17,$2f,$94
-	dc.b	$bc,$5a,$55,$43,$84,$fa,$16,$e5,$c8,$09,$dd,$d0,$e8,$3a,$b4,$e5
-	dc.b	$a6,$2b,$b0,$7e,$55,$a0,$ae,$9e,$e8,$13,$0b,$c5,$88,$23,$70,$44
-	dc.b	$a4,$85,$e3,$93,$10,$e6,$ee,$8c,$ee,$c8,$fa,$01,$14,$58,$ab,$f3
-	dc.b	$ac,$53,$ff,$d1,$39,$22,$d8,$db,$6d,$df,$67,$3a,$ce,$f2,$40,$c7
-	dc.b	$a1,$6b,$0b,$5c,$25,$c1,$94,$ee,$b3,$a7,$15,$0a,$d1,$48,$b2,$83
-	dc.b	$7a,$fc,$ec,$a2,$f1,$3e,$3a,$52,$67,$6f,$da,$e2,$e7,$3a,$96,$c6
-	dc.b	$0b,$e4,$2a,$64,$30,$1a,$51,$08,$bb,$51,$e0,$60,$57,$60,$19,$34
-	dc.b	$90,$d8,$48,$30,$a5,$0f,$91,$86,$23,$74,$f8,$d0,$4f,$c7,$42,$9f
-	dc.b	$35,$16,$2b,$db,$6a,$1f,$39,$57,$36,$bf,$75,$96,$5f,$1d,$4e,$86
-	dc.b	$98,$22,$c8,$7f,$c6,$15,$8c,$96,$3e,$78,$bc,$31,$27,$03,$81,$0a
-	dc.b	$9a,$75,$08,$db,$ad,$86,$68,$00,$f9,$10,$fd,$53,$40,$8b,$68,$6c
-	dc.b	$27,$bd,$f9,$24,$b6,$34,$0d,$e8,$6f,$a1,$64,$de,$34,$6e,$f4,$d3
-	dc.b	$82,$c1,$0f,$62,$15,$a0,$7c,$e5,$7d,$1a,$0c,$84,$e0,$12,$5c,$ef
-	dc.b	$11,$4d,$10,$92,$4b,$92,$75,$75,$d3,$9f,$92,$39,$74,$8f,$f0,$51
-	dc.b	$2e,$9c,$fe,$ec,$f9,$74,$8f,$fd,$51,$db,$ee,$9c,$fc,$f7,$4b,$74
-	dc.b	$e7,$ec,$86,$f2,$f7,$ba,$57,$fc,$14,$d3,$ba,$5f,$ff,$f7,$74,$72
-	dc.b	$86,$5a,$66,$16,$b5,$68,$08,$8e,$c0,$8b,$e2,$1a,$fe,$77,$f3,$90
-	dc.b	$2a,$2e,$94,$7c,$e5,$38,$61,$66,$56,$b7,$02,$d6,$c9,$ae,$0a,$e0
-	dc.b	$d2,$eb,$0b,$5a,$a8,$26,$6e,$a3,$b1,$c3,$9d,$9e,$5f,$2b,$a1,$06
-	dc.b	$66,$0f,$79,$ca,$7e,$69,$07,$96,$a1,$12,$46,$0d,$da,$40,$2e,$cd
-	dc.b	$f6,$81,$9a,$3f,$1b,$fc,$c8,$02,$24,$60,$8c,$f2,$83,$9b,$02,$f9
-	dc.b	$9e,$03,$1f,$8d,$1b,$4e,$6a,$25,$ae,$09,$9a,$69,$75,$46,$71,$4a
-	dc.b	$fa,$8d,$3a,$68,$22,$c2,$bf,$a3,$fb,$d4,$2c,$ce,$82,$0a,$be,$f0
-	dc.b	$12,$fe,$a1,$d0,$84,$ed,$78,$c1,$03,$31,$7c,$43,$4f,$35,$94,$6c
-	dc.b	$67,$a6,$a0,$d4,$92,$67,$af,$ac,$98,$56,$02,$5e,$83,$ba,$d0,$45
-	dc.b	$c2,$04,$cc,$e7,$e7,$fb,$64,$68,$a9,$59,$1d,$36,$84,$f7,$29,$ad
-	dc.b	$7a,$91,$6d,$d1,$47,$79,$a6,$51,$67,$36,$66,$65,$24,$27,$73,$50
-	dc.b	$c0,$19,$26,$2c,$9f,$56,$b8,$17,$2a,$f0,$36,$c1,$de,$c8,$1a,$f7
-	dc.b	$8b,$a6,$d6,$cb,$90,$2b,$83,$0e,$ea,$92,$61,$98,$d0,$67,$63,$4e
-	dc.b	$66,$c6,$f4,$78,$ac,$25,$59,$80,$0a,$cc,$2d,$b4,$82,$66,$a1,$1b
-	dc.b	$23,$0b,$ba,$03,$4d,$a7,$bc,$85,$e6,$9b,$ac,$42,$7c,$41,$1b,$74
-	dc.b	$e5,$cd,$bd,$96,$76,$e4,$94,$7b,$cd,$44,$e5,$99,$8d,$fa,$77,$4b
-	dc.b	$32,$f6,$ca,$7a,$e6,$a4,$2a,$3d,$ce,$ef,$e3,$1d,$e5,$ec,$27,$a4
-	dc.b	$7f,$41,$07,$6b,$02,$10,$a8,$3b,$08,$02,$73,$0d,$81,$91,$92,$62
-	dc.b	$88,$2d,$2f,$28,$d9,$85,$b4,$b8,$ac,$41,$5e,$ed,$ba,$b2,$ea,$3b
-	dc.b	$2c,$b9,$31,$7d,$b0,$44,$95,$4c,$c6,$9c,$e7,$7e,$63,$45,$a2,$8b
-	dc.b	$b6,$61,$2f,$bf,$7c,$da,$34,$59,$60,$ad,$71,$fb,$c0,$05,$f9,$b9
-	dc.b	$19,$9d,$1e,$72,$0c,$a4,$59,$57,$2e,$10,$ed,$d3,$54,$1f,$e0,$fb
-	dc.b	$43,$ba,$97,$dd,$3e,$5a,$8b,$43,$ab,$a6,$0d,$93,$a9,$f2,$e4,$75
-	dc.b	$d7,$a9,$83,$6e,$ab,$1f,$c7,$7d,$8e,$9c,$bf,$02,$ab,$2e,$88,$05
-	dc.b	$34,$a7,$ef,$28,$d4,$22,$70,$c0,$61,$3c,$f9,$b2,$60,$c4,$6b,$7e
-	dc.b	$b5,$49,$7e,$c5,$3f,$5c,$36,$4e,$f9,$c9,$19,$0f,$cd,$ec,$c7,$35
-	dc.b	$a1,$64,$07,$d6,$3d,$27,$8e,$08,$db,$8a,$83,$f0,$e4,$b1,$f9,$67
-	dc.b	$1f,$a0,$59,$9a,$c0,$93,$f5,$f4,$10,$94,$92,$60,$42,$36,$99,$c0
-	dc.b	$7d,$31,$73,$0f,$f5,$d9,$4f,$c9,$8a,$24,$9a,$df,$ba,$b2,$75,$a9
-	dc.b	$23,$22,$31,$d6,$82,$2d,$bd,$51,$7e,$c5,$b6,$9d,$f6,$29,$59,$fb
-	dc.b	$00,$0c,$61,$c2,$b1,$10,$29,$10,$f1,$0c,$b4,$b3,$08,$3c,$3e,$34
-	dc.b	$99,$eb,$0b,$35,$65,$d5,$6c,$d4,$f1,$0e,$d3,$d7,$58,$dc,$de,$ef
-	dc.b	$ae,$8f,$df,$5f,$a6,$c1,$f1,$ed,$a7,$34,$4e,$d0,$3b,$d5,$14,$1e
-	dc.b	$6d,$08,$fa,$aa,$ac,$dc,$21,$d5,$66,$c4,$0a,$84,$ea,$e7,$b9,$ea
-	dc.b	$17,$9d,$33,$a8,$47,$20,$fe,$5d,$e1,$95,$4c,$3d,$fa,$64,$2b,$2a
-	dc.b	$ae,$a6,$17,$31,$3b,$43,$d9,$f9,$ce,$df,$6c,$59,$d6,$75,$ad,$20
-	dc.b	$55,$31,$6f,$8c,$7b,$f5,$8c,$6a,$93,$b4,$36,$fb,$a0,$c9,$29,$c3
-	dc.b	$ae,$81,$67,$47,$00,$2f,$47,$c4,$14,$81,$95,$ba,$06,$0c,$d5,$94
-	dc.b	$d4,$ba,$d0,$ae,$6a,$f2,$14,$bd,$94,$4e,$e5,$5d,$20,$f7,$51,$3b
-	dc.b	$f3,$67,$e6,$89,$2c,$d8,$22,$47,$50,$35,$56,$49,$e2,$07,$6f,$85
-	dc.b	$1a,$aa,$d0,$bd,$5b,$1c,$0c,$b6,$e4,$be,$3b,$a1,$d9,$7a,$66,$00
-	dc.b	$9a,$ce,$22,$0a,$f8,$79,$01,$5b,$4a,$21,$db,$3b,$f4,$f0,$31,$ef
-	dc.b	$fb,$f2,$5d,$2d,$0d,$d7,$73,$3e,$50,$ed,$2c,$62,$34,$06,$17,$e3
-	dc.b	$e6,$3e,$58,$31,$0f,$d7,$e6,$9c,$27,$09,$72,$5d,$3b,$08,$e5,$92
-	dc.b	$68,$14,$32,$55,$41,$fa,$a3,$6b,$5f,$55,$9b,$ba,$64,$18,$e5,$14
-	dc.b	$b1,$bd,$68,$93,$7b,$f4,$f9,$59,$8a,$28,$8d,$20,$6f,$98,$5d,$c0
-	dc.b	$61,$1f,$11,$62,$3d,$41,$05,$fc,$c9,$69,$53,$da,$e9,$60,$ab,$d0
-	dc.b	$cc,$d9,$91,$0d,$b1,$00,$8e,$d0,$03,$6b,$00,$53,$c0,$4f,$90,$a5
-	dc.b	$74,$e1,$5d,$ba,$ab,$b6,$f4,$b1,$88,$ef,$49,$6b,$c4,$9d,$56,$82
-	dc.b	$b0,$f8,$03,$f3,$12,$ba,$c1,$81,$51,$c4,$39,$d2,$37,$95,$a0,$0d
-	dc.b	$71,$9f,$08,$d6,$b9,$28,$ce,$60,$09,$ee,$24,$87,$3b,$39,$02,$3c
-	dc.b	$e0,$18,$f2,$10,$ed,$93,$96,$81,$17,$3d,$fe,$55,$12,$c0,$d8,$e3
-	dc.b	$a5,$99,$dd,$40,$e1,$7e,$50,$02,$7b,$41,$80,$b1,$e7,$14,$f7,$ce
-	dc.b	$05,$e9,$1a,$7e,$5f,$05,$fb,$9e,$29,$23,$fd,$58,$a7,$ba,$64,$29
-	dc.b	$d7,$08,$d2,$98,$7c,$cc,$d9,$e3,$bb,$3a,$7c,$37,$4c,$a8,$3a,$36
-	dc.b	$42,$90,$08,$0c,$60,$31,$19,$90,$fc,$7f,$ab,$af,$96,$87,$46,$7d
-	dc.b	$de,$77,$a5,$84,$3d,$2e,$06,$38,$4c,$57,$6e,$83,$06,$99,$02,$3d
-	dc.b	$a0,$2f,$4a,$6a,$06,$7e,$42,$98,$59,$73,$c7,$7d,$af,$35,$e9,$66
-	dc.b	$77,$52,$f6,$7f,$5a,$d3,$9d,$cd,$83,$2d,$50,$fa,$42,$ce,$d0,$62
-	dc.b	$ec,$e1,$06,$13,$5c,$e6,$3f,$81,$a4,$f0,$6c,$36,$d7,$39,$09,$59
-	dc.b	$81,$55,$6b,$8e,$54,$c6,$e4,$29,$75,$a1,$8d,$04,$2d,$40,$ea,$55
-	dc.b	$1f,$38,$15,$d7,$ec,$8d,$c6,$98,$31,$91,$38,$5c,$93,$c3,$ce,$df
-	dc.b	$80,$a7,$ed,$07,$19,$75,$a6,$e7,$f4,$e1,$b3,$49,$94,$30,$6e,$9a
-	dc.b	$05,$45,$00,$ce,$b5,$b3,$d5,$1f,$cd,$f6,$84,$18,$d7,$7f,$67,$99
-	dc.b	$ef,$7c,$d7,$0f,$e3,$be,$91,$24,$42,$2e,$cc,$0f,$bf,$90,$0d,$0d
-	dc.b	$2a,$e1,$52,$1a,$8e,$ff,$b6,$ca,$d3,$9a,$9e,$8e,$0c,$0e,$f8,$7c
-	dc.b	$76,$f4,$12,$e5,$4d,$b9,$b7,$9f,$21,$4b,$43,$05,$42,$e6,$02,$b7
-	dc.b	$c8,$52,$8f,$e7,$62,$d3,$73,$aa,$e9,$b0,$63,$35,$5b,$33,$c2,$b5
-	dc.b	$87,$ff,$5e,$b4,$1e,$84,$3b,$7f,$72,$04,$b4,$31,$f2,$00,$30,$ad
-	dc.b	$b0,$73,$e1,$08,$c0,$fa,$ec,$1c,$18,$66,$d9,$98,$14,$56,$23,$47
-	dc.b	$3f,$a0,$66,$f8,$8b,$55,$b4,$81,$68,$82,$3d,$76,$c4,$32,$93,$e8
-	dc.b	$8d,$2b,$33,$28,$80,$4e,$60,$e0,$4e,$7e,$03,$48,$83,$d5,$f4,$eb
-	dc.b	$35,$aa,$d5,$3c,$b0,$db,$76,$64,$6a,$04,$9a,$10,$d9,$90,$f9,$96
-	dc.b	$b4,$0a,$84,$0b,$9a,$46,$48,$a6,$82,$cc,$ce,$5d,$66,$fb,$cb,$57
-	dc.b	$7a,$56,$b0,$e8,$8c,$3d,$53,$d2,$0d,$bb,$2a,$84,$06,$4b,$66,$cf
-	dc.b	$90,$a6,$e5,$b4,$92,$50,$bf,$c2,$e0,$c0,$1f,$eb,$c7,$cc,$67,$15
-	dc.b	$5a,$0e,$df,$21,$24,$09,$5d,$03,$9b,$74,$d4,$19,$87,$74,$2b,$57
-	dc.b	$bc,$35,$66,$67,$cd,$ad,$f7,$dc,$46,$b0,$b3,$60,$8e,$c9,$fb,$9f
-	dc.b	$0f,$bc,$83,$1d,$0f,$55,$be,$14,$ba,$75,$9a,$27,$36,$91,$41,$e6
-	dc.b	$87,$d4,$c6,$e7,$37,$c3,$7b,$c3,$86,$98,$43,$70,$09,$a9,$5a,$00
-	dc.b	$8e,$d0,$75,$29,$4f,$4d,$03,$35,$1f,$ff,$41,$eb,$6e,$a4,$f9,$a3
-	dc.b	$c1,$d3,$21,$0e,$3c,$01,$ae,$2e,$8b,$93,$dc,$e1,$13,$51,$59,$a2
-	dc.b	$05,$55,$38,$34,$82,$5f,$20,$aa,$a2,$c1,$eb,$8b,$3a,$60,$db,$8a
-	dc.b	$a7,$65,$2d,$8e,$af,$cc,$f1,$ff,$49,$97,$50,$de,$16,$4f,$48,$1e
-	dc.b	$d6,$93,$39,$91,$35,$49,$ed,$f1,$0c,$1e,$8a,$38,$9d,$b6,$51,$5f
-	dc.b	$14,$89,$78,$67,$b6,$1c,$30,$f9,$92,$36,$d5,$e3,$4d,$06,$5d,$58
-	dc.b	$7c,$a5,$cb,$e1,$3a,$21,$cf,$5b,$60,$a6,$cf,$7c,$7d,$02,$ac,$c7
-	dc.b	$c7,$67,$54,$49,$0a,$e4,$2c,$a1,$9c,$d4,$9a,$27,$d5,$90,$5b,$30
-	dc.b	$d9,$80,$b2,$8e,$d9,$3a,$7a,$d0,$be,$15,$9b,$b4,$20,$c9,$18,$6d
-	dc.b	$d0,$b8,$01,$30,$58,$37,$14,$e3,$73,$a9,$8e,$73,$7e,$cb,$0f,$98
-	dc.b	$2b,$07,$e9,$a8,$2a,$09,$fd,$2c,$b4,$43,$9e,$02,$b7,$5d,$f1,$7a
-	dc.b	$95,$7f,$ad,$bc,$b5,$51,$c2,$be,$68,$b0,$69,$3d,$70,$54,$81,$6e
-	dc.b	$70,$81,$91,$87,$bf,$e4,$3e,$69,$06,$10,$26,$60,$db,$d8,$f6,$4b
-	dc.b	$af,$9e,$af,$ad,$9b,$db,$33,$b0,$ef,$cc,$b5,$e9,$0c,$4b,$44,$06
-	dc.b	$4d,$e6,$61,$5a,$85,$2c,$41,$b7,$46,$67,$5b,$61,$74,$2c,$8f,$72
-	dc.b	$e0,$12,$30,$53,$0d,$f2,$24,$0f,$b2,$f2,$1a,$86,$fa,$9a,$1c,$43
-	dc.b	$50,$c0,$2a,$cf,$65,$03,$6d,$ec,$97,$c0,$f1,$3c,$57,$2d,$9a,$b6
-	dc.b	$db,$22,$1d,$3b,$c8,$69,$d4,$88,$15,$ab,$2d,$ca,$ce,$50,$a6,$10
-	dc.b	$48,$2a,$b3,$d5,$4e,$04,$df,$90,$db,$18,$41,$85,$90,$ee,$19,$94
-	dc.b	$18,$7e,$36,$fc,$55,$7d,$7f,$1b,$c4,$54,$f3,$9a,$18,$2d,$d8,$f4
-	dc.b	$9e,$fd,$3e,$82,$15,$38,$ff,$cb,$2d,$13,$10,$30,$32,$3f,$77,$f0
-	dc.b	$01,$83,$c8,$fb,$09,$2d,$d2,$21,$0e,$6a,$35,$07,$af,$04,$db,$b1
-	dc.b	$0e,$cc,$32,$4f,$ac,$20,$64,$0f,$e3,$ab,$54,$f5,$ed,$b4,$34,$82
-	dc.b	$47,$c9,$a5,$91,$f1,$ee,$19,$06,$34,$15,$53,$03,$4c,$0c,$c5,$44
-	dc.b	$cf,$a1,$1d,$bc,$32,$bb,$f4,$09,$19,$90,$8d,$98,$59,$19,$80,$77
-	dc.b	$c1,$fa,$9d,$19,$87,$cd,$78,$0a,$4e,$de,$9d,$65,$0a,$59,$db,$79
-	dc.b	$02,$cc,$d6,$18,$29,$b8,$de,$3e,$d2,$62,$c3,$3d,$81,$ca,$17,$1b
-	dc.b	$81,$41,$bb,$bf,$50,$27,$5e,$f0,$b7,$c8,$52,$30,$0c,$2b,$34,$cf
-	dc.b	$32,$6a,$a1,$33,$00,$a1,$2a,$f9,$a4,$13,$67,$c1,$53,$7a,$c0,$cd
-	dc.b	$2b,$e9,$7f,$4f,$a0,$94,$41,$14,$d0,$ba,$3e,$b3,$cb,$79,$de,$9f
-	dc.b	$57,$51,$15,$ff,$a5,$96,$89,$89,$50,$0c,$1f,$9d,$c0,$f9,$37,$26
-	dc.b	$74,$72,$22,$10,$b1,$c1,$de,$4c,$9b,$b1,$0c,$50,$28,$f1,$b8,$81
-	dc.b	$91,$3f,$d7,$25,$d7,$1c,$86,$9a,$10,$74,$b4,$64,$27,$a1,$c6,$bd
-	dc.b	$44,$4d,$5f,$22,$82,$1b,$aa,$aa,$e0,$be,$92,$8d,$09,$a8,$ae,$81
-	dc.b	$23,$67,$0b,$2f,$6e,$24,$f6,$d8,$dc,$e2,$30,$29,$76,$86,$e2,$f1
-	dc.b	$e4,$24,$e2,$7e,$34,$f2,$05,$4e,$3b,$ea,$ee,$26,$61,$fe,$d7,$cb
-	dc.b	$08,$d2,$b6,$c4,$56,$89,$80,$71,$29,$29,$de,$01,$82,$4e,$a9,$af
-	dc.b	$82,$69,$bb,$6c,$e7,$f7,$5c,$56,$6d,$8c,$b5,$98,$9f,$6c,$a7,$ff
-	dc.b	$2a,$bb,$63,$2e,$cc,$ad,$8c,$b8,$6d,$8e,$45,$6e,$7c,$b8,$72,$1b
-	dc.b	$80,$5e,$4b,$b8,$2f,$fe,$0e,$57,$02,$ff,$2a,$e1,$ea,$d3,$89,$f1
-	dc.b	$00,$9b,$e5,$b1,$bf,$e7,$0a,$dd,$b0,$ff,$f7,$86,$e5,$18,$d9,$07
-	dc.b	$d9,$5e,$61,$a7,$66,$2d,$3a,$41,$ae,$f4,$76,$07,$cc,$e6,$47,$a4
-	dc.b	$96,$9b,$e2,$20,$b1,$f9,$3e,$73,$51,$df,$89,$f8,$df,$41,$44,$f3
-	dc.b	$f1,$c7,$1e,$a9,$d7,$da,$e9,$07,$b9,$97,$bf,$90,$b5,$81,$df,$4f
-	dc.b	$f4,$72,$ce,$61,$b3,$5f,$25,$8e,$df,$56,$89,$37,$90,$2c,$b4,$01
-	dc.b	$cd,$e3,$cf,$00,$ef,$c6,$49,$2f,$81,$7c,$40,$55,$79,$41,$96,$84
-	dc.b	$a8,$86,$1c,$5d,$82,$9e,$3b,$cd,$0f,$71,$6f,$50,$18,$6a,$0e,$df
-	dc.b	$a9,$af,$4f,$3e,$9d,$59,$ca,$19,$b4,$a1,$a5,$e4,$25,$2c,$9d,$69
-	dc.b	$f2,$11,$3b,$53,$a2,$f7,$33,$48,$7c,$8f,$20,$eb,$c8,$19,$8b,$5c
-	dc.b	$24,$0d,$3e,$82,$b4,$6b,$9e,$d3,$d0,$78,$05,$66,$8e,$83,$98,$18
-	dc.b	$98,$36,$c9,$03,$d1,$5a,$01,$c9,$56,$03,$3c,$93,$60,$39,$ff,$f7
-	dc.b	$c0,$05,$f8,$78,$0a,$7f,$14,$b0,$02,$b8,$6f,$83,$c0,$6f,$fd,$97
-	dc.b	$60,$05,$73,$9e,$02,$7f,$fa,$7c,$06,$7f,$8a,$ba,$77,$37,$c8,$ff
-	dc.b	$3a,$f8,$3f,$fe,$a4,$36,$c3,$95,$54,$7b,$f2,$fe,$3f,$3c,$33,$f7
-	dc.b	$94,$00,$db,$b7,$68,$4a,$6d,$34,$41,$1f,$9a,$6e,$e6,$35,$19,$91
-	dc.b	$9e,$be,$fc,$89,$46,$fb,$79,$16,$3d,$c9,$82,$c0,$0c,$5b,$8a,$43
-	dc.b	$8f,$87,$5a,$fa,$0e,$83,$ae,$a8,$4c,$7c,$db,$7d,$c8,$9e,$40,$ad
-	dc.b	$98,$69,$19,$06,$90,$cc,$b8,$ec,$07,$d9,$9b,$66,$26,$c8,$3e,$50
-	dc.b	$c9,$c8,$fe,$4f,$c8,$08,$34,$b5,$a1,$8f,$b7,$97,$65,$5c,$10,$8b
-	dc.b	$a4,$0c,$87,$a1,$c8,$21,$e8,$0a,$02,$72,$83,$3f,$48,$45,$0c,$6a
-	dc.b	$76,$d3,$43,$94,$e1,$19,$82,$25,$55,$bc,$f0,$c0,$3e,$80,$7e,$89
-	dc.b	$05,$d7,$1e,$9c,$ea,$98,$75,$c9,$bb,$42,$5b,$ef,$c9,$d5,$ad,$0d
-	dc.b	$eb,$dc,$06,$ab,$d8,$e8,$4a,$06,$0a,$c3,$89,$7f,$d5,$d0,$25,$36
-	dc.b	$1a,$b0,$1b,$66,$88,$f3,$45,$23,$68,$d4,$2a,$b1,$98,$69,$23,$c5
-	dc.b	$72,$70,$30,$c7,$df,$cc,$98,$27,$9a,$e6,$3c,$15,$32,$20,$89,$44
-	dc.b	$ce,$98,$d5,$97,$e1,$15,$3d,$b4,$d5,$07,$39,$b9,$81,$f2,$84,$30
-	dc.b	$2a,$f6,$bd,$77,$c8,$ae,$3a,$de,$27,$c7,$7d,$3e,$fb,$5a,$0a,$5e
-	dc.b	$95,$92,$42,$d4,$9f,$ad,$1c,$ae,$6a,$2d,$9b,$f0,$08,$e2,$1b,$e9
-	dc.b	$71,$67,$6f,$28,$67,$c9,$db,$7c,$d2,$1d,$53,$f5,$11,$f4,$d5,$84
-	dc.b	$06,$0d,$09,$a2,$19,$b5,$7e,$6a,$18,$19,$e1,$05,$17,$4b,$b4,$7c
-	dc.b	$83,$30,$80,$ca,$3f,$de,$66,$14,$43,$b4,$b3,$c8,$be,$54,$1c,$b2
-	dc.b	$f5,$24,$c4,$9a,$ef,$20,$ec,$a0,$cf,$6f,$26,$14,$49,$a9,$7e,$a7
-	dc.b	$b5,$23,$6c,$85,$fe,$ed,$88,$5c,$c0,$e7,$08,$a0,$62,$8e,$04,$8a
-	dc.b	$38,$74,$57,$4b,$ba,$b4,$87,$32,$74,$8e,$46,$c9,$14,$68,$5e,$e4
-	dc.b	$37,$e9,$6a,$e0,$60,$ac,$3d,$b4,$31,$e9,$92,$f8,$3c,$62,$51,$20
-	dc.b	$43,$27,$dc,$e6,$a3,$3c,$25,$0d,$5d,$8a,$a8,$1b,$d4,$16,$84,$ea
-	dc.b	$8d,$35,$41,$fe,$62,$76,$bd,$ae,$c0,$ff,$47,$1d,$59,$4c,$14,$82
-	dc.b	$76,$6f,$cd,$ff,$52,$4d,$d6,$34,$95,$2c,$40,$63,$ee,$c6,$f5,$df
-	dc.b	$38,$f5,$81,$c5,$2c,$83,$46,$8b,$22,$96,$20,$ba,$a7,$ec,$54,$3a
-	dc.b	$ac,$d1,$70,$c3,$4c,$55,$d4,$e9,$4b,$6a,$d5,$b9,$7c,$63,$15,$d6
-	dc.b	$05,$ed,$4b,$11,$31,$47,$ca,$de,$55,$aa,$70,$0c,$15,$ba,$4b,$93
-	dc.b	$2e,$44,$7d,$ac,$0c,$fd,$d7,$d0,$fa,$26,$6d,$f5,$75,$09,$d2,$87
-	dc.b	$b6,$23,$66,$f0,$08,$e8,$52,$07,$a4,$18,$47,$46,$43,$3a,$f8,$69
-	dc.b	$05,$60,$32,$9f,$91,$e6,$83,$04,$bc,$9a,$8b,$99,$1c,$f4,$f4,$37
-	dc.b	$49,$4d,$bd,$b7,$a1,$fb,$30,$68,$11,$a5,$22,$73,$51,$af,$f6,$67
-	dc.b	$3f,$cf,$46,$cc,$50,$bc,$58,$1b,$d7,$ec,$a4,$b5,$21,$11,$99,$77
-	dc.b	$e7,$02,$5a,$5a,$09,$2c,$dd,$d9,$c7,$30,$53,$b2,$4c,$e7,$a9,$a6
-	dc.b	$eb,$ac,$69,$32,$0f,$40,$62,$9e,$0f,$e4,$3f,$55,$63,$a0,$74,$c5
-	dc.b	$90,$61,$d1,$a4,$22,$21,$4b,$0e,$f5,$4d,$17,$55,$22,$33,$49,$71
-	dc.b	$b9,$af,$35,$9d,$25,$8f,$bb,$d0,$31,$5a,$71,$65,$6d,$75,$57,$91
-	dc.b	$73,$5d,$3e,$06,$e9,$29,$10,$98,$47,$3d,$e0,$8d,$1b,$28,$84,$68
-	dc.b	$be,$d6,$ea,$18,$68,$29,$24,$7b,$78,$60,$b6,$20,$7d,$e8,$0c,$1a
-	dc.b	$96,$a1,$c8,$a1,$92,$64,$b1,$66,$51,$cd,$40,$d0,$d5,$9f,$ae,$50
-	dc.b	$df,$53,$05,$9b,$dd,$02,$3c,$3f,$4b,$a4,$6a,$a4,$e8,$75,$e7,$7f
-	dc.b	$16,$04,$ad,$f7,$cb,$cc,$14,$86,$83,$de,$92,$70,$32,$a1,$bf,$4b
-	dc.b	$54,$14,$cb,$6a,$e7,$7b,$0a,$a8,$67,$7f,$38,$14,$3d,$ae,$15,$57
-	dc.b	$ac,$4f,$e2,$ca,$df,$04,$83,$7e,$d5,$3d,$48,$f4,$a1,$2b,$31,$8b
-	dc.b	$d0,$55,$f7,$72,$80,$39,$8f,$35,$41,$8e,$00,$2c,$c4,$12,$89,$71
-	dc.b	$62,$a0,$d5,$38,$1a,$30,$28,$76,$68,$5a,$3d,$e0,$54,$ed,$1f,$42
-	dc.b	$55,$74,$c2,$b3,$51,$16,$98,$0d,$b7,$40,$49,$db,$a4,$32,$64,$10
-	dc.b	$e6,$c2,$c8,$0c,$be,$95,$80,$c1,$5e,$10,$6f,$de,$43,$61,$f6,$64
-	dc.b	$cc,$64,$c4,$1e,$81,$5a,$43,$4a,$8a,$0b,$6a,$84,$d0,$a0,$6c,$bd
-	dc.b	$cd,$65,$83,$1e,$ae,$39,$55,$f7,$78,$cc,$3e,$78,$e0,$a7,$fb,$c7
-	dc.b	$c8,$aa,$bd,$48,$d6,$34,$14,$c1,$4c,$7d,$29,$42,$fd,$ce,$fe,$2a
-	dc.b	$43,$06,$53,$aa,$2e,$cf,$82,$0e,$f5,$05,$a2,$48,$c0,$99,$48,$bd
-	dc.b	$31,$b5,$52,$fa,$2d,$b6,$19,$46,$0b,$cd,$16,$d5,$22,$f1,$04,$a6
-	dc.b	$88,$eb,$17,$32,$9e,$4a,$16,$61,$b7,$da,$f2,$09,$b1,$a4,$14,$5a
-	dc.b	$0a,$6a,$83,$62,$00,$b2,$20,$94,$4b,$8b,$b8,$6c,$50,$87,$0b,$de
-	dc.b	$33,$13,$a8,$32,$91,$69,$a0,$11,$e3,$16,$f4,$02,$8a,$06,$37,$93
-	dc.b	$01,$8f,$4e,$2b,$09,$c0,$d6,$09,$0b,$4c,$b4,$16,$f8,$2a,$48,$b5
-	dc.b	$05,$32,$4d,$1a,$4d,$79,$57,$c5,$4a,$23,$1e,$d9,$73,$40,$9c,$0a
-	dc.b	$02,$63,$29,$05,$a0,$85,$45,$fe,$c0,$d6,$51,$45,$8b,$65,$0c,$05
-	dc.b	$1e,$68,$53,$3a,$f8,$5f,$1c,$c3,$37,$65,$98,$f5,$d6,$70,$db,$1a
-	dc.b	$ce,$91,$a2,$1a,$78,$f5,$58,$c7,$d2,$8d,$f0,$33,$80,$7a,$a3,$3d
-	dc.b	$fe,$7b,$b2,$65,$7f,$22,$36,$91,$39,$17,$dc,$fb,$08,$17,$5c,$7e
-	dc.b	$f2,$b9,$71,$7d,$9c,$de,$81,$1f,$5b,$85,$f7,$82,$f6,$f9,$38,$c1
-	dc.b	$c5,$e4,$4f,$99,$a8,$de,$e4,$b7,$28,$45,$97,$6a,$e0,$60,$5b,$92
-	dc.b	$e4,$20,$eb,$5a,$a5,$84,$82,$be,$11,$bb,$a6,$41,$b2,$8d,$c1,$dc
-	dc.b	$be,$8d,$55,$17,$dc,$ea,$42,$62,$3f,$78,$63,$69,$28,$92,$04,$eb
-	dc.b	$66,$77,$71,$84,$e4,$d5,$e5,$e4,$08,$56,$67,$e4,$c0,$65,$29,$58
-	dc.b	$24,$ed,$09,$a5,$22,$1c,$54,$87,$55,$4a,$92,$2b,$01,$b7,$53,$2d
-	dc.b	$9f,$ba,$f3,$98,$18,$fb,$01,$44,$67,$41,$c9,$58,$c0,$82,$dc,$de
-	dc.b	$87,$1e,$f4,$2a,$74,$76,$f9,$68,$dd,$6b,$41,$85,$0b,$49,$cd,$dc
-	dc.b	$8f,$49,$81,$cb,$41,$75,$e2,$32,$ea,$8b,$79,$a3,$63,$c5,$e0,$98
-	dc.b	$47,$58,$41,$16,$69,$95,$a0,$6f,$8b,$83,$9a,$e5,$2b,$ea,$ab,$e0
-	dc.b	$44,$e4,$a4,$23,$e2,$c2,$df,$cd,$dd,$6d,$f6,$46,$0a,$4e,$35,$cd
-	dc.b	$78,$39,$63,$8e,$ad,$f2,$e4,$83,$bc,$51,$5f,$0e,$6a,$36,$0b,$eb
-	dc.b	$11,$45,$5b,$5f,$a6,$a2,$83,$71,$15,$29,$80,$cc,$5d,$2d,$cd,$a0
-	dc.b	$72,$56,$60,$1a,$6d,$51,$9f,$47,$67,$57,$2c,$2b,$68,$81,$d0,$0c
-	dc.b	$06,$b2,$5a,$da,$27,$c4,$da,$ac,$a0,$be,$36,$80,$95,$e1,$d5,$fe
-	dc.b	$a2,$1b,$36,$21,$c6,$79,$10,$26,$95,$bb,$ce,$70,$cc,$9b,$6e,$c8
-	dc.b	$a2,$94,$5f,$a8,$cc,$7d,$5c,$af,$6b,$7b,$77,$38,$48,$63,$d8,$3d
-	dc.b	$e8,$56,$21,$80,$aa,$3a,$45,$91,$84,$35,$41,$af,$67,$a2,$57,$1f
-	dc.b	$4e,$65,$d1,$de,$60,$c6,$49,$e8,$39,$47,$f4,$f6,$7a,$98,$26,$bd
-	dc.b	$28,$64,$dc,$e2,$ab,$2f,$51,$06,$ac,$d1,$23,$6a,$2c,$00,$d8,$58
-	dc.b	$82,$57,$9a,$b2,$74,$16,$00,$f2,$68,$27,$8b,$0e,$78,$f1,$58,$5c
-	dc.b	$3f,$77,$e3,$cf,$d5,$c6,$f8,$be,$34,$0c,$38,$3f,$e0,$88,$87,$39
-	dc.b	$c9,$6c,$93,$bb,$b9,$e6,$e7,$39,$ca,$a4,$7f,$58,$04,$56,$f3,$9c
-	dc.b	$1b,$f7,$bb,$37,$f2,$f2,$18,$73,$0a,$24,$62,$2f,$83,$b9,$4e,$19
-	dc.b	$73,$8f,$15,$c6,$bc,$b0,$2a,$67,$c5,$cd,$e4,$5b,$9c,$9a,$af,$6c
-	dc.b	$38,$84,$2a,$a0,$db,$9c,$9e,$93,$e4,$bf,$7c,$68,$2e,$d6,$c8,$0d
-	dc.b	$e0,$fb,$17,$9c,$72,$0c,$2c,$4d,$b0,$e7,$1c,$fe,$f3,$01,$80,$fe
-	dc.b	$5b,$36,$4e,$8f,$c8,$74,$c7,$d8,$83,$4a,$30,$b8,$86,$cc,$ae,$af
-	dc.b	$ad,$07,$12,$80,$1b,$8a,$21,$03,$85,$a6,$e9,$ce,$c4,$5e,$5d,$a0
-	dc.b	$e0,$ea,$2d,$96,$66,$09,$a0,$9c,$cf,$dc,$37,$0e,$a9,$bf,$6f,$2c
-	dc.b	$73,$4f,$ee,$fe,$96,$39,$b2,$c1,$56,$87,$78,$43,$bf,$57,$3b,$a4
-	dc.b	$aa,$68,$d3,$dd,$0d,$7a,$b1,$fc,$f1,$b9,$16,$de,$f4,$47,$1a,$06
-	dc.b	$2e,$bd,$c8,$55,$3d,$32,$19,$73,$b3,$4f,$57,$23,$ce,$70,$ae,$a6
-	dc.b	$b5,$e5,$ad,$0e,$1d,$44,$6d,$35,$1a,$ac,$d1,$d6,$d1,$9a,$e7,$54
-	dc.b	$74,$3f,$00,$53,$88,$55,$24,$fb,$95,$b0,$d9,$5f,$96,$91,$9f,$8f
-	dc.b	$ec,$2c,$af,$9b,$25,$1f,$c2,$06,$45,$aa,$52,$6b,$f7,$97,$86,$72
-	dc.b	$8e,$6c,$cc,$12,$d5,$2d,$d9,$10,$3d,$cb,$ca,$70,$22,$09,$b5,$06
-	dc.b	$af,$91,$1a,$f9,$c4,$06,$8d,$fd,$94,$ce,$a6,$3b,$20,$70,$3d,$d6
-	dc.b	$37,$c6,$38,$12,$ad,$93,$c0,$b2,$1e,$4b,$e0,$6c,$8e,$5e,$2c,$1a
-	dc.b	$f9,$cf,$66,$03,$29,$c0,$7b,$aa,$27,$2d,$98,$02,$c5,$b4,$be,$c7
-	dc.b	$7c,$91,$37,$fc,$50,$e0,$27,$72,$3e,$b7,$e4,$23,$5a,$c0,$b8,$c1
-	dc.b	$5a,$f6,$f2,$b3,$a5,$77,$b9,$7a,$89,$2a,$71,$cf,$c6,$e6,$b5,$5c
-	dc.b	$2f,$a9,$df,$b7,$03,$da,$fa,$78,$f8,$f6,$77,$c7,$a9,$2a,$39,$10
-	dc.b	$8d,$51,$bb,$79,$53,$34,$b5,$c8,$ca,$72,$2c,$21,$16,$3c,$7e,$24
-	dc.b	$02,$34,$bf,$67,$fe,$6a,$0c,$ec,$88,$d6,$20,$62,$d0,$0d,$3a,$a9
-	dc.b	$cf,$c6,$ea,$72,$96,$25,$77,$83,$62,$0e,$c0,$6f,$c9,$c7,$ec,$75
-	dc.b	$c5,$98,$02,$5d,$bd,$45,$5d,$f8,$23,$66,$1a,$58,$1b,$b9,$a2,$49
-	dc.b	$e5,$5a,$21,$71,$20,$f9,$99,$30,$1b,$09,$0c,$9c,$93,$54,$9b,$52
-	dc.b	$bb,$d3,$d8,$05,$a1,$f6,$02,$ae,$d1,$af,$a1,$d1,$6d,$1c,$0d,$3c
-	dc.b	$7c,$3e,$e8,$e6,$05,$dd,$22,$ad,$8d,$4a,$d2,$e5,$e2,$67,$1b,$9d
-	dc.b	$aa,$92,$d0,$03,$92,$d1,$aa,$db,$92,$5e,$dc,$56,$87,$02,$ab,$64
-	dc.b	$97,$9a,$c0,$68,$a8,$39,$a5,$53,$1a,$cb,$48,$7c,$d8,$d8,$58,$e8
-	dc.b	$82,$ad,$2e,$73,$6f,$ef,$70,$3e,$37,$d4,$c9,$74,$7f,$2d,$d1,$c8
-	dc.b	$0d,$ef,$f2,$fe,$fc,$2b,$e7,$c0,$8b,$31,$d2,$74,$a1,$3f,$d9,$a7
-	dc.b	$c6,$75,$94,$76,$c1,$c2,$20,$d9,$65,$36,$40,$ab,$5c,$19,$e4,$ad
-	dc.b	$e6,$d0,$70,$c7,$45,$8e,$07,$3f,$52,$b3,$0c,$3c,$dd,$bf,$45,$b1
-	dc.b	$62,$6f,$6a,$7c,$4f,$a0,$ec,$59,$44,$df,$77,$a6,$85,$22,$e5,$b9
-	dc.b	$d2,$66,$0e,$20,$0a,$02,$3e,$0c,$93,$e2,$ef,$45,$e4,$95,$d9,$51
-	dc.b	$27,$79,$7c,$97,$93,$46,$be,$0e,$f8,$9f,$ab,$77,$28,$9e,$17,$90
-	dc.b	$b1,$c7,$4b,$0e,$53,$73,$52,$f7,$3d,$1d,$1c,$07,$21,$a7,$8b,$2c
-	dc.b	$e5,$f5,$6b,$1b,$34,$06,$1a,$80,$46,$03,$c0,$44,$c9,$de,$30,$f6
-	dc.b	$a5,$2c,$6b,$40,$0f,$f7,$43,$4f,$2b,$35,$b1,$74,$15,$f4,$0e,$51
-	dc.b	$b8,$fc,$23,$6d,$bf,$46,$19,$7b,$34,$ac,$f0,$bb,$55,$d2,$d1,$23
-	dc.b	$16,$4d,$95,$38,$bb,$e1,$aa,$73,$e5,$9c,$f5,$1e,$57,$c6,$e5,$be
-	dc.b	$4e,$05,$66,$06,$2b,$35,$e7,$c8,$c4,$cb,$3a,$d5,$26,$ca,$70,$e6
-	dc.b	$a2,$2e,$9c,$2e,$93,$17,$11,$52,$da,$10,$47,$81,$e5,$20,$af,$99
-	dc.b	$be,$42,$f0,$6a,$fb,$7a,$b4,$cc,$29,$66,$57,$7c,$25,$66,$d3,$7d
-	dc.b	$3d,$36,$24,$36,$4e,$6a,$2a,$c0,$60,$b4,$0d,$20,$db,$fa,$80,$fa
-	dc.b	$bd,$4c,$11,$b1,$20,$25,$a1,$f3,$39,$f5,$da,$92,$bb,$14,$ba,$17
-	dc.b	$d7,$d9,$4a,$10,$1f,$24,$c0,$a1,$24,$3d,$0d,$91,$a8,$50,$f6,$01
-	dc.b	$59,$82,$69,$9b,$90,$fd,$a3,$96,$70,$9d,$ee,$23,$72,$d3,$86,$aa
-	dc.b	$35,$91,$77,$1d,$92,$fb,$16,$49,$9f,$e1,$54,$97,$c4,$17,$f9,$eb
-	dc.b	$6f,$10,$2f,$c3,$78,$7f,$10,$6f,$f6,$62,$05,$7e,$df,$a6,$b7,$88
-	dc.b	$7f,$f9,$ee,$21,$9f,$c6,$c4,$7a,$b0,$2e,$22,$bf,$db,$7c,$43,$3f
-	dc.b	$8c,$4e,$20,$df,$ec,$bb,$10,$cb,$8b,$88,$e7,$f6,$b1,$15,$fe,$c2
-	dc.b	$71,$0c,$fe,$57,$cb,$10,$cb,$1d,$8d,$cd,$65,$b5,$d5,$6c,$70,$fd
-	dc.b	$f2,$8d,$be,$f5,$7d,$3c,$e5,$61,$59,$77,$d6,$94,$59,$c1,$68,$90
-	dc.b	$0c,$c7,$69,$f6,$35,$fe,$4d,$c3,$7a,$88,$d5,$4f,$68,$69,$12,$a8
-	dc.b	$1f,$f2,$fd,$62,$7c,$9f,$0d,$38,$f4,$77,$e9,$b3,$f3,$7e,$ce,$c2
-	dc.b	$47,$5b,$df,$28,$17,$ef,$69,$07,$43,$bb,$ed,$ce,$d8,$8e,$59,$1b
-	dc.b	$3a,$d3,$31,$0e,$c6,$c3,$bb,$34,$d4,$29,$fd,$ac,$01,$be,$a8,$69
-	dc.b	$10,$10,$98,$d4,$57,$fd,$0d,$de,$9b,$e9,$e1,$dd,$7b,$98,$f0,$f2
-	dc.b	$7e,$36,$b5,$ac,$a9,$60,$18,$7f,$c9,$c3,$07,$6a,$80,$db,$5c,$14
-	dc.b	$8c,$6a,$53,$64,$24,$ae,$55,$a2,$7e,$f8,$f6,$82,$fe,$68,$f5,$82
-	dc.b	$44,$24,$7d,$44,$5f,$32,$1c,$bd,$1d,$2d,$0b,$34,$1a,$a2,$e7,$0e
-	dc.b	$b9,$67,$1a,$d6,$11,$b9,$ec,$6e,$89,$58,$6c,$ed,$67,$02,$4f,$f2
-	dc.b	$80,$69,$c0,$d3,$90,$7c,$64,$ef,$3a,$1f,$9c,$63,$53,$31,$06,$65
-	dc.b	$57,$c9,$ca,$db,$3b,$23,$f7,$31,$df,$df,$1e,$ce,$cb,$6e,$c2,$f4
-	dc.b	$9e,$b3,$cf,$fb,$f2,$c7,$1f,$97,$c7,$0d,$d5,$4e,$bc,$67,$07,$aa
-	dc.b	$8d,$e7,$4e,$2d,$ee,$b4,$dc,$7f,$7b,$a9,$b3,$f7,$f0,$7b,$3f,$21
-	dc.b	$c5,$66,$c5,$70,$6e,$6b,$a3,$50,$d5,$5e,$33,$80,$e2,$d4,$66,$99
-	dc.b	$0b,$a4,$a3,$30,$d6,$7e,$78,$fd,$8c,$f3,$8d,$08,$29,$ab,$b0,$75
-	dc.b	$4a,$b7,$b3,$f2,$ab,$43,$4d,$2e,$c8,$33,$d1,$e0,$dd,$f5,$24,$ba
-	dc.b	$bf,$eb,$63,$97,$75,$ac,$e9,$10,$75,$c3,$c6,$fa,$db,$5a,$c1,$d6
-	dc.b	$00,$c5,$11,$a2,$35,$f2,$34,$b0,$74,$7e,$b1,$a6,$28,$93,$ad,$3e
-	dc.b	$8e,$bc,$d0,$04,$48,$eb,$88,$18,$32,$68,$80,$a4,$9a,$12,$30,$5e
-	dc.b	$33,$d5,$77,$10,$4c,$ef,$54,$75,$87,$ae,$2e,$9d,$24,$c3,$67,$eb
-	dc.b	$aa,$83,$62,$bb,$a2,$1d,$79,$86,$6e,$46,$d2,$75,$6e,$87,$f2,$03
-	dc.b	$4a,$82,$86,$93,$d6,$7d,$a2,$2d,$28,$2b,$a6,$0b,$0b,$b6,$ba,$22
-	dc.b	$cc,$19,$09,$f4,$1a,$00,$ff,$df,$db,$87,$75,$12,$b7,$c2,$70,$9a
-	dc.b	$a4,$ba,$b5,$93,$7d,$9e,$e7,$d5,$2e,$97,$db,$d4,$e0,$e2,$e2,$3c
-	dc.b	$05,$d0,$bb,$a2,$0a,$27,$4d,$5f,$37,$c2,$73,$ec,$5a,$8b,$99,$41
-	dc.b	$74,$96,$dd,$ae,$64,$16,$c4,$db,$6a,$c0,$31,$82,$6d,$ee,$4c,$c9
-	dc.b	$28,$bb,$8f,$c2,$7a,$d5,$68,$61,$e6,$ea,$e2,$29,$9f,$05,$4f,$da
-	dc.b	$e8,$73,$bf,$5d,$76,$75,$e5,$81,$6d,$68,$08,$c6,$96,$f2,$b8,$e8
-	dc.b	$d8,$81,$5b,$af,$23,$af,$28,$d2,$54,$2e,$e2,$d1,$64,$ba,$5e,$da
-	dc.b	$07,$14,$c4,$7c,$da,$24,$47,$ee,$5d,$c8,$9a,$be,$2f,$ca,$43,$bb
-	dc.b	$89,$c1,$34,$ca,$ac,$d6,$82,$cc,$8f,$d7,$6e,$21,$0e,$36,$9d,$9c
-	dc.b	$80,$bb,$8c,$00,$42,$ee,$88,$08,$a0,$3c,$f3,$48,$61,$4a,$15,$72
-	dc.b	$3e,$d4,$61,$95,$8b,$d3,$eb,$f6,$82,$0f,$36,$8e,$92,$b8,$0d,$26
-	dc.b	$a8,$75,$8e,$77,$88,$3c,$a4,$5d,$5d,$83,$70,$c9,$a2,$2a,$e2,$68
-	dc.b	$01,$c9,$aa,$33,$ab,$83,$85,$d0,$a9,$3f,$9b,$a7,$8f,$95,$c6,$16
-	dc.b	$62,$0d,$b5,$69,$75,$df,$1d,$41,$6d,$78,$0b,$c6,$1b,$12,$07,$5d
-	dc.b	$b3,$14,$5f,$78,$55,$84,$20,$a2,$62,$20,$66,$4e,$eb,$81,$8b,$c8
-	dc.b	$45,$e3,$84,$5e,$a0,$cf,$fe,$a2,$db,$51,$2d,$f3,$6c,$d0,$f7,$62
-	dc.b	$27,$48,$b9,$17,$6c,$3d,$e6,$83,$5d,$e1,$52,$6f,$20,$2d,$61,$db
-	dc.b	$b6,$2c,$2a,$da,$7a,$6c,$20,$7c,$a0,$2c,$3d,$32,$23,$3a,$b2,$92
-	dc.b	$34,$15,$cd,$aa,$43,$26,$b0,$10,$6d,$0b,$99,$95,$82,$9d,$5c,$a1
-	dc.b	$73,$b3,$0e,$52,$55,$33,$e2,$48,$41,$1d,$58,$37,$1c,$10,$5f,$2b
-	dc.b	$4f,$91,$74,$8d,$d8,$ad,$46,$1b,$31,$6a,$78,$be,$f5,$bc,$ab,$d0
-	dc.b	$07,$72,$c1,$2e,$3a,$7c,$e9,$24,$bc,$1c,$fa,$a3,$f6,$04,$f7,$0b
-	dc.b	$c8,$9b,$a2,$22,$72,$34,$ef,$1a,$1b,$6e,$88,$80,$d8,$de,$08,$29
-	dc.b	$62,$de,$ea,$94,$55,$68,$46,$d4,$2e,$0a,$03,$60,$e3,$cb,$35,$17
-	dc.b	$36,$05,$30,$54,$14,$83,$f6,$83,$a0,$1c,$14,$a0,$aa,$4d,$e5,$6a
-	dc.b	$91,$08,$59,$20,$af,$3c,$80,$d7,$da,$90,$4b,$6d,$ef,$97,$b0,$16
-	dc.b	$be,$9d,$43,$8a,$2d,$f9,$1a,$82,$ac,$fd,$fd,$77,$49,$60,$0a,$13
-	dc.b	$79,$07,$56,$1d,$a5,$62,$ee,$c4,$56,$2d,$93,$b7,$5e,$06,$d2,$1a
-	dc.b	$f8,$29,$7c,$88,$c5,$5a,$42,$f6,$20,$41,$f9,$00,$be,$d4,$95,$3a
-	dc.b	$00,$c4,$50,$67,$c0,$25,$29,$69,$82,$35,$b9,$11,$b4,$0a,$58,$29
-	dc.b	$bc,$d2,$18,$a8,$c3,$97,$e1,$d6,$07,$39,$d8,$5c,$16,$e2,$52,$13
-	dc.b	$e7,$bc,$3a,$08,$c1,$9a,$b7,$7b,$a1,$5f,$18,$8d,$8b,$1b,$7a,$d5
-	dc.b	$53,$1b,$77,$72,$87,$dd,$a8,$e7,$47,$50,$eb,$62,$d3,$47,$fe,$e6
-	dc.b	$71,$a7,$e5,$59,$68,$05,$33,$7c,$44,$f6,$1d,$d2,$f6,$f6,$91,$cb
-	dc.b	$81,$77,$a0,$29,$88,$2c,$f6,$98,$1c,$d2,$58,$c5,$f3,$17,$ba,$07
-	dc.b	$a1,$1a,$88,$44,$4c,$02,$e8,$b7,$24,$3e,$6a,$e7,$57,$e1,$65,$c4
-	dc.b	$e8,$72,$6a,$51,$23,$af,$59,$bc,$aa,$c3,$fb,$8a,$e8,$47,$1f,$87
-	dc.b	$2c,$3b,$45,$73,$a9,$22,$dc,$41,$49,$d4,$4c,$59,$bb,$32,$23,$d5
-	dc.b	$d8,$94,$15,$0e,$44,$85,$01,$60,$03,$94,$55,$da,$8e,$77,$26,$9f
-	dc.b	$7f,$2a,$bf,$7e,$81,$5f,$81,$73,$04,$7e,$67,$26,$ed,$20,$eb,$1f
-	dc.b	$3c,$d2,$10,$da,$dc,$d3,$5c,$1d,$43,$89,$bf,$df,$10,$59,$f9,$8b
-	dc.b	$c0,$dc,$e2,$ba,$6d,$41,$15,$9d,$eb,$b9,$46,$5e,$36,$0b,$52,$7b
-	dc.b	$12,$0c,$f6,$e8,$95,$49,$58,$74,$2d,$b7,$12,$a9,$d7,$99,$d7,$59
-	dc.b	$e8,$d7,$b2,$f9,$50,$bc,$73,$de,$03,$ce,$aa,$d4,$8a,$ec,$dc,$da
-	dc.b	$38,$67,$10,$b9,$82,$29,$30,$e9,$02,$6e,$89,$aa,$77,$80,$dc,$43
-	dc.b	$e4,$56,$c7,$2c,$d8,$59,$c8,$33,$86,$8b,$54,$f2,$15,$af,$ff,$0b
-	dc.b	$2b,$b3,$22,$3a,$7b,$22,$77,$66,$d6,$cb,$0a,$eb,$ea,$b1,$15,$5c
-	dc.b	$b4,$10,$53,$f2,$1c,$47,$43,$be,$69,$11,$5b,$e4,$1b,$a8,$b6,$c8
-	dc.b	$65,$2b,$6f,$9c,$f2,$2a,$b0,$e9,$de,$48,$bb,$32,$b2,$0a,$43,$8b
-	dc.b	$2f,$0e,$cc,$11,$aa,$54,$a9,$d3,$81,$6c,$e8,$bb,$cd,$21,$4d,$8d
-	dc.b	$4d,$dd,$f9,$ad,$40,$c7,$0f,$be,$20,$8d,$c8,$5a,$ce,$a5,$b5,$1e
-	dc.b	$39,$5f,$12,$a2,$17,$3d,$86,$2d,$6f,$12,$74,$45,$22,$fd,$23,$2a
-	dc.b	$f5,$7d,$66,$33,$bb,$a5,$55,$4a,$da,$4d,$89,$2f,$87,$b4,$e1,$28
-	dc.b	$d8,$0f,$e9,$c5,$f8,$3c,$96,$02,$a5,$0e,$2b,$de,$81,$54,$a9,$c9
-	dc.b	$2c,$26,$41,$37,$12,$3a,$ac,$94,$12,$ec,$b2,$e2,$40,$1d,$08,$43
-	dc.b	$b1,$30,$ae,$28,$f5,$d2,$6a,$be,$49,$35,$1b,$16,$50,$f0,$9a,$ba
-	dc.b	$fd,$38,$9b,$fa,$7a,$31,$f9,$f7,$eb,$1a,$b0,$1b,$16,$35,$84,$36
-	dc.b	$b9,$31,$2b,$57,$2f,$ae,$99,$11,$5d,$ba,$a7,$6c,$0e,$82,$29,$11
-	dc.b	$14,$68,$00,$79,$01,$08,$85,$56,$63,$3b,$8b,$90,$91,$23,$4a,$4e
-	dc.b	$c9,$e2,$d9,$82,$2c,$c3,$80,$34,$31,$47,$5b,$f6,$c1,$9f,$ec,$6b
-	dc.b	$f7,$6c,$19,$ff,$16,$0e,$ff,$96,$ec,$09,$fe,$17,$6d,$b0,$53,$f9
-	dc.b	$42,$55,$f2,$c0,$5f,$f9,$58,$1c,$c3,$fb,$25,$4c,$f7,$66,$d4,$76
-	dc.b	$d6,$89,$38,$1a,$15,$f6,$75,$12,$3a,$b4,$0b,$08,$f5,$bc,$69,$2d
-	dc.b	$b3,$b6,$24,$8a,$f5,$e8,$c3,$ff,$e2,$10,$59,$fe,$b5,$27,$12,$a9
-	dc.b	$e4,$39,$6d,$12,$42,$64,$7a,$bd,$c1,$7a,$95,$c3,$57,$c6,$26,$2c
-	dc.b	$78,$75,$4a,$c7,$92,$34,$6a,$a1,$9a,$53,$56,$ac,$29,$c8,$2e,$dc
-	dc.b	$1c,$d2,$fe,$8f,$83,$ce,$51,$ad,$a9,$09,$45,$c9,$d3,$19,$5c,$3d
-	dc.b	$95,$dd,$18,$f8,$e7,$06,$42,$96,$fa,$10,$b3,$3f,$5e,$dc,$42,$d6
-	dc.b	$cf,$50,$08,$f8,$2b,$49,$b3,$13,$28,$0a,$8c,$43,$9c,$d7,$33,$f0
-	dc.b	$24,$57,$2a,$0a,$f2,$b6,$db,$84,$ac,$01,$16,$37,$b0,$ef,$34,$11
-	dc.b	$61,$18,$28,$2c,$68,$2d,$42,$bc,$d0,$cf,$6c,$93,$61,$fd,$6e,$c9
-	dc.b	$cc,$dc,$5b,$21,$2f,$8b,$c8,$1b,$b2,$04,$24,$dc,$e5,$83,$de,$a7
-	dc.b	$c9,$33,$07,$38,$aa,$26,$c2,$b8,$4e,$34,$65,$e1,$b4,$55,$60,$2b
-	dc.b	$c7,$f5,$a4,$34,$6d,$cb,$de,$bd,$ee,$44,$3b,$e5,$b7,$6a,$7e,$f7
-	dc.b	$2b,$ea,$25,$a1,$b9,$59,$61,$b4,$50,$03,$43,$c9,$d6,$7c,$7d,$21
-	dc.b	$aa,$8c,$02,$b7,$e0,$c8,$2e,$b8,$e7,$61,$67,$33,$08,$a5,$65,$71
-	dc.b	$aa,$91,$3d,$7a,$6d,$b9,$79,$af,$66,$47,$16,$90,$63,$f9,$ff,$5c
-	dc.b	$1e,$aa,$55,$f5,$8a,$d4,$5b,$37,$7a,$91,$16,$ad,$01,$4f,$94,$da
-	dc.b	$57,$27,$4a,$73,$62,$f3,$ac,$d2,$02,$ac,$39,$7c,$53,$88,$45,$6b
-	dc.b	$cf,$58,$25,$d5,$60,$45,$46,$dc,$bc,$4f,$c8,$d9,$6e,$84,$9e,$70
-	dc.b	$13,$cf,$34,$32,$fa,$3b,$4f,$7a,$fc,$b2,$8e,$d1,$de,$28,$64,$5e
-	dc.b	$d1,$15,$56,$bc,$42,$98,$d8,$f5,$58,$a5,$2d,$de,$ad,$32,$f7,$d2
-	dc.b	$dd,$1f,$aa,$1e,$2c,$65,$e1,$88,$4e,$cb,$2b,$76,$be,$12,$9d,$c8
-	dc.b	$9b,$1e,$fc,$88,$d3,$34,$d3,$7e,$6d,$2e,$d6,$9d,$6b,$90,$14,$32
-	dc.b	$35,$27,$58,$86,$1b,$c3,$15,$c9,$1c,$03,$05,$0c,$ca,$2e,$cf,$85
-	dc.b	$12,$2d,$eb,$da,$35,$9f,$16,$e2,$24,$2c,$15,$ab,$62,$9f,$5e,$a4
-	dc.b	$3d,$8f,$a3,$21,$ba,$18,$2d,$bb,$3e,$2c,$18,$d4,$59,$a2,$aa,$32
-	dc.b	$d5,$cd,$15,$53,$7c,$e2,$cf,$1f,$d4,$8b,$7c,$3c,$88,$19,$07,$a0
-	dc.b	$3a,$59,$88,$45,$b3,$99,$ec,$b3,$6f,$b5,$21,$b0,$ad,$11,$4f,$91
-	dc.b	$b3,$d1,$a3,$f6,$20,$97,$f5,$e6,$88,$be,$d9,$dd,$f5,$a0,$72,$22
-	dc.b	$7a,$99,$d8,$0a,$73,$9a,$f7,$25,$bf,$9e,$b1,$62,$98,$f3,$22,$22
-	dc.b	$4d,$75,$9d,$f8,$e3,$4e,$d0,$e1,$13,$66,$2b,$84,$e2,$c2,$b8,$b4
-	dc.b	$8b,$72,$76,$22,$d8,$90,$66,$db,$f3,$73,$d1,$6c,$45,$7a,$20,$ed
-	dc.b	$34,$0f,$7e,$6e,$5a,$58,$0e,$d9,$80,$df,$a9,$c7,$80,$65,$f1,$b0
-	dc.b	$57,$d0,$43,$e8,$4c,$29,$60,$f3,$f3,$b6,$55,$c4,$44,$8a,$38,$d7
-	dc.b	$7b,$01,$c8,$4d,$7c,$07,$31,$ad,$13,$1a,$bc,$30,$6b,$97,$bc,$c0
-	dc.b	$7a,$f6,$ba,$fe,$06,$07,$2d,$5c,$9e,$4a,$c0,$73,$77,$4d,$04,$a5
-	dc.b	$1a,$66,$1f,$9b,$20,$6c,$5a,$02,$d0,$60,$30,$37,$b9,$c8,$a7,$39
-	dc.b	$ae,$48,$d9,$66,$23,$6e,$03,$80,$ac,$01,$10,$52,$07,$79,$a2,$23
-	dc.b	$12,$9b,$cf,$49,$7d,$01,$9b,$98,$76,$99,$ca,$24,$a4,$59,$4a,$69
-	dc.b	$bb,$9e,$8f,$88,$9c,$d9,$d8,$a6,$b6,$24,$f8,$57,$79,$b4,$cf,$62
-	dc.b	$c6,$99,$75,$50,$6a,$a5,$3e,$53,$ae,$88,$7a,$6e,$a4,$eb,$ed,$f3
-	dc.b	$8d,$5d,$52,$cf,$6f,$45,$5a,$9f,$6a,$01,$86,$41,$2c,$36,$28,$90
-	dc.b	$a4,$3d,$8c,$0b,$c4,$1b,$53,$61,$34,$f4,$32,$77,$c2,$aa,$80,$ca
-	dc.b	$b9,$d4,$5b,$25,$55,$7c,$90,$b9,$01,$3b,$c4,$39,$3d,$b9,$0e,$20
-	dc.b	$60,$f1,$44,$88,$43,$f0,$13,$30,$19,$e2,$a8,$47,$e7,$c8,$d5,$c8
-	dc.b	$92,$c6,$71,$d6,$27,$44,$62,$5e,$b1,$d4,$4c,$35,$6c,$6d,$52,$19
-	dc.b	$91,$0e,$d8,$58,$2d,$2a,$f6,$55,$91,$b2,$c3,$e9,$d9,$49,$55,$b3
-	dc.b	$40,$ca,$74,$ce,$dc,$40,$7f,$cb,$7e,$21,$3f,$ee,$c4,$27,$ff,$2f
-	dc.b	$3a,$4b,$ad,$45,$a3,$e4,$c3,$b5,$83,$74,$66,$2b,$17,$53,$11,$bf
-	dc.b	$db,$b3,$93,$1f,$ca,$29,$a3,$15,$e5,$f9,$3f,$be,$ce,$11,$0e,$62
-	dc.b	$b9,$44,$7e,$39,$f2,$6e,$16,$e2,$a6,$cc,$c1,$b1,$d5,$22,$e9,$b7
-	dc.b	$fe,$38,$f6,$e1,$22,$2d,$03,$37,$43,$23,$ac,$f4,$f7,$40,$33,$10
-	dc.b	$43,$55,$25,$68,$6c,$37,$42,$10,$ba,$83,$b3,$00,$c7,$19,$aa,$f6
-	dc.b	$52,$bc,$a0,$ce,$ac,$35,$98,$72,$db,$97,$70,$cf,$b7,$49,$91,$98
-	dc.b	$0a,$11,$88,$32,$cc,$5c,$86,$a6,$a6,$bf,$d3,$05,$83,$f8,$cd,$fd
-	dc.b	$ca,$f8,$c1,$01,$66,$60,$8b,$d9,$7a,$a2,$8f,$b2,$1c,$67,$52,$66
-	dc.b	$ce,$0a,$d1,$09,$79,$18,$f0,$f0,$0f,$98,$8e,$3a,$c6,$90,$0f,$bc
-	dc.b	$5d,$26,$6a,$b0,$0d,$b8,$f0,$56,$21,$cc,$c1,$97,$02,$d8,$7b,$bc
-	dc.b	$d1,$18,$3e,$9a,$35,$e6,$d4,$6a,$b3,$e6,$d5,$3e,$83,$6e,$31,$25
-	dc.b	$70,$b2,$fe,$ab,$e8,$db,$8b,$46,$b5,$f1,$61,$fb,$44,$c9,$44,$39
-	dc.b	$b4,$26,$c6,$65,$57,$e9,$97,$25,$60,$cc,$6c,$96,$2a,$45,$e8,$f1
-	dc.b	$95,$9c,$95,$2e,$7e,$51,$c9,$e5,$19,$b8,$58,$3a,$34,$03,$15,$80
-	dc.b	$72,$b3,$98,$76,$a5,$18,$90,$94,$e2,$90,$75,$35,$8b,$05,$d6,$93
-	dc.b	$61,$49,$82,$c3,$b3,$76,$01,$8d,$5a,$47,$aa,$23,$8f,$73,$2e,$c4
-	dc.b	$d8,$52,$88,$28,$46,$57,$ab,$4e,$fa,$af,$db,$da,$36,$fe,$bf,$68
-	dc.b	$14,$f2,$27,$47,$d6,$f2,$60,$8b,$ed,$5e,$a3,$9e,$20,$a2,$c3,$02
-	dc.b	$f3,$2a,$29,$3a,$e4,$83,$81,$d2,$8f,$0e,$d8,$f8,$55,$d3,$8c,$24
-	dc.b	$0a,$38,$2a,$3e,$59,$10,$0d,$ef,$a6,$1d,$2f,$21,$4d,$dd,$0a,$7e
-	dc.b	$17,$02,$b7,$9a,$23,$16,$76,$b7,$d6,$ba,$e4,$03,$d3,$0e,$d2,$27
-	dc.b	$2e,$6d,$15,$54,$5b,$b1,$0f,$38,$af,$95,$54,$66,$9a,$f5,$5e,$32
-	dc.b	$df,$39,$11,$2e,$5b,$86,$1e,$a9,$9f,$90,$1c,$8c,$55,$9b,$a2,$19
-	dc.b	$22,$fc,$7b,$41,$ad,$06,$da,$4d,$8e,$05,$a4,$dc,$3f,$e2,$9f,$74
-	dc.b	$03,$19,$44,$10,$08,$b4,$18,$ce,$84,$36,$62,$0e,$99,$d9,$7b,$0b
-	dc.b	$a2,$35,$71,$8d,$77,$6c,$51,$e5,$6c,$f5,$5d,$c8,$b8,$1a,$36,$96
-	dc.b	$02,$c6,$29,$37,$43,$49,$cd,$c2,$47,$ba,$a9,$0f,$d1,$a0,$5f,$4a
-	dc.b	$9a,$04,$86,$64,$24,$00,$1c,$c2,$29,$55,$7a,$97,$5a,$d9,$31,$40
-	dc.b	$a8,$b6,$54,$52,$c7,$fc,$8e,$bd,$a6,$55,$fc,$da,$b0,$32,$ee,$e8
-	dc.b	$f6,$07,$c3,$4b,$0e,$52,$2c,$0e,$50,$ec,$1c,$f9,$61,$b2,$68,$ad
-	dc.b	$bc,$d2,$14,$bf,$e9,$77,$68,$6e,$62,$b9,$9b,$64,$59,$e3,$94,$83
-	dc.b	$b1,$7a,$6e,$67,$a1,$93,$71,$63,$21,$44,$c6,$97,$f8,$a2,$25,$5d
-	dc.b	$88,$1c,$34,$2b,$94,$55,$9d,$6d,$24,$6d,$2b,$f9,$3b,$3e,$26,$7b
-	dc.b	$69,$36,$55,$ae,$91,$83,$a7,$23,$d6,$ff,$b4,$0a,$73,$51,$24,$00
-	dc.b	$de,$6d,$1c,$95,$82,$ca,$4e,$97,$7f,$51,$49,$fd,$11,$a8,$74,$05
-	dc.b	$14,$80,$fd,$34,$3e,$65,$a0,$3a,$e2,$c2,$bc,$9f,$4e,$2d,$08,$fe
-	dc.b	$e9,$07,$76,$8e,$7a,$ec,$dd,$e4,$6f,$ca,$c5,$a1,$b9,$0d,$68,$45
-	dc.b	$bb,$d4,$15,$0a,$45,$91,$e4,$6a,$eb,$87,$04,$e9,$33,$1b,$6f,$37
-	dc.b	$cf,$2a,$99,$b9,$01,$e3,$9f,$60,$14,$36,$96,$2c,$c1,$dd,$b1,$c8
-	dc.b	$9f,$5e,$42,$9d,$bd,$61,$9a,$be,$80,$ef,$34,$75,$83,$e7,$78,$79
-	dc.b	$9b,$1e,$5d,$52,$9b,$25,$d5,$59,$0d,$a5,$46,$f4,$1d,$bd,$a6,$c0
-	dc.b	$f4,$5b,$5e,$5d,$56,$ae,$8c,$8f,$94,$e7,$39,$ea,$21,$cd,$ad,$cc
-	dc.b	$93,$81,$86,$45,$eb,$65,$8b,$45,$85,$a3,$6e,$97,$5c,$ab,$6f,$1d
-	dc.b	$b3,$8e,$b6,$79,$85,$f9,$dd,$fa,$ef,$20,$db,$6b,$63,$91,$ba,$68
-	dc.b	$66,$f4,$36,$28,$64,$eb,$4f,$1d,$32,$54,$c4,$6a,$75,$8f,$a6,$e9
-	dc.b	$d4,$e6,$83,$aa,$50,$0e,$63,$b7,$bd,$66,$03,$04,$11,$6a,$d6,$84
-	dc.b	$77,$75,$77,$57,$b4,$33,$e6,$1b,$c8,$0f,$fb,$75,$f7,$a8,$52,$98
-	dc.b	$33,$6b,$2d,$05,$27,$31,$13,$96,$8b,$4c,$81,$e2,$aa,$bc,$d1,$a0
-	dc.b	$86,$fd,$11,$8d,$12,$20,$a6,$57,$03,$ec,$6f,$7a,$ce,$60,$65,$92
-	dc.b	$1a,$7d,$61,$c9,$98,$df,$21,$49,$5e,$40,$8d,$82,$c1,$79,$a4,$37
-	dc.b	$bc,$63,$47,$95,$7f,$be,$56,$3d,$52,$f2,$6a,$87,$74,$db,$74,$dd
-	dc.b	$e7,$73,$26,$a8,$f7,$59,$d7,$12,$1e,$cd,$0d,$10,$e7,$88,$99,$1b
-	dc.b	$8d,$05,$e7,$14,$b4,$2e,$b7,$73,$6c,$6a,$6f,$1c,$ad,$6b,$a6,$4d
-	dc.b	$85,$b2,$1a,$bf,$b4,$c7,$6a,$e4,$1b,$57,$1f,$08,$6a,$3b,$28,$75
-	dc.b	$a5,$86,$92,$9d,$36,$d9,$c8,$f2,$b9,$42,$35,$65,$94,$ad,$3b,$65
-	dc.b	$62,$d0,$f9,$e5,$c0,$84,$39,$96,$2e,$68,$27,$d0,$8e,$ef,$5d,$e3
-	dc.b	$88,$d9,$9c,$85,$b5,$21,$7d,$48,$48,$d0,$05,$79,$2a,$a8,$ad,$d4
-	dc.b	$a3,$45,$92,$64,$4f,$8a,$aa,$99,$6b,$92,$0f,$79,$05,$ef,$98,$69
-	dc.b	$f5,$81,$b2,$c6,$4f,$60,$30,$0c,$05,$cd,$6e,$7e,$31,$98,$d6,$38
-	dc.b	$d4,$87,$cb,$6c,$f3,$48,$5a,$2a,$b7,$f3,$b1,$e2,$0c,$66,$96,$86
-	dc.b	$69,$c1,$0c,$9a,$a0,$3e,$17,$77,$7a,$1b,$f6,$93,$54,$d2,$1b,$ef
-	dc.b	$4d,$dd,$8a,$7a,$21,$ce,$b7,$6a,$16,$fc,$6a,$a4,$a2,$c7,$38,$8c
-	dc.b	$2b,$0d,$db,$fb,$82,$fd,$51,$e8,$b0,$d7,$b0,$71,$97,$16,$a0,$3f
-	dc.b	$9b,$6a,$d3,$f5,$e8,$40,$ce,$be,$41,$b2,$f7,$4b,$5a,$4e,$85,$6a
-	dc.b	$f7,$2b,$2a,$1c,$93,$ea,$71,$d9,$db,$68,$7c,$ea,$f9,$f1,$f8,$25
-	dc.b	$55,$51,$a4,$6c,$d2,$0f,$50,$e0,$2d,$6c,$c0,$6a,$c5,$ae,$e9,$e4
-	dc.b	$8c,$9a,$83,$e5,$41,$97,$a4,$1c,$52,$26,$35,$07,$3a,$79,$50,$ca
-	dc.b	$1b,$c8,$eb,$c3,$40,$d4,$c2,$0c,$9f,$80,$54,$ae,$33,$ec,$26,$8e
-	dc.b	$31,$01,$9d,$7f,$67,$e0,$0d,$f9,$01,$9f,$84,$82,$b2,$96,$f7,$9a
-	dc.b	$3a,$88,$7a,$e2,$78,$6f,$84,$06,$2d,$45,$50,$c2,$c8,$d1,$b4,$0d
-	dc.b	$dd,$e7,$c2,$a5,$ed,$1c,$85,$aa,$6a,$28,$a8,$21,$a4,$e8,$9b,$7a
-	dc.b	$ee,$b0,$07,$0a,$f5,$aa,$f0,$c5,$4c,$54,$39,$3b,$68,$5e,$85,$67
-	dc.b	$8e,$e6,$d3,$50,$e3,$cb,$5d,$47,$36,$6d,$19,$fa,$f5,$7a,$20,$d9
-	dc.b	$bb,$49,$5d,$3a,$15,$24,$f9,$87,$94,$52,$2e,$8c,$a3,$43,$29,$ed
-	dc.b	$08,$7f,$60,$0c,$d0,$87,$6b,$04,$aa,$f9,$0e,$4f,$5d,$c9,$a6,$2a
-	dc.b	$d8,$0d,$52,$dd,$a1,$98,$fe,$b3,$34,$03,$26,$08,$89,$82,$d2,$91
-	dc.b	$16,$4f,$33,$20,$d5,$e5,$43,$37,$02,$82,$05,$00,$a6,$10,$e9,$f0
-	dc.b	$0a,$e3,$88,$22,$eb,$8e,$38,$40,$46,$40,$cc,$02,$d9,$41,$9b,$8e
-	dc.b	$01,$17,$77,$9a,$19,$dd,$ca,$ad,$c4,$fb,$b8,$18,$8c,$7d,$56,$f8
-	dc.b	$b2,$a6,$e4,$95,$c2,$ea,$e1,$50,$af,$10,$ad,$b4,$c6,$a1,$7d,$a7
-	dc.b	$b9,$34,$a5,$44,$da,$b7,$58,$29,$02,$7a,$d5,$78,$56,$a9,$85,$a1
-	dc.b	$de,$4e,$df,$ef,$62,$4d,$25,$08,$da,$45,$22,$eb,$38,$56,$9e,$03
-	dc.b	$e8,$0a,$5d,$44,$6a,$f4,$66,$b3,$ca,$71,$85,$d5,$d1,$28,$d0,$36
-	dc.b	$80,$d5,$d0,$b8,$43,$2e,$d0,$87,$0f,$c7,$8d,$0d,$8c,$c7,$c9,$eb
-	dc.b	$b8,$e5,$a7,$12,$dd,$35,$51,$cf,$bd,$11,$4f,$34,$e0,$a6,$81,$7a
-	dc.b	$d3,$46,$59,$90,$a2,$74,$4c,$ea,$b7,$79,$84,$22,$72,$00,$f6,$58
-	dc.b	$e4,$ce,$10,$21,$94,$b3,$99,$bc,$a0,$cb,$dc,$70,$3e,$23,$79,$a1
-	dc.b	$9b,$38,$dd,$e9,$9e,$f0,$ca,$7d,$6a,$ad,$f0,$06,$1a,$e6,$ae,$f2
-	dc.b	$2e,$c4,$d7,$e2,$b1,$aa,$82,$b0,$2a,$1c,$b3,$44,$2b,$77,$88,$db
-	dc.b	$fb,$d4,$17,$81,$5a,$a1,$2c,$fe,$9a,$e0,$a4,$85,$ef,$af,$69,$91
-	dc.b	$4c,$be,$dd,$91,$c5,$ab,$55,$d0,$14,$0a,$20,$af,$42,$96,$22,$6a
-	dc.b	$f7,$21,$f4,$0f,$92,$2b,$ef,$54,$ae,$02,$a5,$95,$3b,$40,$19,$d9
-	dc.b	$e3,$41,$4e,$94,$7e,$4c,$5e,$2b,$9f,$9a,$7e,$f2,$86,$56,$1d,$f7
-	dc.b	$27,$52,$03,$8a,$ef,$0b,$3b,$44,$19,$64,$79,$51,$84,$6c,$73,$20
-	dc.b	$b3,$9d,$ea,$f8,$48,$35,$0a,$00,$17,$88,$07,$00,$f8,$07,$3d,$70
-	dc.b	$01,$eb,$de,$68,$64,$f7,$2a,$2f,$93,$1d,$66,$50,$0e,$6e,$04,$50
-	dc.b	$a3,$55,$41,$de,$44,$0a,$3b,$c9,$63,$5c,$6d,$e5,$bc,$98,$a2,$88
-	dc.b	$54,$5e,$70,$7d,$ca,$30,$d8,$e0,$ac,$56,$24,$bf,$5f,$6d,$a5,$d5
-	dc.b	$61,$f3,$a3,$68,$9e,$4a,$fc,$b6,$9a,$f7,$36,$dd,$7c,$71,$fa,$e5
-	dc.b	$0e,$ad,$55,$14,$88,$0b,$bb,$0f,$0c,$e1,$29,$a0,$b4,$86,$4e,$0f
-	dc.b	$20,$2d,$66,$d0,$03,$2c,$14,$d9,$1f,$22,$ee,$ef,$5c,$c8,$c9,$33
-	dc.b	$ca,$19,$6a,$2d,$d0,$0f,$59,$13,$e3,$c3,$48,$30,$0e,$34,$82,$f7
-	dc.b	$2a,$33,$ca,$ae,$64,$07,$bf,$bf,$56,$d9,$42,$36,$b0,$55,$10,$21
-	dc.b	$26,$2e,$7e,$aa,$5e,$50,$67,$67,$c7,$24,$9c,$2d,$e5,$cf,$8c,$29
-	dc.b	$a9,$d7,$e1,$a4,$0f,$22,$e4,$1f,$22,$ab,$b4,$56,$1b,$ad,$50,$94
-	dc.b	$e2,$ff,$db,$38,$8a,$a5,$9c,$b1,$b2,$fe,$aa,$c3,$78,$25,$03,$d9
-	dc.b	$a0,$ef,$ec,$9d,$b4,$aa,$a9,$33,$b4,$d1,$2f,$5c,$ee,$a3,$08,$f7
-	dc.b	$10,$37,$b2,$c6,$cb,$92,$c1,$49,$41,$53,$d7,$71,$6f,$4f,$d4,$31
-	dc.b	$68,$6f,$8d,$5b,$2a,$e1,$bd,$77,$00,$a2,$c8,$fa,$e1,$4a,$22,$e4
-	dc.b	$59,$ec,$66,$46,$5a,$e5,$65,$48,$6a,$85,$4c,$66,$8d,$96,$8b,$c3
-	dc.b	$4e,$75,$4d,$5d,$bb,$32,$05,$5c,$c8,$64,$46,$bb,$d5,$b1,$d9,$e1
-	dc.b	$6f,$21,$06,$15,$2f,$20,$ab,$58,$4a,$56,$fe,$a4,$66,$00,$19,$82
-	dc.b	$2a,$40,$ed,$c5,$21,$b4,$d3,$8a,$bc,$ef,$1f,$fc,$66,$2c,$f9,$0e
-	dc.b	$ad,$b0,$19,$f9,$6d,$05,$70,$1f,$b8,$48,$c0,$db,$9c,$48,$8b,$59
-	dc.b	$30,$de,$eb,$e2,$f2,$34,$1a,$89,$0c,$5e,$70,$2a,$b7,$c8,$c3,$8d
-	dc.b	$84,$b9,$bf,$90,$ea,$ae,$ff,$79,$12,$af,$e4,$e6,$37,$ea,$f3,$b9
-	dc.b	$e8,$a2,$c9,$72,$79,$19,$f0,$0f,$84,$82,$ea,$a4,$62,$81,$b1,$6d
-	dc.b	$17,$77,$16,$ff,$bd,$40,$69,$93,$68,$bf,$7a,$77,$e4,$0a,$62,$3c
-	dc.b	$80,$67,$d2,$e5,$11,$bd,$4b,$5c,$74,$c8,$c7,$3b,$32,$a4,$2a,$57
-	dc.b	$74,$5a,$49,$cc,$b2,$47,$3a,$64,$82,$bb,$59,$90,$cb,$54,$43,$3a
-	dc.b	$cf,$09,$18,$ab,$93,$30,$18,$8c,$d5,$64,$25,$26,$ba,$a8,$83,$90
-	dc.b	$4e,$f2,$0c,$d9,$15,$68,$29,$1e,$68,$a5,$af,$96,$ef,$4c,$f6,$24
-	dc.b	$aa,$47,$0c,$0a,$a5,$5c,$bb,$f3,$27,$6f,$1b,$ef,$7b,$44,$6a,$15
-	dc.b	$34,$e9,$bc,$d4,$38,$0f,$44,$87,$77,$88,$12,$7f,$23,$0d,$f4,$06
-	dc.b	$b4,$ba,$9e,$b1,$bf,$3b,$b3,$54,$d0,$7f,$a1,$57,$93,$17,$5f,$58
-	dc.b	$78,$0e,$b4,$d6,$c7,$a0,$00,$89,$02,$de,$42,$30,$80,$30,$28,$b3
-	dc.b	$d3,$7f,$77,$ab,$8c,$69,$dd,$ea,$24,$a4,$8d,$e8,$f9,$03,$4b,$50
-	dc.b	$a5,$66,$c6,$88,$d5,$dd,$4c,$83,$56,$e2,$ef,$29,$0f,$2d,$8e,$8d
-	dc.b	$04,$40,$d5,$e8,$db,$e0,$8d,$c8,$82,$b9,$a4,$18,$b5,$48,$44,$0a
-	dc.b	$24,$cc,$6b,$e5,$30,$07,$ad,$43,$03,$7a,$10,$61,$29,$66,$0c,$66
-	dc.b	$39,$44,$37,$1e,$82,$a6,$79,$a1,$58,$18,$09,$96,$6a,$4d,$45,$ab
-	dc.b	$3a,$11,$12,$8e,$07,$04,$83,$c2,$01,$30,$a8,$5c,$30,$1a,$0e,$87
-	dc.b	$c4,$02,$31,$40,$a5,$25,$4a,$a9,$ed,$41,$60,$c0,$a0,$78,$42,$22
-	dc.b	$a4,$d7,$32,$59,$4d,$8e,$d3,$93,$d1,$ea,$82,$82,$41,$b9,$34,$da
-	dc.b	$8b,$51,$a9,$5a,$6d,$79,$3c,$ae,$67,$35,$9b,$d0,$e8,$b4,$9a,$5d
-	dc.b	$4e,$db,$b4,$08,$06,$d2,$e9,$b5,$ab,$2d,$aa,$ed,$8d,$d7,$6c,$b7
-	dc.b	$7d,$df,$6c,$b6,$89,$4e,$aa,$d6,$6b,$79,$7d,$1e,$cf,$73,$cd,$e9
-	dc.b	$f5,$a6,$54,$ca,$ee,$17,$15,$91,$cb,$69,$b5,$7a,$cd,$bf,$2b,$97
-	dc.b	$db,$92,$ca,$65,$55,$7a,$f5,$9a,$d1,$72,$b9,$dd,$6f,$58,$bd,$56
-	dc.b	$f7,$85,$ea,$f5,$ca,$e7,$59,$dc,$f6,$fb,$ca,$06,$96,$51,$a9,$15
-	dc.b	$6b,$15,$d2,$ef,$89,$e7,$7d,$68,$56,$eb,$ce,$9f,$b9,$34,$b3,$dc
-	dc.b	$71,$9c,$5e,$a5,$1e,$c7,$6c,$bd,$f7,$bd,$32,$e9,$ad,$06,$c9,$e2
-	dc.b	$f9,$48,$f1,$d9,$ce,$67,$5f,$b0,$05,$92,$5f,$75,$fb,$ce,$37,$9b
-	dc.b	$dd,$22,$c3,$4a,$2b,$1c,$7f,$64,$de,$77,$4f,$c4,$71,$39,$11,$d9
-	dc.b	$ed,$53,$0f,$a8,$f9,$fd,$28,$78,$2d,$c4,$4a,$63,$6f,$bc,$6c,$26
-	dc.b	$79,$8f,$27,$da,$43,$39,$e7,$fc,$64,$f6,$1e,$08,$12,$2d,$7e,$c1
-	dc.b	$e1,$3c,$7e,$88,$af,$66,$23,$19,$89,$c5,$2a,$18,$f9,$7f,$7e,$7d
-	dc.b	$90,$c0,$f8,$7c,$f1,$ab,$e4,$2a,$79,$5f,$8d,$fd,$e7,$1e,$f8,$bf
-	dc.b	$0f,$a1,$0d,$cf,$dc,$2c,$10,$b8,$f6,$82,$38,$03,$84,$fe,$61,$d3
-	dc.b	$0f,$d4,$62,$19,$bf,$fd,$80,$a4,$10,$58,$84,$1a,$81,$f0,$84,$41
-	dc.b	$21,$f1,$f9,$fd,$ff,$c1,$07,$fc,$7f,$60,$5c,$0f,$e0,$02,$07,$80
-	dc.b	$ff,$00,$60,$3f,$f8,$00,$50,$48,$39,$18,$0e,$87,$c6,$a2,$41,$23
-	dc.b	$46,$a2,$00,$02
-g2embed_title_end
-
-	even
-g2embed_title_pal
-	dc.b	$00,$00,$00,$00,$0f,$0f,$00,$00,$0f,$0f,$00,$00,$0f,$0f,$00,$00
-	dc.b	$0f,$d0,$00,$00,$0d,$a1,$00,$00,$0c,$80,$00,$00,$0a,$70,$00,$00
-	dc.b	$07,$40,$00,$00,$04,$20,$00,$00,$05,$00,$00,$00,$00,$43,$00,$00
-	dc.b	$04,$45,$00,$00,$07,$66,$00,$00,$08,$78,$00,$00,$07,$45,$00,$00
-	dc.b	$07,$34,$00,$00,$05,$23,$00,$00,$07,$10,$00,$00,$08,$21,$00,$00
-	dc.b	$0a,$41,$00,$00,$0a,$44,$00,$00,$02,$81,$00,$00,$0a,$66,$00,$00
-	dc.b	$0c,$76,$00,$00,$0a,$88,$00,$00,$0c,$88,$00,$00,$0c,$99,$00,$00
-	dc.b	$0c,$ba,$00,$00,$0e,$ba,$00,$00,$04,$e1,$00,$00,$0f,$ee,$00,$00
-	dc.b	$00,$00,$00,$00,$07,$07,$08,$08,$07,$07,$08,$08,$07,$07,$08,$08
-	dc.b	$07,$60,$08,$80,$06,$50,$08,$08,$06,$40,$00,$00,$05,$30,$00,$80
-	dc.b	$03,$20,$08,$00,$02,$10,$00,$00,$02,$00,$08,$00,$00,$21,$00,$08
-	dc.b	$02,$22,$00,$08,$03,$33,$08,$00,$04,$34,$00,$80,$03,$22,$08,$08
-	dc.b	$03,$12,$08,$80,$02,$11,$08,$08,$03,$00,$08,$80,$04,$10,$00,$08
-	dc.b	$05,$20,$00,$08,$05,$22,$00,$00,$01,$40,$00,$08,$05,$33,$00,$00
-	dc.b	$06,$33,$00,$80,$05,$44,$00,$00,$06,$44,$00,$00,$06,$44,$00,$88
-	dc.b	$06,$55,$00,$80,$07,$55,$00,$80,$02,$70,$00,$08,$07,$77,$08,$00
-	dc.b	$00,$00,$00,$00,$0f,$0f,$00,$00,$0f,$0f,$00,$00,$0f,$0f,$00,$00
-	dc.b	$0f,$d0,$00,$00,$0d,$a1,$00,$00,$0c,$80,$00,$00,$0a,$70,$00,$00
-	dc.b	$07,$40,$00,$00,$04,$20,$00,$00,$05,$00,$00,$00,$00,$43,$00,$00
-	dc.b	$04,$45,$00,$00,$07,$66,$00,$00,$08,$78,$00,$00,$07,$45,$00,$00
-	dc.b	$07,$34,$00,$00,$05,$23,$00,$00,$07,$10,$00,$00,$08,$21,$00,$00
-	dc.b	$0a,$41,$00,$00,$0a,$44,$00,$00,$02,$81,$00,$00,$0a,$66,$00,$00
-	dc.b	$0c,$76,$00,$00,$0a,$88,$00,$00,$0c,$88,$00,$00,$0c,$99,$00,$00
-	dc.b	$0c,$ba,$00,$00,$0e,$ba,$00,$00,$04,$e1,$00,$00,$0f,$ee,$00,$00
-	dc.b	$00,$00,$00,$00,$07,$07,$08,$08,$07,$07,$08,$08,$07,$07,$08,$08
-	dc.b	$07,$60,$08,$80,$06,$50,$08,$08,$06,$40,$00,$00,$05,$30,$00,$80
-	dc.b	$03,$20,$08,$00,$02,$10,$00,$00,$02,$00,$08,$00,$00,$21,$00,$08
-	dc.b	$02,$22,$00,$08,$03,$33,$08,$00,$04,$34,$00,$80,$03,$22,$08,$08
-	dc.b	$03,$12,$08,$80,$02,$11,$08,$08,$03,$00,$08,$80,$04,$10,$00,$08
-	dc.b	$05,$20,$00,$08,$05,$22,$00,$00,$01,$40,$00,$08,$05,$33,$00,$00
-	dc.b	$06,$33,$00,$80,$05,$44,$00,$00,$06,$44,$00,$00,$06,$44,$00,$88
-	dc.b	$06,$55,$00,$80,$07,$55,$00,$80,$02,$70,$00,$08,$07,$77,$08,$00
-g2embed_title_pal_end
-
-	even
-g2embed_gloombrush
-	dc.b	$43,$72,$4d,$32,$00,$00,$00,$00,$3e,$95,$00,$00,$30,$20,$0b,$88
-	dc.b	$65,$c6,$cf,$fa,$21,$9f,$9e,$f7,$01,$1c,$35,$c3,$b6,$3b,$67,$08
-	dc.b	$a5,$80,$cd,$63,$87,$8f,$69,$c2,$2f,$f6,$38,$5a,$7f,$7d,$33,$ac
-	dc.b	$22,$a1,$23,$9f,$bc,$22,$ff,$9b,$1b,$49,$2c,$66,$fe,$d2,$d2,$34
-	dc.b	$bd,$61,$74,$b4,$c3,$b1,$eb,$d3,$d0,$4a,$18,$ed,$82,$81,$62,$1b
-	dc.b	$66,$f0,$2e,$6e,$1f,$ec,$7a,$c7,$af,$b1,$17,$f4,$33,$89,$01,$6e
-	dc.b	$09,$39,$1a,$65,$09,$35,$8f,$8d,$2a,$ea,$f1,$a6,$bc,$76,$bd,$73
-	dc.b	$57,$da,$2f,$f9,$83,$db,$a2,$11,$b4,$50,$88,$f6,$b4,$b1,$ae,$fb
-	dc.b	$5e,$b1,$3b,$b5,$17,$dc,$2c,$9c,$33,$12,$43,$c2,$99,$75,$0e,$2a
-	dc.b	$5b,$4f,$66,$92,$b1,$c3,$da,$f5,$a8,$60,$d7,$b7,$0b,$cf,$f8,$fe
-	dc.b	$a9,$de,$34,$7d,$9e,$40,$d6,$2a,$91,$35,$34,$e3,$49,$ce,$19,$3d
-	dc.b	$0b,$91,$c5,$85,$6c,$6a,$0a,$c4,$4d,$0e,$0a,$f8,$2f,$9a,$50,$99
-	dc.b	$47,$85,$65,$bc,$b9,$83,$1e,$c6,$a5,$48,$44,$05,$2f,$1b,$84,$25
-	dc.b	$63,$b3,$68,$0f,$f4,$5a,$ba,$8e,$20,$34,$50,$8f,$4a,$4f,$8a,$68
-	dc.b	$7f,$cd,$3e,$eb,$c1,$69,$3c,$f4,$90,$f6,$6b,$17,$9b,$c0,$b7,$b7
-	dc.b	$5a,$50,$57,$ef,$7b,$58,$3f,$6b,$66,$dd,$8b,$af,$35,$d7,$2d,$e5
-	dc.b	$c1,$7b,$8c,$e2,$45,$6f,$06,$02,$96,$d2,$61,$26,$e4,$e1,$58,$4f
-	dc.b	$d5,$e3,$5e,$b4,$7f,$06,$37,$a1,$79,$b5,$a1,$5f,$f8,$d8,$7c,$a7
-	dc.b	$53,$16,$72,$aa,$18,$26,$c9,$07,$dd,$dd,$29,$0f,$a6,$98,$c9,$55
-	dc.b	$a0,$33,$68,$9c,$20,$af,$e6,$cc,$a3,$b5,$1f,$94,$68,$b1,$59,$6f
-	dc.b	$2f,$68,$a7,$5b,$50,$87,$d3,$79,$57,$c0,$ca,$83,$15,$7f,$d4,$2c
-	dc.b	$d9,$5a,$ad,$50,$d2,$f5,$15,$d3,$e4,$84,$ae,$fe,$f5,$28,$a3,$2d
-	dc.b	$da,$2a,$8e,$4b,$94,$f4,$5d,$1d,$bf,$66,$80,$9c,$ea,$78,$98,$47
-	dc.b	$77,$d7,$ff,$a0,$b0,$4f,$eb,$db,$4b,$64,$a2,$e6,$e8,$f1,$4a,$33
-	dc.b	$06,$30,$4d,$4a,$93,$0e,$20,$d7,$12,$ef,$a3,$3b,$c6,$b6,$68,$49
-	dc.b	$63,$62,$88,$0c,$af,$b7,$0a,$a9,$af,$ae,$dd,$17,$c3,$ae,$23,$6a
-	dc.b	$67,$38,$ba,$73,$ca,$df,$63,$58,$1c,$59,$ac,$c2,$14,$ad,$ec,$05
-	dc.b	$43,$c5,$a7,$ff,$cf,$0e,$3b,$79,$50,$51,$3d,$81,$4f,$fd,$a6,$f3
-	dc.b	$1e,$42,$3a,$fd,$92,$42,$24,$3c,$a5,$9d,$36,$55,$b1,$ce,$ab,$33
-	dc.b	$6d,$27,$6e,$ff,$f6,$b6,$7e,$f5,$77,$0a,$a3,$2d,$8a,$4c,$c6,$cc
-	dc.b	$6c,$26,$41,$89,$cf,$75,$6d,$88,$e2,$b4,$06,$82,$7f,$26,$f6,$75
-	dc.b	$a0,$c0,$1a,$d9,$47,$56,$8e,$d7,$8d,$63,$8f,$a5,$b6,$4f,$d2,$40
-	dc.b	$a4,$39,$7d,$62,$fa,$1a,$7d,$a0,$77,$ef,$6f,$27,$62,$34,$7c,$0b
-	dc.b	$0a,$3a,$a3,$f8,$89,$27,$cf,$e7,$72,$16,$44,$27,$e4,$ad,$aa,$4c
-	dc.b	$d4,$65,$4b,$c5,$a3,$bd,$5a,$43,$f3,$23,$ed,$b9,$e4,$aa,$03,$b5
-	dc.b	$33,$51,$5a,$e8,$f1,$6a,$37,$04,$98,$a1,$a9,$52,$e6,$d0,$1c,$f5
-	dc.b	$a2,$9f,$d4,$da,$a8,$b9,$08,$f9,$d5,$6e,$5d,$15,$91,$69,$e9,$dd
-	dc.b	$a3,$fc,$f0,$f1,$9a,$b8,$79,$a6,$5e,$16,$e8,$dd,$74,$49,$78,$5d
-	dc.b	$69,$0b,$cc,$8b,$d4,$1b,$18,$e6,$29,$3c,$6e,$e7,$e1,$62,$76,$d7
-	dc.b	$41,$44,$f6,$04,$f3,$43,$8a,$a9,$21,$b6,$cf,$34,$c3,$07,$48,$a7
-	dc.b	$97,$93,$14,$e5,$68,$0a,$0b,$3a,$7d,$47,$83,$74,$25,$91,$f9,$0f
-	dc.b	$22,$13,$f2,$45,$d6,$8c,$0e,$06,$47,$ce,$3a,$a3,$aa,$a0,$0d,$40
-	dc.b	$45,$9a,$55,$50,$ce,$0b,$0c,$7c,$fb,$20,$e2,$7a,$9e,$3a,$ff,$e7
-	dc.b	$83,$e9,$92,$ba,$37,$19,$83,$af,$58,$b4,$d8,$23,$d7,$fa,$21,$56
-	dc.b	$98,$01,$08,$0e,$1a,$d0,$eb,$28,$02,$4b,$75,$8a,$15,$c9,$87,$a2
-	dc.b	$7b,$20,$dc,$d8,$ce,$7c,$63,$a6,$75,$62,$6b,$b9,$90,$41,$cd,$74
-	dc.b	$74,$4a,$94,$7b,$b7,$95,$b7,$49,$d6,$ff,$4f,$2d,$ad,$a4,$c7,$0c
-	dc.b	$31,$72,$5d,$db,$26,$63,$24,$3e,$00,$76,$ba,$3a,$47,$b1,$bf,$13
-	dc.b	$b2,$7b,$48,$38,$eb,$f7,$83,$e1,$68,$55,$7f,$ba,$73,$df,$92,$1f
-	dc.b	$dc,$c9,$87,$9c,$3a,$e5,$bb,$2b,$0f,$f7,$31,$1b,$47,$df,$fa,$ad
-	dc.b	$f2,$2c,$89,$fb,$ad,$a4,$6b,$6f,$de,$e9,$73,$51,$b1,$8e,$8e,$64
-	dc.b	$63,$24,$20,$38,$6a,$6c,$87,$2c,$2d,$38,$5a,$86,$29,$87,$90,$2b
-	dc.b	$95,$3c,$36,$83,$30,$32,$b6,$68,$43,$09,$b4,$12,$75,$01,$33,$8d
-	dc.b	$84,$bf,$e1,$b0,$80,$57,$5c,$51,$2d,$07,$b7,$95,$ba,$d6,$50,$91
-	dc.b	$73,$ba,$a2,$17,$d0,$9b,$fd,$4c,$72,$fa,$2c,$62,$af,$21,$0b,$39
-	dc.b	$d1,$7d,$62,$9e,$01,$8c,$d7,$03,$58,$83,$5a,$16,$f2,$4f,$65,$9b
-	dc.b	$b7,$d8,$fe,$a7,$26,$da,$2a,$f3,$31,$4c,$bf,$87,$0e,$72,$74,$ca
-	dc.b	$3d,$47,$36,$2c,$ad,$b6,$8f,$66,$45,$96,$83,$a6,$8d,$61,$e5,$d1
-	dc.b	$11,$90,$e6,$55,$23,$93,$c9,$f4,$f5,$fe,$20,$63,$30,$5e,$af,$99
-	dc.b	$b4,$f5,$ae,$ab,$ad,$34,$9b,$be,$a7,$30,$e4,$f8,$cf,$11,$6a,$2d
-	dc.b	$e7,$17,$ba,$2d,$d7,$63,$d3,$d6,$d5,$d3,$40,$76,$e7,$a7,$05,$41
-	dc.b	$dd,$97,$b5,$fe,$9d,$ad,$73,$48,$33,$1a,$9c,$ba,$52,$f7,$b3,$14
-	dc.b	$78,$60,$c5,$17,$0f,$50,$79,$22,$e5,$0a,$d1,$51,$83,$59,$35,$f7
-	dc.b	$20,$c6,$a3,$3b,$05,$7c,$5b,$89,$8e,$df,$e9,$03,$8e,$b0,$e6,$47
-	dc.b	$c0,$12,$36,$ba,$06,$65,$a8,$e6,$b5,$e9,$13,$1d,$4e,$e0,$66,$ca
-	dc.b	$9f,$46,$b7,$77,$55,$c2,$41,$f4,$87,$ae,$1e,$37,$81,$7d,$10,$a0
-	dc.b	$6c,$37,$89,$ad,$62,$b6,$6b,$45,$a5,$ca,$72,$c6,$da,$d7,$2e,$38
-	dc.b	$a6,$04,$19,$29,$3f,$71,$51,$e3,$c9,$74,$71,$74,$ca,$3d,$0d,$5e
-	dc.b	$be,$e0,$18,$ca,$6d,$56,$d2,$1d,$dc,$1b,$4d,$1a,$fc,$b4,$89,$bb
-	dc.b	$38,$4d,$95,$72,$7a,$87,$a7,$be,$3f,$3a,$3e,$30,$3a,$c8,$a9,$f9
-	dc.b	$4f,$69,$31,$ee,$f3,$45,$6c,$82,$69,$b9,$2f,$9f,$67,$0b,$bb,$6e
-	dc.b	$3f,$ff,$53,$7f,$c7,$c2,$22,$d4,$a2,$7f,$5f,$94,$3a,$83,$57,$2e
-	dc.b	$51,$2d,$5b,$5a,$e1,$90,$6d,$81,$ba,$69,$e6,$9d,$e4,$b7,$f0,$b0
-	dc.b	$c7,$77,$84,$56,$b7,$28,$ba,$3f,$15,$41,$47,$66,$b2,$cf,$33,$c8
-	dc.b	$31,$0b,$b0,$39,$a1,$36,$cc,$0e,$80,$d8,$28,$1c,$7f,$ae,$91,$58
-	dc.b	$6d,$75,$b4,$a3,$61,$ab,$d7,$b1,$87,$28,$7a,$cc,$0c,$e5,$06,$5b
-	dc.b	$76,$37,$a5,$64,$1e,$5b,$3e,$ca,$12,$1a,$9e,$42,$75,$ac,$90,$13
-	dc.b	$fa,$1f,$2b,$c7,$60,$f6,$62,$e9,$da,$d7,$5b,$df,$c4,$cf,$d6,$51
-	dc.b	$f5,$69,$53,$bd,$44,$8e,$ff,$e1,$37,$8f,$cc,$2a,$b7,$47,$a4,$56
-	dc.b	$e7,$70,$94,$32,$8b,$4a,$90,$a1,$f9,$51,$d3,$41,$7b,$28,$95,$e7
-	dc.b	$6a,$13,$62,$9a,$dd,$cf,$5b,$cc,$4b,$6d,$37,$0b,$3e,$39,$5c,$f8
-	dc.b	$ae,$27,$e4,$9f,$d7,$f8,$5d,$24,$5a,$dc,$31,$35,$82,$e2,$b7,$e3
-	dc.b	$f0,$b9,$90,$be,$5b,$df,$ef,$60,$c9,$5b,$9e,$50,$96,$8f,$c7,$57
-	dc.b	$29,$b0,$dd,$5a,$e1,$03,$81,$b3,$7e,$69,$a7,$fb,$b6,$4e,$3b,$18
-	dc.b	$63,$c7,$fe,$15,$58,$9f,$df,$72,$10,$3c,$8d,$5d,$40,$95,$3a,$7c
-	dc.b	$14,$cb,$46,$fa,$30,$7b,$31,$4c,$26,$83,$1a,$80,$95,$a1,$80,$38
-	dc.b	$06,$ab,$5d,$27,$f7,$df,$cd,$32,$bb,$59,$f4,$be,$de,$dd,$46,$d2
-	dc.b	$a9,$20,$35,$13,$1e,$32,$64,$1e,$e0,$d3,$24,$b5,$1a,$c8,$1d,$85
-	dc.b	$c0,$12,$df,$d1,$50,$32,$8d,$5c,$93,$9f,$29,$cb,$fb,$ab,$5d,$50
-	dc.b	$5a,$99,$a4,$e5,$d4,$13,$22,$7f,$9a,$8f,$de,$fd,$74,$1c,$fe,$ab
-	dc.b	$e6,$a3,$74,$13,$15,$ae,$0f,$ab,$1a,$e9,$9f,$09,$6a,$8e,$35,$28
-	dc.b	$51,$ca,$25,$19,$ab,$50,$34,$f4,$ed,$69,$63,$f1,$43,$63,$8a,$f0
-	dc.b	$4f,$65,$89,$36,$9a,$87,$26,$7c,$ba,$82,$1c,$8f,$3e,$38,$62,$cb
-	dc.b	$5d,$d2,$eb,$7b,$5f,$65,$bd,$37,$f1,$f6,$78,$a8,$4c,$59,$7b,$d8
-	dc.b	$4a,$26,$a7,$3e,$10,$08,$dd,$5a,$fe,$14,$e2,$fb,$2e,$a5,$34,$e4
-	dc.b	$6e,$64,$18,$a8,$cc,$73,$f8,$c2,$b9,$ce,$5f,$80,$c8,$6c,$fc,$8d
-	dc.b	$5b,$4d,$30,$ac,$64,$25,$7a,$0c,$73,$44,$1b,$a9,$9e,$85,$40,$16
-	dc.b	$81,$68,$ae,$7f,$91,$86,$88,$39,$b4,$50,$05,$8a,$d3,$d1,$f4,$bd
-	dc.b	$24,$0e,$cf,$a4,$21,$69,$45,$cf,$55,$9c,$a0,$b0,$0c,$7b,$e4,$3d
-	dc.b	$52,$f2,$d7,$46,$04,$7b,$5e,$4b,$0c,$a4,$da,$1c,$59,$35,$89,$5c
-	dc.b	$13,$f6,$d5,$93,$ed,$ad,$7f,$72,$e1,$b2,$b7,$3b,$ae,$92,$e6,$3e
-	dc.b	$0a,$30,$8e,$a2,$af,$33,$b5,$55,$cd,$5d,$6d,$3f,$03,$be,$ea,$7c
-	dc.b	$23,$75,$31,$84,$52,$8d,$68,$f0,$d5,$12,$ab,$b2,$26,$cd,$35,$34
-	dc.b	$ae,$fc,$48,$ed,$fe,$7b,$8b,$5f,$77,$28,$6d,$57,$cb,$ac,$07,$bd
-	dc.b	$cc,$f0,$9a,$b4,$94,$fc,$d1,$b4,$ed,$0f,$19,$e3,$55,$70,$bd,$36
-	dc.b	$e5,$fd,$de,$2a,$ea,$8d,$2f,$de,$c3,$a8,$96,$bb,$70,$e7,$ef,$dd
-	dc.b	$5a,$fe,$02,$78,$a4,$eb,$6e,$94,$d3,$d1,$89,$a9,$6f,$90,$f0,$ac
-	dc.b	$55,$76,$85,$57,$3d,$7c,$06,$64,$32,$df,$c8,$95,$b4,$27,$ab,$0f
-	dc.b	$93,$15,$da,$ac,$d3,$be,$03,$4a,$a4,$ee,$68,$28,$c3,$15,$05,$75
-	dc.b	$a3,$ae,$e5,$43,$9e,$bb,$6b,$a5,$d8,$54,$1d,$c4,$65,$40,$93,$92
-	dc.b	$01,$96,$b9,$a9,$72,$87,$50,$73,$5c,$67,$72,$86,$33,$67,$15,$31
-	dc.b	$96,$56,$30,$c0,$e6,$7f,$21,$94,$41,$56,$97,$88,$ec,$61,$f1,$96
-	dc.b	$e4,$96,$74,$84,$76,$d6,$2b,$9d,$b8,$ef,$95,$c9,$47,$23,$76,$c8
-	dc.b	$49,$99,$a7,$7d,$45,$22,$68,$f5,$b2,$e0,$fb,$32,$7f,$6d,$b5,$1f
-	dc.b	$4b,$eb,$40,$fc,$25,$27,$7a,$80,$18,$50,$f5,$dd,$7b,$2b,$63,$4e
-	dc.b	$9f,$e2,$cb,$ef,$f6,$ba,$e3,$d2,$a5,$a3,$cc,$e7,$60,$f6,$7f,$4f
-	dc.b	$aa,$c3,$63,$62,$66,$ab,$f0,$7d,$ac,$d9,$af,$5a,$73,$c2,$c9,$7c
-	dc.b	$41,$c5,$b5,$bb,$44,$7f,$a1,$bb,$bd,$89,$22,$43,$95,$33,$79,$fb
-	dc.b	$6b,$58,$c0,$ea,$b5,$6a,$46,$f9,$4d,$39,$cc,$48,$22,$61,$2b,$e3
-	dc.b	$31,$52,$d0,$93,$17,$5a,$d7,$9a,$49,$fe,$46,$1e,$ba,$cb,$6b,$97
-	dc.b	$99,$a6,$ea,$75,$5b,$39,$d1,$8b,$61,$41,$33,$55,$91,$22,$fd,$09
-	dc.b	$03,$b5,$79,$c4,$dd,$40,$c2,$5a,$e9,$a5,$87,$ce,$14,$ca,$13,$95
-	dc.b	$d2,$50,$08,$f2,$47,$c6,$53,$18,$32,$02,$9c,$35,$eb,$5b,$a5,$15
-	dc.b	$96,$82,$5e,$f7,$11,$d3,$40,$3d,$67,$29,$51,$8a,$d9,$10,$c5,$d1
-	dc.b	$32,$76,$c2,$75,$ac,$4e,$8e,$ef,$96,$6a,$64,$18,$ef,$d5,$a3,$99
-	dc.b	$88,$da,$15,$d1,$6a,$ab,$1a,$72,$9b,$62,$9b,$a6,$25,$44,$6b,$ca
-	dc.b	$58,$60,$b4,$15,$ed,$20,$c6,$6e,$3e,$a2,$c1,$32,$9a,$c5,$55,$ba
-	dc.b	$d6,$ee,$b7,$83,$38,$6d,$f6,$a8,$bf,$46,$37,$d8,$bb,$dc,$dd,$ba
-	dc.b	$6c,$34,$7f,$6f,$f5,$9d,$84,$4f,$b4,$3b,$bb,$88,$6d,$c1,$e0,$c6
-	dc.b	$4c,$31,$17,$91,$9a,$06,$21,$28,$71,$b4,$3d,$5a,$cb,$61,$88,$59
-	dc.b	$a2,$fd,$2d,$26,$cd,$3c,$9b,$99,$8a,$fe,$b6,$9a,$b0,$e7,$3d,$60
-	dc.b	$d2,$f2,$21,$a3,$5d,$15,$58,$8b,$ba,$9c,$d0,$34,$73,$e0,$ae,$bc
-	dc.b	$ee,$34,$9e,$93,$7d,$86,$13,$b5,$13,$39,$ba,$8a,$a5,$aa,$e8,$e7
-	dc.b	$32,$82,$34,$a5,$c9,$83,$af,$74,$11,$e3,$2a,$3c,$32,$83,$52,$45
-	dc.b	$c4,$e2,$58,$79,$a9,$2f,$6c,$e2,$92,$14,$e3,$01,$71,$03,$ea,$81
-	dc.b	$ac,$42,$b4,$3f,$13,$e7,$ef,$71,$70,$9d,$6b,$18,$a8,$99,$94,$ca
-	dc.b	$9c,$b5,$f1,$8d,$f2,$85,$69,$19,$8d,$91,$67,$1a,$57,$2d,$b3,$ca
-	dc.b	$4b,$d4,$92,$3a,$87,$a8,$33,$90,$d3,$ac,$30,$05,$48,$ac,$e9,$b6
-	dc.b	$a9,$cc,$36,$90,$4e,$e1,$e8,$dd,$bb,$f7,$60,$f8,$df,$7b,$6b,$c9
-	dc.b	$7d,$7b,$e2,$72,$a8,$79,$b3,$7c,$ff,$27,$e5,$e6,$79,$dc,$38,$cf
-	dc.b	$9a,$a7,$25,$bc,$05,$6f,$11,$2d,$ff,$b8,$95,$d6,$98,$1d,$9c,$fc
-	dc.b	$82,$3a,$4f,$a1,$25,$7e,$7c,$70,$f5,$6b,$ed,$ab,$60,$b3,$2d,$f4
-	dc.b	$0d,$59,$7a,$cc,$53,$8b,$36,$ce,$0e,$8d,$09,$5c,$b8,$b4,$d7,$63
-	dc.b	$ef,$07,$e4,$43,$47,$83,$fa,$cd,$e3,$1f,$75,$3a,$a5,$be,$13,$35
-	dc.b	$48,$7a,$3f,$f9,$d4,$e9,$39,$94,$5c,$cc,$ce,$1c,$cb,$ae,$e6,$9e
-	dc.b	$2d,$36,$a5,$4b,$52,$e4,$84,$ee,$51,$15,$17,$7e,$5c,$a1,$d4,$35
-	dc.b	$95,$18,$5c,$05,$da,$4f,$25,$ee,$7f,$0b,$96,$c6,$ff,$4e,$3f,$1a
-	dc.b	$43,$2e,$d6,$9b,$d8,$ae,$5b,$65,$a5,$bb,$9b,$98,$e5,$23,$3f,$53
-	dc.b	$83,$71,$5f,$6c,$65,$07,$5b,$64,$1f,$5a,$5b,$47,$b4,$f9,$ca,$ba
-	dc.b	$41,$b7,$aa,$ba,$65,$43,$b4,$5f,$e7,$4c,$f7,$ed,$b5,$eb,$58,$a1
-	dc.b	$39,$42,$cb,$db,$7d,$b6,$ff,$5d,$dd,$39,$9e,$fa,$bf,$ee,$46,$f3
-	dc.b	$83,$65,$bf,$7f,$62,$bb,$fc,$e7,$e9,$c8,$f8,$ad,$fc,$20,$4e,$da
-	dc.b	$c0,$93,$45,$7b,$5a,$4a,$fd,$a2,$ba,$69,$fc,$06,$47,$0f,$4a,$76
-	dc.b	$8a,$8b,$3b,$09,$b2,$4f,$eb,$74,$ed,$da,$f5,$ad,$36,$96,$f9,$9d
-	dc.b	$a5,$22,$fe,$9e,$73,$4b,$48,$e0,$dd,$4f,$bb,$1f,$cc,$6a,$6e,$a7
-	dc.b	$4e,$ef,$37,$83,$56,$a2,$a9,$b6,$ad,$b6,$b4,$dc,$f6,$8a,$ad,$b1
-	dc.b	$f4,$6e,$f1,$94,$25,$0d,$02,$0e,$b1,$bb,$b7,$c2,$35,$97,$3b,$c4
-	dc.b	$3a,$dd,$18,$fc,$60,$f0,$53,$95,$d5,$c0,$b2,$2b,$96,$33,$3b,$fe
-	dc.b	$eb,$6e,$63,$a0,$cf,$d4,$e2,$fe,$e6,$4c,$64,$99,$27,$72,$ee,$0c
-	dc.b	$10,$bd,$de,$72,$e3,$29,$ab,$05,$59,$06,$dd,$a6,$e2,$04,$6a,$8f
-	dc.b	$6b,$54,$49,$ca,$1f,$a2,$18,$c2,$73,$f1,$c8,$1c,$a6,$49,$4d,$6d
-	dc.b	$39,$7b,$6e,$04,$cc,$ee,$c2,$e1,$f5,$9d,$8d,$8d,$e7,$17,$f6,$bf
-	dc.b	$cf,$b1,$f7,$e6,$bb,$57,$d8,$dc,$d7,$27,$58,$04,$a5,$a0,$5d,$3e
-	dc.b	$d2,$d1,$b0,$b3,$c7,$e4,$15,$1f,$f3,$33,$42,$07,$93,$9b,$a8,$30
-	dc.b	$68,$0e,$6f,$42,$6d,$5f,$92,$75,$b3,$0e,$40,$6d,$1a,$0a,$66,$45
-	dc.b	$d1,$8e,$73,$7c,$8a,$ea,$5f,$2e,$d2,$81,$7e,$67,$f5,$6a,$e7,$91
-	dc.b	$c5,$fd,$a2,$5b,$1c,$27,$4c,$ea,$93,$19,$a7,$d0,$6a,$d4,$54,$db
-	dc.b	$51,$98,$d9,$0c,$51,$ab,$a5,$cb,$87,$4f,$71,$01,$b7,$00,$87,$21
-	dc.b	$d3,$78,$49,$17,$1b,$39,$78,$8a,$c0,$e9,$c2,$0a,$e2,$e0,$59,$0f
-	dc.b	$49,$da,$c9,$35,$89,$69,$7f,$f9,$2b,$e3,$b5,$a4,$51,$a2,$7d,$cd
-	dc.b	$7f,$b1,$73,$21,$d5,$c7,$9c,$18,$ea,$a7,$39,$6f,$d8,$54,$dd,$e7
-	dc.b	$d1,$ba,$41,$d7,$69,$9a,$02,$9b,$69,$16,$a0,$28,$d6,$b1,$4c,$61
-	dc.b	$a3,$9c,$e8,$c9,$95,$ad,$eb,$5b,$8e,$eb,$23,$fa,$be,$29,$41,$69
-	dc.b	$7a,$fd,$a3,$8d,$dd,$03,$6d,$de,$d2,$fb,$ee,$87,$63,$dd,$f9,$97
-	dc.b	$ec,$e4,$51,$5d,$d4,$37,$72,$59,$ce,$d7,$8b,$8d,$43,$7e,$0b,$dc
-	dc.b	$d6,$66,$ef,$d8,$9c,$9c,$db,$29,$19,$0c,$09,$ce,$ef,$ac,$6e,$ee
-	dc.b	$2d,$b2,$d0,$58,$f0,$6b,$69,$53,$72,$ee,$97,$90,$90,$50,$fe,$44
-	dc.b	$b1,$19,$a5,$32,$b5,$8f,$63,$44,$f8,$b8,$fb,$69,$1c,$e8,$4a,$b6
-	dc.b	$c0,$44,$ea,$ea,$d4,$55,$b5,$46,$6c,$8a,$43,$78,$b9,$eb,$15,$1a
-	dc.b	$ea,$99,$0c,$a9,$de,$41,$29,$ce,$43,$c2,$b7,$b3,$c9,$7a,$e0,$73
-	dc.b	$c1,$97,$ea,$47,$1b,$35,$3e,$04,$4f,$c2,$ec,$f0,$7e,$b2,$4d,$62
-	dc.b	$e3,$95,$fe,$ee,$da,$bf,$97,$31,$ca,$7f,$ec,$a7,$35,$ac,$65,$df
-	dc.b	$6a,$d4,$dc,$f5,$73,$7f,$e9,$76,$5b,$8e,$e9,$75,$5d,$60,$de,$6d
-	dc.b	$a0,$d6,$4d,$f4,$57,$75,$83,$77,$56,$33,$41,$35,$50,$8a,$8c,$9f
-	dc.b	$47,$fd,$d6,$f5,$7c,$e9,$ee,$95,$97,$e3,$64,$75,$87,$a7,$f9,$22
-	dc.b	$ba,$bf,$0e,$89,$dc,$f9,$fd,$ce,$66,$36,$69,$80,$0c,$81,$c0,$59
-	dc.b	$cf,$f8,$2f,$7d,$db,$ed,$6e,$2f,$4f,$fe,$9b,$65,$31,$5c,$81,$39
-	dc.b	$83,$ea,$60,$60,$ca,$15,$89,$d8,$94,$6c,$b5,$42,$5d,$3e,$91,$cd
-	dc.b	$bf,$f2,$2e,$3a,$d3,$dd,$f6,$40,$ff,$4d,$da,$ed,$1e,$aa,$e9,$bb
-	dc.b	$33,$be,$b3,$6b,$dc,$e8,$f1,$4c,$e4,$b5,$01,$7a,$68,$c8,$12,$0f
-	dc.b	$68,$f6,$16,$eb,$26,$7e,$8c,$ef,$95,$77,$46,$2c,$87,$4d,$77,$f4
-	dc.b	$7f,$a3,$c7,$28,$78,$02,$e7,$77,$46,$af,$d7,$02,$83,$db,$61,$6c
-	dc.b	$bd,$a4,$d9,$0c,$bc,$b9,$c1,$d4,$66,$9d,$52,$5b,$18,$28,$ed,$14
-	dc.b	$25,$70,$31,$90,$e0,$a3,$fb,$91,$4b,$77,$8a,$3b,$78,$a8,$7a,$83
-	dc.b	$49,$de,$28,$a5,$39,$40,$fc,$6a,$8a,$1d,$8c,$d1,$e9,$46,$d5,$70
-	dc.b	$45,$47,$f7,$73,$77,$fc,$72,$bc,$ed,$5f,$6a,$87,$d3,$79,$20,$4a
-	dc.b	$fc,$0f,$25,$e7,$83,$e3,$1f,$e3,$f0,$da,$9a,$47,$09,$67,$11,$45
-	dc.b	$d3,$e8,$b5,$0b,$8a,$dc,$17,$be,$ad,$f4,$b7,$67,$c7,$fe,$84,$4a
-	dc.b	$44,$e2,$8e,$80,$fd,$1f,$f7,$e7,$33,$1a,$b1,$58,$14,$65,$8f,$59
-	dc.b	$50,$a2,$c2,$d4,$35,$b9,$79,$33,$f9,$0c,$bd,$5c,$d6,$d9,$11,$fc
-	dc.b	$de,$ad,$5c,$f0,$74,$27,$be,$e6,$6f,$99,$01,$6e,$63,$a6,$bb,$f4
-	dc.b	$94,$a0,$28,$9a,$33,$1b,$c7,$69,$b2,$f7,$2f,$3d,$33,$24,$3c,$06
-	dc.b	$ed,$ac,$81,$93,$83,$50,$d1,$2e,$4b,$c8,$31,$47,$29,$f6,$17,$bb
-	dc.b	$e4,$8e,$9f,$9f,$00,$28,$cf,$f3,$f5,$fe,$af,$5d,$6f,$76,$c8,$ff
-	dc.b	$57,$0e,$5a,$fb,$34,$ea,$91,$a4,$8d,$84,$fc,$c6,$2b,$cc,$4b,$37
-	dc.b	$98,$49,$a9,$bd,$0d,$c1,$45,$6c,$14,$76,$8f,$61,$90,$cd,$fd,$b5
-	dc.b	$a7,$a8,$38,$ed,$1e,$89,$a9,$57,$e7,$b2,$aa,$3c,$bc,$6b,$a5,$7b
-	dc.b	$c4,$fe,$1c,$b6,$35,$ab,$56,$5f,$8c,$91,$94,$0f,$81,$fe,$74,$ff
-	dc.b	$75,$c5,$8b,$33,$e1,$d5,$b7,$cd,$10,$b8,$a3,$09,$0e,$b5,$88,$9a
-	dc.b	$93,$0b,$9a,$d3,$51,$53,$db,$2d,$05,$c6,$c3,$f0,$94,$8c,$70,$1d
-	dc.b	$13,$c7,$17,$dc,$29,$56,$23,$54,$d5,$b9,$a6,$48,$69,$2d,$17,$97
-	dc.b	$e3,$f9,$7b,$b5,$48,$6c,$17,$94,$cb,$e6,$f5,$68,$2b,$11,$eb,$1b
-	dc.b	$7a,$27,$f3,$e6,$44,$14,$17,$03,$ba,$aa,$0a,$eb,$51,$1c,$ae,$83
-	dc.b	$cb,$75,$f0,$d6,$8f,$4f,$41,$bb,$33,$a0,$5c,$f3,$6e,$b1,$ff,$4c
-	dc.b	$90,$d1,$6e,$4b,$80,$d6,$d1,$4e,$a1,$64,$86,$2d,$b8,$02,$e2,$2c
-	dc.b	$5c,$32,$dd,$71,$b1,$60,$2f,$55,$8e,$a7,$1b,$f0,$ec,$18,$c8,$d8
-	dc.b	$48,$c8,$fe,$3c,$c4,$a6,$41,$f5,$48,$cf,$68,$a1,$2e,$67,$5b,$5a
-	dc.b	$58,$ed,$69,$20,$c7,$fd,$27,$40,$87,$f6,$90,$4a,$87,$a4,$66,$b5
-	dc.b	$58,$27,$9a,$b8,$79,$8d,$3d,$ce,$70,$5f,$ef,$63,$a9,$8b,$35,$f5
-	dc.b	$ef,$e2,$64,$42,$f5,$fe,$ea,$ed,$9f,$9a,$21,$5f,$5f,$87,$d4,$3e
-	dc.b	$87,$06,$4a,$76,$44,$47,$69,$cc,$2a,$75,$c6,$eb,$bf,$91,$db,$ae
-	dc.b	$fb,$79,$31,$84,$d5,$74,$47,$d1,$1d,$31,$3c,$4b,$74,$5b,$cc,$2c
-	dc.b	$f6,$0f,$7d,$76,$34,$89,$60,$70,$fd,$1f,$a7,$f9,$8d,$8a,$bb,$2b
-	dc.b	$bb,$9a,$a6,$57,$c2,$73,$41,$76,$0d,$bb,$0c,$fb,$6b,$de,$15,$4d
-	dc.b	$fc,$3e,$d4,$36,$c6,$91,$d3,$cd,$03,$8b,$84,$da,$5c,$9d,$19,$4a
-	dc.b	$f4,$67,$29,$a9,$5e,$ae,$1c,$bc,$d1,$0f,$5c,$a6,$39,$e8,$80,$0b
-	dc.b	$64,$75,$57,$81,$d4,$1e,$2a,$be,$24,$ba,$de,$90,$17,$aa,$3a,$88
-	dc.b	$c3,$be,$67,$e9,$12,$35,$7f,$53,$26,$2a,$66,$07,$29,$a8,$37,$05
-	dc.b	$10,$37,$33,$6d,$db,$0d,$f3,$65,$a7,$b3,$f4,$5d,$7b,$48,$07,$4c
-	dc.b	$19,$6a,$b0,$11,$f3,$0f,$2f,$45,$f3,$de,$17,$47,$ee,$cb,$f9,$ce
-	dc.b	$1a,$3a,$c7,$88,$1d,$b3,$7e,$37,$bf,$19,$c1,$6c,$6d,$bc,$6e,$0e
-	dc.b	$f9,$ca,$88,$59,$cf,$74,$44,$70,$5d,$0e,$20,$de,$5c,$2e,$47,$e4
-	dc.b	$1d,$ec,$7c,$17,$fa,$a1,$07,$52,$11,$eb,$cc,$7a,$fd,$39,$74,$a4
-	dc.b	$66,$02,$9b,$dd,$d2,$84,$e6,$32,$f2,$a9,$a2,$fc,$bb,$6f,$97,$a6
-	dc.b	$4d,$d9,$cd,$ad,$2f,$f0,$7f,$87,$5a,$0a,$02,$1e,$c3,$34,$fd,$77
-	dc.b	$b7,$8a,$3a,$a0,$d0,$b9,$a0,$a8,$85,$d6,$57,$8e,$35,$f7,$8a,$e8
-	dc.b	$0e,$d9,$e3,$20,$f7,$43,$6b,$87,$2c,$8e,$f0,$b5,$c6,$10,$85,$90
-	dc.b	$94,$59,$0b,$66,$48,$79,$c0,$d9,$da,$93,$e9,$44,$9a,$dc,$6c,$8b
-	dc.b	$35,$2d,$fe,$eb,$30,$ce,$76,$3e,$e7,$7c,$31,$13,$54,$95,$9c,$6d
-	dc.b	$53,$36,$5e,$32,$83,$52,$73,$eb,$9c,$8a,$8b,$f3,$e8,$ef,$7a,$c7
-	dc.b	$7b,$c7,$be,$66,$03,$bf,$9e,$53,$f4,$40,$95,$2d,$22,$dd,$01,$ce
-	dc.b	$61,$e6,$34,$f6,$a7,$dd,$eb,$6d,$fe,$eb,$72,$59,$df,$58,$59,$df
-	dc.b	$00,$ba,$9f,$56,$9e,$f6,$87,$b1,$95,$e6,$61,$4f,$1b,$b2,$23,$79
-	dc.b	$77,$a2,$0d,$7d,$05,$c9,$e3,$d5,$df,$13,$f2,$36,$fa,$af,$8b,$15
-	dc.b	$ae,$8c,$f0,$c6,$50,$8a,$f9,$e6,$63,$cf,$6c,$82,$9a,$84,$2f,$88
-	dc.b	$a8,$bf,$0a,$45,$cb,$14,$4c,$df,$7b,$1f,$98,$da,$a6,$b0,$ae,$bf
-	dc.b	$6c,$31,$56,$73,$5f,$79,$df,$0d,$3d,$aa,$c5,$ac,$fa,$63,$54,$c1
-	dc.b	$b6,$a0,$a1,$4a,$e6,$c9,$eb,$a5,$d3,$98,$06,$60,$c7,$8a,$ca,$15
-	dc.b	$5f,$c6,$42,$c8,$87,$4d,$a0,$ca,$0d,$78,$36,$e5,$6d,$e6,$50,$0b
-	dc.b	$c5,$91,$66,$cf,$43,$b8,$9a,$68,$74,$6f,$81,$8c,$de,$2b,$29,$4a
-	dc.b	$92,$d4,$46,$e0,$29,$a0,$44,$d5,$bb,$e9,$c1,$29,$92,$1d,$50,$60
-	dc.b	$d4,$9c,$5f,$87,$44,$c3,$9f,$06,$90,$78,$0a,$2d,$ce,$57,$06,$97
-	dc.b	$5e,$1b,$ca,$68,$35,$95,$31,$9f,$b2,$49,$63,$98,$d7,$0f,$2d,$61
-	dc.b	$71,$2c,$eb,$73,$7e,$1b,$33,$fc,$63,$58,$f6,$c4,$b4,$9b,$87,$f5
-	dc.b	$66,$e7,$fd,$9e,$26,$dd,$a6,$86,$d7,$ce,$c8,$51,$d8,$9f,$cf,$7d
-	dc.b	$f9,$06,$33,$46,$ac,$a7,$e7,$a1,$5e,$4c,$7f,$ee,$da,$ac,$43,$3d
-	dc.b	$3f,$7e,$22,$37,$33,$1b,$17,$07,$29,$a0,$d3,$95,$04,$9f,$ef,$dd
-	dc.b	$3c,$d6,$0c,$4a,$73,$f7,$9b,$e4,$e0,$3a,$ac,$6d,$bc,$4c,$38,$b1
-	dc.b	$b8,$0a,$68,$ef,$db,$8d,$95,$9f,$42,$a8,$96,$87,$27,$8c,$14,$29
-	dc.b	$50,$fe,$ea,$f7,$54,$67,$31,$b6,$95,$03,$4b,$9d,$0e,$ad,$76,$ae
-	dc.b	$0c,$5a,$e8,$74,$ea,$01,$af,$04,$3e,$22,$9e,$ff,$9d,$6e,$d0,$93
-	dc.b	$66,$c8,$07,$ef,$34,$d0,$ec,$15,$9d,$89,$dd,$84,$c5,$99,$2c,$b5
-	dc.b	$12,$3c,$6c,$a0,$ec,$60,$44,$d5,$ab,$f1,$59,$59,$30,$31,$de,$0d
-	dc.b	$25,$27,$db,$f6,$6c,$4a,$96,$a6,$e3,$bd,$3f,$48,$36,$f8,$8e,$1b
-	dc.b	$f5,$cd,$fe,$42,$a4,$f8,$3f,$ff,$20,$6e,$d7,$1b,$87,$9d,$95,$7c
-	dc.b	$7a,$6d,$ff,$87,$c2,$3b,$8b,$c6,$85,$f2,$47,$61,$6d,$75,$3e,$af
-	dc.b	$b3,$fc,$17,$13,$af,$b7,$86,$c0,$fa,$cf,$c4,$0e,$cd,$77,$bd,$29
-	dc.b	$f7,$7d,$61,$b5,$51,$bc,$7e,$47,$4c,$4a,$9f,$8f,$60,$71,$7a,$45
-	dc.b	$7d,$da,$8d,$cc,$c3,$18,$be,$24,$29,$1b,$fe,$72,$58,$60,$93,$29
-	dc.b	$fd,$d4,$cd,$66,$04,$c2,$09,$6e,$cf,$ce,$ca,$7b,$af,$54,$7f,$ad
-	dc.b	$08,$e8,$9f,$6a,$81,$83,$1d,$fb,$71,$c3,$f4,$fa,$13,$51,$6e,$73
-	dc.b	$98,$c1,$41,$5a,$be,$eb,$c0,$57,$10,$56,$10,$78,$0a,$78,$0e,$c7
-	dc.b	$ca,$cd,$b5,$d0,$ed,$89,$68,$2b,$c2,$2d,$e0,$2a,$9f,$fd,$87,$c4
-	dc.b	$9f,$4a,$51,$dd,$e6,$84,$df,$5d,$92,$57,$d5,$3a,$70,$98,$d3,$25
-	dc.b	$96,$a3,$26,$37,$80,$f4,$e7,$4f,$f1,$5c,$48,$94,$8a,$c1,$fb,$ca
-	dc.b	$46,$93,$9a,$88,$ef,$01,$52,$82,$ed,$c2,$ff,$63,$30,$a4,$f8,$98
-	dc.b	$98,$32,$99,$7e,$bb,$85,$14,$f7,$0a,$43,$cc,$3c,$9c,$0f,$f8,$bc
-	dc.b	$d0,$74,$c6,$81,$b2,$c1,$53,$dc,$1e,$73,$88,$dc,$d1,$19,$f0,$ff
-	dc.b	$d7,$ee,$ed,$f8,$8f,$bc,$0c,$de,$5d,$c5,$7f,$9e,$a1,$c5,$e1,$65
-	dc.b	$19,$b1,$2d,$31,$ae,$0d,$af,$48,$b2,$a0,$36,$b3,$ca,$12,$14,$a6
-	dc.b	$b9,$fb,$5a,$4a,$70,$f5,$06,$b3,$43,$83,$04,$dd,$37,$93,$80,$fb
-	dc.b	$a3,$36,$f3,$e1,$32,$f6,$a8,$17,$13,$f4,$19,$93,$98,$cf,$b4,$55
-	dc.b	$6f,$dd,$0c,$14,$59,$23,$d2,$99,$da,$8d,$a0,$22,$b7,$5d,$4b,$90
-	dc.b	$72,$c3,$62,$4f,$46,$19,$f4,$c9,$1c,$4a,$bd,$d5,$cd,$67,$95,$bb
-	dc.b	$a9,$f3,$7b,$41,$d6,$41,$2b,$ab,$cd,$06,$27,$bc,$df,$e3,$aa,$77
-	dc.b	$a7,$24,$7f,$92,$c9,$74,$ca,$7a,$ff,$02,$f3,$38,$4f,$59,$89,$12
-	dc.b	$9a,$9a,$0a,$46,$4b,$82,$52,$ca,$5a,$06,$e9,$20,$25,$8c,$51,$75
-	dc.b	$50,$86,$51,$d3,$0d,$5a,$ef,$04,$0f,$f8,$3c,$1f,$01,$5c,$72,$4c
-	dc.b	$b4,$ce,$61,$e7,$d7,$4a,$d6,$6e,$7a,$7a,$17,$c9,$02,$d7,$83,$ed
-	dc.b	$4e,$cb,$f9,$a2,$53,$c6,$f2,$f9,$db,$81,$47,$e6,$c6,$71,$b8,$fc
-	dc.b	$cf,$65,$ea,$1c,$46,$6f,$28,$94,$ad,$1f,$e3,$4c,$12,$7c,$87,$bd
-	dc.b	$0a,$f0,$c4,$85,$2d,$78,$32,$e4,$28,$4f,$87,$68,$35,$9c,$cc,$18
-	dc.b	$26,$16,$fc,$f4,$fe,$0d,$d4,$db,$b1,$84,$6e,$f2,$14,$1b,$b3,$32
-	dc.b	$77,$dd,$31,$09,$ab,$dd,$9f,$43,$59,$92,$16,$3f,$b5,$cb,$c9,$a5
-	dc.b	$0e,$45,$e4,$df,$f0,$bc,$85,$59,$e4,$28,$cf,$e4,$0d,$f8,$b5,$09
-	dc.b	$72,$b5,$c7,$93,$49,$ec,$e9,$1a,$7c,$85,$05,$ea,$45,$ab,$93,$62
-	dc.b	$f3,$1b,$f1,$b5,$bc,$5e,$4d,$2a,$46,$53,$ea,$e2,$cd,$b4,$52,$d4
-	dc.b	$af,$f6,$52,$43,$ae,$62,$a4,$3b,$70,$6c,$bc,$da,$7a,$e6,$5b,$e9
-	dc.b	$7f,$34,$ff,$bc,$f9,$8a,$0b,$d0,$1c,$90,$27,$5e,$0f,$83,$85,$da
-	dc.b	$e1,$71,$19,$f8,$da,$5f,$2e,$dc,$0f,$bc,$c9,$6f,$6e,$dc,$dc,$a7
-	dc.b	$cc,$57,$5c,$c5,$34,$c6,$98,$0a,$63,$2b,$ee,$a2,$84,$e2,$f5,$69
-	dc.b	$59,$8c,$35,$6a,$bc,$db,$42,$b3,$43,$f5,$06,$e3,$36,$e9,$a8,$85
-	dc.b	$ea,$29,$37,$b3,$32,$bb,$c5,$f6,$ec,$b2,$83,$7a,$1a,$cb,$a8,$52
-	dc.b	$dd,$ab,$5e,$af,$5b,$83,$3d,$29,$77,$44,$96,$d8,$9c,$49,$10,$cd
-	dc.b	$ca,$4c,$97,$b7,$6a,$74,$f0,$20,$9f,$cb,$7b,$9a,$0a,$71,$94,$08
-	dc.b	$d6,$84,$af,$f5,$df,$94,$d9,$66,$71,$f4,$92,$c1,$99,$c7,$dd,$48
-	dc.b	$b4,$fe,$b5,$8b,$cc,$af,$8d,$59,$c1,$29,$bd,$3b,$fc,$fb,$86,$53
-	dc.b	$ca,$e2,$cd,$d4,$54,$af,$f6,$56,$f3,$28,$d6,$b0,$c2,$c8,$41,$44
-	dc.b	$6a,$bc,$7c,$e6,$0e,$ff,$37,$04,$6b,$f2,$f9,$96,$19,$8f,$51,$50
-	dc.b	$ad,$0e,$52,$b2,$15,$b6,$bb,$03,$3d,$b7,$06,$61,$27,$a0,$be,$48
-	dc.b	$15,$af,$07,$e6,$85,$b1,$ed,$fc,$4a,$78,$da,$5f,$23,$7e,$04,$af
-	dc.b	$28,$ee,$97,$f6,$17,$d1,$6d,$57,$03,$2b,$2f,$50,$c5,$98,$d2,$0d
-	dc.b	$b1,$bb,$34,$9d,$33,$14,$ec,$29,$34,$18,$bb,$18,$4a,$c4,$e6,$f5
-	dc.b	$ab,$2b,$85,$69,$41,$37,$93,$a1,$dd,$a8,$ef,$83,$33,$80,$3f,$55
-	dc.b	$15,$1c,$bd,$99,$9b,$b1,$76,$27,$31,$35,$7a,$1b,$d7,$d6,$5d,$46
-	dc.b	$2d,$cc,$a5,$3a,$aa,$a2,$91,$95,$73,$8d,$e5,$76,$1e,$84,$bd,$81
-	dc.b	$b8,$af,$b3,$4d,$dd,$85,$42,$e2,$2f,$99,$5d,$8b,$7c,$56,$0e,$ce
-	dc.b	$0c,$22,$8f,$b6,$bb,$1f,$ff,$e5,$46,$55,$ab,$b3,$d7,$d9,$65,$06
-	dc.b	$a2,$94,$46,$b7,$66,$ff,$cc,$b0,$c7,$4d,$bf,$27,$cb,$55,$d4,$b7
-	dc.b	$e3,$70,$45,$62,$3d,$c4,$07,$24,$0e,$9c,$1f,$d5,$a7,$5f,$81,$9d
-	dc.b	$26,$3f,$c4,$19,$fc,$a5,$b0,$b8,$b2,$7c,$1e,$a9,$ff,$07,$ee,$af
-	dc.b	$ff,$e7,$51,$42,$72,$f5,$fa,$57,$57,$52,$df,$8d,$c1,$93,$82,$eb
-	dc.b	$d8,$79,$5d,$5b,$ff,$d7,$c1,$58,$c6,$2d,$de,$75,$3b,$b2,$ca,$ea
-	dc.b	$d2,$c6,$36,$a8,$49,$d8,$97,$69,$5f,$47,$a6,$d7,$b2,$ec,$bc,$2b
-	dc.b	$9c,$c0,$40,$0f,$0e,$4d,$06,$d6,$a4,$36,$4b,$1a,$8e,$de,$1b,$ed
-	dc.b	$cd,$51,$8f,$a7,$e0,$76,$79,$05,$18,$f1,$09,$cf,$37,$a6,$fa,$98
-	dc.b	$25,$24,$7c,$37,$b7,$06,$85,$ac,$fb,$64,$c6,$69,$58,$c3,$bd,$bf
-	dc.b	$2a,$df,$f4,$ba,$ac,$30,$0d,$41,$28,$67,$81,$8c,$c2,$3d,$ad,$e2
-	dc.b	$a8,$cd,$e9,$b7,$2c,$31,$d7,$4d,$b0,$d6,$19,$3f,$e4,$fb,$40,$79
-	dc.b	$75,$0d,$19,$bd,$e8,$22,$b2,$9b,$42,$0b,$c3,$60,$0e,$e0,$fb,$dd
-	dc.b	$ba,$ee,$66,$21,$58,$19,$d1,$8f,$b4,$14,$ed,$15,$f6,$33,$38,$eb
-	dc.b	$16,$83,$50,$bb,$e7,$6a,$9b,$89,$e5,$25,$5b,$b3,$4c,$3f,$39,$98
-	dc.b	$b6,$ff,$61,$4d,$7c,$92,$c3,$49,$59,$f1,$c9,$8e,$1c,$ac,$65,$a6
-	dc.b	$1c,$69,$f9,$63,$2a,$aa,$f4,$19,$3d,$47,$76,$14,$eb,$b3,$33,$d1
-	dc.b	$2e,$72,$e8,$9a,$bd,$a8,$5f,$59,$63,$a9,$17,$e9,$d5,$8f,$10,$a0
-	dc.b	$66,$e4,$a5,$c6,$d8,$db,$74,$49,$6a,$d7,$fd,$21,$b6,$97,$23,$95
-	dc.b	$78,$53,$bd,$6e,$72,$89,$fa,$d6,$b6,$84,$6c,$82,$5b,$2d,$5a,$16
-	dc.b	$78,$eb,$f0,$97,$cb,$ef,$61,$4d,$b0,$d6,$c1,$47,$dc,$41,$9c,$86
-	dc.b	$0b,$d1,$eb,$bc,$e9,$49,$1f,$4b,$e7,$3c,$35,$da,$a9,$29,$c4,$9c
-	dc.b	$d5,$46,$b3,$c4,$4f,$5d,$94,$65,$cf,$4f,$61,$5f,$b9,$1b,$47,$4c
-	dc.b	$20,$a1,$7c,$65,$11,$bc,$2f,$83,$58,$6d,$a3,$99,$14,$ca,$b2,$71
-	dc.b	$12,$7c,$ce,$81,$9b,$de,$b6,$c3,$bb,$45,$c5,$e7,$de,$b6,$8d,$be
-	dc.b	$f0,$5c,$74,$17,$33,$eb,$5f,$f9,$e2,$63,$1f,$d9,$d2,$9d,$f3,$5e
-	dc.b	$ac,$44,$b8,$ef,$ee,$05,$12,$3b,$df,$ce,$5e,$bb,$28,$42,$b7,$a2
-	dc.b	$2f,$12,$9c,$38,$14,$f5,$eb,$16,$ac,$30,$53,$c7,$12,$7f,$4a,$ea
-	dc.b	$b9,$13,$26,$de,$3f,$cb,$ec,$dd,$aa,$f5,$8a,$1d,$ad,$ba,$0a,$6b
-	dc.b	$b3,$f5,$d5,$81,$d5,$de,$9a,$bd,$ab,$af,$8f,$67,$55,$f3,$f4,$55
-	dc.b	$8e,$ae,$8d,$2e,$01,$f4,$b1,$f8,$82,$a2,$a0,$af,$a2,$c5,$a4,$dc
-	dc.b	$ab,$dd,$21,$fd,$1a,$5e,$73,$3b,$11,$32,$a0,$f1,$52,$50,$2a,$fb
-	dc.b	$5d,$b7,$0e,$be,$7a,$7d,$05,$6c,$54,$8e,$0a,$16,$d0,$fd,$4e,$43
-	dc.b	$f5,$6b,$f5,$66,$dd,$b1,$be,$cf,$cf,$58,$63,$a2,$c3,$f8,$08,$ae
-	dc.b	$0d,$57,$da,$e0,$6d,$74,$ca,$49,$ad,$50,$ed,$e5,$08,$26,$d7,$c7
-	dc.b	$4c,$29,$df,$a0,$ae,$bc,$0f,$85,$61,$ba,$80,$c8,$a6,$e8,$f6,$e8
-	dc.b	$b2,$eb,$f5,$c0,$cd,$c0,$fb,$15,$a5,$e4,$f1,$05,$e1,$b5,$9e,$8d
-	dc.b	$fb,$da,$f4,$cb,$66,$7b,$7e,$e7,$b8,$6c,$1f,$d3,$69,$aa,$9f,$aa
-	dc.b	$66,$53,$9d,$fc,$f8,$dc,$02,$2f,$c8,$bc,$51,$a8,$54,$47,$3b,$0a
-	dc.b	$98,$1d,$9f,$51,$67,$78,$3b,$53,$64,$ae,$b0,$c2,$8a,$28,$0f,$cb
-	dc.b	$4a,$7e,$47,$e4,$05,$f9,$e9,$ce,$35,$7d,$b7,$cd,$74,$2a,$83,$41
-	dc.b	$9d,$9f,$a9,$d9,$47,$57,$63,$57,$5e,$fd,$4d,$a1,$b6,$4e,$a3,$29
-	dc.b	$ae,$fc,$c6,$30,$50,$0c,$b1,$ec,$28,$2e,$ec,$fa,$29,$a8,$89,$26
-	dc.b	$18,$e6,$e6,$c9,$7b,$ad,$be,$df,$f5,$14,$c7,$cc,$9f,$4d,$4d,$09
-	dc.b	$21,$8d,$c8,$7e,$cf,$a5,$b3,$e4,$ee,$a2,$bb,$63,$36,$3e,$42,$8f
-	dc.b	$bb,$4c,$c9,$cf,$37,$84,$17,$e1,$dd,$b5,$1d,$c5,$63,$5f,$a8,$af
-	dc.b	$3c,$9f,$09,$97,$21,$ff,$9c,$8b,$d7,$7e,$b5,$2e,$65,$7e,$e3,$34
-	dc.b	$e9,$84,$3b,$f5,$d9,$49,$7e,$f7,$8a,$fd,$2d,$35,$a7,$68,$99,$47
-	dc.b	$af,$44,$9f,$29,$7a,$0a,$ed,$8c,$d4,$fd,$1f,$10,$1c,$99,$56,$d5
-	dc.b	$78,$1d,$b3,$e6,$63,$a6,$fd,$9f,$f1,$f1,$dd,$f6,$77,$be,$6b,$ae
-	dc.b	$58,$e2,$f1,$b6,$80,$ea,$49,$cd,$c0,$f8,$bd,$8f,$90,$91,$64,$98
-	dc.b	$cc,$dc,$0f,$2b,$2f,$6a,$6c,$d7,$37,$95,$14,$2d,$06,$04,$67,$95
-	dc.b	$fc,$d1,$60,$fc,$9d,$1a,$ab,$ee,$d8,$cd,$a3,$85,$51,$50,$f7,$41
-	dc.b	$eb,$ea,$eb,$df,$73,$c4,$34,$f7,$d2,$ef,$1d,$1f,$db,$31,$8a,$81
-	dc.b	$97,$aa,$cf,$4b,$71,$71,$26,$e0,$db,$46,$0e,$8f,$f7,$59,$2f,$0b
-	dc.b	$ee,$a2,$89,$f9,$cc,$71,$d8,$34,$54,$d7,$11,$c6,$4e,$ef,$08,$fb
-	dc.b	$32,$bd,$76,$7b,$1a,$1b,$91,$37,$0b,$77,$b4,$59,$cf,$37,$9e,$0b
-	dc.b	$f0,$e5,$20,$78,$21,$63,$5e,$2f,$c5,$a3,$ca,$a3,$35,$dc,$a3,$c0
-	dc.b	$7d,$45,$24,$fa,$1d,$ff,$4c,$c2,$09,$96,$ee,$a7,$4c,$2f,$a7,$60
-	dc.b	$9b,$3f,$5d,$5a,$60,$d6,$13,$16,$e8,$f4,$2e,$8b,$ad,$4f,$d8,$54
-	dc.b	$68,$6d,$88,$54,$d8,$5f,$d8,$55,$5e,$f1,$c5,$b3,$31,$db,$5b,$5f
-	dc.b	$04,$6e,$e7,$31,$ac,$f9,$cf,$a7,$b2,$f2,$47,$63,$22,$a3,$50,$bc
-	dc.b	$8e,$f5,$1e,$c9,$57,$51,$4c,$66,$62,$bb,$27,$32,$a9,$a9,$b4,$01
-	dc.b	$35,$f3,$71,$44,$b5,$7f,$8d,$73,$18,$01,$20,$c9,$d6,$c6,$ae,$2f
-	dc.b	$57,$d1,$a1,$b6,$81,$c9,$f5,$14,$c7,$eb,$d3,$5e,$a2,$b8,$e2,$40
-	dc.b	$69,$ef,$36,$bb,$47,$50,$d9,$bf,$15,$90,$10,$2d,$f9,$f4,$f2,$f8
-	dc.b	$7d,$76,$53,$59,$46,$07,$01,$e6,$e1,$e0,$a7,$ab,$4f,$cc,$75,$15
-	dc.b	$26,$b8,$c2,$e1,$40,$9e,$f9,$fa,$ed,$53,$d3,$d7,$65,$48,$93,$85
-	dc.b	$be,$3d,$a7,$4b,$ad,$9d,$b7,$14,$e5,$3f,$bd,$38,$58,$8d,$57,$8a
-	dc.b	$b2,$d0,$65,$dc,$fd,$1f,$9f,$54,$72,$ba,$8f,$61,$14,$13,$05,$d4
-	dc.b	$e9,$86,$df,$d7,$7a,$64,$d4,$47,$d2,$d3,$58,$4f,$ef,$51,$5f,$00
-	dc.b	$eb,$b3,$d4,$53,$ca,$bc,$3f,$ee,$c6,$07,$26,$0d,$1a,$fb,$bc,$22
-	dc.b	$d0,$7e,$3a,$e7,$c8,$f6,$d1,$bb,$a2,$fe,$19,$b4,$86,$17,$95,$17
-	dc.b	$fd,$56,$57,$5e,$7c,$4a,$48,$28,$b4,$8f,$a8,$f4,$52,$c9,$c5,$ca
-	dc.b	$a5,$a1,$7e,$01,$18,$76,$28,$a0,$9a,$92,$7f,$01,$39,$93,$3a,$c1
-	dc.b	$e5,$fe,$ab,$e7,$95,$75,$09,$ba,$a2,$a3,$a6,$be,$af,$19,$1d,$5d
-	dc.b	$39,$77,$f7,$73,$01,$b6,$47,$57,$78,$c6,$18,$16,$1b,$9b,$20,$23
-	dc.b	$a5,$2e,$65,$12,$ae,$26,$24,$c8,$31,$49,$c2,$0e,$59,$f6,$1e,$79
-	dc.b	$f7,$d4,$57,$12,$df,$af,$13,$2e,$a1,$b5,$a1,$64,$2a,$52,$32,$bc
-	dc.b	$77,$87,$c4,$d6,$c7,$a8,$a1,$4a,$eb,$55,$ed,$8f,$b3,$ab,$67,$4b
-	dc.b	$aa,$35,$5e,$0e,$ca,$8b,$72,$ab,$bd,$5e,$2b,$94,$d5,$94,$c5,$b8
-	dc.b	$f7,$44,$77,$25,$20,$db,$d3,$79,$51,$dc,$ca,$23,$59,$37,$3a,$61
-	dc.b	$37,$d0,$fe,$a2,$83,$4c,$82,$36,$d1,$b5,$68,$e5,$cc,$a3,$c5,$a0
-	dc.b	$3a,$dd,$40,$cd,$d9,$62,$95,$cc,$c4,$5c,$2f,$65,$cf,$a3,$5f,$70
-	dc.b	$2b,$7f,$33,$9d,$03,$fc,$50,$ca,$d3,$fa,$9f,$de,$78,$55,$9f,$77
-	dc.b	$b3,$7b,$f4,$de,$56,$56,$eb,$ca,$59,$8c,$28,$1c,$ae,$5c,$8a,$dd
-	dc.b	$79,$5d,$4c,$9c,$7a,$35,$57,$ad,$cc,$63,$9c,$ae,$ac,$a6,$f5,$27
-	dc.b	$f0,$11,$61,$6b,$ad,$8a,$ae,$35,$5f,$0a,$57,$e2,$27,$98,$f7,$d5
-	dc.b	$e3,$87,$57,$47,$57,$6a,$03,$d0,$c3,$61,$73,$ba,$4d,$1b,$88,$6f
-	dc.b	$36,$9e,$a5,$cc,$54,$6f,$da,$39,$8a,$e5,$cc,$36,$07,$b4,$3c,$26
-	dc.b	$f9,$68,$10,$23,$e5,$38,$b1,$98,$4d,$34,$2c,$95,$38,$67,$39,$ce
-	dc.b	$f7,$6d,$28,$b3,$29,$67,$f3,$ca,$b5,$8b,$75,$72,$46,$ce,$67,$48
-	dc.b	$76,$2c,$ae,$2f,$52,$4f,$1b,$4f,$58,$66,$73,$95,$3e,$b4,$fd,$b9
-	dc.b	$c2,$b4,$9d,$83,$24,$1b,$7a,$03,$71,$3d,$05,$7a,$a3,$f8,$23,$43
-	dc.b	$3c,$ba,$3d,$7c,$bf,$47,$ac,$a8,$06,$7e,$4b,$ca,$bf,$3d,$bf,$82
-	dc.b	$e0,$76,$56,$86,$34,$67,$4a,$93,$2d,$fb,$fa,$03,$ef,$7d,$90,$bb
-	dc.b	$b8,$af,$6b,$a5,$b1,$fe,$7d,$e6,$ab,$b5,$ee,$dc,$07,$9e,$82,$94
-	dc.b	$a4,$14,$46,$57,$f4,$1e,$e1,$e4,$e2,$89,$97,$dc,$a6,$82,$33,$1d
-	dc.b	$e3,$85,$a5,$eb,$ef,$c0,$62,$ff,$44,$ee,$b0,$63,$71,$82,$86,$bc
-	dc.b	$ab,$05,$d7,$fc,$a8,$a8,$13,$53,$29,$64,$8e,$f5,$d2,$ef,$ef,$d4
-	dc.b	$41,$b9,$a7,$74,$5b,$18,$2c,$c3,$5d,$64,$04,$27,$3d,$16,$57,$1f
-	dc.b	$c3,$f3,$1e,$a1,$8c,$ae,$51,$70,$f0,$94,$c2,$04,$34,$fc,$a7,$1c
-	dc.b	$a0,$4c,$6d,$00,$54,$ea,$d1,$71,$8c,$c7,$97,$32,$40,$fc,$29,$5d
-	dc.b	$62,$df,$d9,$18,$fc,$5f,$3a,$51,$b7,$9d,$57,$8a,$28,$47,$e6,$76
-	dc.b	$d5,$d8,$cf,$ae,$38,$2b,$45,$98,$7f,$ed,$a7,$1c,$5e,$8b,$d3,$cc
-	dc.b	$1b,$c6,$cd,$73,$a6,$09,$b6,$dc,$10,$e7,$b9,$be,$c1,$e6,$29,$69
-	dc.b	$57,$31,$5f,$07,$5d,$e8,$09,$ff,$24,$52,$bf,$9e,$5a,$07,$fe,$ee
-	dc.b	$83,$0c,$6c,$1f,$af,$9d,$0f,$de,$29,$9d,$1d,$cf,$c3,$7c,$f7,$16
-	dc.b	$1f,$35,$89,$3b,$dd,$5c,$fd,$e9,$ea,$3b,$4e,$9c,$e0,$7c,$5e,$9b
-	dc.b	$ba,$72,$ce,$9b,$a9,$87,$14,$4a,$98,$9c,$b9,$9a,$fd,$71,$db,$56
-	dc.b	$8b,$db,$5f,$fe,$03,$66,$c6,$17,$5b,$9e,$3e,$d0,$50,$d1,$4a,$e0
-	dc.b	$b2,$d9,$56,$cc,$06,$a6,$63,$75,$74,$15,$3b,$02,$0a,$77,$f5,$d5
-	dc.b	$cf,$e1,$14,$37,$a0,$a5,$a9,$71,$d4,$5e,$ec,$fc,$7a,$0a,$75,$f5
-	dc.b	$02,$ad,$c6,$70,$f5,$1d,$cf,$e8,$28,$9f,$c5,$03,$90,$1d,$11,$90
-	dc.b	$27,$7b,$dd,$a4,$57,$d3,$71,$aa,$49,$fc,$e4,$c0,$fc,$15,$6b,$ba
-	dc.b	$d6,$3c,$53,$27,$b1,$ea,$72,$59,$d4,$27,$05,$2a,$ad,$b4,$f8,$4a
-	dc.b	$06,$50,$cd,$d2,$15,$4d,$37,$ed,$e8,$2b,$a4,$94,$65,$74,$69,$35
-	dc.b	$fe,$ce,$98,$31,$fa,$0a,$5b,$ef,$5a,$f5,$86,$ea,$51,$b0,$ca,$3a
-	dc.b	$e8,$28,$43,$ae,$17,$03,$77,$92,$15,$7d,$fe,$1f,$fc,$fd,$cd,$96
-	dc.b	$30,$e5,$f8,$39,$9f,$14,$28,$78,$9e,$7f,$3c,$1a,$37,$88,$57,$e6
-	dc.b	$b2,$9d,$6a,$1f,$b9,$c2,$82,$8c,$6f,$52,$df,$7d,$8a,$64,$3a,$6a
-	dc.b	$3c,$c3,$90,$50,$e6,$52,$ef,$b5,$16,$d0,$62,$bf,$cb,$e1,$01,$8e
-	dc.b	$c4,$b5,$d7,$f3,$bd,$68,$34,$34,$2a,$c1,$75,$a0,$d5,$8b,$02,$4e
-	dc.b	$65,$67,$d4,$7a,$05,$d4,$50,$3f,$0a,$b6,$17,$5b,$80,$ec,$28,$2a
-	dc.b	$fd,$45,$49,$95,$c6,$4b,$c0,$4a,$e5,$7c,$97,$79,$37,$f4,$22,$10
-	dc.b	$cf,$e5,$ba,$6c,$59,$02,$12,$41,$1b,$2c,$c8,$9a,$d9,$5f,$91,$bc
-	dc.b	$a9,$92,$13,$f0,$95,$d7,$7f,$72,$f2,$b7,$26,$27,$fb,$29,$5a,$4d
-	dc.b	$6f,$8a,$28,$27,$65,$c0,$f5,$86,$e9,$e7,$53,$97,$22,$65,$36,$ee
-	dc.b	$d5,$7e,$72,$06,$22,$ea,$0d,$da,$f5,$15,$f3,$6e,$42,$0a,$ea,$7f
-	dc.b	$3f,$ea,$f5,$83,$a5,$1e,$9b,$e0,$eb,$f8,$08,$d8,$6c,$4a,$fd,$ff
-	dc.b	$24,$ef,$c5,$5f,$50,$b3,$f2,$5c,$2c,$55,$be,$fc,$4f,$30,$38,$07
-	dc.b	$9d,$64,$7d,$fa,$9c,$cc,$f5,$21,$d5,$77,$61,$5b,$76,$1e,$dc,$c6
-	dc.b	$14,$c9,$c8,$8b,$9a,$77,$98,$6f,$b1,$2a,$73,$3d,$cb,$55,$d3,$cc
-	dc.b	$1c,$e4,$10,$3d,$e5,$1d,$9c,$cd,$e5,$4a,$ac,$05,$0d,$12,$b8,$2c
-	dc.b	$37,$97,$ab,$77,$50,$4d,$cc,$ea,$c0,$ef,$42,$6a,$f5,$8d,$18,$50
-	dc.b	$af,$75,$50,$9c,$44,$70,$9d,$c4,$0d,$a5,$2e,$79,$15,$ee,$c1,$d4
-	dc.b	$0e,$21,$e0,$97,$d7,$4e,$4b,$bd,$2b,$a5,$e6,$10,$80,$6d,$a1,$22
-	dc.b	$ce,$51,$15,$01,$d6,$4b,$d6,$66,$fd,$8e,$ee,$f9,$c5,$9c,$c3,$2b
-	dc.b	$d5,$39,$43,$b2,$67,$5d,$8f,$fb,$2b,$86,$fa,$cd,$ca,$ec,$97,$f4
-	dc.b	$7e,$7d,$76,$36,$cf,$39,$bf,$5c,$82,$d0,$e7,$1f,$45,$36,$3d,$56
-	dc.b	$52,$c8,$be,$bf,$a1,$79,$76,$98,$56,$73,$72,$11,$af,$0e,$b5,$aa
-	dc.b	$ea,$40,$e9,$b7,$ec,$d8,$b9,$08,$c2,$b7,$a2,$8c,$6c,$8e,$03,$6f
-	dc.b	$c4,$75,$34,$f6,$28,$59,$fc,$b2,$fa,$5f,$63,$d3,$f8,$90,$dc,$d1
-	dc.b	$c0,$c5,$fd,$93,$20,$7f,$28,$9f,$c7,$85,$d3,$ea,$f3,$b3,$5d,$1e
-	dc.b	$bc,$f5,$20,$91,$91,$0a,$14,$84,$18,$8b,$9a,$cf,$98,$7c,$76,$a4
-	dc.b	$de,$d4,$cb,$ba,$ba,$79,$c2,$73,$96,$2f,$b2,$43,$ca,$93,$79,$c5
-	dc.b	$de,$80,$a0,$b0,$03,$42,$8e,$b5,$b3,$cd,$09,$b9,$99,$9b,$4c,$7a
-	dc.b	$13,$4f,$7e,$8e,$8c,$28,$53,$3b,$6c,$e7,$7d,$71,$cd,$f5,$75,$c0
-	dc.b	$4a,$27,$a0,$a5,$59,$91,$ba,$8f,$19,$37,$0e,$de,$1c,$97,$01,$ab
-	dc.b	$3c,$c2,$a3,$07,$ff,$78,$57,$6a,$c8,$11,$18,$16,$2f,$e0,$7b,$cc
-	dc.b	$eb,$7a,$61,$65,$0f,$62,$61,$01,$6f,$b6,$82,$bf,$5e,$5f,$ec,$84
-	dc.b	$bd,$e8,$be,$3d,$2f,$2a,$3b,$d7,$aa,$32,$c2,$67,$eb,$95,$9b,$61
-	dc.b	$6f,$1d,$6c,$bb,$aa,$7f,$f0,$fb,$4b,$8a,$cf,$87,$1a,$86,$78,$2d
-	dc.b	$fa,$a2,$ff,$d9,$87,$4b,$31,$95,$5b,$4d,$c0,$03,$4a,$03,$5f,$0d
-	dc.b	$e5,$79,$9e,$fa,$05,$e9,$f1,$5d,$4c,$53,$13,$f3,$58,$33,$3b,$5a
-	dc.b	$bc,$7e,$ca,$ee,$3f,$f7,$b8,$de,$ff,$13,$3f,$0b,$af,$20,$05,$e5
-	dc.b	$8f,$20,$94,$68,$bd,$f6,$22,$e4,$1b,$17,$7e,$3d,$52,$4f,$f5,$34
-	dc.b	$ae,$a6,$22,$6e,$3b,$8e,$08,$1f,$2a,$1b,$49,$bc,$c5,$58,$0d,$cd
-	dc.b	$00,$34,$34,$cb,$4e,$bb,$e8,$03,$cc,$bc,$e4,$ed,$bb,$52,$ed,$4b
-	dc.b	$ff,$5e,$86,$0a,$d3,$d8,$53,$be,$83,$5d,$5a,$e9,$f0,$24,$ae,$fa
-	dc.b	$bd,$6d,$78,$51,$ea,$d2,$4b,$8b,$27,$87,$8c,$de,$4d,$87,$5d,$3a
-	dc.b	$2e,$d0,$19,$8a,$60,$23,$86,$18,$bb,$1f,$d3,$d8,$81,$c2,$9e,$54
-	dc.b	$66,$01,$6e,$a2,$85,$37,$fe,$c9,$d9,$3e,$c6,$67,$dd,$ca,$93,$64
-	dc.b	$7d,$52,$9f,$2a,$3f,$ae,$67,$ec,$99,$bd,$5e,$b4,$58,$bc,$59,$da
-	dc.b	$45,$43,$6a,$7a,$8a,$7a,$65,$aa,$da,$5d,$c7,$94,$0c,$c2,$13,$d5
-	dc.b	$eb,$82,$b2,$b8,$91,$c2,$68,$51,$c7,$d3,$f6,$b2,$5e,$b7,$67,$a5
-	dc.b	$e8,$fd,$a6,$cb,$35,$c2,$b7,$e1,$de,$ab,$e3,$8e,$96,$36,$6c,$66
-	dc.b	$f7,$18,$90,$e5,$76,$ca,$56,$fe,$1e,$8e,$57,$6a,$22,$59,$17,$29
-	dc.b	$de,$76,$e1,$ff,$a4,$ed,$8c,$a5,$74,$71,$68,$77,$1d,$8c,$59,$37
-	dc.b	$54,$5e,$57,$66,$00,$68,$2d,$e6,$83,$45,$c4,$0f,$da,$b6,$16,$d3
-	dc.b	$3b,$ba,$84,$e5,$4c,$d4,$53,$7d,$99,$07,$be,$6e,$3a,$b5,$eb,$da
-	dc.b	$ea,$d2,$94,$57,$b5,$7c,$19,$ea,$2a,$e1,$db,$bd,$c0,$4d,$e1,$ff
-	dc.b	$3c,$9b,$16,$7a,$7d,$a3,$88,$c2,$99,$2b,$c7,$42,$30,$fb,$69,$ec
-	dc.b	$40,$fe,$54,$f2,$a3,$2e,$c8,$be,$6f,$45,$c9,$d9,$3e,$74,$cf,$77
-	dc.b	$06,$e7,$e3,$7e,$a9,$4f,$95,$18,$bc,$79,$fb,$74,$9d,$c1,$f3,$e7
-	dc.b	$28,$f6,$0a,$28,$6e,$6b,$45,$c2,$a1,$b6,$a0,$e5,$55,$b4,$d1,$ad
-	dc.b	$a4,$36,$98,$79,$98,$1d,$27,$e8,$c9,$03,$ce,$6f,$e2,$89,$1c,$3c
-	dc.b	$c2,$8f,$3d,$e2,$d4,$b5,$b1,$dd,$4f,$47,$ed,$3d,$d3,$5d,$58,$fe
-	dc.b	$87,$e7,$47,$70,$c7,$cb,$f1,$a7,$60,$e6,$70,$ca,$ea,$d2,$e5,$23
-	dc.b	$4f,$89,$52,$45,$c4,$dc,$8a,$07,$fe,$95,$31,$9a,$aa,$ea,$95,$a6
-	dc.b	$d3,$3b,$15,$37,$4b,$ab,$4a,$9b,$d0,$b9,$ad,$bd,$45,$3c,$d0,$68
-	dc.b	$a3,$c3,$f5,$bb,$85,$8f,$d7,$77,$50,$c5,$76,$a8,$a6,$5b,$32,$2c
-	dc.b	$ff,$af,$1d,$4c,$e1,$c0,$93,$d3,$65,$08,$3f,$8c,$1b,$d8,$0b,$2e
-	dc.b	$af,$48,$76,$cc,$91,$e1,$a2,$dd,$dd,$81,$f8,$17,$37,$d8,$29,$fd
-	dc.b	$d0,$98,$78,$53,$be,$a8,$c1,$6e,$8d,$97,$c2,$53,$98,$3b,$ca,$87
-	dc.b	$a3,$dd,$1c,$ff,$29,$c5,$bc,$96,$75,$d2,$78,$37,$bf,$a3,$ea,$5c
-	dc.b	$c8,$3e,$96,$6e,$64,$9a,$56,$b1,$e4,$f9,$8a,$39,$04,$37,$8d,$39
-	dc.b	$c0,$95,$c9,$6d,$98,$33,$1c,$9c,$07,$49,$b6,$98,$6d,$04,$ec,$f5
-	dc.b	$0e,$e6,$53,$1c,$a6,$03,$ac,$8e,$f2,$68,$51,$5b,$23,$cb,$42,$f9
-	dc.b	$99,$df,$b6,$a0,$3e,$3f,$39,$6e,$6f,$7b,$b1,$6e,$3e,$fa,$5f,$f6
-	dc.b	$ad,$f6,$09,$60,$3d,$e7,$b6,$4f,$d8,$51,$0a,$6f,$b2,$80,$ce,$72
-	dc.b	$4c,$8b,$5b,$34,$18,$1b,$94,$9d,$17,$70,$a7,$33,$9c,$53,$ba,$0e
-	dc.b	$a5,$de,$7b,$46,$63,$66,$9c,$01,$5c,$de,$9a,$2a,$19,$79,$3f,$a0
-	dc.b	$bf,$0e,$6f,$ab,$5a,$82,$f1,$d9,$75,$cc,$de,$a0,$cf,$e9,$c1,$39
-	dc.b	$91,$25,$65,$45,$2b,$19,$52,$46,$19,$f4,$d7,$37,$ac,$8f,$07,$bc
-	dc.b	$af,$57,$ab,$ab,$52,$6a,$6f,$b8,$15,$da,$ea,$65,$ca,$2c,$bc,$c6
-	dc.b	$1d,$7b,$dd,$0e,$22,$dd,$1d,$6d,$74,$69,$9b,$a0,$ac,$bd,$f6,$c4
-	dc.b	$17,$eb,$cc,$3f,$98,$9f,$13,$4b,$79,$87,$4e,$e8,$b2,$e2,$9c,$4d
-	dc.b	$ed,$7e,$82,$b6,$41,$0d,$ce,$39,$c6,$b4,$f3,$26,$33,$58,$64,$db
-	dc.b	$a0,$a9,$c4,$14,$41,$d2,$75,$0b,$01,$e0,$f6,$2a,$03,$bc,$6d,$74
-	dc.b	$14,$f3,$3b,$c1,$9a,$ff,$30,$df,$1b,$e9,$7b,$9e,$0e,$9b,$9f,$c1
-	dc.b	$96,$cd,$a1,$de,$5f,$81,$db,$1f,$e7,$d2,$fa,$91,$98,$f2,$1e,$62
-	dc.b	$83,$14,$cc,$8c,$1b,$9c,$e1,$2e,$bb,$4d,$73,$e6,$58,$69,$93,$8c
-	dc.b	$5a,$fe,$a2,$a8,$f7,$3d,$d1,$37,$39,$d5,$9e,$62,$fc,$33,$19,$cd
-	dc.b	$75,$69,$83,$0d,$bf,$a2,$cb,$fe,$05,$b6,$bd,$53,$9e,$d6,$c2,$4d
-	dc.b	$d3,$fd,$43,$af,$73,$8b,$09,$90,$d4,$00,$69,$72,$77,$2b,$a8,$fd
-	dc.b	$8a,$a1,$65,$d4,$57,$0e,$5b,$c2,$cd,$cf,$8a,$9e,$16,$d4,$ec,$8d
-	dc.b	$c4,$c6,$3a,$9f,$bc,$a1,$fc,$0b,$ad,$9f,$d7,$6c,$5f,$cb,$99,$3f
-	dc.b	$65,$40,$16,$d3,$ca,$0c,$44,$f8,$34,$58,$96,$3a,$b4,$3d,$0a,$f1
-	dc.b	$73,$7d,$60,$c5,$dd,$16,$95,$ec,$96,$dd,$85,$31,$d1,$67,$fd,$26
-	dc.b	$27,$f7,$f9,$6c,$98,$9a,$b2,$ca,$ba,$8f,$1c,$33,$f4,$6b,$60,$e9
-	dc.b	$0f,$22,$a1,$1b,$ab,$d4,$3c,$91,$c4,$9b,$c4,$35,$93,$eb,$bb,$29
-	dc.b	$bc,$7c,$bd,$c2,$49,$75,$a6,$17,$f5,$b3,$9c,$67,$03,$bf,$dd,$16
-	dc.b	$b3,$ad,$98,$43,$01,$e5,$c8,$31,$54,$f2,$98,$a4,$45,$f5,$5d,$e0
-	dc.b	$89,$c9,$6c,$9c,$13,$7d,$b1,$95,$d0,$4e,$10,$59,$d2,$4a,$f7,$5b
-	dc.b	$3c,$b9,$84,$31,$9d,$50,$2a,$0b,$13,$41,$a1,$8c,$4f,$10,$c8,$bf
-	dc.b	$ca,$7e,$86,$cd,$07,$74,$09,$2f,$ea,$32,$be,$d4,$e0,$fa,$1b,$55
-	dc.b	$d3,$65,$79,$6b,$27,$ff,$44,$61,$c6,$48,$82,$51,$65,$e0,$da,$c5
-	dc.b	$ad,$94,$d5,$1b,$21,$79,$d7,$e3,$32,$79,$ae,$10,$d2,$8a,$a7,$bf
-	dc.b	$63,$95,$65,$d7,$94,$27,$2b,$95,$d4,$51,$90,$68,$dc,$fa,$32,$2d
-	dc.b	$85,$a6,$38,$e9,$66,$a9,$fb,$8c,$ed,$56,$45,$94,$cc,$e8,$77,$51
-	dc.b	$5a,$b4,$57,$ff,$ad,$db,$01,$86,$72,$f3,$08,$5a,$67,$0e,$11,$b4
-	dc.b	$68,$34,$cc,$87,$91,$54,$0c,$8a,$c6,$1f,$3c,$91,$3c,$fa,$f9,$9d
-	dc.b	$59,$ce,$d3,$f3,$d8,$e1,$f8,$fc,$d1,$b3,$7f,$21,$b3,$ec,$f2,$ca
-	dc.b	$75,$b1,$bc,$6b,$aa,$7f,$26,$b3,$50,$81,$e5,$0c,$19,$b7,$e0,$00
-	dc.b	$8d,$c2,$88,$63,$47,$06,$0d,$3e,$d8,$26,$15,$bb,$66,$62,$c7,$d6
-	dc.b	$cc,$38,$5a,$68,$b9,$48,$2c,$9c,$f2,$0f,$c3,$d7,$61,$80,$52,$a2
-	dc.b	$6a,$0c,$c9,$5e,$30,$d3,$62,$35,$9f,$10,$d7,$36,$9b,$5e,$cd,$75
-	dc.b	$f5,$0a,$71,$d6,$8b,$7d,$0e,$a1,$1f,$3a,$5c,$f2,$d5,$2e,$53,$3c
-	dc.b	$7c,$1a,$92,$07,$a5,$32,$85,$51,$6b,$cc,$e2,$f0,$6f,$11,$e4,$75
-	dc.b	$ab,$ec,$d2,$d2,$f8,$b8,$dd,$6b,$ba,$a5,$d6,$50,$75,$df,$cf,$85
-	dc.b	$af,$4c,$db,$4a,$39,$41,$dd,$c5,$b7,$bc,$18,$d5,$4f,$0f,$e4,$d4
-	dc.b	$fc,$c7,$76,$d5,$f8,$18,$77,$c5,$2a,$64,$81,$ee,$56,$72,$1b,$82
-	dc.b	$72,$52,$c5,$3b,$81,$bb,$f6,$4d,$b3,$1b,$be,$ad,$fc,$71,$4e,$6e
-	dc.b	$ab,$63,$2a,$e1,$5b,$87,$e0,$8b,$92,$00,$c7,$7d,$91,$62,$07,$f6
-	dc.b	$b4,$ff,$fb,$79,$1c,$47,$d6,$fa,$37,$13,$dc,$ab,$c7,$2b,$7b,$49
-	dc.b	$5f,$70,$3f,$ba,$60,$4a,$1e,$e2,$c0,$16,$18,$52,$10,$b5,$52,$34
-	dc.b	$bb,$13,$e4,$b8,$0e,$76,$1f,$f9,$b1,$f2,$09,$fc,$b2,$98,$26,$0d
-	dc.b	$27,$98,$33,$1e,$bd,$7c,$2a,$2a,$21,$07,$b0,$d4,$76,$97,$74,$61
-	dc.b	$70,$14,$ef,$a6,$8d,$19,$a5,$f5,$0d,$5b,$63,$31,$f4,$d0,$25,$86
-	dc.b	$34,$b8,$65,$8c,$34,$74,$a8,$cd,$14,$c1,$b6,$d2,$ed,$32,$9e,$1b
-	dc.b	$41,$80,$0d,$cb,$c5,$a1,$4a,$cf,$a5,$e9,$c2,$37,$fe,$c7,$19,$99
-	dc.b	$55,$a1,$f4,$77,$72,$11,$16,$fa,$57,$60,$d7,$47,$b6,$ff,$25,$e5
-	dc.b	$0e,$81,$f8,$7e,$9b,$21,$8b,$80,$b1,$99,$33,$32,$87,$e0,$ca,$62
-	dc.b	$82,$ff,$f2,$9c,$90,$4a,$87,$8a,$d2,$71,$fc,$3b,$66,$5a,$b2,$e6
-	dc.b	$3d,$43,$f3,$44,$c7,$88,$90,$c3,$57,$7e,$66,$b0,$46,$67,$3c,$6c
-	dc.b	$e9,$5b,$c3,$56,$de,$e7,$c5,$75,$29,$7c,$97,$ed,$99,$d9,$45,$f9
-	dc.b	$b6,$84,$79,$06,$42,$9c,$a8,$4f,$85,$23,$2e,$89,$5d,$e5,$39,$89
-	dc.b	$b2,$54,$d0,$eb,$4b,$a6,$1f,$cc,$54,$cb,$9e,$43,$b4,$f3,$03,$41
-	dc.b	$c2,$84,$4d,$06,$88,$2c,$d7,$46,$a5,$da,$12,$a2,$38,$2a,$24,$d1
-	dc.b	$b7,$b2,$4c,$85,$38,$25,$5a,$f4,$30,$b9,$c6,$59,$e9,$71,$2b,$6e
-	dc.b	$eb,$6c,$7f,$0d,$af,$07,$59,$80,$92,$79,$94,$20,$39,$20,$77,$10
-	dc.b	$f7,$f1,$12,$0f,$25,$2a,$ac,$65,$6b,$67,$8b,$8c,$65,$4a,$3f,$97
-	dc.b	$15,$09,$ee,$88,$79,$e5,$3a,$ab,$db,$32,$6c,$a7,$ad,$5c,$3b,$6e
-	dc.b	$43,$a5,$35,$35,$9e,$ac,$80,$95,$fb,$ca,$d8,$57,$20,$c5,$e2,$a9
-	dc.b	$69,$4d,$93,$63,$14,$14,$61,$a3,$ca,$4e,$e4,$c6,$15,$bc,$5d,$5b
-	dc.b	$88,$0d,$a7,$a6,$b7,$33,$6d,$78,$12,$38,$96,$e8,$4f,$33,$9a,$6c
-	dc.b	$9b,$fb,$71,$67,$6d,$d2,$59,$f9,$1f,$6f,$86,$c7,$c9,$0a,$f8,$77
-	dc.b	$58,$6e,$f8,$bb,$30,$9d,$06,$4e,$de,$0c,$28,$37,$57,$4e,$5d,$4b
-	dc.b	$49,$55,$36,$14,$67,$28,$b5,$6d,$1b,$ca,$1a,$77,$b6,$af,$5f,$25
-	dc.b	$d4,$f3,$2d,$d1,$b3,$4d,$3e,$80,$2f,$a1,$d4,$6b,$8e,$a0,$fa,$3e
-	dc.b	$01,$a1,$8c,$23,$a3,$15,$d8,$7a,$e2,$c9,$76,$31,$4c,$35,$70,$81
-	dc.b	$e9,$1e,$e6,$e9,$15,$30,$17,$1a,$a4,$1e,$13,$00,$f2,$1e,$a9,$72
-	dc.b	$8a,$98,$d6,$20,$a2,$8f,$47,$c5,$ca,$3d,$0c,$b2,$a6,$29,$e4,$a3
-	dc.b	$93,$59,$e4,$a3,$16,$60,$39,$4f,$55,$bf,$60,$71,$65,$d7,$df,$6b
-	dc.b	$99,$06,$56,$91,$23,$1f,$58,$9a,$06,$51,$e6,$31,$67,$c0,$b2,$b3
-	dc.b	$34,$d1,$80,$63,$57,$3e,$61,$ef,$9e,$03,$6f,$7f,$bc,$e2,$6a,$f1
-	dc.b	$2c,$99,$4e,$06,$a9,$f4,$d8,$97,$cc,$9c,$3f,$c3,$fe,$75,$30,$79
-	dc.b	$73,$ed,$17,$1f,$fb,$a0,$d3,$73,$16,$f9,$91,$ee,$2e,$48,$ab,$48
-	dc.b	$ae,$a8,$8e,$ee,$a8,$ce,$d6,$d1,$89,$cc,$39,$cc,$cf,$5e,$d5,$03
-	dc.b	$04,$1c,$9f,$70,$e5,$e4,$c6,$18,$76,$56,$68,$16,$eb,$10,$57,$a6
-	dc.b	$a7,$6e,$7e,$dc,$d1,$46,$b3,$8f,$6e,$7c,$7e,$7b,$bb,$94,$fa,$30
-	dc.b	$8e,$84,$c6,$2a,$e4,$3d,$6f,$73,$b5,$05,$a1,$17,$e2,$e2,$04,$9b
-	dc.b	$9c,$48,$71,$fe,$8d,$cc,$49,$ae,$8c,$8a,$79,$a8,$fd,$f5,$32,$02
-	dc.b	$e6,$6f,$3c,$25,$19,$fb,$5a,$09,$5d,$2d,$f6,$d8,$a3,$57,$9a,$d8
-	dc.b	$e5,$0a,$53,$c0,$ca,$18,$c5,$1d,$9a,$44,$0f,$a6,$76,$f2,$82,$18
-	dc.b	$76,$52,$76,$b7,$8c,$03,$2a,$e9,$8c,$c3,$29,$e5,$7c,$da,$6a,$0f
-	dc.b	$37,$79,$d6,$85,$d1,$4d,$8a,$f2,$6a,$d6,$93,$b8,$fb,$7d,$d7,$ff
-	dc.b	$3f,$ed,$6a,$d0,$64,$5d,$af,$c8,$4d,$cf,$50,$0b,$32,$87,$1d,$d0
-	dc.b	$43,$3d,$b4,$51,$69,$67,$22,$18,$98,$4b,$92,$ed,$5c,$4c,$82,$6e
-	dc.b	$fd,$10,$99,$50,$98,$29,$3b,$77,$11,$d0,$c1,$a1,$29,$3f,$50,$af
-	dc.b	$bf,$f0,$1d,$6e,$8d,$9b,$47,$3d,$3c,$44,$d6,$d7,$3f,$68,$68,$9b
-	dc.b	$a7,$56,$89,$a5,$ce,$9f,$5a,$6d,$1d,$d4,$8d,$9a,$c9,$01,$e9,$1a
-	dc.b	$90,$f5,$b2,$db,$68,$03,$30,$87,$10,$23,$67,$63,$15,$e0,$b2,$a0
-	dc.b	$dc,$f0,$15,$f3,$ba,$72,$c0,$ee,$5c,$c8,$e6,$60,$bc,$f5,$19,$27
-	dc.b	$f5,$d1,$fd,$f0,$f8,$44,$c5,$25,$ad,$b9,$37,$ec,$ab,$81,$f7,$d1
-	dc.b	$fb,$80,$a9,$39,$d2,$4c,$0c,$15,$e5,$05,$53,$6e,$52,$76,$e2,$bf
-	dc.b	$78,$a8,$d1,$9e,$f6,$97,$ba,$94,$ad,$39,$d9,$06,$4a,$3e,$54,$4e
-	dc.b	$e6,$0c,$e0,$c7,$9c,$b7,$46,$b7,$db,$0f,$8a,$d6,$9d,$b8,$6e,$fc
-	dc.b	$dd,$d2,$f8,$39,$d5,$4a,$05,$db,$a0,$a6,$3a,$e8,$3b,$27,$39,$cc
-	dc.b	$ba,$49,$49,$da,$27,$94,$85,$89,$ad,$f9,$da,$06,$0d,$f3,$bb,$e0
-	dc.b	$67,$6e,$68,$0b,$ee,$6b,$2a,$cf,$c5,$a7,$28,$1f,$de,$86,$cb,$ca
-	dc.b	$6d,$4d,$d1,$8f,$f1,$c4,$55,$d4,$af,$0f,$c1,$66,$30,$90,$3b,$c5
-	dc.b	$07,$dc,$de,$32,$02,$b3,$26,$e0,$24,$f2,$1d,$0a,$49,$7f,$21,$ea
-	dc.b	$d7,$d8,$e0,$31,$96,$57,$5e,$22,$4c,$6c,$1f,$75,$e2,$bd,$28,$77
-	dc.b	$39,$ee,$8c,$56,$37,$ba,$28,$77,$3e,$8a,$2e,$64,$c7,$ab,$28,$fb
-	dc.b	$9a,$b0,$94,$da,$dd,$be,$a6,$26,$5d,$36,$1c,$cf,$a2,$1e,$7a,$57
-	dc.b	$56,$55,$e9,$8a,$3b,$03,$99,$21,$95,$28,$fd,$e1,$58,$bb,$a2,$50
-	dc.b	$3c,$03,$06,$11,$68,$12,$07,$b1,$46,$c8,$33,$d6,$fd,$70,$3b,$bf
-	dc.b	$4f,$f4,$f0,$7e,$ef,$03,$ba,$f4,$18,$26,$db,$93,$57,$ff,$9f,$1e
-	dc.b	$ab,$5a,$5e,$7b,$7f,$d9,$97,$c6,$78,$30,$16,$50,$55,$74,$14,$cf
-	dc.b	$ca,$8f,$2d,$a9,$ce,$64,$fd,$1e,$22,$a0,$fb,$98,$24,$4d,$6e,$1f
-	dc.b	$08,$25,$99,$ca,$85,$88,$ab,$21,$1a,$24,$9c,$ab,$9b,$64,$12,$f4
-	dc.b	$e0,$fb,$bc,$06,$dd,$42,$16,$9b,$a2,$4b,$15,$01,$ba,$05,$82,$30
-	dc.b	$b9,$c8,$3a,$81,$d2,$e6,$56,$dd,$9f,$3c,$34,$f7,$20,$2a,$fd,$c1
-	dc.b	$2b,$e8,$a4,$81,$a7,$5a,$32,$e4,$3d,$6b,$78,$b6,$80,$1c,$bd,$5b
-	dc.b	$78,$86,$af,$32,$ff,$be,$7b,$3d,$06,$e8,$0e,$ba,$66,$e4,$ac,$ee
-	dc.b	$62,$9e,$39,$29,$fd,$d4,$56,$cd,$5b,$75,$10,$3d,$ce,$26,$51,$e3
-	dc.b	$9d,$b5,$26,$dd,$7e,$96,$5c,$94,$a3,$94,$52,$c1,$df,$4e,$90,$60
-	dc.b	$38,$97,$e5,$3d,$7a,$0a,$4d,$95,$4d,$97,$d0,$54,$1d,$5d,$05,$49
-	dc.b	$da,$72,$4e,$bb,$8a,$8f,$dd,$16,$5e,$00,$fc,$91,$7b,$06,$1a,$fa
-	dc.b	$7e,$37,$f6,$35,$9d,$96,$15,$6b,$85,$7f,$8a,$fd,$dc,$55,$a0,$bc
-	dc.b	$c6,$3f,$d1,$69,$cf,$f1,$47,$4f,$3b,$c5,$18,$3b,$13,$9c,$c4,$5c
-	dc.b	$4c,$ad,$ab,$22,$ee,$e6,$41,$32,$59,$e2,$83,$24,$66,$4c,$2f,$35
-	dc.b	$6c,$80,$d3,$00,$eb,$8e,$e3,$3c,$ab,$d8,$90,$0c,$fd,$43,$2f,$11
-	dc.b	$d5,$ce,$d5,$42,$1b,$a4,$a7,$0c,$3e,$72,$06,$5a,$83,$94,$f7,$10
-	dc.b	$3f,$9b,$7b,$03,$a2,$5c,$cc,$87,$6f,$0f,$ab,$3c,$0c,$bf,$39,$7a
-	dc.b	$03,$dc,$71,$6d,$07,$33,$e6,$fb,$80,$4e,$52,$ce,$1e,$82,$ae,$05
-	dc.b	$36,$50,$42,$76,$45,$d1,$93,$5a,$3d,$cc,$8b,$5b,$82,$7e,$ac,$96
-	dc.b	$1b,$6e,$e7,$12,$26,$ef,$7f,$3a,$26,$09,$cc,$9f,$cd,$f6,$0d,$9e
-	dc.b	$9b,$a0,$7c,$a3,$92,$87,$54,$79,$94,$55,$df,$ed,$d1,$18,$b5,$a3
-	dc.b	$18,$74,$81,$83,$06,$dc,$de,$62,$99,$77,$3d,$a1,$38,$7e,$64,$6f
-	dc.b	$b6,$8a,$ad,$7b,$60,$78,$7f,$8d,$8c,$13,$83,$c3,$cc,$75,$9d,$ab
-	dc.b	$32,$4c,$6b,$59,$71,$b2,$bc,$8e,$9d,$b5,$94,$33,$56,$ce,$49,$98
-	dc.b	$c5,$29,$db,$cb,$d1,$1b,$98,$5b,$63,$2e,$ab,$26,$a9,$cc,$51,$20
-	dc.b	$cc,$b1,$2c,$19,$14,$51,$48,$bc,$cb,$f7,$44,$1c,$36,$a2,$bf,$da
-	dc.b	$a6,$32,$09,$5f,$ec,$63,$ec,$8d,$86,$06,$52,$f6,$aa,$e8,$61,$02
-	dc.b	$f6,$03,$89,$cf,$ca,$84,$fb,$4b,$9e,$79,$8a,$ab,$88,$5a,$48,$be
-	dc.b	$b2,$1e,$7a,$4f,$14,$5d,$e9,$cb,$5f,$10,$1a,$c5,$b4,$27,$32,$73
-	dc.b	$00,$b3,$7e,$63,$d7,$a4,$b3,$1b,$a0,$8e,$92,$01,$40,$74,$3e,$09
-	dc.b	$9d,$8b,$3c,$ae,$5c,$36,$6c,$12,$26,$53,$1c,$26,$0c,$fd,$07,$b7
-	dc.b	$b8,$a5,$47,$28,$80,$71,$52,$7d,$3c,$87,$a0,$c8,$46,$2d,$24,$a6
-	dc.b	$2a,$58,$ca,$cf,$e4,$f5,$d9,$fa,$82,$dc,$6f,$bf,$6e,$8a,$a9,$bf
-	dc.b	$d7,$14,$45,$9d,$08,$f4,$fd,$54,$38,$55,$9c,$a9,$ae,$40,$6b,$77
-	dc.b	$67,$7a,$f1,$2b,$7f,$21,$ee,$6c,$18,$d6,$cd,$ef,$57,$32,$07,$a1
-	dc.b	$81,$63,$35,$8c,$96,$ae,$5c,$d3,$98,$f3,$06,$49,$31,$95,$cf,$c5
-	dc.b	$6e,$45,$be,$f6,$4c,$e8,$65,$39,$72,$7f,$5d,$9f,$c5,$3c,$0d,$90
-	dc.b	$f9,$76,$eb,$51,$53,$46,$10,$c0,$4d,$5f,$bf,$c8,$7a,$93,$3d,$f1
-	dc.b	$b4,$c3,$48,$d6,$95,$71,$79,$29,$1f,$66,$97,$7a,$a0,$0d,$7d,$39
-	dc.b	$f6,$ca,$23,$17,$b5,$9c,$a1,$b3,$ca,$43,$fc,$6f,$77,$d8,$92,$f7
-	dc.b	$92,$c2,$68,$03,$23,$a5,$25,$cd,$44,$89,$97,$4e,$cf,$3e,$70,$2a
-	dc.b	$46,$cd,$13,$04,$ca,$0c,$e9,$1e,$78,$4b,$cd,$2b,$e0,$78,$50,$67
-	dc.b	$98,$35,$d9,$a0,$f3,$d5,$02,$c0,$e9,$f0,$1e,$e2,$fe,$0a,$0c,$a2
-	dc.b	$90,$d4,$17,$11,$bf,$a2,$e1,$5b,$63,$02,$c9,$96,$a9,$42,$86,$af
-	dc.b	$ac,$4a,$87,$d3,$a2,$2f,$50,$3f,$0c,$b3,$b9,$4d,$13,$25,$68,$1e
-	dc.b	$1d,$c2,$44,$ff,$88,$f9,$43,$db,$5d,$48,$e6,$1e,$89,$69,$b3,$0f
-	dc.b	$a1,$a4,$f9,$8c,$84,$e1,$b0,$72,$54,$2a,$11,$5b,$ad,$58,$f1,$06
-	dc.b	$2e,$e5,$e3,$b2,$ba,$94,$62,$f3,$8e,$cd,$30,$35,$5a,$b1,$93,$f7
-	dc.b	$00,$cd,$1f,$04,$96,$15,$a5,$84,$8c,$2a,$12,$64,$d6,$19,$88,$af
-	dc.b	$a5,$cf,$30,$ba,$a6,$dd,$82,$e4,$a9,$e0,$d5,$a1,$d0,$e2,$3b,$a5
-	dc.b	$02,$82,$70,$32,$f1,$e9,$d4,$23,$54,$61,$0a,$6a,$8b,$ea,$1f,$19
-	dc.b	$1e,$99,$0d,$ab,$a0,$b6,$53,$28,$fa,$0b,$fa,$99,$0b,$58,$b3,$a9
-	dc.b	$90,$67,$50,$3b,$a6,$c4,$60,$ca,$ad,$71,$30,$b2,$38,$1e,$ea,$32
-	dc.b	$a7,$2b,$a9,$04,$af,$71,$4a,$07,$52,$f4,$e9,$07,$de,$98,$d6,$56
-	dc.b	$90,$df,$45,$0c,$97,$16,$18,$02,$d9,$ca,$7a,$40,$77,$ab,$da,$a7
-	dc.b	$30,$33,$0b,$ef,$a9,$e5,$38,$4e,$9d,$a8,$b8,$13,$55,$30,$3f,$11
-	dc.b	$33,$05,$35,$5b,$6f,$83,$e6,$19,$41,$5d,$d1,$14,$a0,$ef,$f6,$1c
-	dc.b	$fe,$aa,$eb,$a1,$ba,$fe,$68,$3a,$42,$c6,$48,$2c,$fd,$12,$b5,$d2
-	dc.b	$37,$0d,$36,$76,$93,$84,$69,$3d,$ab,$d3,$25,$5b,$65,$f5,$18,$49
-	dc.b	$a1,$37,$06,$94,$25,$07,$03,$26,$0a,$d2,$de,$d7,$95,$26,$51,$ab
-	dc.b	$fc,$cc,$52,$f4,$b9,$95,$af,$1d,$9e,$1a,$4b,$90,$53,$fc,$e0,$c9
-	dc.b	$d6,$9b,$21,$aa,$0a,$3e,$ab,$af,$0c,$2b,$9d,$69,$b2,$16,$05,$de
-	dc.b	$17,$e3,$48,$94,$b5,$6e,$86,$d2,$af,$1d,$5a,$94,$5e,$2b,$21,$f5
-	dc.b	$7a,$2c,$e0,$7c,$93,$62,$e9,$b0,$19,$06,$06,$71,$d0,$f6,$3d,$4e
-	dc.b	$f0,$08,$d9,$41,$0c,$96,$2c,$a0,$94,$55,$0d,$be,$14,$bd,$4d,$c8
-	dc.b	$75,$d3,$18,$12,$e5,$34,$01,$43,$8d,$5b,$55,$47,$5b,$48,$1e,$39
-	dc.b	$49,$33,$3d,$27,$97,$9d,$bd,$d4,$8a,$64,$17,$36,$58,$db,$98,$21
-	dc.b	$65,$39,$c3,$13,$97,$ba,$b6,$fe,$a3,$cb,$68,$1e,$e8,$fe,$d1,$4f
-	dc.b	$2b,$a1,$0d,$0b,$e2,$e6,$da,$7d,$5a,$8b,$ea,$18,$30,$49,$44,$66
-	dc.b	$ab,$12,$f6,$bb,$27,$0b,$9b,$48,$a9,$08,$96,$e3,$73,$28,$70,$93
-	dc.b	$14,$92,$c0,$d8,$15,$d7,$a0,$ea,$05,$89,$d5,$20,$64,$16,$c4,$6d
-	dc.b	$9b,$42,$6e,$97,$32,$f1,$f5,$0a,$f2,$2c,$ae,$92,$75,$09,$a9,$07
-	dc.b	$db,$20,$16,$fa,$97,$a5,$ba,$b9,$fc,$18,$1f,$6f,$5f,$35,$47,$8e
-	dc.b	$04,$c9,$77,$8f,$fa,$47,$85,$72,$b1,$45,$89,$4a,$20,$75,$d1,$5d
-	dc.b	$df,$db,$35,$13,$56,$7d,$9e,$43,$55,$b9,$8d,$ad,$26,$4f,$17,$2a
-	dc.b	$78,$78,$de,$af,$73,$80,$c8,$ec,$8d,$00,$f5,$50,$fb,$50,$38,$67
-	dc.b	$d4,$a8,$3f,$c3,$07,$e2,$07,$db,$67,$c9,$74,$44,$e0,$19,$34,$93
-	dc.b	$aa,$61,$d3,$5a,$48,$4c,$b7,$d7,$bb,$0d,$92,$73,$9d,$ba,$71,$1c
-	dc.b	$73,$a2,$e2,$6d,$d0,$c9,$1c,$5a,$a8,$5f,$e4,$4a,$5c,$04,$26,$39
-	dc.b	$81,$c2,$18,$54,$e7,$52,$1b,$a5,$74,$cb,$43,$86,$b4,$a1,$99,$09
-	dc.b	$72,$ef,$1e,$ec,$a5,$ab,$36,$54,$a2,$9c,$11,$93,$6d,$0e,$9e,$92
-	dc.b	$3f,$f0,$88,$e7,$1b,$31,$94,$c8,$75,$66,$e1,$dc,$0c,$a1,$82,$d0
-	dc.b	$bf,$6a,$49,$d2,$e4,$ec,$ce,$cb,$a1,$e1,$bb,$59,$8a,$26,$49,$0a
-	dc.b	$b2,$13,$7a,$79,$e5,$ee,$5f,$73,$ee,$be,$cf,$47,$98,$a3,$fa,$47
-	dc.b	$1b,$2d,$19,$17,$cd,$93,$b7,$5a,$b0,$88,$e0,$5c,$79,$29,$ed,$9b
-	dc.b	$dc,$2d,$44,$e2,$6e,$9f,$c9,$54,$d6,$5a,$c2,$65,$36,$25,$8a,$09
-	dc.b	$d5,$c3,$83,$83,$06,$db,$5e,$69,$7a,$a1,$54,$6a,$1b,$74,$f4,$aa
-	dc.b	$6f,$fa,$a7,$c7,$e6,$2b,$a2,$4b,$0c,$6e,$aa,$74,$69,$80,$ed,$d4
-	dc.b	$0a,$97,$7b,$47,$99,$f7,$05,$49,$b3,$31,$ae,$76,$d9,$ef,$3a,$d5
-	dc.b	$22,$d1,$6c,$a6,$d0,$63,$5f,$da,$a0,$5d,$19,$35,$70,$16,$d6,$4c
-	dc.b	$4a,$13,$99,$47,$21,$ba,$e9,$01,$31,$46,$a9,$1c,$90,$9f,$90,$53
-	dc.b	$71,$90,$32,$27,$02,$63,$f5,$1e,$67,$dc,$1a,$de,$d9,$62,$ef,$1b
-	dc.b	$46,$ec,$23,$77,$40,$5b,$81,$9e,$94,$80,$c7,$19,$9d,$4b,$99,$7e
-	dc.b	$f1,$f1,$19,$6c,$80,$ba,$aa,$3d,$79,$92,$a3,$7b,$37,$f1,$f4,$7a
-	dc.b	$5d,$ec,$95,$12,$be,$1a,$dc,$a0,$f3,$70,$72,$72,$fe,$90,$aa,$f8
-	dc.b	$c8,$6e,$37,$50,$89,$a6,$d6,$4d,$dd,$ed,$b2,$fc,$c2,$b5,$d3,$69
-	dc.b	$6d,$07,$47,$e6,$c5,$cc,$b4,$1b,$56,$d9,$44,$ba,$23,$16,$89,$df
-	dc.b	$5d,$8f,$8c,$ab,$af,$7d,$e3,$62,$7e,$85,$74,$4b,$5a,$f3,$10,$fd
-	dc.b	$7d,$30,$1d,$9e,$c0,$bf,$70,$ec,$13,$a4,$5e,$e2,$5f,$9d,$ab,$0a
-	dc.b	$c1,$1b,$b5,$90,$ac,$a9,$b0,$4e,$a6,$a5,$26,$03,$a9,$5d,$11,$ba
-	dc.b	$8b,$08,$e4,$37,$40,$c4,$a5,$1b,$a1,$5a,$4c,$e0,$c1,$f7,$dc,$07
-	dc.b	$66,$b8,$16,$d0,$e5,$55,$80,$20,$f0,$17,$b1,$b6,$c6,$40,$be,$ac
-	dc.b	$2a,$66,$83,$18,$76,$a5,$cc,$b3,$75,$ab,$c9,$f6,$b9,$01,$0a,$4c
-	dc.b	$c0,$74,$61,$06,$4a,$8e,$df,$13,$86,$a4,$67,$7d,$25,$46,$68,$31
-	dc.b	$ff,$91,$b8,$87,$79,$39,$7a,$bd,$68,$b7,$e3,$28,$ba,$8b,$69,$f9
-	dc.b	$ea,$5d,$8c,$3f,$d6,$99,$d4,$f7,$a5,$16,$9f,$60,$50,$96,$0b,$26
-	dc.b	$fb,$b6,$ad,$b3,$da,$a4,$00,$d5,$44,$2c,$52,$78,$6b,$9c,$62,$66
-	dc.b	$52,$5a,$2a,$82,$9a,$6d,$c2,$d8,$90,$f3,$01,$d8,$2e,$04,$f3,$c2
-	dc.b	$22,$8f,$a8,$92,$33,$72,$77,$50,$51,$d3,$66,$c1,$74,$4e,$7f,$3c
-	dc.b	$ab,$db,$c6,$a2,$ca,$a8,$f5,$c9,$03,$75,$27,$d5,$1a,$6a,$65,$b2
-	dc.b	$36,$0c,$18,$4b,$ed,$c1,$35,$c2,$17,$1f,$c0,$ba,$13,$f5,$2b,$86
-	dc.b	$d0,$cb,$90,$7a,$74,$54,$15,$8b,$d5,$06,$45,$38,$8e,$8b,$56,$fa
-	dc.b	$5c,$9d,$90,$83,$a3,$f7,$df,$28,$02,$86,$85,$17,$85,$97,$98,$f3
-	dc.b	$17,$59,$2f,$13,$14,$91,$b4,$2a,$8d,$6c,$9a,$c9,$3c,$47,$93,$68
-	dc.b	$39,$2c,$24,$c2,$4f,$7d,$41,$1f,$19,$6b,$06,$47,$4d,$13,$54,$8f
-	dc.b	$73,$9e,$e9,$35,$05,$03,$0a,$c4,$77,$0e,$c1,$d1,$d2,$54,$a4,$42
-	dc.b	$c5,$87,$1a,$5b,$8c,$4c,$59,$dc,$2a,$c3,$32,$aa,$36,$4c,$f0,$ef
-	dc.b	$30,$cb,$73,$02,$79,$e6,$90,$7d,$10,$8a,$2c,$60,$d0,$d7,$5a,$54
-	dc.b	$e4,$9b,$05,$d1,$6b,$0e,$4f,$a9,$8a,$ba,$60,$05,$70,$4a,$86,$02
-	dc.b	$f5,$24,$32,$ad,$d0,$7e,$96,$c8,$d5,$8e,$92,$3a,$09,$5c,$32,$93
-	dc.b	$f0,$26,$5c,$b7,$20,$96,$b6,$19,$79,$40,$4a,$d1,$d7,$01,$09,$68
-	dc.b	$8d,$58,$60,$27,$cf,$4b,$91,$b1,$bf,$5a,$b9,$4e,$37,$d9,$c8,$d7
-	dc.b	$3d,$17,$e2,$c9,$95,$a0,$9c,$4a,$6e,$26,$75,$f2,$a5,$d3,$4d,$74
-	dc.b	$64,$c7,$0e,$b4,$92,$eb,$26,$da,$bc,$20,$c8,$11,$ef,$a8,$20,$34
-	dc.b	$ce,$59,$8e,$f7,$26,$7a,$2e,$4d,$bc,$67,$6c,$d0,$c8,$59,$f6,$26
-	dc.b	$60,$76,$fc,$1d,$74,$e4,$99,$48,$1d,$15,$58,$cb,$12,$9b,$c8,$47
-	dc.b	$02,$68,$2e,$8d,$41,$69,$03,$dc,$c0,$ce,$6c,$0b,$34,$4d,$25,$6a
-	dc.b	$2d,$9c,$8c,$80,$c8,$39,$06,$03,$41,$72,$6a,$56,$93,$53,$ad,$da
-	dc.b	$02,$32,$40,$a9,$4d,$72,$cd,$bb,$04,$d9,$6d,$57,$6c,$ce,$9b,$75
-	dc.b	$4d,$a8,$d4,$eb,$35,$ab,$45,$a7,$2b,$9a,$d2,$ed,$b7,$3d,$29,$6c
-	dc.b	$ca,$93,$55,$ae,$da,$f1,$3a,$3d,$66,$c7,$a3,$d5,$eb,$76,$c0,$f2
-	dc.b	$ea,$2d,$32,$a5,$64,$b9,$61,$72,$39,$3c,$de,$bb,$6b,$2c,$9b,$52
-	dc.b	$ed,$b8,$ad,$0e,$af,$6f,$c9,$e5,$77,$68,$db,$2d,$ec,$aa,$85,$62
-	dc.b	$b6,$5d,$71,$78,$dc,$76,$77,$3d,$aa,$e2,$f3,$7a,$60,$5a,$75,$7a
-	dc.b	$e7,$7a,$ca,$67,$36,$7c,$6e,$5f,$6b,$db,$2b,$a2,$56,$ef,$3a,$2e
-	dc.b	$77,$97,$d5,$25,$a4,$55,$ec,$77,$1b,$a6,$9e,$ad,$67,$b7,$65,$b9
-	dc.b	$9d,$40,$34,$5a,$69,$35,$f2,$7a,$7d,$75,$4c,$bf,$5e,$87,$61,$c4
-	dc.b	$66,$3c,$d2,$89,$d5,$1f,$85,$6f,$c1,$61,$35,$fd,$cf,$14,$4a,$29
-	dc.b	$8c,$ec,$77,$a6,$74,$1a,$c6,$1b,$71,$f2,$d8,$71,$3d,$d1,$19,$24
-	dc.b	$e6,$fb,$c8,$8a,$c6,$a3,$72,$3f,$64,$4e,$63,$4f,$a8,$01,$24,$5f
-	dc.b	$59,$0c,$ef,$51,$7b,$fa,$46,$72,$1d,$9f,$b4,$df,$0f,$0a,$bc,$4b
-	dc.b	$f7,$d3,$dc,$1c,$f2,$ef,$bc,$f4,$45,$ef,$d8,$fe,$3f,$c6,$3b,$e3
-	dc.b	$e1,$c7,$38,$3e,$1f,$9c,$fa,$f9,$5f,$e7,$c3,$7a,$00,$3d,$06,$06
-	dc.b	$13,$0b,$f3,$c7,$bf,$3f,$a9,$c6,$7e,$0b,$70,$87,$46,$21,$9f,$b9
-	dc.b	$84,$12,$11,$ef,$b0,$49,$fb,$f2,$08,$30,$0b,$ef,$10,$df,$d0,$23
-	dc.b	$e0,$0f,$c4,$ff,$e1,$02,$fe,$c3,$e0,$f7,$ff,$e7,$82,$07,$80,$e0
-	dc.b	$00,$7f,$d0,$1f,$fc,$00,$04,$07,$06,$0e,$09,$03,$a1,$b2,$27,$88
-	dc.b	$10,$ec,$57,$f9,$ff,$53,$21,$89,$d6,$c2,$e8,$53,$3f,$de,$1c,$e2
-	dc.b	$ba,$de,$bb,$94,$26,$b3,$31,$93,$f3,$45,$87,$58,$b4,$d8,$a9,$e3
-	dc.b	$d7,$b8,$0e,$a9,$12,$fe,$85,$74,$97,$c7,$81,$c4,$23,$e9,$f5,$43
-	dc.b	$39,$a1,$63,$36,$09,$da,$ee,$00,$5c,$58,$80,$60,$30,$88,$64,$62
-	dc.b	$35,$20,$90,$ca,$25,$33,$89,$f5,$e3,$7f,$c7,$ea,$75,$fb,$3e,$4f
-	dc.b	$67,$df,$f1,$fb,$8f,$cf,$ea,$18,$0f,$07,$9f,$f5,$fc,$fe,$c1,$60
-	dc.b	$ff,$e8,$25,$ff,$ff,$00,$28,$61,$40,$47,$28,$61,$00,$00
-g2embed_gloombrush_end
-
-	even
-; -----------------------------------------------------------------------------
-; v190hu embedded Zombie Massacre title overlay assets
-; -----------------------------------------------------------------------------
-
-	even
-g2embed_zm_titlebrush
-	dc.b	$01,$40,$00,$46,$00,$07,$00,$00,$00,$00,$00,$00,$f9,$00,$02,$09
-	dc.b	$0c,$01,$fe,$00,$02,$3f,$81,$c0,$fb,$00,$06,$03,$e0,$40,$09,$f1
-	dc.b	$83,$c0,$f7,$00,$f9,$00,$08,$09,$0c,$01,$00,$1f,$8c,$3f,$ff,$f0
-	dc.b	$fb,$00,$07,$0f,$e0,$40,$08,$b1,$83,$c0,$64,$f8,$00,$f9,$00,$08
-	dc.b	$09,$0c,$01,$00,$1f,$8c,$3e,$7e,$30,$fb,$00,$07,$0c,$20,$ff,$f7
-	dc.b	$48,$00,$40,$60,$f8,$00,$f9,$00,$08,$09,$0c,$01,$00,$00,$02,$3f
-	dc.b	$ff,$f0,$fb,$00,$07,$0f,$e8,$bf,$f6,$0e,$7c,$3f,$80,$f8,$00,$f9
-	dc.b	$00,$08,$06,$f3,$fe,$ff,$e0,$71,$c1,$81,$c0,$fb,$00,$07,$03,$d7
-	dc.b	$00,$09,$f1,$83,$80,$1f,$f8,$00,$d9,$00,$d9,$00,$f9,$00,$02,$06
-	dc.b	$18,$02,$fe,$00,$02,$7f,$03,$80,$fb,$00,$06,$0f,$c0,$80,$00,$20
-	dc.b	$23,$80,$f7,$00,$f9,$00,$08,$06,$18,$02,$00,$3f,$04,$7f,$ff,$e0
-	dc.b	$fb,$00,$07,$0f,$c0,$c0,$00,$20,$23,$c0,$e0,$f8,$00,$f9,$00,$08
-	dc.b	$06,$18,$02,$00,$33,$04,$7c,$fc,$60,$f9,$00,$05,$bf,$ff,$d8,$01
-	dc.b	$80,$e0,$f8,$00,$f9,$00,$08,$06,$18,$02,$00,$00,$08,$7f,$ff,$e0
-	dc.b	$fb,$00,$06,$0f,$d1,$3f,$ff,$df,$dc,$3f,$f7,$00,$f9,$00,$08,$01
-	dc.b	$e7,$fd,$ff,$cc,$f3,$83,$03,$80,$fb,$00,$07,$0f,$ee,$40,$00,$20
-	dc.b	$22,$40,$1e,$f8,$00,$d9,$00,$d9,$00,$f9,$00,$02,$03,$f4,$04,$fe
-	dc.b	$00,$01,$7c,$07,$fa,$00,$08,$0f,$b0,$10,$00,$06,$23,$00,$00,$c0
-	dc.b	$f9,$00,$f9,$00,$08,$03,$f4,$04,$00,$2e,$10,$7f,$ff,$e0,$fb,$00
-	dc.b	$08,$0f,$b0,$90,$00,$06,$23,$01,$e0,$c0,$f9,$00,$f9,$00,$08,$03
-	dc.b	$f4,$04,$00,$26,$10,$7b,$f8,$e0,$fa,$00,$07,$30,$1f,$ff,$f0,$0b
-	dc.b	$01,$e0,$c0,$f9,$00,$f9,$00,$08,$03,$f4,$04,$00,$00,$0c,$7f,$ff
-	dc.b	$e0,$fb,$00,$08,$0f,$b1,$6f,$ff,$f9,$dc,$fe,$00,$c0,$f9,$00,$f8
-	dc.b	$00,$06,$0b,$fb,$ff,$d9,$e3,$84,$07,$fa,$00,$07,$0f,$ce,$80,$00
-	dc.b	$06,$20,$00,$1e,$f8,$00,$d9,$00,$d9,$00,$f9,$00,$07,$01,$fc,$0f
-	dc.b	$e0,$00,$00,$79,$1f,$fa,$00,$08,$0f,$f0,$20,$06,$89,$7c,$40,$01
-	dc.b	$80,$f9,$00,$f9,$00,$08,$01,$fc,$0f,$e0,$3c,$20,$7f,$ff,$c0,$fb
-	dc.b	$00,$08,$0f,$f3,$3c,$00,$89,$7c,$41,$e7,$e0,$f9,$00,$f9,$00,$08
-	dc.b	$01,$fc,$0f,$e0,$2c,$20,$7e,$e0,$c0,$fa,$00,$07,$30,$3e,$7f,$71
-	dc.b	$7c,$41,$e7,$e0,$f9,$00,$f9,$00,$08,$01,$fc,$0f,$e0,$00,$10,$7f
-	dc.b	$ff,$c0,$fb,$00,$08,$0f,$f0,$c3,$f9,$76,$83,$be,$01,$e0,$f9,$00
-	dc.b	$f8,$00,$06,$03,$f0,$1f,$d3,$cf,$81,$1f,$fa,$00,$07,$0f,$cf,$00
-	dc.b	$06,$88,$00,$00,$18,$f8,$00,$d9,$00,$d9,$00,$f9,$00,$07,$01,$fc
-	dc.b	$0f,$80,$00,$70,$76,$3c,$fa,$00,$06,$9f,$f8,$00,$04,$00,$fe,$c0
-	dc.b	$f7,$00,$f9,$00,$08,$01,$fc,$0f,$80,$40,$70,$7f,$ff,$80,$fb,$00
-	dc.b	$08,$9f,$fa,$38,$00,$00,$fe,$c3,$c2,$70,$f9,$00,$f9,$00,$08,$01
-	dc.b	$fc,$0f,$80,$40,$70,$79,$c3,$80,$fb,$00,$08,$d0,$78,$3c,$f7,$f0
-	dc.b	$7e,$c3,$c2,$70,$f9,$00,$f9,$00,$0b,$01,$fc,$0f,$80,$00,$70,$7f
-	dc.b	$ff,$80,$00,$00,$02,$fe,$00,$08,$5f,$f9,$c7,$fb,$ff,$01,$3c,$00
-	dc.b	$70,$f9,$00,$f8,$00,$06,$03,$f0,$7f,$bf,$8f,$86,$3c,$fa,$00,$07
-	dc.b	$8f,$86,$00,$04,$00,$80,$00,$3c,$f8,$00,$d9,$00,$d9,$00,$f9,$00
-	dc.b	$07,$01,$fe,$1f,$c0,$00,$40,$7e,$70,$fe,$00,$0c,$06,$00,$00,$01
-	dc.b	$9f,$f8,$04,$78,$04,$bf,$80,$01,$80,$f9,$00,$f9,$00,$07,$01,$fe
-	dc.b	$1f,$c0,$f0,$40,$ff,$ff,$fb,$00,$09,$01,$4f,$f8,$74,$78,$04,$bf
-	dc.b	$87,$c5,$e0,$f9,$00,$f9,$00,$07,$01,$fe,$1f,$c0,$f0,$40,$f1,$8f
-	dc.b	$fe,$00,$0c,$0f,$00,$00,$01,$d0,$f8,$74,$87,$f4,$be,$87,$c5,$60
-	dc.b	$f9,$00,$f9,$00,$07,$01,$fe,$1f,$c0,$00,$40,$7f,$ff,$fe,$00,$0c
-	dc.b	$02,$00,$00,$01,$af,$f9,$8b,$87,$fb,$40,$78,$01,$e0,$f9,$00,$f8
-	dc.b	$00,$06,$01,$e0,$3f,$0f,$bf,$0e,$70,$fe,$00,$00,$09,$fe,$00,$08
-	dc.b	$0f,$06,$00,$78,$00,$01,$00,$38,$80,$f9,$00,$ee,$00,$00,$0c,$fe
-	dc.b	$00,$00,$50,$f1,$00,$d9,$00,$f9,$00,$07,$01,$fe,$7f,$e0,$00,$00
-	dc.b	$7e,$f0,$fe,$00,$0c,$0e,$00,$00,$01,$ff,$fb,$00,$40,$31,$ff,$00
-	dc.b	$03,$80,$f9,$00,$f9,$00,$07,$01,$fe,$7f,$e1,$30,$00,$7f,$ff,$fe
-	dc.b	$00,$00,$09,$fe,$00,$08,$0f,$fb,$40,$40,$31,$ff,$07,$ff,$e0,$f9
-	dc.b	$00,$f9,$00,$07,$01,$fe,$7f,$e1,$30,$00,$71,$0f,$fe,$00,$00,$0f
-	dc.b	$fe,$00,$08,$f8,$fb,$41,$8f,$c1,$bf,$07,$ff,$e0,$f9,$00,$f9,$00
-	dc.b	$07,$01,$fe,$7f,$e0,$00,$00,$7f,$ff,$fe,$00,$0c,$06,$00,$00,$01
-	dc.b	$ff,$fb,$bf,$bf,$ce,$00,$f8,$03,$e0,$f9,$00,$f8,$00,$06,$01,$80
-	dc.b	$1e,$cf,$ff,$8e,$f0,$fb,$00,$06,$01,$07,$04,$00,$40,$30,$40,$f6
-	dc.b	$00,$ee,$00,$00,$09,$ed,$00,$d9,$00,$f9,$00,$16,$01,$ff,$e5,$c0
-	dc.b	$01,$00,$7d,$f0,$00,$20,$00,$08,$80,$00,$02,$f6,$ff,$00,$28,$13
-	dc.b	$fe,$00,$03,$f8,$00,$f9,$00,$17,$01,$ff,$e5,$c0,$41,$00,$7f,$fe
-	dc.b	$00,$20,$00,$07,$80,$00,$03,$09,$ff,$00,$28,$13,$fe,$8f,$9b,$e0
-	dc.b	$f9,$00,$f9,$00,$17,$01,$ff,$e5,$c0,$41,$00,$72,$0e,$00,$f0,$00
-	dc.b	$0b,$b0,$00,$02,$ff,$ff,$01,$37,$f3,$7a,$0f,$9b,$e0,$f9,$00,$f9
-	dc.b	$00,$17,$01,$ff,$e5,$c0,$01,$00,$7f,$fe,$00,$20,$00,$1c,$78,$00
-	dc.b	$03,$f3,$ff,$3d,$d7,$ec,$01,$70,$03,$e0,$f9,$00,$f7,$00,$14,$1a
-	dc.b	$3f,$be,$ff,$8d,$f0,$00,$d8,$00,$04,$84,$00,$01,$06,$00,$c2,$08
-	dc.b	$00,$84,$80,$60,$f8,$00,$f0,$00,$02,$80,$00,$03,$fe,$00,$00,$08
-	dc.b	$f1,$00,$d9,$00,$f8,$00,$15,$ff,$c9,$c0,$00,$00,$7f,$c8,$00,$f0
-	dc.b	$00,$1b,$fa,$00,$01,$3d,$ff,$00,$00,$37,$d0,$00,$03,$f8,$00,$f8
-	dc.b	$00,$16,$ff,$c9,$c0,$00,$00,$7f,$fe,$00,$a0,$00,$14,$06,$00,$01
-	dc.b	$c2,$ff,$00,$00,$37,$d1,$9f,$1f,$c0,$f9,$00,$f8,$00,$16,$ff,$c9
-	dc.b	$c0,$00,$00,$70,$36,$00,$f8,$00,$1b,$fa,$00,$01,$bd,$ff,$00,$3f
-	dc.b	$c6,$d0,$1f,$1f,$c0,$f9,$00,$f8,$00,$16,$ff,$c9,$c0,$00,$00,$7f
-	dc.b	$fe,$00,$d8,$00,$0f,$fd,$00,$00,$7f,$ff,$3b,$ff,$c8,$2e,$60,$03
-	dc.b	$c0,$f9,$00,$f7,$00,$05,$36,$3f,$ff,$ff,$8f,$c8,$fe,$00,$0b,$04
-	dc.b	$04,$00,$02,$43,$00,$c4,$00,$31,$01,$80,$60,$f8,$00,$f0,$00,$06
-	dc.b	$20,$00,$10,$02,$00,$01,$80,$f1,$00,$d9,$00,$f8,$00,$15,$3f,$93
-	dc.b	$c0,$00,$00,$ff,$e8,$00,$f0,$00,$1f,$df,$80,$03,$d2,$fe,$00,$0c
-	dc.b	$2f,$10,$00,$02,$f8,$00,$f8,$00,$16,$3f,$93,$c0,$10,$00,$ff,$fe
-	dc.b	$00,$80,$00,$00,$40,$00,$02,$af,$fe,$36,$0c,$2f,$12,$1e,$03,$c0
-	dc.b	$f9,$00,$f8,$00,$16,$3f,$93,$c0,$10,$00,$f8,$16,$00,$e0,$00,$0f
-	dc.b	$cf,$c0,$03,$ff,$de,$06,$1f,$cc,$00,$1e,$03,$c0,$f9,$00,$f8,$00
-	dc.b	$16,$3f,$93,$c0,$00,$00,$ff,$fe,$00,$f0,$00,$1f,$9f,$00,$00,$01
-	dc.b	$fe,$41,$f3,$d0,$ed,$e0,$03,$c0,$f9,$00,$f7,$00,$14,$6c,$3f,$ef
-	dc.b	$ff,$07,$e8,$00,$18,$00,$10,$30,$40,$04,$00,$21,$b8,$00,$23,$12
-	dc.b	$00,$e0,$f8,$00,$ed,$00,$03,$40,$c0,$03,$fe,$f1,$00,$d9,$00,$f8
-	dc.b	$00,$14,$1f,$07,$f0,$00,$01,$ff,$f0,$80,$70,$00,$07,$cf,$80,$0f
-	dc.b	$61,$5c,$00,$18,$7e,$00,$0c,$f7,$00,$f8,$00,$16,$1f,$07,$f0,$10
-	dc.b	$01,$ff,$fe,$80,$00,$30,$08,$08,$40,$08,$9f,$3c,$6c,$18,$7e,$04
-	dc.b	$33,$03,$c0,$f9,$00,$f8,$00,$16,$1f,$07,$f0,$10,$01,$f0,$0e,$80
-	dc.b	$38,$30,$1f,$cb,$a0,$0f,$63,$dc,$0c,$1f,$8e,$00,$0f,$03,$c0,$f9
-	dc.b	$00,$f8,$00,$16,$1f,$07,$f0,$00,$01,$ff,$ff,$00,$70,$00,$17,$8f
-	dc.b	$c0,$08,$fc,$1c,$03,$e7,$81,$fb,$c0,$03,$c0,$f9,$00,$f7,$00,$14
-	dc.b	$f8,$0f,$ef,$fe,$0f,$f0,$c0,$48,$00,$00,$04,$60,$00,$9d,$63,$f0
-	dc.b	$00,$70,$04,$30,$c0,$f8,$00,$f0,$00,$07,$08,$00,$08,$40,$20,$07
-	dc.b	$02,$80,$f2,$00,$d9,$00,$f8,$00,$15,$0f,$0f,$fc,$01,$61,$ff,$e0
-	dc.b	$00,$18,$18,$13,$c3,$e0,$11,$ff,$f3,$00,$19,$dc,$00,$08,$04,$f8
-	dc.b	$00,$f8,$00,$16,$0f,$0f,$fc,$01,$61,$ff,$ff,$e0,$40,$20,$0c,$00
-	dc.b	$00,$36,$00,$07,$49,$19,$dc,$00,$77,$07,$80,$f9,$00,$f8,$00,$16
-	dc.b	$0f,$0f,$fc,$01,$61,$e0,$1f,$60,$70,$10,$3b,$e1,$e1,$f5,$ff,$fb
-	dc.b	$09,$1e,$1c,$00,$1f,$07,$80,$f9,$00,$f8,$00,$16,$0f,$0f,$fc,$01
-	dc.b	$61,$ff,$fc,$80,$98,$38,$27,$c3,$c0,$9b,$ff,$f3,$06,$e6,$23,$ff
-	dc.b	$80,$07,$80,$f9,$00,$f7,$00,$13,$f0,$03,$fe,$9e,$1f,$e0,$80,$28
-	dc.b	$28,$04,$22,$01,$42,$00,$04,$f0,$01,$c0,$00,$60,$f7,$00,$f2,$00
-	dc.b	$09,$01,$40,$40,$00,$18,$00,$21,$44,$00,$08,$f2,$00,$d9,$00,$f8
-	dc.b	$00,$15,$0e,$8f,$fc,$02,$43,$ff,$e3,$a0,$88,$30,$3f,$e1,$e3,$5f
-	dc.b	$93,$5c,$00,$39,$b8,$00,$30,$18,$f8,$00,$f8,$00,$08,$0e,$8f,$fc
-	dc.b	$02,$43,$ff,$f8,$41,$10,$fe,$00,$0a,$02,$b8,$6b,$c3,$03,$b9,$b8
-	dc.b	$01,$8e,$1f,$80,$f9,$00,$f8,$00,$16,$0e,$8f,$fc,$02,$43,$c0,$1b
-	dc.b	$81,$d8,$70,$3f,$f1,$e2,$bf,$98,$1e,$03,$be,$38,$01,$3e,$1f,$80
-	dc.b	$f9,$00,$f8,$00,$16,$0e,$8f,$fc,$02,$43,$ff,$f9,$f0,$8c,$78,$1f
-	dc.b	$e1,$e3,$4f,$f4,$2c,$08,$46,$47,$fe,$40,$1f,$80,$f9,$00,$f8,$00
-	dc.b	$14,$01,$70,$03,$fd,$bc,$3f,$e0,$60,$40,$00,$00,$12,$11,$50,$63
-	dc.b	$e1,$f4,$01,$80,$00,$80,$f7,$00,$f2,$00,$00,$02,$fe,$00,$05,$20
-	dc.b	$10,$00,$a0,$08,$32,$f2,$00,$d9,$00,$f8,$00,$15,$0c,$03,$f8,$04
-	dc.b	$03,$ff,$eb,$a9,$8c,$74,$2f,$e1,$e1,$f2,$70,$73,$00,$31,$38,$c0
-	dc.b	$60,$08,$f8,$00,$f8,$00,$0a,$0c,$03,$f8,$04,$03,$ff,$f8,$58,$00
-	dc.b	$0c,$10,$fe,$00,$07,$89,$f0,$1f,$31,$38,$c7,$8e,$0f,$f8,$00,$f8
-	dc.b	$00,$15,$0c,$03,$f8,$04,$03,$80,$1b,$b9,$84,$7c,$2f,$e3,$e1,$f9
-	dc.b	$71,$93,$9f,$3e,$f8,$c4,$6e,$0f,$f8,$00,$f8,$00,$15,$0c,$03,$f8
-	dc.b	$04,$03,$ff,$ff,$e9,$0c,$64,$1f,$f3,$f3,$f2,$f9,$f7,$80,$ce,$c7
-	dc.b	$38,$00,$0f,$f8,$00,$f8,$00,$14,$03,$fc,$07,$fb,$fc,$7f,$e0,$40
-	dc.b	$0a,$00,$10,$00,$00,$0f,$88,$6c,$60,$01,$00,$03,$80,$f7,$00,$f1
-	dc.b	$00,$08,$10,$80,$10,$20,$00,$00,$08,$00,$04,$f2,$00,$d9,$00,$f8
-	dc.b	$00,$15,$0f,$9f,$f0,$00,$03,$ff,$97,$f1,$04,$e0,$37,$f3,$e1,$f0
-	dc.b	$f8,$f9,$c0,$20,$60,$00,$40,$18,$f8,$00,$f8,$00,$0b,$0f,$9f,$f0
-	dc.b	$00,$03,$ff,$c4,$00,$02,$98,$08,$12,$fe,$00,$06,$f8,$7e,$20,$60
-	dc.b	$0f,$bc,$1f,$f8,$00,$f8,$00,$15,$0f,$9f,$f0,$00,$03,$00,$37,$fb
-	dc.b	$84,$f0,$37,$f3,$e1,$f8,$70,$39,$fe,$3f,$e0,$0e,$7c,$1f,$f8,$00
-	dc.b	$f8,$00,$15,$0f,$9f,$f0,$00,$03,$ff,$8b,$f9,$06,$e8,$3f,$e1,$c1
-	dc.b	$f8,$f8,$fa,$c1,$df,$9f,$f0,$00,$1f,$f8,$00,$f7,$00,$0e,$60,$0f
-	dc.b	$ff,$fc,$ff,$c0,$02,$82,$0c,$48,$12,$02,$00,$88,$c4,$fe,$00,$01
-	dc.b	$01,$80,$f7,$00,$f2,$00,$0a,$34,$00,$80,$10,$00,$00,$20,$00,$00
-	dc.b	$01,$40,$f3,$00,$d9,$00,$f8,$00,$15,$0f,$ff,$f8,$00,$03,$fc,$7f
-	dc.b	$f7,$02,$4c,$3f,$f3,$e1,$f8,$61,$38,$60,$08,$60,$01,$00,$10,$f8
-	dc.b	$00,$f8,$00,$15,$0f,$ff,$f8,$00,$03,$fe,$98,$15,$01,$04,$40,$14
-	dc.b	$21,$08,$91,$f8,$1c,$48,$60,$3e,$ba,$1e,$f8,$00,$f8,$00,$15,$0f
-	dc.b	$ff,$f8,$00,$02,$e1,$ff,$f7,$07,$cc,$77,$f7,$e1,$f8,$e1,$b8,$4c
-	dc.b	$47,$f0,$39,$ba,$1e,$f8,$00,$f8,$00,$15,$0f,$ff,$f8,$00,$03,$fc
-	dc.b	$67,$e6,$06,$58,$2f,$f3,$e0,$f0,$79,$38,$e3,$b7,$9f,$c0,$00,$1e
-	dc.b	$f8,$00,$f6,$00,$08,$07,$ff,$fd,$1e,$18,$01,$00,$a4,$08,$fe,$00
-	dc.b	$05,$10,$c7,$b0,$08,$00,$06,$f6,$00,$f3,$00,$0b,$01,$80,$10,$00
-	dc.b	$00,$50,$00,$01,$08,$00,$80,$80,$f3,$00,$d9,$00,$f8,$00,$15,$1f
-	dc.b	$ff,$f8,$00,$06,$7f,$ce,$87,$0f,$4c,$c7,$e3,$81,$f8,$cb,$01,$30
-	dc.b	$10,$f0,$00,$00,$20,$f8,$00,$f8,$00,$15,$1f,$ff,$f8,$00,$07,$50
-	dc.b	$01,$21,$0c,$88,$88,$2c,$01,$08,$ba,$e0,$d0,$10,$f0,$77,$7e,$3c
-	dc.b	$f8,$00,$f8,$00,$15,$1f,$ff,$f8,$00,$06,$47,$fe,$67,$03,$4e,$cf
-	dc.b	$eb,$81,$f8,$ff,$a1,$e0,$1f,$f0,$70,$7e,$3c,$f8,$00,$f8,$00,$15
-	dc.b	$1f,$ff,$f8,$00,$06,$4b,$ff,$c7,$0e,$84,$67,$a7,$c1,$f0,$80,$41
-	dc.b	$0f,$ef,$0f,$88,$00,$3c,$f8,$00,$f6,$00,$11,$07,$ff,$f9,$b8,$01
-	dc.b	$80,$0c,$8a,$00,$04,$00,$08,$0c,$5f,$30,$00,$00,$07,$f6,$00,$f3
-	dc.b	$00,$0a,$0c,$00,$00,$01,$40,$80,$40,$00,$00,$73,$80,$f2,$00,$d9
-	dc.b	$00,$f8,$00,$15,$2f,$fb,$7c,$00,$0a,$ef,$df,$0f,$7c,$f5,$ff,$d3
-	dc.b	$81,$fb,$7e,$43,$00,$00,$f8,$08,$00,$40,$f8,$00,$f8,$00,$15,$3f
-	dc.b	$fb,$7c,$00,$09,$90,$41,$09,$fb,$7a,$30,$1c,$71,$0a,$01,$e0,$61
-	dc.b	$00,$f8,$76,$fc,$7c,$f8,$00,$f8,$00,$15,$3f,$fb,$7c,$00,$0a,$ef
-	dc.b	$df,$0f,$80,$8d,$c7,$93,$f1,$fa,$ff,$43,$01,$1f,$d8,$78,$fc,$7c
-	dc.b	$f8,$00,$f8,$00,$15,$3f,$fb,$7c,$00,$09,$1e,$5d,$07,$fb,$ba,$bf
-	dc.b	$9f,$71,$f9,$80,$83,$9e,$ff,$07,$81,$00,$7c,$f8,$00,$f7,$00,$12
-	dc.b	$04,$83,$ff,$f5,$50,$80,$00,$7f,$76,$78,$4c,$80,$01,$00,$bf,$60
-	dc.b	$00,$20,$06,$f6,$00,$f4,$00,$0b,$02,$a1,$02,$08,$00,$01,$08,$00
-	dc.b	$00,$02,$7f,$40,$f2,$00,$d9,$00,$f8,$00,$15,$0f,$e0,$f8,$02,$04
-	dc.b	$76,$1c,$0f,$fb,$fd,$bb,$f7,$00,$73,$e3,$c6,$00,$20,$60,$c0,$00
-	dc.b	$c0,$f8,$00,$f8,$00,$15,$7f,$e0,$f8,$02,$03,$89,$24,$01,$70,$3a
-	dc.b	$34,$69,$f0,$82,$1c,$00,$40,$20,$60,$3c,$f8,$f8,$f8,$00,$f8,$00
-	dc.b	$15,$7f,$e0,$f8,$02,$01,$75,$3c,$1f,$07,$c7,$8b,$97,$f0,$73,$f3
-	dc.b	$c6,$00,$3f,$f0,$f0,$f8,$f8,$f8,$00,$f8,$00,$15,$7f,$e0,$f8,$02
-	dc.b	$06,$f9,$18,$1e,$73,$bd,$f7,$ee,$f0,$f0,$0f,$87,$bf,$df,$9f,$03
-	dc.b	$00,$f8,$f8,$00,$f7,$00,$12,$1f,$07,$fd,$fe,$8e,$00,$00,$f8,$3c
-	dc.b	$7c,$68,$00,$82,$0c,$3e,$40,$00,$00,$0c,$f6,$00,$f4,$00,$0b,$01
-	dc.b	$00,$24,$01,$04,$42,$40,$11,$00,$01,$f0,$40,$f2,$00,$d9,$00,$f8
-	dc.b	$00,$15,$07,$81,$fc,$00,$27,$ee,$78,$1f,$0f,$fb,$bf,$cf,$cf,$71
-	dc.b	$f0,$6c,$00,$51,$e0,$09,$00,$80,$f8,$00,$f8,$00,$12,$07,$81,$fc
-	dc.b	$1c,$20,$0e,$00,$00,$80,$18,$78,$53,$ff,$81,$04,$80,$00,$51,$e0
-	dc.b	$fe,$f0,$f8,$00,$f8,$00,$15,$07,$81,$fc,$1c,$27,$f0,$38,$1f,$7f
-	dc.b	$e7,$87,$ae,$30,$f1,$f1,$6c,$00,$6f,$e0,$c9,$f0,$f0,$f8,$00,$f8
-	dc.b	$00,$15,$07,$81,$fc,$00,$23,$ee,$78,$1f,$7f,$fb,$b3,$5d,$ff,$60
-	dc.b	$f9,$cf,$ff,$ae,$1f,$06,$00,$f0,$f8,$00,$f7,$00,$12,$7e,$03,$e3
-	dc.b	$dc,$0e,$40,$00,$f8,$38,$78,$71,$cf,$00,$0e,$bc,$00,$10,$00,$30
-	dc.b	$f6,$00,$f3,$00,$00,$10,$fe,$00,$05,$04,$04,$82,$00,$91,$08,$f1
-	dc.b	$00,$d9,$00,$f8,$00,$14,$03,$01,$fc,$00,$61,$dc,$78,$1e,$83,$ff
-	dc.b	$7e,$bf,$9e,$60,$ef,$18,$00,$21,$c0,$38,$01,$f7,$00,$f8,$00,$14
-	dc.b	$03,$01,$fc,$18,$62,$38,$08,$01,$00,$1d,$f9,$83,$fe,$80,$1c,$d0
-	dc.b	$36,$21,$c1,$c7,$f1,$f7,$00,$f8,$00,$14,$03,$01,$fc,$18,$63,$e0
-	dc.b	$78,$1e,$7f,$c1,$0e,$fc,$61,$71,$6f,$d8,$06,$0f,$c1,$ff,$f1,$f7
-	dc.b	$00,$f8,$00,$14,$03,$01,$fc,$00,$61,$d8,$f8,$1f,$7b,$fc,$fb,$1b
-	dc.b	$ff,$f0,$fc,$1f,$c9,$de,$3e,$00,$01,$f7,$00,$f7,$00,$10,$fe,$03
-	dc.b	$e7,$9c,$3c,$00,$21,$f8,$3e,$f1,$c7,$9f,$81,$93,$f8,$30,$20,$f4
-	dc.b	$00,$f4,$00,$0b,$02,$20,$00,$00,$04,$21,$04,$20,$00,$01,$00,$c0
-	dc.b	$f2,$00,$d9,$00,$f8,$00,$14,$01,$03,$ff,$00,$4f,$dc,$e0,$1f,$07
-	dc.b	$c1,$ff,$c7,$7c,$f0,$fb,$10,$00,$03,$82,$74,$02,$f7,$00,$f8,$00
-	dc.b	$05,$01,$03,$ff,$00,$48,$10,$fd,$00,$0a,$70,$7f,$9c,$90,$8c,$f0
-	dc.b	$ec,$03,$81,$8b,$f2,$f7,$00,$f8,$00,$14,$01,$03,$ff,$00,$4b,$c4
-	dc.b	$e0,$1e,$ff,$fe,$0f,$e0,$82,$f0,$fc,$e0,$0c,$1f,$83,$ff,$f2,$f7
-	dc.b	$00,$f8,$00,$14,$01,$03,$ff,$00,$4f,$94,$f0,$3f,$ff,$de,$7f,$17
-	dc.b	$9e,$70,$fb,$0f,$13,$fc,$7c,$00,$02,$f7,$00,$f7,$00,$0f,$fc,$00
-	dc.b	$ff,$b4,$7d,$00,$01,$fc,$1f,$f8,$1f,$7f,$00,$07,$f0,$e0,$f3,$00
-	dc.b	$f1,$00,$08,$01,$00,$20,$00,$e0,$00,$80,$07,$e0,$f2,$00,$d9,$00
-	dc.b	$f7,$00,$13,$02,$7e,$01,$ff,$b0,$c0,$1f,$03,$c0,$17,$29,$39,$60
-	dc.b	$ff,$30,$00,$06,$04,$e8,$04,$f7,$00,$f7,$00,$04,$02,$7e,$01,$fc
-	dc.b	$09,$fe,$00,$0b,$20,$08,$d9,$51,$00,$88,$e0,$50,$06,$03,$17,$e4
-	dc.b	$f7,$00,$f7,$00,$13,$02,$7e,$01,$ff,$b0,$e0,$1f,$ff,$ff,$e7,$39
-	dc.b	$e4,$e0,$f8,$d0,$1c,$1f,$07,$ef,$e4,$f7,$00,$f7,$00,$13,$02,$7e
-	dc.b	$01,$fb,$37,$e0,$1f,$ff,$df,$ef,$e0,$35,$60,$ff,$1c,$af,$f9,$f8
-	dc.b	$00,$04,$f7,$00,$f8,$00,$13,$01,$fd,$81,$fe,$00,$79,$00,$21,$fc
-	dc.b	$3f,$f8,$c6,$7f,$00,$0f,$f3,$40,$00,$00,$10,$f6,$00,$f4,$00,$01
-	dc.b	$04,$86,$fe,$00,$06,$20,$00,$1f,$c0,$80,$07,$c0,$f2,$00,$d9,$00
-	dc.b	$f8,$00,$14,$01,$20,$7e,$00,$e8,$67,$c0,$1c,$0d,$c0,$1f,$bc,$03
-	dc.b	$c0,$7e,$78,$1c,$03,$09,$c0,$0c,$f7,$00,$f8,$00,$07,$01,$20,$7e
-	dc.b	$00,$eb,$46,$40,$02,$fe,$00,$09,$23,$f7,$20,$09,$e0,$14,$03,$06
-	dc.b	$3f,$cc,$f7,$00,$f8,$00,$14,$01,$20,$7e,$00,$eb,$67,$c0,$1d,$f3
-	dc.b	$ff,$ff,$fd,$d0,$e0,$f1,$98,$1c,$33,$0f,$ff,$cc,$f7,$00,$f8,$00
-	dc.b	$14,$01,$20,$7e,$00,$ec,$e7,$80,$3f,$f1,$df,$ff,$9e,$2b,$40,$76
-	dc.b	$19,$eb,$fc,$f0,$00,$0c,$f7,$00,$f7,$00,$0e,$df,$81,$ff,$10,$3c
-	dc.b	$40,$03,$fc,$1f,$f0,$02,$2f,$80,$8f,$fe,$f2,$00,$f4,$00,$0c,$03
-	dc.b	$02,$00,$00,$02,$20,$00,$61,$d8,$20,$87,$80,$14,$f3,$00,$d9,$00
-	dc.b	$f7,$00,$12,$68,$fe,$01,$7b,$ff,$c1,$7f,$3d,$c0,$17,$f7,$cf,$40
-	dc.b	$36,$f4,$7c,$02,$1b,$80,$f6,$00,$f7,$00,$05,$68,$fe,$01,$7b,$8c
-	dc.b	$41,$fe,$00,$0a,$10,$10,$30,$80,$c9,$40,$40,$02,$04,$7f,$c0,$f7
-	dc.b	$00,$f7,$00,$13,$68,$fe,$01,$7b,$cf,$c1,$7e,$c1,$ff,$e7,$c7,$cc
-	dc.b	$40,$79,$34,$3e,$02,$1f,$ff,$c0,$f7,$00,$f7,$00,$11,$68,$fe,$01
-	dc.b	$7b,$cb,$81,$bc,$c3,$df,$ff,$c7,$fe,$60,$36,$b7,$3d,$fd,$e0,$f5
-	dc.b	$00,$f7,$00,$0f,$97,$01,$fe,$84,$7c,$40,$01,$fe,$1f,$f8,$78,$33
-	dc.b	$a0,$8f,$fc,$c2,$f3,$00,$f3,$00,$0a,$04,$40,$42,$02,$20,$08,$08
-	dc.b	$00,$20,$4f,$80,$f2,$00,$d9,$00,$f7,$00,$11,$59,$fe,$00,$3f,$fe
-	dc.b	$ca,$7f,$7d,$f0,$77,$bd,$fe,$41,$ff,$f0,$7f,$44,$33,$f5,$00,$f7
-	dc.b	$00,$13,$59,$fe,$00,$3f,$cd,$cb,$80,$02,$00,$34,$40,$01,$00,$00
-	dc.b	$0e,$00,$04,$0c,$ff,$80,$f7,$00,$f7,$00,$13,$59,$fe,$00,$3f,$ce
-	dc.b	$cf,$7e,$83,$ef,$8f,$85,$fe,$e1,$f0,$73,$ff,$c4,$3f,$ff,$80,$f7
-	dc.b	$00,$f7,$00,$11,$59,$fe,$00,$3f,$cf,$08,$fe,$81,$ef,$bb,$c5,$ff
-	dc.b	$40,$3f,$f1,$7e,$3b,$c0,$f5,$00,$f7,$00,$10,$26,$01,$ff,$c0,$39
-	dc.b	$c4,$81,$fc,$3f,$f8,$7e,$01,$81,$8f,$fc,$00,$40,$f4,$00,$f3,$00
-	dc.b	$0c,$04,$c3,$00,$02,$00,$04,$02,$00,$20,$4f,$80,$81,$80,$f4,$00
-	dc.b	$d9,$00,$f7,$00,$11,$37,$f6,$00,$2f,$fd,$d1,$fe,$ff,$c0,$c7,$de
-	dc.b	$ff,$01,$6b,$df,$ff,$c0,$26,$f5,$00,$f7,$00,$12,$37,$fe,$00,$2f
-	dc.b	$d1,$8e,$01,$00,$3c,$00,$21,$00,$e7,$d4,$34,$00,$00,$19,$ff,$f6
-	dc.b	$00,$f7,$00,$12,$37,$fe,$00,$2f,$d9,$e9,$fe,$0f,$ff,$3b,$e1,$ff
-	dc.b	$e6,$f4,$df,$ff,$e0,$3f,$ff,$f6,$00,$f7,$00,$11,$37,$fe,$00,$2f
-	dc.b	$de,$17,$fe,$0f,$ff,$3f,$c0,$ff,$01,$2f,$c3,$ff,$df,$c0,$f5,$00
-	dc.b	$f7,$00,$10,$08,$01,$ff,$d0,$2f,$f6,$01,$fc,$3f,$fc,$3f,$00,$06
-	dc.b	$8b,$f8,$00,$20,$f4,$00,$f3,$00,$01,$03,$88,$fe,$00,$05,$04,$21
-	dc.b	$00,$e7,$df,$14,$f2,$00,$d9,$00,$f7,$00,$11,$1f,$ef,$00,$1f,$f2
-	dc.b	$8f,$ff,$17,$ef,$83,$df,$ff,$a2,$57,$bf,$fb,$c0,$04,$f5,$00,$f7
-	dc.b	$00,$12,$1f,$ff,$00,$1f,$f8,$70,$00,$ec,$30,$04,$20,$00,$4d,$e8
-	dc.b	$80,$04,$20,$bb,$fe,$f6,$00,$f7,$00,$12,$1f,$ff,$00,$1f,$f7,$ef
-	dc.b	$fe,$fb,$fc,$7b,$e2,$ff,$af,$e9,$bf,$fb,$e0,$bf,$fe,$f6,$00,$f7
-	dc.b	$00,$11,$1f,$ff,$00,$1f,$f4,$1f,$ef,$fb,$fc,$7f,$c2,$7f,$e0,$16
-	dc.b	$5f,$ff,$df,$40,$f5,$00,$f5,$00,$0d,$ff,$e0,$0a,$10,$01,$fc,$3f
-	dc.b	$fc,$1f,$80,$5f,$9f,$c0,$04,$f3,$00,$f3,$00,$02,$01,$e0,$11,$fe
-	dc.b	$00,$06,$20,$00,$0d,$ee,$e0,$00,$20,$f4,$00,$d9,$00,$f7,$00,$10
-	dc.b	$01,$df,$00,$1f,$5c,$7f,$f6,$67,$db,$07,$fb,$7f,$e3,$ed,$e7,$fd
-	dc.b	$e0,$f4,$00,$f7,$00,$08,$01,$ff,$00,$1f,$e3,$80,$38,$98,$24,$fe
-	dc.b	$00,$06,$0f,$e3,$10,$02,$01,$ff,$fe,$f6,$00,$f7,$00,$12,$01,$ff
-	dc.b	$00,$1f,$34,$7f,$fe,$bf,$dc,$f7,$f0,$7f,$ef,$e3,$ff,$fd,$e1,$ff
-	dc.b	$fe,$f6,$00,$f7,$00,$10,$01,$ff,$00,$1f,$0b,$ff,$c7,$bb,$fc,$f7
-	dc.b	$f4,$7f,$f0,$1e,$e7,$ff,$fe,$f4,$00,$f5,$00,$0d,$ff,$e0,$fb,$80
-	dc.b	$01,$fc,$3f,$f8,$1b,$80,$1f,$ec,$00,$02,$f3,$00,$f3,$00,$0a,$24
-	dc.b	$00,$39,$00,$00,$08,$04,$00,$1f,$8f,$18,$f2,$00,$d9,$00,$f6,$00
-	dc.b	$0f,$7f,$00,$3f,$1c,$f7,$f2,$eb,$f2,$0f,$ef,$bf,$f7,$33,$23,$3f
-	dc.b	$e0,$f4,$00,$f6,$00,$11,$7f,$00,$3e,$e3,$c8,$0d,$10,$1c,$00,$00
-	dc.b	$40,$1b,$a4,$be,$40,$01,$ff,$dc,$f6,$00,$f6,$00,$11,$7b,$00,$3f
-	dc.b	$1f,$df,$f3,$7f,$fd,$ff,$e4,$3f,$fb,$f7,$e3,$bf,$e1,$ff,$dc,$f6
-	dc.b	$00,$f6,$00,$0f,$7f,$00,$3e,$fc,$27,$fe,$7b,$ed,$ef,$e4,$7f,$e4
-	dc.b	$43,$24,$7f,$fe,$f4,$00,$f6,$00,$0e,$04,$ff,$c1,$e0,$20,$0c,$f8
-	dc.b	$0f,$e0,$1f,$c0,$0f,$88,$3f,$40,$f3,$00,$f3,$00,$0b,$03,$d8,$01
-	dc.b	$04,$10,$10,$00,$00,$1f,$bc,$c0,$80,$f3,$00,$d9,$00,$f6,$00,$0f
-	dc.b	$20,$c0,$7f,$f7,$9f,$fe,$fb,$38,$1d,$ff,$bf,$6f,$3d,$13,$3f,$e0
-	dc.b	$f4,$00,$f6,$00,$11,$3f,$c0,$7f,$0f,$e0,$01,$00,$08,$c2,$00,$40
-	dc.b	$96,$c2,$fb,$a0,$07,$ff,$78,$f6,$00,$f6,$00,$11,$3f,$c0,$7f,$fc
-	dc.b	$7f,$ff,$ff,$fb,$fd,$ef,$bf,$66,$ff,$0c,$3f,$e7,$ff,$78,$f6,$00
-	dc.b	$f6,$00,$0f,$3f,$c0,$7e,$f3,$9f,$fe,$fb,$37,$df,$cf,$ff,$f9,$bc
-	dc.b	$04,$5f,$f8,$f4,$00,$f5,$00,$0d,$3f,$81,$04,$60,$00,$f8,$03,$c2
-	dc.b	$1f,$c0,$9f,$01,$fb,$80,$f3,$00,$f3,$00,$0b,$0f,$e0,$01,$04,$cc
-	dc.b	$20,$20,$00,$0f,$c2,$08,$20,$f3,$00,$d9,$00,$f5,$00,$0e,$80,$1f
-	dc.b	$3b,$1f,$ff,$bf,$f9,$fd,$df,$fe,$e2,$f7,$5c,$1f,$e8,$f4,$00,$f6
-	dc.b	$00,$11,$1f,$80,$ff,$4f,$e0,$00,$40,$04,$40,$00,$81,$1f,$0b,$ff
-	dc.b	$d0,$07,$fe,$f0,$f6,$00,$f6,$00,$03,$1f,$80,$fe,$38,$fe,$ff,$0a
-	dc.b	$fc,$ff,$ff,$fe,$ef,$f7,$00,$df,$ef,$fe,$f0,$f6,$00,$f6,$00,$0f
-	dc.b	$1f,$80,$1e,$f3,$1f,$ff,$ff,$f8,$b9,$df,$ff,$fc,$fb,$00,$0f,$f0
-	dc.b	$f4,$00,$f5,$00,$0d,$3f,$01,$c4,$e0,$00,$f8,$c3,$84,$1f,$81,$10
-	dc.b	$0f,$ff,$20,$f3,$00,$f3,$00,$0b,$8b,$e0,$00,$00,$04,$42,$20,$00
-	dc.b	$0f,$00,$00,$10,$f3,$00,$d9,$00,$f5,$00,$0e,$31,$7f,$fe,$3f,$ff
-	dc.b	$e6,$de,$ff,$fe,$7e,$ec,$f7,$f8,$17,$f0,$f4,$00,$f6,$00,$11,$0c
-	dc.b	$31,$ff,$87,$c0,$00,$99,$21,$82,$00,$81,$13,$0f,$fe,$a8,$0f,$f9
-	dc.b	$f0,$f6,$00,$f6,$00,$11,$0c,$31,$ff,$fd,$ff,$ff,$fe,$ff,$7f,$fe
-	dc.b	$fe,$ec,$f7,$00,$b7,$ff,$f9,$f0,$f6,$00,$f6,$00,$0f,$0c,$31,$7f
-	dc.b	$ba,$1f,$ff,$77,$df,$7d,$df,$7f,$f7,$ff,$01,$0f,$e0,$f4,$00,$f5
-	dc.b	$00,$0d,$0e,$00,$05,$c0,$00,$79,$c3,$84,$3e,$01,$13,$0f,$fe,$48
-	dc.b	$f3,$00,$f3,$00,$08,$47,$e0,$00,$88,$20,$02,$01,$80,$08,$f0,$00
-	dc.b	$d9,$00,$f5,$00,$0e,$62,$3f,$fa,$3b,$df,$c6,$dd,$79,$f6,$ff,$fb
-	dc.b	$ff,$d1,$07,$e0,$f4,$00,$f5,$00,$10,$63,$ff,$c3,$c4,$20,$79,$e7
-	dc.b	$8c,$2a,$00,$04,$07,$dd,$40,$1f,$b3,$40,$f6,$00,$f5,$00,$10,$63
-	dc.b	$ff,$fd,$fb,$df,$ff,$ff,$7d,$f7,$ff,$fb,$fe,$20,$47,$ff,$b3,$40
-	dc.b	$f6,$00,$f5,$00,$0e,$62,$3f,$b6,$7f,$ff,$f7,$1a,$fd,$dc,$f9,$f7
-	dc.b	$fe,$22,$3f,$e0,$f4,$00,$f5,$00,$0f,$1c,$00,$01,$84,$20,$70,$e3
-	dc.b	$06,$36,$00,$04,$03,$dd,$80,$00,$40,$f5,$00,$f3,$00,$09,$4b,$c0
-	dc.b	$00,$09,$e5,$8a,$2b,$06,$08,$04,$f1,$00,$d9,$00,$f5,$00,$0e,$0d
-	dc.b	$ff,$76,$4e,$3d,$9d,$0a,$fd,$af,$f1,$33,$ff,$c0,$07,$c0,$f4,$00
-	dc.b	$f5,$00,$0f,$4d,$ff,$8d,$90,$c2,$23,$f2,$8c,$7c,$0f,$cc,$03,$d8
-	dc.b	$1c,$3f,$76,$f5,$00,$f5,$00,$0f,$4d,$ff,$77,$9d,$bf,$ff,$0a,$7f
-	dc.b	$af,$ff,$fb,$fc,$20,$1f,$df,$76,$f5,$00,$f5,$00,$0e,$4d,$ff,$66
-	dc.b	$72,$5d,$ac,$f9,$b1,$d1,$f6,$b7,$fc,$27,$e3,$e0,$f4,$00,$f5,$00
-	dc.b	$0f,$12,$00,$9b,$ee,$40,$31,$16,$0c,$6e,$00,$04,$03,$d8,$00,$20
-	dc.b	$80,$f5,$00,$f3,$00,$0b,$01,$f1,$a2,$43,$e7,$ce,$3c,$0f,$c8,$00
-	dc.b	$00,$04,$f3,$00,$d9,$00,$f5,$00,$0e,$1f,$ff,$46,$e4,$7d,$fe,$7f
-	dc.b	$ef,$ff,$eb,$f7,$ff,$d8,$03,$e0,$f4,$00,$f7,$00,$11,$20,$00,$9f
-	dc.b	$ff,$bd,$3b,$a6,$33,$e7,$dc,$3c,$04,$08,$03,$d8,$38,$3f,$e0,$f5
-	dc.b	$00,$f7,$00,$11,$20,$00,$9f,$ff,$5f,$1b,$7f,$fc,$7c,$7d,$ff,$f7
-	dc.b	$ff,$fe,$00,$3f,$ff,$e0,$f5,$00,$f7,$00,$10,$20,$00,$9f,$ff,$e6
-	dc.b	$e4,$9b,$cf,$8b,$b3,$83,$ef,$f7,$fc,$27,$c7,$c0,$f4,$00,$f3,$00
-	dc.b	$0a,$a3,$df,$40,$20,$70,$0e,$7c,$08,$00,$03,$d8,$f2,$00,$f3,$00
-	dc.b	$0c,$01,$ff,$e6,$33,$e7,$de,$3c,$1f,$c8,$02,$00,$00,$20,$f4,$00
-	dc.b	$d9,$00,$f5,$00,$0e,$0f,$fe,$ff,$c0,$f4,$fe,$fb,$9e,$7f,$bd,$ff
-	dc.b	$ff,$a0,$03,$c0,$f4,$00,$f5,$00,$0f,$3f,$ff,$0e,$ff,$0e,$27,$f6
-	dc.b	$ff,$f8,$42,$24,$03,$a0,$78,$1f,$c0,$f5,$00,$f5,$00,$0f,$3f,$fe
-	dc.b	$fe,$ff,$56,$fe,$c5,$3f,$ff,$af,$3f,$fe,$01,$7f,$ff,$c0,$f5,$00
-	dc.b	$f5,$00,$0e,$3f,$fe,$ef,$c1,$aa,$dd,$3b,$c0,$07,$df,$d3,$fc,$5f
-	dc.b	$87,$e0,$f4,$00,$f4,$00,$0b,$01,$11,$fe,$f9,$02,$c8,$5e,$78,$70
-	dc.b	$c0,$01,$a0,$f2,$00,$f3,$00,$09,$01,$3f,$e7,$27,$f7,$bf,$f8,$1f
-	dc.b	$ec,$02,$f1,$00,$d9,$00,$f5,$00,$0e,$0f,$be,$f7,$80,$e0,$74,$ff
-	dc.b	$fe,$af,$de,$e3,$fd,$e0,$03,$c0,$f4,$00,$f5,$00,$0f,$1f,$be,$07
-	dc.b	$ff,$3f,$8f,$fd,$1e,$20,$c1,$02,$03,$e0,$78,$1f,$80,$f5,$00,$f5
-	dc.b	$00,$0f,$1f,$be,$f7,$bf,$ff,$ff,$8e,$fb,$7f,$ff,$0b,$fc,$00,$7f
-	dc.b	$df,$80,$f5,$00,$f5,$00,$0e,$1f,$bf,$f7,$80,$8f,$73,$73,$c4,$af
-	dc.b	$5f,$e5,$fe,$1f,$87,$e0,$f4,$00,$f4,$00,$0b,$41,$09,$ff,$70,$04
-	dc.b	$88,$3a,$c0,$00,$f4,$03,$e0,$f2,$00,$f4,$00,$09,$01,$00,$3f,$ff
-	dc.b	$8f,$ff,$9f,$30,$ff,$fe,$f0,$00,$d9,$00,$f5,$00,$0e,$0f,$fe,$f3
-	dc.b	$83,$e3,$f0,$fb,$9a,$5c,$fb,$83,$fe,$40,$03,$80,$f4,$00,$f5,$00
-	dc.b	$0e,$0f,$ff,$0f,$fd,$3c,$07,$74,$66,$62,$c0,$00,$00,$40,$e0,$3f
-	dc.b	$f4,$00,$f5,$00,$0e,$0f,$ff,$f7,$bd,$7c,$7f,$0f,$fe,$dc,$f8,$03
-	dc.b	$fc,$0c,$e7,$ff,$f4,$00,$f5,$00,$0e,$0f,$fe,$fb,$82,$1e,$37,$ff
-	dc.b	$fd,$be,$ff,$fc,$7f,$bf,$1b,$c0,$f4,$00,$f3,$00,$0b,$0c,$7f,$e3
-	dc.b	$80,$80,$03,$23,$07,$ff,$02,$40,$04,$f3,$00,$f4,$00,$0a,$01,$04
-	dc.b	$3f,$ff,$cf,$ff,$ff,$41,$ff,$fc,$80,$f1,$00,$d9,$00,$f5,$00,$0f
-	dc.b	$07,$fe,$ff,$c7,$df,$b1,$df,$bf,$fd,$3f,$06,$3c,$06,$07,$80,$70
-	dc.b	$f5,$00,$f5,$00,$08,$07,$ff,$01,$f9,$f0,$c6,$c0,$40,$85,$fe,$00
-	dc.b	$03,$06,$e0,$7c,$70,$f5,$00,$f5,$00,$0f,$07,$fe,$fe,$f9,$78,$fe
-	dc.b	$df,$f0,$ff,$f8,$07,$bc,$1e,$e3,$fc,$70,$f5,$00,$f5,$00,$0f,$07
-	dc.b	$ff,$fc,$c6,$94,$b7,$df,$ff,$79,$37,$f9,$ff,$f9,$1f,$80,$70,$f5
-	dc.b	$00,$f4,$00,$0c,$01,$01,$3f,$7f,$01,$20,$0f,$80,$0f,$fe,$40,$00
-	dc.b	$04,$f3,$00,$f3,$00,$09,$02,$3f,$e7,$cf,$ff,$ff,$07,$f7,$f8,$40
-	dc.b	$f1,$00,$d9,$00,$f5,$00,$0f,$07,$fe,$ff,$cf,$7b,$db,$37,$fe,$76
-	dc.b	$7e,$0c,$38,$0e,$23,$01,$e0,$f5,$00,$f6,$00,$10,$20,$07,$ff,$00
-	dc.b	$f0,$b5,$85,$30,$00,$9e,$00,$00,$c0,$0f,$84,$79,$e0,$f5,$00,$f6
-	dc.b	$00,$10,$20,$07,$fe,$ff,$f0,$b5,$dd,$ff,$ec,$7f,$f8,$0f,$3c,$1e
-	dc.b	$a3,$f9,$e0,$f5,$00,$f6,$00,$10,$20,$07,$ff,$ff,$4f,$79,$5d,$37
-	dc.b	$ff,$fe,$07,$f3,$1b,$f0,$5f,$01,$e0,$f5,$00,$f4,$00,$0d,$01,$00
-	dc.b	$3f,$fe,$22,$00,$13,$80,$7f,$fc,$c4,$01,$04,$80,$f4,$00,$f2,$00
-	dc.b	$08,$bf,$cf,$a7,$ff,$ff,$1f,$87,$f0,$20,$f1,$00,$d9,$00,$f5,$00
-	dc.b	$0f,$03,$fe,$ff,$da,$73,$00,$c7,$dc,$fe,$fc,$38,$10,$18,$87,$03
-	dc.b	$c0,$f5,$00,$f5,$00,$0f,$03,$ff,$00,$45,$8b,$9e,$40,$23,$2e,$00
-	dc.b	$01,$d0,$1b,$81,$f3,$c0,$f5,$00,$f5,$00,$0f,$03,$fe,$ff,$c5,$8b
-	dc.b	$9f,$7f,$fe,$ef,$f0,$3e,$58,$18,$cf,$f3,$c0,$f5,$00,$f5,$00,$0f
-	dc.b	$03,$ff,$ff,$5a,$77,$32,$47,$ff,$de,$0f,$c6,$2d,$e4,$76,$03,$c0
-	dc.b	$f5,$00,$f4,$00,$0c,$01,$00,$3f,$fa,$60,$80,$01,$10,$ff,$f9,$82
-	dc.b	$03,$08,$f3,$00,$f2,$00,$0a,$9f,$fd,$ff,$ff,$fe,$3f,$0f,$c0,$10
-	dc.b	$00,$01,$f3,$00,$d9,$00,$f5,$00,$0f,$01,$ff,$fe,$80,$00,$29,$8f
-	dc.b	$bb,$c1,$f8,$70,$00,$7c,$16,$07,$80,$f5,$00,$f5,$00,$0f,$01,$fe
-	dc.b	$01,$83,$fe,$80,$80,$44,$3f,$00,$03,$de,$7e,$09,$e7,$80,$f5,$00
-	dc.b	$f5,$00,$05,$01,$ff,$fe,$83,$ff,$90,$fe,$ff,$06,$f0,$7e,$de,$7c
-	dc.b	$1f,$e7,$80,$f5,$00,$f5,$00,$0f,$01,$ff,$ff,$80,$00,$68,$8f,$ff
-	dc.b	$41,$0f,$8c,$21,$81,$e4,$07,$80,$f5,$00,$f3,$00,$0a,$01,$7f,$fe
-	dc.b	$ef,$00,$00,$1f,$ff,$f1,$00,$02,$f2,$00,$f2,$00,$00,$03,$fe,$ff
-	dc.b	$06,$fc,$be,$0f,$80,$00,$00,$0a,$f3,$00,$d9,$00,$f5,$00,$0e,$01
-	dc.b	$ff,$fc,$40,$0f,$12,$8c,$79,$83,$fc,$47,$e0,$18,$2c,$0e,$f4,$00
-	dc.b	$f5,$00,$0e,$01,$fe,$02,$c1,$ff,$0b,$90,$84,$7f,$00,$87,$fe,$1c
-	dc.b	$01,$ae,$f4,$00,$f5,$00,$0e,$01,$ff,$fc,$81,$f7,$2f,$f0,$bd,$1f
-	dc.b	$cc,$47,$fe,$18,$3d,$ae,$f4,$00,$f5,$00,$0e,$01,$fe,$fe,$c0,$07
-	dc.b	$d0,$93,$fc,$e3,$33,$3f,$e1,$e3,$ce,$0e,$f4,$00,$f3,$00,$0b,$03
-	dc.b	$7f,$ff,$9b,$0f,$43,$ff,$ff,$c0,$00,$04,$10,$f3,$00,$f4,$00,$08
-	dc.b	$01,$00,$01,$f0,$ff,$ff,$fe,$9c,$33,$ef,$00,$d9,$00,$f4,$00,$0d
-	dc.b	$fe,$ff,$80,$1e,$2e,$38,$81,$ae,$e0,$0e,$00,$12,$58,$24,$f4,$00
-	dc.b	$f4,$00,$0d,$fe,$01,$90,$7e,$07,$e1,$7f,$1f,$07,$0e,$1c,$10,$03
-	dc.b	$24,$f4,$00,$f4,$00,$0d,$fe,$ff,$10,$6e,$0f,$e1,$7f,$37,$e0,$0e
-	dc.b	$1c,$12,$5f,$24,$f4,$00,$f4,$00,$0d,$ff,$ff,$90,$0f,$f8,$07,$80
-	dc.b	$e6,$18,$2e,$03,$ed,$bc,$24,$f4,$00,$f4,$00,$09,$01,$00,$ef,$ff
-	dc.b	$2f,$fe,$ff,$df,$e7,$d0,$f0,$00,$f4,$00,$07,$01,$00,$00,$61,$f7
-	dc.b	$ff,$ff,$d1,$ee,$00,$d9,$00,$f4,$00,$0d,$fe,$ff,$98,$7e,$bc,$9b
-	dc.b	$03,$dc,$40,$3c,$00,$b4,$30,$40,$f4,$00,$f4,$00,$0d,$ff,$00,$f8
-	dc.b	$be,$f1,$e3,$ff,$ee,$08,$3c,$bd,$02,$46,$40,$f4,$00,$f4,$00,$0d
-	dc.b	$fe,$ff,$60,$9e,$fd,$e3,$df,$df,$e0,$3c,$bc,$b6,$7e,$40,$f4,$00
-	dc.b	$f4,$00,$0d,$fe,$ff,$f8,$1f,$be,$8f,$00,$ad,$b0,$7c,$82,$49,$98
-	dc.b	$40,$f4,$00,$f4,$00,$0a,$01,$01,$9f,$fe,$fd,$ff,$ff,$fe,$49,$80
-	dc.b	$01,$f1,$00,$f1,$00,$04,$81,$43,$7c,$df,$42,$fd,$00,$00,$20,$f3
-	dc.b	$00,$d9,$00,$f4,$00,$0c,$7b,$7f,$10,$fc,$45,$8e,$67,$e9,$04,$60
-	dc.b	$c0,$e0,$21,$f3,$00,$f4,$00,$0c,$7b,$81,$f4,$7f,$f1,$4f,$ff,$cd
-	dc.b	$04,$ff,$fb,$0f,$89,$f3,$00,$f4,$00,$0c,$7b,$7e,$e4,$1c,$c5,$cf
-	dc.b	$ff,$fe,$c4,$ff,$fb,$ef,$a9,$f3,$00,$f4,$00,$0c,$7b,$fd,$f4,$3c
-	dc.b	$4f,$be,$63,$da,$e4,$ff,$c4,$10,$71,$f3,$00,$f3,$00,$07,$81,$1b
-	dc.b	$ff,$f5,$cf,$ff,$cd,$03,$ef,$00,$f3,$00,$06,$02,$00,$00,$8a,$71
-	dc.b	$9c,$24,$ee,$00,$d9,$00,$f4,$00,$0c,$2f,$7e,$20,$f8,$3f,$8e,$df
-	dc.b	$72,$18,$00,$c1,$c0,$6c,$f3,$00,$f4,$00,$0c,$3f,$01,$e3,$fc,$02
-	dc.b	$09,$e7,$52,$18,$0f,$e6,$1f,$0c,$f3,$00,$f4,$00,$0c,$3f,$7f,$c3
-	dc.b	$18,$3e,$0f,$ff,$55,$80,$0f,$e7,$df,$4c,$f3,$00,$f4,$00,$0c,$2f
-	dc.b	$fe,$e3,$f8,$3e,$4e,$db,$45,$d8,$0f,$c8,$20,$6c,$f3,$00,$f3,$00
-	dc.b	$07,$80,$34,$ff,$ff,$bf,$ff,$fa,$18,$fe,$00,$00,$20,$f3,$00,$f3
-	dc.b	$00,$00,$80,$fe,$00,$02,$41,$24,$20,$fd,$00,$00,$20,$f3,$00,$d9
-	dc.b	$00,$f3,$00,$07,$7f,$00,$e3,$7f,$9e,$7e,$d7,$e0,$fe,$00,$00,$fc
-	dc.b	$f3,$00,$f3,$00,$0b,$01,$03,$fb,$00,$12,$4e,$e7,$e0,$00,$00,$3c
-	dc.b	$5c,$f3,$00,$f3,$00,$06,$ff,$03,$10,$70,$18,$6e,$d4,$fe,$00,$01
-	dc.b	$3c,$dc,$f3,$00,$f3,$00,$07,$7f,$03,$f3,$70,$18,$6e,$e7,$e0,$fe
-	dc.b	$00,$00,$1c,$f3,$00,$f3,$00,$07,$80,$00,$ef,$ff,$ff,$f7,$8b,$e0
-	dc.b	$fe,$00,$00,$20,$f3,$00,$f3,$00,$00,$80,$fc,$00,$00,$30,$fd,$00
-	dc.b	$00,$c0,$f3,$00,$d9,$00,$f3,$00,$06,$3c,$00,$80,$7f,$be,$fd,$3b
-	dc.b	$fe,$00,$01,$c0,$40,$f3,$00,$f2,$00,$0a,$03,$80,$79,$a6,$fd,$e7
-	dc.b	$80,$00,$00,$f8,$80,$f3,$00,$f3,$00,$0b,$3e,$03,$00,$79,$a6,$f9
-	dc.b	$dc,$80,$00,$00,$f8,$42,$f3,$00,$f3,$00,$0b,$7c,$03,$80,$79,$a6
-	dc.b	$fd,$ef,$80,$00,$00,$c0,$80,$f3,$00,$f3,$00,$06,$02,$00,$81,$86
-	dc.b	$59,$07,$3b,$fd,$00,$00,$42,$f3,$00,$ed,$00,$00,$10,$fd,$00,$00
-	dc.b	$c2,$f3,$00,$d9,$00,$f3,$00,$06,$3c,$00,$00,$df,$19,$a0,$18,$fd
-	dc.b	$00,$00,$40,$f3,$00,$f3,$00,$06,$20,$02,$41,$d3,$ed,$a0,$0b,$ee
-	dc.b	$00,$f3,$00,$06,$3c,$02,$41,$d3,$ed,$a0,$13,$fd,$00,$00,$c0,$f3
-	dc.b	$00,$f3,$00,$06,$1e,$02,$41,$d3,$ed,$a0,$0b,$fd,$00,$00,$80,$f3
-	dc.b	$00,$f3,$00,$06,$20,$00,$00,$0c,$12,$00,$18,$fd,$00,$00,$c0,$f3
-	dc.b	$00,$ed,$00,$00,$10,$fd,$00,$00,$40,$f3,$00,$d9,$00,$f3,$00,$06
-	dc.b	$0c,$00,$00,$1e,$22,$00,$10,$fd,$00,$00,$40,$f3,$00,$f0,$00,$03
-	dc.b	$16,$02,$00,$10,$ee,$00,$f3,$00,$04,$1e,$00,$00,$16,$02,$fb,$00
-	dc.b	$00,$c0,$f3,$00,$f3,$00,$06,$0c,$00,$00,$16,$02,$00,$10,$fd,$00
-	dc.b	$00,$80,$f3,$00,$f3,$00,$06,$12,$00,$00,$08,$20,$00,$10,$fd,$00
-	dc.b	$00,$c0,$f3,$00,$e8,$00,$00,$40,$f3,$00,$d9,$00,$f3,$00,$00,$0c
-	dc.b	$fc,$00,$00,$10,$fd,$00,$00,$40,$f3,$00,$f3,$00,$00,$0a,$fc,$00
-	dc.b	$00,$10,$fd,$00,$00,$a0,$f3,$00,$f3,$00,$00,$0c,$fc,$00,$00,$08
-	dc.b	$fd,$00,$00,$60,$f3,$00,$f3,$00,$00,$06,$fc,$00,$00,$10,$fd,$00
-	dc.b	$00,$a0,$f3,$00,$f3,$00,$00,$02,$fc,$00,$00,$18,$fd,$00,$00,$40
-	dc.b	$f3,$00,$f3,$00,$00,$08,$fc,$00,$00,$08,$fd,$00,$00,$c0,$f3,$00
-	dc.b	$d9,$00,$f3,$00,$00,$06,$fc,$00,$00,$30,$fd,$00,$00,$80,$f3,$00
-	dc.b	$f3,$00,$00,$08,$f7,$00,$00,$40,$f3,$00,$f3,$00,$00,$0e,$fc,$00
-	dc.b	$00,$10,$fd,$00,$00,$80,$f3,$00,$f3,$00,$00,$0b,$f7,$00,$00,$40
-	dc.b	$f3,$00,$f3,$00,$00,$04,$fc,$00,$00,$30,$fd,$00,$00,$80,$f3,$00
-	dc.b	$f3,$00,$00,$04,$fc,$00,$00,$10,$fd,$00,$00,$c0,$f3,$00,$d9,$00
-	dc.b	$f3,$00,$00,$02,$fc,$00,$00,$10,$ee,$00,$f3,$00,$00,$04,$fc,$00
-	dc.b	$00,$30,$fd,$00,$00,$80,$f3,$00,$f3,$00,$00,$07,$fc,$00,$00,$20
-	dc.b	$fd,$00,$00,$80,$f3,$00,$f3,$00,$00,$04,$fc,$00,$00,$30,$fd,$00
-	dc.b	$00,$80,$f3,$00,$f3,$00,$00,$07,$fc,$00,$00,$10,$ee,$00,$f3,$00
-	dc.b	$00,$03,$e8,$00,$d9,$00,$f3,$00,$00,$02,$e8,$00,$f3,$00,$00,$04
-	dc.b	$e8,$00,$f3,$00,$00,$06,$e8,$00,$f3,$00,$00,$04,$e8,$00,$f3,$00
-	dc.b	$00,$02,$e8,$00,$f3,$00,$00,$02,$e8,$00,$d9,$00,$f3,$00,$09,$06
-	dc.b	$00,$00,$14,$0a,$a0,$45,$02,$0a,$a0,$f1,$00,$f3,$00,$09,$05,$00
-	dc.b	$00,$14,$0a,$a0,$45,$02,$0a,$a0,$f1,$00,$f3,$00,$09,$03,$00,$00
-	dc.b	$14,$0a,$a0,$55,$12,$0a,$a0,$f1,$00,$f3,$00,$09,$05,$00,$00,$14
-	dc.b	$0a,$a0,$45,$02,$0a,$a0,$f1,$00,$f3,$00,$09,$06,$00,$00,$6b,$34
-	dc.b	$59,$b2,$dd,$34,$58,$f1,$00,$f3,$00,$00,$02,$fc,$00,$01,$10,$10
-	dc.b	$ef,$00,$d9,$00,$f3,$00,$09,$06,$00,$00,$01,$40,$42,$48,$31,$01
-	dc.b	$c0,$f1,$00,$f0,$00,$06,$01,$5a,$42,$58,$71,$13,$c0,$f1,$00,$f3
-	dc.b	$00,$09,$06,$00,$00,$0b,$5a,$c2,$7c,$7b,$13,$e4,$f1,$00,$f3,$00
-	dc.b	$09,$04,$00,$00,$25,$40,$62,$c9,$35,$01,$e0,$f1,$00,$f3,$00,$09
-	dc.b	$06,$00,$00,$9a,$81,$8c,$26,$0a,$c8,$0c,$f1,$00,$f3,$00,$09,$02
-	dc.b	$00,$00,$0a,$00,$80,$24,$0a,$00,$04,$f1,$00,$d9,$00,$f0,$00,$06
-	dc.b	$20,$11,$40,$a2,$00,$11,$40,$f1,$00,$f3,$00,$09,$06,$00,$00,$20
-	dc.b	$11,$4c,$a2,$00,$11,$40,$f1,$00,$f3,$00,$09,$04,$00,$00,$2c,$15
-	dc.b	$6c,$aa,$0c,$11,$64,$f1,$00,$f3,$00,$09,$06,$00,$00,$20,$93,$40
-	dc.b	$b2,$40,$93,$40,$f1,$00,$f3,$00,$09,$04,$00,$01,$0d,$04,$20,$08
-	dc.b	$2d,$00,$2c,$f1,$00,$f3,$00,$09,$02,$00,$00,$0c,$04,$20,$08,$0c
-	dc.b	$00,$24,$f1,$00,$d9,$00,$f0,$00,$06,$24,$11,$30,$42,$0a,$11,$60
-	dc.b	$f1,$00,$f1,$00,$07,$01,$24,$11,$34,$42,$0b,$11,$68,$f1,$00,$f1
-	dc.b	$00,$07,$01,$2c,$15,$34,$cb,$0b,$55,$6c,$f1,$00,$f0,$00,$06,$24
-	dc.b	$93,$38,$52,$4a,$93,$60,$f1,$00,$f0,$00,$06,$09,$04,$00,$a9,$24
-	dc.b	$44,$04,$f1,$00,$f0,$00,$06,$08,$04,$00,$89,$00,$44,$04,$f1,$00
-	dc.b	$d9,$00,$f0,$00,$06,$08,$00,$20,$a1,$08,$14,$20,$f1,$00,$f0,$00
-	dc.b	$06,$08,$01,$28,$a1,$09,$15,$20,$f1,$00,$f0,$00,$06,$48,$c5,$28
-	dc.b	$b1,$09,$df,$24,$f1,$00,$f0,$00,$06,$08,$82,$24,$b1,$6c,$96,$20
-	dc.b	$f1,$00,$f1,$00,$07,$01,$65,$54,$c3,$0a,$02,$48,$4c,$f1,$00,$f0
-	dc.b	$00,$01,$40,$44,$fe,$00,$01,$48,$04,$f1,$00,$d9,$00,$f0,$00,$06
-	dc.b	$08,$00,$a2,$29,$09,$10,$14,$f1,$00,$f0,$00,$06,$08,$00,$ee,$a9
-	dc.b	$09,$10,$14,$f1,$00,$f0,$00,$06,$88,$c4,$ee,$b9,$09,$da,$54,$f1
-	dc.b	$00,$f0,$00,$06,$08,$82,$a2,$39,$69,$92,$14,$f1,$00,$f1,$00,$07
-	dc.b	$01,$a5,$55,$01,$02,$04,$4d,$68,$f1,$00,$f0,$00,$01,$80,$44,$fe
-	dc.b	$00,$01,$48,$40,$f1,$00,$d9,$00,$f0,$00,$06,$08,$40,$00,$29,$08
-	dc.b	$40,$04,$f1,$00,$f0,$00,$06,$08,$40,$08,$29,$08,$50,$2c,$f1,$00
-	dc.b	$f0,$00,$06,$88,$c6,$09,$39,$08,$d2,$2c,$f1,$00,$f0,$00,$06,$08
-	dc.b	$c2,$04,$39,$68,$c2,$04,$f1,$00,$f1,$00,$07,$01,$a5,$15,$61,$82
-	dc.b	$05,$01,$50,$f1,$00,$f0,$00,$02,$80,$04,$01,$ed,$00,$d9,$00,$f0
-	dc.b	$00,$06,$08,$10,$20,$2a,$09,$00,$20,$f1,$00,$f1,$00,$07,$01,$08
-	dc.b	$10,$28,$2a,$29,$00,$20,$f1,$00,$f1,$00,$07,$01,$08,$d6,$29,$3a
-	dc.b	$29,$c6,$24,$f1,$00,$f0,$00,$06,$08,$92,$24,$3a,$49,$82,$20,$f1
-	dc.b	$00,$f0,$00,$06,$25,$45,$41,$80,$04,$55,$4c,$f1,$00,$ef,$00,$05
-	dc.b	$44,$01,$00,$00,$44,$04,$f1,$00,$d9,$00,$f0,$00,$04,$0c,$10,$40
-	dc.b	$aa,$04,$ef,$00,$f0,$00,$05,$0c,$10,$48,$aa,$04,$01,$f0,$00,$f0
-	dc.b	$00,$06,$0c,$d6,$68,$bb,$0c,$c1,$60,$f1,$00,$f0,$00,$05,$0c,$92
-	dc.b	$44,$ba,$64,$82,$f0,$00,$f1,$00,$07,$01,$21,$45,$20,$01,$09,$50
-	dc.b	$68,$f1,$00,$ef,$00,$05,$44,$20,$01,$08,$40,$60,$f1,$00,$d9,$00
-	dc.b	$ef,$00,$04,$03,$08,$00,$61,$80,$f0,$00,$f0,$00,$05,$7e,$2b,$9a
-	dc.b	$45,$63,$b8,$f0,$00,$f1,$00,$06,$01,$7e,$ab,$9e,$55,$63,$b8,$f0
-	dc.b	$00,$ef,$00,$04,$13,$08,$02,$61,$80,$f0,$00,$f1,$00,$07,$01,$81
-	dc.b	$c4,$65,$b8,$9c,$47,$f0,$f1,$00,$f1,$00,$04,$01,$00,$80,$04,$10
-	dc.b	$ee,$00,$d9,$00,$d9,$00,$d9,$00,$d9,$00,$d9,$00,$d9,$00,$d9,$00
-	dc.b	$d9,$00,$d9,$00,$d9,$00,$d9,$00,$d9,$00,$d9,$00,$d9,$00,$d9,$00
-	dc.b	$d9,$00,$d9,$00,$d9,$00,$d9,$00,$d9,$00,$d9,$00,$d9,$00,$d9,$00
-	dc.b	$d9,$00,$d9,$00,$d9,$00,$d9,$00,$d9,$00,$d9,$00
-g2embed_zm_titlebrush_end
-
-	even
-g2embed_zm_title_pal
-	dc.b	$00,$00,$00,$00,$02,$10,$02,$10,$03,$20,$03,$20,$0f,$ff,$0e,$ee
-	dc.b	$03,$30,$03,$30,$04,$40,$04,$40,$02,$00,$02,$00,$01,$00,$01,$00
-	dc.b	$05,$50,$05,$50,$04,$50,$04,$50,$06,$40,$06,$40,$0f,$ff,$03,$33
-	dc.b	$04,$30,$04,$30,$05,$40,$05,$40,$02,$22,$09,$99,$04,$20,$04,$20
-	dc.b	$03,$00,$03,$00,$07,$50,$07,$50,$03,$10,$03,$10,$0e,$ee,$0b,$bb
-	dc.b	$0d,$dd,$0b,$bb,$00,$00,$09,$99,$05,$30,$05,$30,$01,$11,$0b,$bb
-	dc.b	$01,$11,$03,$33,$03,$40,$03,$40,$0e,$ee,$03,$22,$08,$50,$08,$50
-	dc.b	$06,$30,$06,$30,$02,$22,$03,$33,$0c,$cc,$0c,$cb,$06,$50,$06,$50
-	dc.b	$0d,$dd,$03,$32,$07,$60,$07,$60,$03,$33,$02,$22,$0b,$bb,$0b,$bb
-	dc.b	$0c,$cc,$02,$21,$04,$44,$0b,$bb,$04,$10,$04,$10,$03,$33,$07,$88
-	dc.b	$08,$60,$08,$60,$05,$55,$09,$99,$0b,$bb,$02,$22,$07,$40,$07,$40
-	dc.b	$08,$70,$08,$70,$04,$44,$03,$33,$0e,$ee,$09,$87,$05,$55,$04,$44
-	dc.b	$09,$70,$09,$81,$03,$33,$0d,$cc,$05,$20,$05,$20,$09,$99,$0c,$ba
-	dc.b	$09,$99,$04,$33,$0a,$aa,$05,$44,$0e,$ed,$00,$0f,$09,$60,$09,$60
-	dc.b	$0a,$aa,$0c,$cb,$07,$77,$0a,$aa,$06,$30,$02,$aa,$07,$77,$03,$33
-	dc.b	$08,$88,$02,$22,$02,$21,$0f,$03,$06,$20,$06,$20,$06,$66,$0c,$cb
-	dc.b	$02,$00,$0f,$aa,$08,$88,$0c,$cc,$04,$10,$06,$bf,$08,$76,$06,$3c
-	dc.b	$04,$32,$07,$bb,$06,$66,$03,$33,$06,$54,$01,$1f,$0f,$00,$05,$ba
-	dc.b	$0c,$00,$0d,$44,$0b,$bb,$0f,$a2,$03,$22,$0d,$22,$0b,$ba,$08,$49
-	dc.b	$0a,$99,$06,$b9,$0b,$aa,$03,$d7,$0a,$a9,$0a,$89,$06,$64,$07,$b6
-	dc.b	$0a,$a8,$0b,$1c,$02,$00,$05,$88,$02,$10,$07,$7a,$05,$33,$05,$dd
-	dc.b	$06,$54,$07,$99,$03,$22,$0c,$e0,$08,$86,$08,$43,$08,$88,$0b,$97
-	dc.b	$08,$77,$04,$a9,$0b,$bb,$0f,$30,$07,$55,$04,$aa,$06,$55,$0a,$88
-	dc.b	$0d,$dd,$09,$62,$08,$61,$08,$99,$0e,$ed,$02,$04,$05,$52,$02,$2b
-	dc.b	$03,$11,$06,$52,$0a,$aa,$08,$31,$0a,$aa,$0d,$a2,$0b,$a9,$05,$b7
-	dc.b	$04,$22,$0c,$99,$04,$33,$08,$11,$08,$77,$0d,$fa,$07,$66,$0b,$b7
-	dc.b	$08,$88,$09,$63,$0c,$cc,$07,$87,$06,$44,$02,$c2,$09,$88,$06,$74
-	dc.b	$0a,$97,$05,$b8,$0a,$96,$03,$35,$09,$98,$0c,$da,$09,$98,$0a,$27
-	dc.b	$08,$53,$02,$f2,$08,$74,$04,$4c,$09,$97,$0d,$24,$02,$00,$09,$11
-	dc.b	$04,$30,$01,$cd,$09,$85,$09,$d0,$07,$66,$02,$70,$0c,$b9,$04,$69
-	dc.b	$0c,$ba,$00,$82,$09,$86,$07,$5b,$07,$64,$07,$9b,$0c,$cc,$0c,$50
-	dc.b	$06,$51,$0b,$6d,$0d,$dc,$04,$1a,$06,$40,$01,$78,$09,$76,$01,$d5
-g2embed_zm_title_pal_end
-
-
-	even
-; v190hx9: scratch copy of chunky top 320x32 strip while drawing fixed HUD.
-g2hud_saved_top_chunky	ds.b	320*32
 	even

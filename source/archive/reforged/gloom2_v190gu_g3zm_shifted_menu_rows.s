@@ -4,8 +4,6 @@
 	;*********
 	;
 	;planar, 020+ version.
-	;v190hy: cleanup build from stable v190hx12, old DH3:gloom.log diagnostics removed.
-	;v190hy2: keep Gloom3 intermission picture palette; skip font palette override there.
 	;
 	;6 bitplanes for ECS, 8 for AGA
 	;
@@ -639,6 +637,7 @@ wb	;
 	move.l	d0,a6
 	jsr	-60(a6)
 	move.l	d0,outhand
+	jsr	g2log_open	;v22 diagnostic level/runtime log
 	;
 	move.l	wbmess(pc),d0
 	beq.s	.nocd
@@ -722,7 +721,7 @@ nomem	move.l	wbmess(pc),d0
 	jsr	-378(a6)
 	clr.l	wbmess
 	;
-.bye	; v190hy cleanup: logger call removed
+.bye	jsr	g2log_close
 	rts
 
 ; ************* FAST SUBS ********************
@@ -1780,121 +1779,6 @@ calcoffset	move	#320,d0
 	;
 	rts
 
-; v190hx7: VIEW SIZE full-FOV scaling helpers.
-; Projection still computes the original 320x240 full-screen coordinates, then
-; these helpers scale the result down to the selected render window.  That makes
-; small VIEW SIZE modes render the whole scene at lower resolution instead of
-; showing only a cropped centre slice.
-g2view_scale_x_d0
-	cmp	#320,width
-	beq.s	.rts
-	movem.l	d1,-(a7)
-	ext.l	d0
-	move	width,d1
-	muls	d1,d0
-	move	#320,d1
-	divs	d1,d0
-	movem.l	(a7)+,d1
-.rts	rts
-
-g2view_scale_x_d2
-	cmp	#320,width
-	beq.s	.rts
-	movem.l	d0-d1,-(a7)
-	move	d2,d0
-	ext.l	d0
-	move	width,d1
-	muls	d1,d0
-	move	#320,d1
-	divs	d1,d0
-	move	d0,d2
-	movem.l	(a7)+,d0-d1
-.rts	rts
-
-g2view_scale_x_d3
-	cmp	#320,width
-	beq.s	.rts
-	movem.l	d0-d1,-(a7)
-	move	d3,d0
-	ext.l	d0
-	move	width,d1
-	muls	d1,d0
-	move	#320,d1
-	divs	d1,d0
-	move	d0,d3
-	movem.l	(a7)+,d0-d1
-.rts	rts
-
-g2view_scale_y_d0
-	cmp	#240,hite
-	beq.s	.rts
-	movem.l	d1,-(a7)
-	ext.l	d0
-	move	hite,d1
-	muls	d1,d0
-	move	#240,d1
-	divs	d1,d0
-	movem.l	(a7)+,d1
-.rts	rts
-
-g2view_scale_y_d1
-	cmp	#240,hite
-	beq.s	.rts
-	; v190hx10: keep d1 scaled. hx7 restored d1 here, so sprite/blood
-	; Y positions stayed full-size while their heights were already scaled.
-	movem.l	d0/d2,-(a7)
-	move	d1,d0
-	ext.l	d0
-	move	hite,d2
-	muls	d2,d0
-	move	#240,d2
-	divs	d2,d0
-	move	d0,d1
-	movem.l	(a7)+,d0/d2
-.rts	rts
-
-g2view_scale_y_d3
-	cmp	#240,hite
-	beq.s	.rts
-	movem.l	d0-d1,-(a7)
-	move	d3,d0
-	ext.l	d0
-	move	hite,d1
-	muls	d1,d0
-	move	#240,d1
-	divs	d1,d0
-	move	d0,d3
-	movem.l	(a7)+,d0-d1
-.rts	rts
-
-g2view_scale_y_d4
-	cmp	#240,hite
-	beq.s	.rts
-	movem.l	d0-d1,-(a7)
-	move	d4,d0
-	ext.l	d0
-	move	hite,d1
-	muls	d1,d0
-	move	#240,d1
-	divs	d1,d0
-	move	d0,d4
-	movem.l	(a7)+,d0-d1
-.rts	rts
-
-g2view_unscale_y_d6
-	cmp	#240,hite
-	beq.s	.rts
-	movem.l	d0-d1,-(a7)
-	move	d6,d0
-	ext.l	d0
-	move	#240,d1
-	muls	d1,d0
-	move	hite,d1
-	divs	d1,d0
-	move	d0,d6
-	movem.l	(a7)+,d0-d1
-.rts	rts
-
 refresh	jsr	dispoff
 	jsr	finitmenu
 	jsr	g2v190aj_restore_game_palette	; v190aj: leave font palette before drawing refreshed backdrop
@@ -2510,36 +2394,77 @@ predrawall	;draw up everything....
 
 drawall	;
 	jsr	g2v36_hide_pointer	;v36: keep Intuition pointer hidden during gameplay
+	lea	g2log_msg_da_enter,a0
+	jsr	g2log_drawstep
 .wait	tst	doneflag
 	bne.s	.waitskip
 	bsr	vwait
 	bra.s	.wait
 .waitskip	clr	doneflag
+	lea	g2log_msg_da_wait_ok,a0
+	jsr	g2log_drawstep
 	;
 drawall_	move.l	player1(pc),player_
 	move.l	memory(pc),memat
 	;
+	lea	g2log_msg_da_calc1_b,a0
+	jsr	g2log_drawstep
 	jsr	calcscene
+	lea	g2log_msg_da_calc1_ok,a0
+	jsr	g2log_drawstep
+	lea	g2log_msg_da_draw1_b,a0
+	jsr	g2log_drawstep
 	jsr	drawscene
+	lea	g2log_msg_da_draw1_ok,a0
+	jsr	g2log_drawstep
+	lea	g2log_msg_da_blit1_b,a0
+	jsr	g2log_drawstep
 	jsr	blitscene
+	lea	g2log_msg_da_blit1_ok,a0
+	jsr	g2log_drawstep
 	;
 	move	twowins(pc),d0
 	beq.s	.show
 	;
 	move.l	player2(pc),player_
 	move.l	memory(pc),memat
+	lea	g2log_msg_da_calc2_b,a0
+	jsr	g2log_drawstep
 	jsr	calcscene
+	lea	g2log_msg_da_calc2_ok,a0
+	jsr	g2log_drawstep
+	lea	g2log_msg_da_draw2_b,a0
+	jsr	g2log_drawstep
 	jsr	drawscene
+	lea	g2log_msg_da_draw2_ok,a0
+	jsr	g2log_drawstep
+	lea	g2log_msg_da_blit2_b,a0
+	jsr	g2log_drawstep
 	jsr	blitscene
+	lea	g2log_msg_da_blit2_ok,a0
+	jsr	g2log_drawstep
 .show	;
+	lea	g2log_msg_da_wait2_b,a0
+	jsr	g2log_drawstep
 .wait2	tst	showflag
 	bne.s	.waitskip2
 	bsr	vwait
 	bra.s	.wait2
-.waitskip2	; v190hy cleanup: log marker removed
+.waitskip2	lea	g2log_msg_da_wait2_ok,a0
+	jsr	g2log_drawstep
+	lea	g2log_msg_da_doc2p_b,a0
+	jsr	g2log_drawstep
 	jsr	doc2p
+	lea	g2log_msg_da_doc2p_ok,a0
+	jsr	g2log_drawstep
+	lea	g2log_msg_da_db_b,a0
+	jsr	g2log_drawstep
 	jsr	db
+	lea	g2log_msg_da_db_ok,a0
+	jsr	g2log_drawstep
 	clr	showflag
+	lea	g2log_msg_da_exit,a0
+	jsr	g2log_drawstep
 	rts
 
 doc2p	;
@@ -2552,7 +2477,6 @@ doc2p	;
 	move.l	linemod(pc),d3		;linemod
 	move.l	c2p(pc),a2
 	jsr	(a2)
-	jsr	g2hud_post_c2p	;v190hx6: fixed top HUD pass for non-fullscreen views
 	;nop	;v16: bottom clear disabled, restore compact 240-row plane layout first
 	move	panelcnt(pc),d0
 	beq.s	.rts
@@ -2574,70 +2498,6 @@ doc2p	;
 	jsr	(a2)
 	;
 .rts	rts
-
-; v190hx6: for smaller VIEW SIZE modes the main C2P pass only converts the
-; centred game window.  Keep the HUD at its fixed 320x240 screen position by
-; drawing it after the main C2P and converting only the top strip full-width.
-g2hud_post_c2p
-	tst	g2hud_pending
-	beq.s	.done
-	clr	g2hud_pending
-	movem.l	d0-d7/a0-a6,-(a7)
-	; v190hx9: the fixed HUD pass for smaller VIEW SIZE modes must not
-	; permanently overwrite the chunky source buffer.  The grey ESC-menu
-	; preview later uses chunky as the 3D-source image; if the HUD remains
-	; there, it appears again inside the small render window, distorted.
-	jsr	g2hud_save_top_chunky
-	jsr	g2hud_clear_top_chunky
-	move.l	g2hud_pending_player(pc),a5
-	tst.l	a5
-	beq.s	.skipdraw
-	move	#-1,g2hud_force_draw
-	jsr	showstats
-	clr	g2hud_force_draw
-.skipdraw
-	move.l	chunky(pc),a0
-	move.l	drawbitmap(pc),a1
-	move	#320,d0
-	move	#32,d1
-	move.l	bpmod(pc),d2
-	move.l	linemod(pc),d3
-	move.l	c2p(pc),a2
-	jsr	(a2)
-	jsr	g2hud_restore_top_chunky
-	movem.l	(a7)+,d0-d7/a0-a6
-.done	rts
-
-; Save/restore only the fixed top HUD strip in the chunky source buffer.
-g2hud_save_top_chunky
-	movem.l	d0/a0-a1,-(a7)
-	move.l	chunky(pc),a0
-	lea	g2hud_saved_top_chunky,a1
-	move	#2559,d0		; 320*32 bytes / 4 - 1
-.loop	move.l	(a0)+,(a1)+
-	dbf	d0,.loop
-	movem.l	(a7)+,d0/a0-a1
-	rts
-
-g2hud_restore_top_chunky
-	movem.l	d0/a0-a1,-(a7)
-	move.l	chunky(pc),a0
-	lea	g2hud_saved_top_chunky,a1
-	move	#2559,d0		; 320*32 bytes / 4 - 1
-.loop	move.l	(a1)+,(a0)+
-	dbf	d0,.loop
-	movem.l	(a7)+,d0/a0-a1
-	rts
-
-; Clear only the fixed top HUD strip in the chunky source buffer.
-g2hud_clear_top_chunky
-	movem.l	d0/a0,-(a7)
-	move.l	chunky(pc),a0
-	move	#2559,d0		; 320*32 bytes / 4 - 1
-.loop	clr.l	(a0)+
-	dbf	d0,.loop
-	movem.l	(a7)+,d0/a0
-	rts
 
 
 g2v15_clear_bottom16	;clear bottom 16 visible OS lines below the 240-line game render
@@ -2815,38 +2675,27 @@ showstats
 	; v190gi: clean restart from v190fy.
 	; Draw the new top HUD inside the existing Gloom2 chunky/C2P render path.
 	; No old Gloom planar blitter, no direct smallfont.bin parsing, no bitmap writes.
-	; v190hx6: in FULLSCREEN draw directly into the main chunky/C2P frame.
-	; For smaller VIEW SIZE modes defer the HUD until after the main C2P pass,
-	; then convert a fixed full-width top strip so the HUD stays in place.
 	movem.l	d0-d7/a0-a4,-(a7)
 	move.l	panel(pc),d0
 	beq.w	.g2hud_done
-	tst	g2hud_force_draw
-	bne.s	.g2hud_draw_now
-	cmp	#320,width
-	bne.s	.g2hud_defer
+	cmp	#320,width	; v190gr: top HUD only in true FULLSCREEN; scaled windows distort it
+	bne.w	.g2hud_done
 	cmp	#240,hite
-	bne.s	.g2hud_defer
-	bra.s	.g2hud_draw_now
-.g2hud_defer
-	move.l	a5,g2hud_pending_player
-	move	#-1,g2hud_pending
-	bra.w	.g2hud_done
-.g2hud_draw_now
+	bne.w	.g2hud_done
 	;
 	; HEALTH / WEAPON labels at the original Gloom top-left positions.
 	moveq	#2,d7
-	moveq	#4,d6		;v190hm: HUD 2px lower
+	moveq	#2,d6
 	lea	hud_health(pc),a4
 	bsr	g2hud_draw_text_top
 	moveq	#2,d7
-	moveq	#14,d6		;v190hm: HUD 2px lower
+	moveq	#12,d6
 	lea	hud_weapon(pc),a4
 	bsr	g2hud_draw_text_top
 	;
 	; LIVES label and icons at the top-right.
 	move	#236,d7
-	moveq	#4,d6		;v190hm: HUD 2px lower
+	moveq	#2,d6
 	lea	hud_lives(pc),a4
 	bsr	g2hud_draw_text_top
 	move	ob_lives(a5),d7
@@ -2859,7 +2708,7 @@ showstats
 	move	#276,d6
 .g2hud_lives_loop
 	move	d6,d0
-	moveq	#4,d1		;v190hm: HUD 2px lower
+	moveq	#2,d1
 	moveq	#44,d2		; existing Gloom2 life/skull/heart slot
 	bsr	g2hud_draw_shape_top
 	addq	#8,d6
@@ -2886,7 +2735,7 @@ showstats
 	moveq	#47,d2		; green cells
 .g2hud_hpcol_ok
 	move	d6,d0
-	moveq	#4,d1		;v190hm: HUD 2px lower
+	moveq	#2,d1
 	bsr	g2hud_draw_shape_top
 	addq	#2,d6
 	addq	#1,d3
@@ -2902,7 +2751,7 @@ showstats
 	moveq	#44,d6
 .g2hud_wploop
 	move	d6,d0
-	moveq	#14,d1		;v190hm: HUD 2px lower
+	moveq	#12,d1
 	bsr	g2hud_draw_shape_top
 	add	#10,d6
 	dbf	d7,.g2hud_wploop
@@ -3677,13 +3526,8 @@ flat	;
 	;
 	tst	d7
 	beq	.rts
-	move	d7,d6		; v190hx7: display Y -> full-screen projection Y
-	jsr	g2view_unscale_y_d6
-	tst	d6
-	beq	.rts
-	move.l	flatcam(pc),d0
-	divs	d6,d0	;d0.w = Z
-	move	d0,d6
+	move.l	flatcam(pc),d6
+	divs	d7,d6	;d6.w = Z
 	tst	g2_visibility
 	bgt.s	.g2v190ey_flat_adv
 	cmp	#maxz,d6
@@ -3811,11 +3655,11 @@ flat	;
 	;
 	;Find leftmost X...
 	;
-	move	#-160,d5	; v190hx7: full-FOV flat left edge
+	move	minx(pc),d5
 	muls	d6,d5
 	asr.l	#focshft,d5
 	;
-	move	#160,d4	; v190hx7: full-FOV flat right edge
+	move	maxx(pc),d4
 	muls	d6,d4
 	asr.l	#focshft,d4
 	;
@@ -4722,19 +4566,33 @@ blitscene	;
 
 drawscene	;a5=player
 	; v28: pinpoint first-level crash inside drawscene.
+	lea	g2log_msg_ds_enter,a0
+	jsr	g2log_drawstep
+	lea	g2log_msg_ds_cast_b,a0
+	jsr	g2log_drawstep
 	bsr	castwalls
+	lea	g2log_msg_ds_cast_ok,a0
+	jsr	g2log_drawstep
+	lea	g2log_msg_ds_render_b,a0
+	jsr	g2log_drawstep
 	bsr	renderwalls
+	lea	g2log_msg_ds_render_ok,a0
+	jsr	g2log_drawstep
 	; v190fx: real-Amiga safe order. Do not run the v190bb wallspan
 	; void-fog pass before roof/floor; late neutral void-fog remains after flats.
 	;
 	move	roofflag(pc),d0
 	ble.s	.g2v190dm_roof_fog
+	lea	g2log_msg_ds_roof_b,a0
+	jsr	g2log_drawstep
 	move	#-255,d0
 	sub	camy(pc),d0
 	moveq	#1,d1
 	move	miny(pc),d7
 	move.l	roof(pc),a0
 	bsr	flat
+	lea	g2log_msg_ds_roof_ok,a0
+	jsr	g2log_drawstep
 	bra.s	.noroof
 .g2v190dm_roof_fog
 	moveq	#1,d1		; CEILING NO: fill ceiling area with neutral fog, not black bars
@@ -4743,6 +4601,8 @@ drawscene	;a5=player
 .noroof	;
 	move	floorflag(pc),d0
 	ble.s	.g2v190dm_floor_fog
+	lea	g2log_msg_ds_floor_b,a0
+	jsr	g2log_drawstep
 	move	camy(pc),d0
 	neg	d0
 	moveq	#-1,d1
@@ -4750,6 +4610,8 @@ drawscene	;a5=player
 	subq	#1,d7
 	move.l	floor(pc),a0
 	bsr	flat
+	lea	g2log_msg_ds_floor_ok,a0
+	jsr	g2log_drawstep
 	bra.s	.nofloor
 .g2v190dm_floor_fog
 	moveq	#-1,d1		; FLOOR NO: fill floor area with neutral fog, not black bars
@@ -4762,10 +4624,18 @@ drawscene	;a5=player
 	; keeps very long corridor openings dark instead of black, without
 	; interfering with wall/floor rendering or copying texture rows.
 	jsr	g2fill_void_fog_remaining
+	lea	g2log_msg_ds_shapes_b,a0
+	jsr	g2log_drawstep
 	bsr	drawshapes
+	lea	g2log_msg_ds_shapes_ok,a0
+	jsr	g2log_drawstep
 	; v17: original gloom2 had an early RTS here, making blood/pixelate reachable.
+	lea	g2log_msg_ds_blood_b,a0
+	jsr	g2log_drawstep
 	; v31: safe chunky blood renderer re-enabled, legacy screen-splat disabled.
 	bsr	drawblood
+	lea	g2log_msg_ds_blood_ok,a0
+	jsr	g2log_drawstep
 	;
 	; v99: ZGloom-style screen colour effects.  Teleport/exit uses pixsize
 	; as a blue-white fade timer, then the existing pixelate pass runs.
@@ -4788,8 +4658,14 @@ drawscene	;a5=player
 	move.l	player_(pc),a0
 	move	ob_pixsize(a0),d0
 	beq.s	.g2ds_no_pixel
+	lea	g2log_msg_ds_pixel_b,a0
+	jsr	g2log_drawstep
 	jsr	pixelate
+	lea	g2log_msg_ds_pixel_ok,a0
+	jsr	g2log_drawstep
 .g2ds_no_pixel
+	lea	g2log_msg_ds_exit,a0
+	jsr	g2log_drawstep
 	rts
 
 chatstuff	move	chatok(pc),d0
@@ -7736,7 +7612,6 @@ drawblood	clr	scrnblood
 	ext.l	d0
 	lsl.l	#focshft,d0
 	divs	d2,d0
-	jsr	g2view_scale_x_d0	; v190hx7: full-FOV VIEW SIZE X scale
 	cmp	minx(pc),d0
 	blt	.loop
 	cmp	maxx(pc),d0
@@ -7745,7 +7620,6 @@ drawblood	clr	scrnblood
 	ext.l	d1
 	lsl.l	#focshft,d1
 	divs	d2,d1
-	jsr	g2view_scale_y_d1	; v190hx7: full-FOV VIEW SIZE Y scale
 	cmp	miny(pc),d1
 	blt	.loop
 	cmp	maxy(pc),d1
@@ -8952,7 +8826,6 @@ dothezone3	move	d0,d4
 .z1ok	ext.l	d0
 	lsl.l	#focshft,d0
 	divs	d1,d0
-	jsr	g2view_scale_x_d0	; v190hx7: full-FOV wall endpoint X
 	bvs.s	.ov1
 	subq	#1,d0
 	cmp	maxx(pc),d0
@@ -8970,7 +8843,6 @@ dothezone3	move	d0,d4
 .z2ok	ext.l	d2
 	lsl.l	#focshft,d2
 	divs	d3,d2
-	jsr	g2view_scale_x_d2	; v190hx7: full-FOV wall endpoint X
 	bvs.s	.ov2
 	addq	#1,d2
 	cmp	minx(pc),d2
@@ -9154,22 +9026,13 @@ makeoutlist2	;create outlist from inlist
 
 castwalls	;process 'walls' list
 	;
-	; v190hx7: cast the same -160..+160 field of view into the selected
-	; lower render width.  Older code started at minx, which cropped/zoomed.
+	move.l	castrots(pc),a6
 	move	minx(pc),d7
-	move.l	#-40960,g2view_cast_xfp	; -160 << 8
-	move.l	#81920,d0		; 320 << 8
-	divu	width,d0
-	and.l	#$0000ffff,d0
-	move.l	d0,g2view_cast_step
+	lea	0(a6,d7*8),a6
 	move.l	vertdraws(pc),a4
 	;
 .loop	;do this vert line!
 	;
-	move.l	g2view_cast_xfp(pc),d6
-	asr.l	#8,d6
-	move.l	castrots(pc),a6
-	lea	0(a6,d6*8),a6
 	lea	outlist(pc),a5
 	;
 .loop2	move.l	(a5),d0
@@ -9401,14 +9264,12 @@ castwalls	;process 'walls' list
 	ext.l	d3
 	lsl.l	#focshft,d3
 	divs	d2,d3	;sc Y1
-	jsr	g2view_scale_y_d3	; v190hx7: full-FOV wall Y scale
 	;
 	move	camy(pc),d4
 	neg	d4
 	ext.l	d4
 	lsl.l	#focshft,d4
 	divs	d2,d4	;sc y2
-	jsr	g2view_scale_y_d4	; v190hx7: full-FOV wall Y scale
 	;
 	sub	d3,d4	;y1,hite
 	movem	d3-d4,vd_y(a0)
@@ -9452,8 +9313,7 @@ castwalls	;process 'walls' list
 .next	;onto next display column
 	;
 	lea	vd_size(a4),a4
-	move.l	g2view_cast_step(pc),d0
-	add.l	d0,g2view_cast_xfp
+	addq	#8,a6
 	addq	#1,d7
 	cmp	maxx(pc),d7
 	blt	.loop
@@ -9796,13 +9656,11 @@ drawshapes	lea	shapelist(pc),a6
 	;
 	lsl.l	#focshft,d0
 	divs	d2,d0	;Screen X
-	jsr	g2view_scale_x_d0	; v190hx7: full-FOV object X scale
 	cmp	maxx(pc),d0
 	bge	.drawloop	;X too big!
 	;
 	lsl.l	#focshft,d1
 	divs	d2,d1	;Screen Y
-	jsr	g2view_scale_y_d1	; v190hx7: full-FOV object Y scale
 	cmp	maxy(pc),d1
 	bge	.drawloop
 	;
@@ -9816,7 +9674,6 @@ drawshapes	lea	shapelist(pc),a6
 	endc
 	;
 	divs	d2,d3	;screen width
-	jsr	g2view_scale_x_d3	; v190hx7: scale object width to render window
 	ext.l	d3
 	ble	.drawloop
 	;
@@ -9828,7 +9685,6 @@ drawshapes	lea	shapelist(pc),a6
 	endc
 	;
 	divs	d2,d4	;hite
-	jsr	g2view_scale_y_d4	; v190hx7: scale object height to render window
 	ext.l	d4
 	ble	.drawloop
 	;
@@ -10058,9 +9914,6 @@ drawobjtrans	;draw transparent object (merge both colours!)
 	move.l	planar_remap(pc),a5	;remap RGB->LUT
 	move.l	planar_palette,a6
 	;
-	; v190hy4: blob shadows must be behind the sprite column.
-	; Reflections stay after the sprite via g2_draw_reflection_column_after_sprite.
-	bsr	g2_draw_blob_column_before_sprite
 .vloop	move.b	0(a3,d1),d5
 	beq.s	.skip
 	;
@@ -10082,7 +9935,7 @@ drawobjtrans	;draw transparent object (merge both colours!)
 	addx	d0,d1	;xtend
 	add.l	d7,a4
 	dbf	d4,.vloop
-	bsr	g2_draw_reflection_column_after_sprite	;v190hy4: reflections only after sprite
+	bsr	g2_draw_enemy_blob_column	;v173 reflections below transparent/invisible pickups too
 	;
 	movem.l	(a7)+,d0-d5/a5-a6
 	;
@@ -10124,15 +9977,13 @@ drawobjnorm	;normal draw object...
 	sub	d6,d1
 	add.l	d6,d1
 	;
-	; v190hy4: draw enemy blob shadow before sprite pixels so feet/gore stay on top.
-	bsr	g2_draw_blob_column_before_sprite
 .vloop	move.b	0(a3,d1),d5
 	beq.s	.skip
 	move.b	0(a2,d5),(a4)
 .skip	addx.l	d6,d1	;next src Y
 	add.l	d7,a4
 	dbf	d4,.vloop
-	bsr	g2_draw_reflection_column_after_sprite	;v190hy4: reflections only after sprite
+	bsr	g2_draw_enemy_blob_column	;v126 hard-edged dark column below enemy feet
 	;
 	movem.l	(a7)+,d0-d1/d4-d5
 	;
@@ -10265,23 +10116,6 @@ g2_setup_enemy_blob_column
 	moveq	#16,d0
 .rx_max_ok
 	move	d0,g2_shadow_rx
-	; v190hy3: anchor enemy blob shadows to the projected floor plane,
-	; not to the lower edge of the visible sprite bitmap.  Flying monsters
-	; can bob above the floor, but their shadow must stay on the ground.
-	move	camy(pc),d0
-	neg	d0
-	ext.l	d0
-	asl.l	#focshft,d0
-	divs	d2,d0
-	jsr	g2view_scale_y_d0	; keep VIEW SIZE scaling consistent with sprites
-	add	midy(pc),d0
-	cmp	#2,d0
-	blt	.done
-	move	hite(pc),d1
-	sub	#6,d1
-	cmp	d1,d0
-	bgt	.done
-	move	d0,g2_reflect_floorrow	; reused as absolute floor row for blob shadows
 	moveq	#1,d0	;v129 fallback: darker blob shadow
 	move.l	planar_remap(pc),a0
 	tst.l	a0
@@ -10403,20 +10237,18 @@ g2_prepare_reflection_column
 	ext.l	d0
 	asl.l	#focshft,d0
 	divs	d2,d0
-	jsr	g2view_scale_y_d0	; v190hx7: reflection floor row scales with view height
 	add	midy(pc),d0
 	addq	#2,d0		; v189: back to the v186 pickup reflection baseline, but about 2px higher
-	; v190hx12: safe anchor-only clipping for floor reflections.
-	; Do not clamp an off-screen pickup reflection back into the 3D window
-	; because that makes it slide along the VIEW SIZE edge.  Unlike hx11,
-	; this does not touch the low-level reflection draw pointer path.
 	cmp	#2,d0
-	blt	.no_reflect
+	bge.s	.pick_row_min_ok
+	moveq	#2,d0
+.pick_row_min_ok
 	move	hite(pc),d1
 	sub	#12,d1
 	cmp	d1,d0
-	bgt	.no_reflect
-	move	d0,g2_reflect_floorrow
+	ble.s	.pick_row_max_ok
+	move	d1,d0
+.pick_row_max_ok	move	d0,g2_reflect_floorrow
 	bra.s	.y_done
 .projectile_floor_yoff
 	move	ob_y(a2),d0
@@ -10424,7 +10256,6 @@ g2_prepare_reflection_column
 .scale_yoff	ext.l	d0
 	asl.l	#focshft,d0
 	divs	d2,d0
-	jsr	g2view_scale_y_d0	; v190hx7: reflection y offset scales with view height
 	cmp	#30,d0
 	ble	.ymax_ok
 	moveq	#30,d0
@@ -10536,20 +10367,6 @@ g2_reflect_dark_rgb
 g2_reflect_rgb
 	dc	$960,$0a0,$6f6,$66f,$a0a,$960,$0a0,$6f6
 
-g2_draw_blob_column_before_sprite
-	cmp	#1,g2_shadow_active
-	bne.s	.rts
-	bsr	g2_draw_enemy_blob_column
-.rts	rts
-
-; v190hy4: reflections still need the old after-sprite path because projectile
-; reflections use a4/the sprite underside as their relative floor anchor.
-g2_draw_reflection_column_after_sprite
-	cmp	#2,g2_shadow_active
-	bne.s	.rts
-	bsr	g2_draw_enemy_blob_column
-.rts	rts
-
 g2_draw_enemy_blob_column
 	; called from drawobjnorm/drawobjtrans after the current sprite column was drawn.
 	; a4 points one row below the drawn/clipped sprite column.
@@ -10591,20 +10408,9 @@ g2_draw_enemy_blob_column
 	moveq	#0,d5
 	moveq	#2,d6	;keep hard oval centre, no tall diamond peak
 .have_band
+	move.l	a4,a0
 	move.l	chunkymod(pc),d7
-	; v190hy3: draw the blob at the projected floor row.  The old path
-	; started from a4 (sprite column bottom), so flying sprites dragged the
-	; shadow upward with their animation/bob height.
-	move.l	chunky(pc),d0
-	move	g2_shadow_curx(pc),d3
-	lsl	#2,d3
-	lea	coloffs(pc),a0
-	add.l	0(a0,d3.w),d0
-	move.l	d0,a0
-	move	g2_reflect_floorrow(pc),d3
-	mulu	chunkymodw(pc),d3
-	add.l	d3,a0
-	sub.l	d7,a0	; keep the confirmed v132/v130 blob vertical bias
+	sub.l	d7,a0	;v132: one pixel lower than v131, still above v130
 	sub.l	d7,a0
 	sub.l	d7,a0
 	; skip down by start offset
@@ -10925,9 +10731,6 @@ gunpic	dc.l	0	;v20 optional misc/gun first-person weapon shape table
 g2gun_firetimer	dc	0	;v65 short muzzle/firing-frame timer
 g2gun_recoilflag	dc.b	0	;v68 nonzero while firing/recoil frame is active
 	even
-g2hud_pending	dc	0	;v190hx6 non-fullscreen HUD needs a late full-width C2P pass
-g2hud_force_draw	dc	0	;v190hx6 force showstats during the late HUD pass
-g2hud_pending_player	dc.l	0	;v190hx6 player pointer for deferred HUD draw
 g2teleport_blackout	dc	0	;v103 black screen shown between teleport pixel effect and intermission
 g2teleport_black_hold	dc	0	;v105 black hold countdown before intermission
 g2teleport_black_finish	dc	0	;v105 delayed finished code after black hold
@@ -11143,10 +10946,6 @@ midy	;
 maxy	dc	120	;v190gi: fullscreen default
 wdiv32	dc	0
 wrem32	dc	0
-
-; v190hx7: fixed-point caster state for lower VIEW SIZE full-FOV render.
-g2view_cast_xfp	dc.l	0
-g2view_cast_step	dc.l	256
 
 coplist	dc.l	0
 slice1	dc.l	0
@@ -13106,7 +12905,6 @@ initmain	;
 	jsr	g2embed_apply_g1_fallbacks	;v190gl: missing Classic-Gloom modern assets
 	jsr	g2loadgunfallback	;v61: optional misc/stuf gun.bin fallback
 	jsr	g2embed_apply_g1_fallbacks	;v190gl: gun fallback if no file exists
-	jsr	g2embed_apply_zm_title_overlay	;v190hu: embedded Zombie Massacre title overlay
 	;
 	; v41i diagnostic: progfiles/agafiles loaded OK.
 	; Continue into gloomcfg/C2P filename + C2P load stage.
@@ -13837,7 +13635,8 @@ execscript	cmp	#2,gametype
 .fucked	;
 	rts
 	;
-scriptdone	; v190hy cleanup: log marker removed
+scriptdone	lea	g2log_msg_script_done,a0
+	jsr	g2log
 	bsr	dispoff
 	move.l	loadingmed(pc),d0
 	beq	gameover
@@ -13851,6 +13650,10 @@ sccont	dc.b	'cont_'
 	even
 
 scriptrest	;restart point!
+	move.l	a0,-(a7)
+	lea	g2log_msg_script_rest,a0
+	jsr	g2log
+	move.l	(a7)+,a0
 	;this changes...we add this to 'gloomgame' file now.
 	;
 	move.l	a0,d1
@@ -13889,22 +13692,26 @@ scriptrest	;restart point!
 	;
 	bra	execscript
 
-scriptloop	; v190hy cleanup: log marker removed
+scriptloop	lea	g2log_msg_script_loop,a0
+	jsr	g2log
 	move.l	script,scriptat
 	bra	execscript
 
-scripthide	; v190hy cleanup: log marker removed
+scripthide	lea	g2log_msg_script_hide,a0
+	jsr	g2log
 	bsr	dispoff
 	bra	execscript
 
-scriptshow	; v190hy cleanup: log marker removed
+scriptshow	lea	g2log_msg_script_show,a0
+	jsr	g2log
 	tst.l	g2v190i_start_offset	; v190t: while skipping earlier levels, suppress old intermission screens
 	bgt	execscript
 	clr	pdelay
 	bsr	dispon
 	bra	execscript
 
-scriptdraw	; v190hy cleanup: log marker removed
+scriptdraw	lea	g2log_msg_script_draw,a0
+	jsr	g2log
 	tst.l	g2v190i_start_offset	; v190t: skip draw_ before earlier play_ entries
 	bgt	execscript
 	tst	g2v190t_reload_pic_after_level	; v190t: reload intermission IFF after gameplay, if needed
@@ -13919,10 +13726,7 @@ scriptdraw	; v190hy cleanup: log marker removed
 	move.l	gloom,d0
 .use	move.l	d0,a0
 	jsr	showpic
-	cmp	#3,g2_game_profile	; v190hy2: Gloom3 intermission pictures keep their own .pal
-	beq.s	.g2v190hy2_draw_no_fontpal
 	bsr	initfontpal
-.g2v190hy2_draw_no_fontpal
 	bra	execscript
 
 fetchrest	move.l	scriptat,a0
@@ -13980,10 +13784,15 @@ rooftag	ds.b	32
 	even
 
 scripttile	;tile command...load in floor/roof tiles!
+	lea	g2log_msg_script_tile,a0
+	jsr	g2log
 	;
 	lea	floortag(pc),a1
 	bsr	fetchrest
+	lea	g2log_msg_tiletag,a0
+	jsr	g2log
 	lea	floortag,a0
+	jsr	g2log
 	bsr	loadtile
 	bra	execscript
 
@@ -14033,6 +13842,8 @@ ecspicpath	dc.b	'pics_ehb/',0
 	even
 
 scriptpict	;load an iff
+	lea	g2log_msg_script_pict,a0
+	jsr	g2log
 	bsr	freeiff
 	lea	agapicpath(pc),a0
 	lea	picname,a1
@@ -14043,7 +13854,10 @@ scriptpict	;load an iff
 	bne.s	.aga
 	subq	#1,a1
 	bsr	fetchrest
+	lea	g2log_msg_picname,a0
+	jsr	g2log
 	lea	picname,a0
+	jsr	g2log
 	move.l	a1,-(a7)
 	bsr	permit
 	lea	picname,a0
@@ -14105,6 +13919,8 @@ g2v190t_reload_current_pic
 .rts	rts
 
 scriptdark	;
+	lea	g2log_msg_script_dark,a0
+	jsr	g2log
 	tst.l	g2v190i_start_offset	; v190t: suppress dark_ before skipped earlier levels
 	bgt	execscript
 	tst	os
@@ -14142,26 +13958,43 @@ scriptdark	;
 	bra	execscript
 
 scripttext	;print text on iff
+	lea	g2log_msg_script_text,a0
+	jsr	g2log
 	;a6=window, a4=message, d0=length of message, d6=Y
 	;
 	tst.l	g2v190i_start_offset	; v190t: consume but do not show text_ for skipped earlier levels
 	ble.s	.g2v190t_show_text
+	lea	g2log_msg_text_skip_fetch_b,a0
+	jsr	g2log
 	lea	text,a1
 	bsr	fetchrest
+	lea	g2log_msg_text_skip_fetch_ok,a0
+	jsr	g2log
 	bra	execscript
 .g2v190t_show_text
 	move	#2,pdelay
+	lea	g2log_msg_text_font_b,a0
+	jsr	g2log
 	cmp	#1,g2_game_profile	; v190cx: old Gloom intermission keeps picture palette
-	beq.s	.g2v190cx_text_no_fontpal
-	cmp	#3,g2_game_profile	; v190hy2: Gloom3 intermission keeps picture palette too
 	beq.s	.g2v190cx_text_no_fontpal
 	bsr	initfontpal
 .g2v190cx_text_no_fontpal
+	lea	g2log_msg_text_font_ok,a0
+	jsr	g2log
 	;
+	lea	g2log_msg_text_fetch_b,a0
+	jsr	g2log
 	lea	text,a1
 	bsr	fetchrest
+	lea	g2log_msg_text_fetch_ok,a0
+	jsr	g2log
 	lea	text,a0
+	jsr	g2log
+	lea	g2log_msg_text_wrap_b,a0
+	jsr	g2log
 	bsr	g2v14_wrap_script_text
+	lea	g2log_msg_text_wrap_ok,a0
+	jsr	g2log
 	;
 	lea	text,a4
 	move	bmaphite(pc),d6
@@ -14180,15 +14013,24 @@ scripttext	;print text on iff
 	move	d1,d0
 	clr.b	-(a0)
 	sub	#11,d6
+	lea	g2log_msg_text_print1_b,a0
+	jsr	g2log
 	jsr	printmess2
+	lea	g2log_msg_text_print1_ok,a0
+	jsr	g2log
 	movem.l	(a7)+,d0/d6/a4
 	;
-.done	; v190hy cleanup: log marker removed
+.done	lea	g2log_msg_text_printf_b,a0
+	jsr	g2log
 	jsr	printmess2
+	lea	g2log_msg_text_printf_ok,a0
+	jsr	g2log
 	;
 	tst	pdelay
 	bmi	execscript
 	clr	pdelay
+	lea	g2log_msg_text_done,a0
+	jsr	g2log
 	bra	execscript
 
 g2v14_wrap_script_text	;auto-wrap long text_ script lines at a word boundary
@@ -14242,6 +14084,8 @@ g2v17_wst_done
 	rts
 
 scriptwait	;
+	lea	g2log_msg_script_wait,a0
+	jsr	g2log
 	tst.l	g2v190i_start_offset	; v190t: skip wait_ before skipped earlier levels
 	bgt	execscript
 	tst	pdelay
@@ -14388,6 +14232,8 @@ comseriesmap	dc.b	'1',0
 scriptplay	;
 	;arrives here with dispon!
 	;
+	lea	g2log_msg_scriptplay(pc),a0
+	jsr	g2log
 	lea	mapname,a1
 	;
 	cmp	#2,gametype
@@ -14417,7 +14263,10 @@ scriptplay	;
 .g2v190s_noskip
 	bsr	fetchrest
 .gotname	;
+	lea	g2log_msg_mapname,a0
+	jsr	g2log
 	lea	mapname,a0
+	jsr	g2log
 	; v11: if external C2P did not load, doc2p is a dummy and
 	; gameplay would switch to a black screen. Show a readable
 	; marker instead of entering the renderer blind.
@@ -14444,6 +14293,8 @@ scriptplay	;
 	bne.s	.use
 	move.l	#mappath,d0
 .use	move.l	d0,a0
+	lea	g2log_msg_mapload_before(pc),a0
+	jsr	g2log
 	move.l	map_test(pc),d0
 	bne.s	.g2v22_use_again
 	move.l	#mappath,d0
@@ -14463,12 +14314,22 @@ g2v11_c2pfail_scriptplay
 	bra	gameover
 g2v10_map_loaded
 	;
+	lea	g2log_msg_mapload_ok(pc),a0
+	jsr	g2log
 	bsr	initmap
+	lea	g2log_msg_initmap_ok(pc),a0
+	jsr	g2log
 	bsr	loadtxts
+	lea	g2log_msg_loadtxts_ok(pc),a0
+	jsr	g2log
 	move	#$a3f7,d0
 	jsr	seedrnd
+	lea	g2log_msg_execevent_before(pc),a0
+	jsr	g2log
 	moveq	#1,d0
 	jsr	execevent
+	lea	g2log_msg_execevent_ok(pc),a0
+	jsr	g2log
 	jsr	g2v190cx_build_g1_tables	; v190cx: synthetic palette/remap for original Gloom
 	bsr	forbid
 	;
@@ -14482,6 +14343,8 @@ g2v10_map_loaded
 	bra	gameover
 g2v10_player1_ok
 	;
+	lea	g2log_msg_player_ok(pc),a0
+	jsr	g2log
 	move.l	planar_palette(pc),d0
 	beq.s	.g2v190cj_no_game_pal
 	move.l	d0,a1
@@ -14572,17 +14435,34 @@ g2v10_player1_ok
 	;
 	clr	framecnt
 	clr	paused
+	lea	g2log_msg_predraw_before(pc),a0
+	jsr	g2log
 	jsr	predrawall
+	lea	g2log_msg_predraw_ok(pc),a0
+	jsr	g2log
 	bsr	dispon
 	bsr	chaton
+	lea	g2log_msg_dispon_ok(pc),a0
+	jsr	g2log
 	;
-mainloop	; v190hy cleanup: log frame counter removed
+mainloop	addq	#1,g2logframe
+	lea	g2log_msg_mainloop,a0
+	jsr	g2log
 	jsr	drawall
+	lea	g2log_msg_draw_ok,a0
+	jsr	g2log
+	lea	g2log_msg_after_draw,a0
+	jsr	g2log
 	move	escape(pc),d0
 	beq.s	.noesc
+	lea	g2log_msg_menu_before,a0
+	jsr	g2log
 	jsr	dogamemenu
+	lea	g2log_msg_menu_ok,a0
+	jsr	g2log
 	clr	escape
-.noesc	; v190hy cleanup: log marker removed
+.noesc	lea	g2log_msg_finish_check,a0
+	jsr	g2log
 	; v105b: after the visible exit teleport pixel frame, hold a real black
 	; screen briefly before allowing the intermission screen.
 	tst	g2teleport_black_hold
@@ -14597,6 +14477,8 @@ mainloop	; v190hy cleanup: log frame counter removed
 	beq	mainloop
 	;
 mainexit	st	paused
+	lea	g2log_msg_mainexit(pc),a0
+	jsr	g2log
 	bsr	chatoff
 	bsr	dispoff
 	bsr	qsync2
@@ -14936,13 +14818,11 @@ g2v142_draw_gloombrush_safe
 ; v145: draw the optional pics/gloom logo only for the main menu.
 ; ABOUT deliberately uses the clean title background without this overlay.
 g2v145_draw_menu_gloombrush
-	cmp	#2,g2_game_profile	; v190ht: Zombie Massacre g3-dc is allowed in title/menu even outside AGA guard
-	beq.s	.draw
 	tst	aga
 	beq.s	.rts
-	cmp	#3,g2_game_profile	; v190cr: Gloom3 title/about must not show pics/gloom overlay
-	beq.s	.rts
-.draw	jsr	g2v142_draw_gloombrush_safe	; no brush loaded = safe no-op for classic Gloom
+	; v190gs: one shared title-menu path for every profile.
+	; If a profile has no brush pointer this call is already a safe no-op.
+	jsr	g2v142_draw_gloombrush_safe
 .rts	rts
 
 ; v145: rebuild the clean title background.  The menu overlay is added
@@ -14966,14 +14846,12 @@ g2v146_show_title_with_gloom
 
 
 dointro	;
-	clr	g2v190hx_level_select_active	; v190hx2: returning to title shows plain ONE PLAYER GAME again
-	clr	g2v190f_level_index
 	; v190gl: Classic Gloom now uses embedded Gloom2 title/menu assets,
 	; so do not show the old unsupported notice.
 	jsr	g2v145_show_clean_title
 	bsr	dispon
-	jsr	g2v145_draw_menu_gloombrush	; v190hu: ZM title overlay is visible before the menu too
-.g2v190ct_no_prebrush
+	; v190gs: shared title/menu presentation for all local profiles.
+	jsr	g2v145_draw_menu_gloombrush
 	;
 	bsr	chaton
 	;
@@ -14988,16 +14866,21 @@ dointro	;
 	jsr	g2v145_draw_menu_gloombrush
 	tst	linked
 	bne.s	.use_linked_menu
-	tst	g2_game_profile	; v190hp: all visible title menus stay classic, no START LEVEL row
-	beq.s	.use_gloom2_startmenu
-	lea	compat_startmenu,a4	; Gloom/Gloom3/ZM: classic menu without START LEVEL
-	jsr	initmenu
-	clr	curropt
-	bra.s	.sel
+	; v190gu: Gloom3/Zombie Massacre keep START LEVEL fixed but
+	; draw the live menu rows one line higher via compact menu data.
+	cmp	#2,g2_game_profile
+	beq.s	.use_g3zm_startmenu
+	cmp	#3,g2_game_profile
+	beq.s	.use_g3zm_startmenu
 .use_gloom2_startmenu
 	lea	startmenu,a4
 	jsr	initmenu
-	clr	curropt	; default title selection is ONE PLAYER GAME
+	move	#2,curropt	; default title selection is ONE PLAYER GAME, not START LEVEL
+	bra.s	.sel
+.use_g3zm_startmenu
+	lea	startmenu_g3zm,a4
+	jsr	initmenu
+	move	#1,curropt	; compact menu: ONE PLAYER GAME is row 1
 	bra.s	.sel
 .use_linked_menu
 	lea	startmenu2,a4
@@ -15037,37 +14920,105 @@ dointro	;
 	;
 .notlinked
 	move	d0,d7
-	and	#$0300,d7	; $0100=left, $0200=right for PLAYER rows
+	and	#$0300,d7	; v190f: $0100=left, $0200=right for START LEVEL / PLAYER rows
 	and	#$00ff,d0
-	tst	d7		; v190hx: LEFT/RIGHT on ONE PLAYER controls optional level select
-	beq.s	.g2v190hx_no_level_lr
-	tst	d0
-	beq	.g2v190f_level_lrsel
-.g2v190hx_no_level_lr
-	tst	g2_game_profile	; v190co: compatibility profiles use classic row mapping
-	bne	.g2compat_notlinked
+	; v190gu: Gloom3/Zombie Massacre use the compact shifted menu mapping.
+	cmp	#12,numopts
+	beq	.g2v190gq_notlinked
+	; other local profiles use the normal Gloom Deluxe startmenu mapping.
 	tst	d7
 	beq.s	.g2v166_notlinked_fire
-	cmp	#4,d0		; v190hp: classic PLAYER 1 row after removing START LEVEL
+	cmp	#0,d0
+	beq	.g2v190f_level_lrsel
+	cmp	#6,d0
 	beq	.g2v166_p1lrsel
-	cmp	#5,d0		; v190hp: classic PLAYER 2 row after removing START LEVEL
+	cmp	#7,d0
 	beq	.g2v166_p2lrsel
 	bra	.sel
 .g2v166_notlinked_fire
-	cmp	#3,d0		; v190hp: rows 0/1/2 -> gametype 0/1/2
-	bcs	.newgame
-	cmp	#4,d0
-	beq	.g2v166_p1sel
+	cmp	#0,d0
+	beq	.g2v190f_level_start
+	cmp	#2,d0
+	bcs	.sel
 	cmp	#5,d0
-	beq	.g2v166_p2sel
+	bcs	.g2v190f_shifted_newgame
+	;
+	; v190f: title menu now has START LEVEL at row 0 and spacers at 1,5,8.
+	; menuskip prevents selecting spacer rows; map the shifted live rows here.
+	cmp	#6,d0
+	beq	.g2v166_p1sel
 	cmp	#7,d0
-	beq	.linksel
-	cmp	#8,d0
-	beq	.vilesel
+	beq	.g2v166_p2sel
 	cmp	#9,d0
-	beq	.about
+	beq	.linksel
 	cmp	#10,d0
+	beq	.vilesel
+	cmp	#11,d0
+	beq	.about
+	cmp	#12,d0
 	beq	.exitgloom
+	bra	.sel
+.g2v190f_shifted_newgame
+	subq	#2,d0		; rows 2/3/4 -> gametype 0/1/2
+	bra	.newgame
+.g2v190gq_notlinked
+	tst	d7
+	beq.s	.g2v190gq_fire
+	cmp	#0,d0
+	beq	.g2v190f_level_lrsel
+	cmp	#5,d0
+	beq	.g2v190gq_p1lrsel
+	cmp	#6,d0
+	beq	.g2v190gq_p2lrsel
+	bra	.sel
+.g2v190gq_fire
+	cmp	#0,d0
+	beq	.g2v190f_level_start
+	cmp	#1,d0
+	bcs	.sel
+	cmp	#4,d0
+	bcs	.g2v190gq_newgame
+	cmp	#5,d0
+	beq	.g2v190gq_p1sel
+	cmp	#6,d0
+	beq	.g2v190gq_p2sel
+	cmp	#8,d0
+	beq	.linksel
+	cmp	#9,d0
+	beq	.vilesel
+	cmp	#10,d0
+	beq	.about
+	cmp	#11,d0
+	beq	.exitgloom
+	bra	.sel
+.g2v190gq_newgame
+	subq	#1,d0		; rows 1/2/3 -> gametype 0/1/2
+	bra	.newgame
+.g2v190gq_p1lrsel
+	cmp	#$0100,d7
+	beq.s	.g2v190gq_p1prevsel
+.g2v190gq_p1sel	lea	p1ctypegq(pc),a1
+	lea	p1_ob_cntrl,a2
+	lea	p2_ob_cntrl,a3
+	bsr	inccntrl
+	bra	.sel
+.g2v190gq_p1prevsel	lea	p1ctypegq(pc),a1
+	lea	p1_ob_cntrl,a2
+	lea	p2_ob_cntrl,a3
+	bsr	deccntrl
+	bra	.sel
+.g2v190gq_p2lrsel
+	cmp	#$0100,d7
+	beq.s	.g2v190gq_p2prevsel
+.g2v190gq_p2sel	lea	p2ctypegq(pc),a1
+	lea	p2_ob_cntrl,a2
+	lea	p1_ob_cntrl,a3
+	bsr	inccntrl
+	bra	.sel
+.g2v190gq_p2prevsel	lea	p2ctypegq(pc),a1
+	lea	p2_ob_cntrl,a2
+	lea	p1_ob_cntrl,a3
+	bsr	deccntrl
 	bra	.sel
 .g2compat_notlinked
 	tst	d7
@@ -15169,15 +15120,18 @@ dointro	;
 	move	mode(pc),d0
 	lea	modes,a0
 	move.l	0(a0,d0*4),a0
-	tst	g2_game_profile
-	beq.s	.g2v190co_mode_main
-	lea	modetxtc,a1
-	bra.s	.g2v190co_mode_copy
-.g2v190co_mode_main
+	; v190gp: all local title menus use startmenu/modetxt.
 	lea	modetxt,a1
 .g2v190co_mode_copy
 	move.b	(a0)+,(a1)+
 	bne.s	.g2v190co_mode_copy
+	move	mode(pc),d0	; v190gq: keep shifted G3/ZM menu mode text in sync
+	lea	modes,a0
+	move.l	0(a0,d0*4),a0
+	lea	modetxtgq,a1
+.g2v190gq_mode_copy
+	move.b	(a0)+,(a1)+
+	bne.s	.g2v190gq_mode_copy
 	;
 	bra	.sel
 	;	;
@@ -15187,16 +15141,7 @@ dointro	;
 	move.l	gloom(pc),a0
 	move.l	gloompal(pc),a1
 	lea	abouttext,a2
-	cmp	#2,g2_game_profile	; v190hs: Zombie Massacre has its own ABOUT text
-	bne.s	.g2v190hs_not_zm_about_text
-	lea	abouttext_zm,a2
-	bra.s	.g2v190hs_about_text_ok
-.g2v190hs_not_zm_about_text
-	cmp	#3,g2_game_profile	; v190hs: Gloom3 has its own ABOUT text
-	bne.s	.g2v190hs_about_text_ok
-	lea	abouttext_g3,a2
-.g2v190hs_about_text_ok
-	cmp	#2,g2_game_profile	; v190hs: Zombie Massacre ABOUT uses clean title without g3-dc
+	cmp	#2,g2_game_profile	; v190cs: Zombie Massacre pre-composes g3-dc while display is off
 	beq.s	.g2v190cs_about_zm
 	cmp	#3,g2_game_profile	; v190dm: Gloom3 ABOUT opens through no-clear soft path
 	beq.s	.g2v190dm_about_g3
@@ -15209,9 +15154,9 @@ dointro	;
 	bra.s	.g2v190cp_about_done
 .g2v190cs_about_zm
 	bsr	dispoff
-	; v190hv: Zombie Massacre ABOUT is title-only, without g3-dc/g3-zm overlay.
 	jsr	g2v145_show_clean_title
-	lea	abouttext_zm,a2		; show_clean_title clobbers a2, restore ZM ABOUT text/menu pointer
+	jsr	g2v142_draw_gloombrush_safe
+	lea	abouttext,a2
 	bsr	g2v190cs_pmenu_precomposed
 	bra.s	.g2v190cp_about_done
 .g2v190cp_about_soft
@@ -15239,7 +15184,6 @@ dointro	;
 	bra	.redrawmenu
 .g2v190dp_zm_about_return
 	bsr	dispoff
-	jsr	g2embed_apply_zm_title_overlay	; v190hv: restore embedded ZM title image after ABOUT
 	jsr	g2v145_show_clean_title
 	jsr	g2v142_draw_gloombrush_safe
 	bsr	dispon
@@ -15251,11 +15195,6 @@ dointro	;
 .exitgloom	moveq	#4,d0
 	;
 .newgame	clr.l	map_test	; v190f: normal title starts are not forced-map tests
-	tst	g2v190hx_level_select_active	; v190hx: optional ONE PLAYER: MAPx.y selection active?
-	beq.s	.g2v190hx_normal_start
-	bsr	g2v190f_level_start	; selected index becomes script play_ skip counter
-	bra.s	.newgame_maptest
-.g2v190hx_normal_start
 	move.l	#-1,g2v190i_start_offset	; v190r: normal menu start begins at script default
 	cmp	#1,g2_game_profile	; v190cw: classic Gloom starts directly, no continue-scan crash path
 	bne.s	.g2v190cw_ngofs_ok
@@ -15914,36 +15853,64 @@ mode1	dc.b	'MEATY VIOLENCE MODE',0
 
 mode2	dc.b	'MESSY VIOLENCE MODE',0
 
-startmenu	dc.b	11		; v190hp: START LEVEL hidden again; scanner code is retained
-	dc.b	'ONE PLAYER GAME',0	;0
-	dc.b	'TWO PLAYER GAME',0	;1
-	dc.b	'TWO PLAYER COMBAT',0	;2
-	dc.b	0			;3 spacer/separator above PLAYER 1
+startmenu	dc.b	13
+	dc.b	'START LEVEL '
+g2v190f_level_text	dc.b	'MAP1.1',0	;0 v190i script-built direct map selector, display uses dot not underscore
+	dc.b	0			;1 spacer below level selector
+	dc.b	'ONE PLAYER GAME',0	;2
+	dc.b	'TWO PLAYER GAME',0	;3
+	dc.b	'TWO PLAYER COMBAT',0	;4
+	dc.b	0			;5 v190f spacer/separator above PLAYER 1
 	dc.b	'PLAYER 1 '
 p1ctype
 	ifne	cd32
-	dc.b	'CD32 PAD 1',0	;4, fixed 10-char field
+	dc.b	'CD32 PAD 1',0	;6, fixed 10-char field
 	elseif
-	dc.b	'KEYBMOUSE  ',0		;4, fixed 10-char field
+	dc.b	'KEYBMOUSE  ',0		;6, fixed 10-char field
 	endc
 	;
 	dc.b	'PLAYER 2 '
 p2ctype
 	ifne	cd32
-	dc.b	'CD32 PAD 2',0	;5, fixed 10-char field
+	dc.b	'CD32 PAD 2',0	;7, fixed 10-char field
 	elseif
-	dc.b	'JOYSTICK 1 ',0		;5, fixed 10-char field
+	dc.b	'JOYSTICK 1 ',0		;7, fixed 10-char field
 	endc
 	;
-	dc.b	0			;6 spacer/separator above REMOTE LINK OPTIONS
-	dc.b	'REMOTE LINK OPTIONS',0	;7
+	dc.b	0			;8 v190f spacer/separator above REMOTE LINK OPTIONS
+	dc.b	'REMOTE LINK OPTIONS',0	;9
 	;
-modetxt	dc.b	'MEATY VIOLENCE MODE',0	;8
-	dc.b	'ABOUT',0		;9
-	dc.b	'EXIT',0		;10
+modetxt	dc.b	'MEATY VIOLENCE MODE',0	;10
+	dc.b	'ABOUT GLOOM',0		;11
+	dc.b	'EXIT GLOOM',0		;12
 	even
 
-g2v190f_level_text	dc.b	'MAP1.1',0	; hidden level selector text buffer; script/stages scan kept
+startmenu_g3zm	dc.b	12		; v190gq: Gloom3/ZM full menu, entries one row higher
+	dc.b	'START LEVEL '
+g2v190gq_level_text	dc.b	'MAP1.1',0	;0, synced with g2v190f_level_text
+	dc.b	'ONE PLAYER GAME',0	;1
+	dc.b	'TWO PLAYER GAME',0	;2
+	dc.b	'TWO PLAYER COMBAT',0	;3
+	dc.b	0			;4 dotted separator above PLAYER rows
+	dc.b	'PLAYER 1 '
+p1ctypegq
+	ifne	cd32
+	dc.b	'CD32 PAD 1',0	;5, fixed 10-char field
+	elseif
+	dc.b	'KEYBMOUSE  ',0		;5, fixed 10-char field
+	endc
+	dc.b	'PLAYER 2 '
+p2ctypegq
+	ifne	cd32
+	dc.b	'CD32 PAD 2',0	;6, fixed 10-char field
+	elseif
+	dc.b	'JOYSTICK 1 ',0		;6, fixed 10-char field
+	endc
+	dc.b	0			;7 dotted separator above REMOTE LINK OPTIONS
+	dc.b	'REMOTE LINK OPTIONS',0	;8
+modetxtgq	dc.b	'MEATY VIOLENCE MODE',0	;9
+	dc.b	'ABOUT GLOOM',0		;10
+	dc.b	'EXIT GLOOM',0		;11
 	even
 
 compat_startmenu	dc.b	11		; v190cp: classic compatibility menu, no START LEVEL
@@ -15970,39 +15937,31 @@ p2ctypec
 	dc.b	0			;6 spacer/dotted line above REMOTE LINK OPTIONS
 	dc.b	'REMOTE LINK OPTIONS',0	;7
 modetxtc	dc.b	'MEATY VIOLENCE MODE',0	;8
-	dc.b	'ABOUT',0		;9
-	dc.b	'EXIT',0		;10
+	dc.b	'ABOUT GLOOM',0		;9
+	dc.b	'EXIT GLOOM',0		;10
 	even
 
 g2v190f_level_index dc 0
-g2v190hx_level_select_active dc 0	; 0=plain ONE PLAYER GAME, -1=show/use selected level
 
 g2v190f_level_next
-	tst	g2v190hx_level_select_active
-	bne.s	.g2v190hx_next_already
-	move	#-1,g2v190hx_level_select_active	; first RIGHT enables optional level text
-	clr	g2v190f_level_index	; first shown level is the first script entry
-	bra	g2v190f_level_update
-.g2v190hx_next_already
 	move	g2v190i_level_count(pc),d1
 	beq	g2v190f_level_update
+	addq	#1,g2v190f_level_index
 	move	g2v190f_level_index(pc),d0
-	addq	#1,d0
 	cmp	d1,d0
-	bcs.s	.g2v190hx_next_store
-	subq	#1,d1		; stop at last level, do not wrap
-	move	d1,d0
-.g2v190hx_next_store
-	move	d0,g2v190f_level_index
+	bcs	g2v190f_level_update
+	clr	g2v190f_level_index
 	bra	g2v190f_level_update
 
 g2v190f_level_prev
-	tst	g2v190hx_level_select_active
-	beq	g2v190f_level_update	; LEFT before first RIGHT keeps plain ONE PLAYER GAME
 	move	g2v190i_level_count(pc),d1
 	beq	g2v190f_level_update
 	tst	g2v190f_level_index
-	beq	g2v190f_level_update	; stop at first level, do not wrap/remove selector
+	bne	.g2v190i_prevok
+	subq	#1,d1
+	move	d1,g2v190f_level_index
+	bra	g2v190f_level_update
+.g2v190i_prevok
 	subq	#1,g2v190f_level_index
 	bra	g2v190f_level_update
 
@@ -16028,51 +15987,17 @@ g2v190f_level_update
 	dbf	d1,.g2v190i_copy
 .g2v190i_copy_done
 	clr.b	(a1)
+	lea	g2v190f_level_text(pc),a0	; v190gq: keep G3/ZM shifted menu START LEVEL in sync
+	lea	g2v190gq_level_text(pc),a1
+	moveq	#5,d1
+.g2v190gq_copy2
+	move.b	(a0)+,(a1)+
+	beq.s	.g2v190gq_copy2_done
+	dbf	d1,.g2v190gq_copy2
+	clr.b	(a1)
+.g2v190gq_copy2_done
 	movem.l	(a7)+,d0-d2/a0-a1
 	rts
-
-; v190hx: optional ONE PLAYER level suffix.  The menu table itself stays
-; unchanged, so RETURN starts normally until LEFT/RIGHT activates this text.
-g2v190hx_level_menu_a4
-	tst	g2v190hx_level_select_active
-	beq.s	.rts
-	cmp.l	#startmenu+1,a4
-	beq.s	.use
-	cmp.l	#compat_startmenu+1,a4
-	bne.s	.rts
-.use	bsr.s	g2v190hx_level_build_row
-	lea	g2v190hx_level_row_text(pc),a4
-.rts	rts
-
-g2v190hx_level_build_row
-	movem.l	d0-d2/a0-a1,-(a7)
-	tst	g2v190i_level_count
-	bne.s	.have
-	jsr	g2v190i_level_default
-.have	lea	g2v190hx_level_prefix(pc),a0
-	lea	g2v190hx_level_row_text(pc),a1
-.pfx	move.b	(a0)+,d1
-	beq.s	.level
-	move.b	d1,(a1)+
-	bra.s	.pfx
-.level	move	g2v190f_level_index(pc),d0
-	cmp	g2v190i_level_count(pc),d0
-	bcs.s	.idxok
-	clr	g2v190f_level_index
-	moveq	#0,d0
-.idxok	jsr	g2v190i_get_name_ptr
-	moveq	#15,d2
-.copy	move.b	(a0)+,d1
-	beq.s	.done
-	move.b	d1,(a1)+
-	dbf	d2,.copy
-.done	clr.b	(a1)
-	movem.l	(a7)+,d0-d2/a0-a1
-	rts
-
-g2v190hx_level_prefix dc.b 'ONE PLAYER GAME: ',0
-g2v190hx_level_row_text ds.b 40
-	even
 
 g2v190f_level_start
 	movem.l	d0/a0,-(a7)
@@ -16101,24 +16026,25 @@ g2v190i_levelselect_loadscripts
 	move	#-1,g2v190i_level_loaded
 	clr	g2v190i_level_count
 	clr	g2v190f_level_index
-	clr	g2v190hx_level_select_active	; v190hx: title starts as plain ONE PLAYER GAME
 	bsr	permit
-	; v190hx3: Classic Gloom may have misc/script stored compressed on disk.
-	; The normal loader has already decrunched it into the script pointer, so
-	; parse that in-memory script first.  If it yields no play_ entries, fall
-	; back to the simple program-folder file scanner used by v190hx.
-	move.l	script(pc),d0
-	beq.s	.g2v190hx3_try_files
-	move.l	d0,a0
-	jsr	g2v190i_parse_script
-	tst	g2v190i_level_count
-	bne	.doneio
-.g2v190hx3_try_files
-	lea	g2v190i_script_misc(pc),a0	; v190hx: program-folder misc/script
+	; v190gt1: START LEVEL uses one shared menu, with decrunched profile-specific script source:
+	; Gloom/Gloom Deluxe/Gloom3 -> misc/script, Zombie Massacre -> stuf/stages.
+	cmp	#2,g2_game_profile
+	beq.s	.g2v190gs_try_zm_stages
+.g2v190gs_try_misc_script
+	lea	g2v190i_script_misc(pc),a0
 	bsr	g2v190i_try_script
 	tst	g2v190i_level_count
 	bne	.doneio
-	lea	g2v190i_script_stages(pc),a0	; v190hx: program-folder stuf/stages
+	lea	g2v190i_script_gd_misc(pc),a0
+	bsr	g2v190i_try_script
+	bra.s	.doneio
+.g2v190gs_try_zm_stages
+	lea	g2v190i_script_stages(pc),a0
+	bsr	g2v190i_try_script
+	tst	g2v190i_level_count
+	bne.s	.doneio
+	lea	g2v190i_script_gd_stages(pc),a0
 	bsr	g2v190i_try_script
 .doneio
 	bsr	forbid
@@ -16130,21 +16056,20 @@ g2v190i_levelselect_loadscripts
 .rts	rts
 
 g2v190i_try_script
-	; v190hx4: load the script through the normal loadfile path instead of
-	; DOS Read().  Classic Gloom's misc/script can be CrM2-packed; raw scanning
-	; sees only compressed bytes and falls back to MAP1.1.  loadfile gives this
-	; scanner the same decrunched script data the game later executes.
-	movem.l	d0-d7/a0-a6,-(a7)
-	moveq	#1,d1		; public/fast memory is enough for temporary script scan
-	jsr	loadfile		; a0 = filename, returns decrunched pointer in d0 or 0
-	move.l	d0,d7
+	; v190gt1: use the normal loadfile path so compressed CrM2 scripts
+	; (especially Classic Gloom misc/script) are decrunched before parsing.
+	; The old raw Read() helper only saw the CrM2 header on Classic Gloom.
+	movem.l	d0-d1/a0-a1,-(a7)
+	moveq	#1,d1		; normal memory, same as script loadfiles entry
+	jsr	loadfile
+	tst.l	d0
 	beq.s	.done
-	move.l	d7,a0
+	move.l	d0,a0
 	jsr	g2v190i_parse_script
-	move.l	d7,a1
-	jsr	freemem_		; release temporary scan copy
+	move.l	d0,a1
+	jsr	freemem_
 .done
-	movem.l	(a7)+,d0-d7/a0-a6
+	movem.l	(a7)+,d0-d1/a0-a1
 	rts
 
 g2v190i_parse_script
@@ -16163,35 +16088,26 @@ g2v190i_parse_script
 	beq	.advance
 	cmp.b	#';',d0
 	beq	.skipline
-	; v190hx4: command match is case-insensitive, like execscript itself.
-	; This keeps Classic scripts safe even if commands are PLAY_/DONE_.
-	moveq	#0,d1
-	move.b	(a6),d1
-	and	#31,d1
-	add	#96,d1
-	lsl.l	#8,d1
-	moveq	#0,d2
-	move.b	1(a6),d2
-	and	#31,d2
-	add	#96,d2
-	or	d2,d1
-	lsl.l	#8,d1
-	moveq	#0,d2
-	move.b	2(a6),d2
-	and	#31,d2
-	add	#96,d2
-	or	d2,d1
-	lsl.l	#8,d1
-	moveq	#0,d2
-	move.b	3(a6),d2
-	and	#31,d2
-	add	#96,d2
-	or	d2,d1
+	cmp.b	#'d',d0
+	bne	.notdone
+	cmp.b	#'o',1(a6)
+	bne	.notdone
+	cmp.b	#'n',2(a6)
+	bne	.notdone
+	cmp.b	#'e',3(a6)
+	bne	.notdone
 	cmp.b	#'_',4(a6)
-	bne	.skipline
-	cmp.l	#'done',d1
 	beq	.done
-	cmp.l	#'play',d1
+.notdone
+	cmp.b	#'p',d0
+	bne	.skipline
+	cmp.b	#'l',1(a6)
+	bne	.skipline
+	cmp.b	#'a',2(a6)
+	bne	.skipline
+	cmp.b	#'y',3(a6)
+	bne	.skipline
+	cmp.b	#'_',4(a6)
 	bne	.skipline
 	move.l	a6,a5		; v190r: remember script command start for chain entry
 	lea	5(a6),a0
@@ -16199,8 +16115,6 @@ g2v190i_parse_script
 .skipline
 	move.b	(a6)+,d0
 	beq	.done
-	cmp.b	#13,d0		; v190hx3: Amiga/Classic scripts can be CR-only
-	beq	.loop
 	cmp.b	#10,d0
 	bne	.skipline
 	bra	.loop
@@ -16340,8 +16254,8 @@ startmenu2	dc.b	5
 	dc.b	'TWO PLAYER GAME',0	;0
 	dc.b	'TWO PLAYER COMBAT GAME',0	;1
 	dc.b	'UNLINK FROM REMOTE PLAYER',0	;2
-	dc.b	'ABOUT',0		;3
-	dc.b	'EXIT',0		;4
+	dc.b	'ABOUT GLOOM',0		;3
+	dc.b	'EXIT GLOOM',0		;4
 	even
 
 menuwindow	dc.l	0
@@ -16450,6 +16364,12 @@ initmenu2	;
 	bsr	swapshow
 	; v190gl: Classic Gloom menu uses Gloom2-compatible bigfont2 now.
 	bsr	initfontpal
+	; v190gu: keep the Gloom3/ZM compact menu active.
+	; Only the old no-START compatibility menu is forced to startmenu.
+	cmp.l	#compat_startmenu,a4
+	bne.s	.g2v190gu_menu_ok
+	lea	startmenu,a4
+.g2v190gu_menu_ok
 	;
 	move.b	(a4)+,d0	;how many
 	ext	d0
@@ -16469,6 +16389,8 @@ initmenu2	;
 	clr	g2v158_titlemenu_credit
 	cmp.l	#startmenu+1,a4
 	beq.s	.titlemenu_main
+	cmp.l	#startmenu_g3zm+1,a4
+	beq.s	.titlemenu_g3zm
 	cmp.l	#compat_startmenu+1,a4
 	beq.s	.titlemenu_compat
 	cmp.l	#startmenu2+1,a4
@@ -16482,11 +16404,17 @@ initmenu2	;
 	bra.s	.titlemenu_y_done
 .titlemenu_main	move	#-1,g2v154_titlemenu_lines
 	sub	fonth(pc),d6
-	sub	fonth(pc),d6	; v190hq: Gloom Deluxe title menu one row lower again
+	sub	fonth(pc),d6
+	sub	fonth(pc),d6	; v190l: main title menu one row higher
 	bra.s	.titlemenu_y_done
-.titlemenu_compat	move	#2,g2v154_titlemenu_lines	; v190hb: compat menus keep dotted lines and move whole block two rows up
-	sub	fonth(pc),d6	; v190hb: Gloom / Gloom3 / Zombie Massacre title menu up one row
-	sub	fonth(pc),d6	; v190hb: Gloom / Gloom3 / Zombie Massacre title menu up second row
+.titlemenu_g3zm	move	#3,g2v154_titlemenu_lines	; v190gu: compact G3/ZM rows, shifted separators
+	move	#25,d6		; keep START LEVEL aligned with Gloom Deluxe
+	bra.s	.titlemenu_y_done
+.titlemenu_compat	move	#2,g2v154_titlemenu_lines	; v190cp: two dotted lines for no-START menu
+	cmp	#3,g2_game_profile	; Gloom3 title art needs the classic menu two rows higher
+	bne.s	.titlemenu_y_done
+	sub	fonth(pc),d6
+	sub	fonth(pc),d6
 .titlemenu_y_done
 	move	d6,menuy
 	lea	menustrips(pc),a5
@@ -16524,8 +16452,6 @@ initmenu2	;
 	add.l	bpmod(pc),a0
 	dbf	d0,.sloop	;depth
 	;
-	move.l	a4,-(a7)		; v190hx: keep original menu stream pointer
-	bsr	g2v190hx_level_menu_a4	; draw optional ONE PLAYER: MAPx.y row
 	move.l	a4,a0
 	moveq	#-1,d0
 .cnt	addq	#1,d0
@@ -16533,10 +16459,6 @@ initmenu2	;
 	bne.s	.cnt
 	;
 	jsr	printmess2
-	move.l	(a7)+,a4		; restore and advance original sequential menu string
-.g2v190hx_adv_orig
-	tst.b	(a4)+
-	bne.s	.g2v190hx_adv_orig
 	;
 	add	fonth(pc),d6
 	subq	#1,(a7)
@@ -16587,7 +16509,12 @@ g2v154_draw_titlemenu_lines
 	move	fonth(pc),d1
 	move	d1,d2
 	lsr	#1,d2
-	moveq	#3,d3	; v190hr: Gloom Deluxe dotted separator one row higher
+	moveq	#5,d3
+	cmp	#3,g2v154_titlemenu_lines
+	bne.s	.g2v190gq_line1_not_shifted
+	moveq	#4,d3
+	bra.s	.g2v190cp_line1row_ok
+.g2v190gq_line1_not_shifted
 	cmp	#2,g2v154_titlemenu_lines
 	bne.s	.g2v190cp_line1row_ok
 	moveq	#3,d3
@@ -16601,7 +16528,12 @@ g2v154_draw_titlemenu_lines
 	move	fonth(pc),d1
 	move	d1,d2
 	lsr	#1,d2
-	moveq	#6,d3	; v190hr: Gloom Deluxe dotted separator one row higher
+	moveq	#8,d3
+	cmp	#3,g2v154_titlemenu_lines
+	bne.s	.g2v190gq_line2_not_shifted
+	moveq	#7,d3
+	bra.s	.g2v190cp_line2row_ok
+.g2v190gq_line2_not_shifted
 	cmp	#2,g2v154_titlemenu_lines
 	bne.s	.g2v190cp_line2row_ok
 	moveq	#6,d3
@@ -16744,7 +16676,6 @@ optoff	;
 opton	move	curropt(pc),d6
 	lea	menustrips(pc),a0
 	move.l	0(a0,d6*8),a4	;text!
-	bsr	g2v190hx_level_menu_a4	; v190hx: selected first row uses dynamic level text
 	mulu	fonth(pc),d6
 	add	menuy(pc),d6
 	;
@@ -16918,6 +16849,8 @@ g2v166_title_player_lr	; NE only on title START LEVEL / PLAYER rows
 	move	numopts(pc),d1
 	cmp	#13,d1
 	beq.s	g2v166_tplr_full
+	cmp	#12,d1
+	beq.s	g2v166_tplr_g3zm
 	cmp	#11,d1
 	beq.s	g2v166_tplr_compat
 	bra.s	g2v166_tplr_no
@@ -16930,10 +16863,17 @@ g2v166_tplr_full
 	cmp	#7,d1
 	beq.s	g2v166_tplr_yes
 	bra.s	g2v166_tplr_no
+g2v166_tplr_g3zm
+	move	curropt(pc),d1
+	cmp	#0,d1
+	beq.s	g2v166_tplr_yes
+	cmp	#5,d1
+	beq.s	g2v166_tplr_yes
+	cmp	#6,d1
+	beq.s	g2v166_tplr_yes
+	bra.s	g2v166_tplr_no
 g2v166_tplr_compat
 	move	curropt(pc),d1
-	tst	d1		; v190hx: ONE PLAYER GAME accepts LEFT/RIGHT for optional level select
-	beq.s	g2v166_tplr_yes
 	cmp	#4,d1
 	beq.s	g2v166_tplr_yes
 	cmp	#5,d1
@@ -17203,8 +17143,178 @@ mousexlast	dc.b	0
 mousexinit	dc	0
 keymouse_mx	dc	0
 
-; v190hy: diagnostic DH3:gloom.log logger removed for cleanup/speed.
-; v190hy: all g2log/g2log_drawstep call sites were removed.
+; v22/v94: old OS/DOS diagnostic logger for crash hunting.
+; v94 disables it on real Amiga hardware to avoid missing-volume requesters.
+g2log_open
+	rts	; v190aa: logger disabled after apostrophe diagnosis, avoid DH3 IO side effects
+	movem.l	d0-d3/a0-a1/a6,-(a7)
+	tst.l	g2loghand
+	bne.s	.g2lo_done
+	tst	os
+	beq.s	.g2lo_done
+	move.l	dosbase(pc),a6
+	lea	g2logname(pc),a0
+	move.l	a0,d1
+	move.l	#1006,d2
+	jsr	-30(a6)
+	move.l	d0,g2loghand
+	beq.s	.g2lo_done
+	lea	g2log_msg_open(pc),a0
+	jsr	g2log
+.g2lo_done
+	movem.l	(a7)+,d0-d3/a0-a1/a6
+	rts
+
+g2log_drawstep	;a0 = marker, v27 writes every frame for crash pinpointing
+	rts	;v94: logger disabled, keep call sites harmless
+	movem.l	d0-d7/a0-a6,-(a7)
+	jsr	g2log
+	movem.l	(a7)+,d0-d7/a0-a6
+	rts
+
+g2log_close
+	rts	; v190aa: logger disabled after apostrophe diagnosis
+	movem.l	d0-d1/a6,-(a7)
+	move.l	g2loghand(pc),d1
+	beq.s	.g2lc_done
+	clr.l	g2loghand
+	move.l	dosbase(pc),a6
+	jsr	-36(a6)
+.g2lc_done
+	movem.l	(a7)+,d0-d1/a6
+	rts
+
+g2log	;a0 = zero terminated marker string
+	rts	; v190aa: logger disabled after apostrophe diagnosis
+	movem.l	d0-d3/a0-a1/a6,-(a7)
+	; v190u: keep the trace file small.  Skip per-frame messages, but keep
+	; script/mapload/intermission transition markers.
+	cmp.l	#'MAIN',(a0)
+	bne.s	.g2lg_not_main
+	cmp.l	#'LOOP',4(a0)
+	beq.s	.g2lg_done
+.g2lg_not_main
+	cmp.l	#'FINI',(a0)
+	bne.s	.g2lg_not_finish
+	cmp.l	#'SHED',4(a0)
+	beq.s	.g2lg_done
+.g2lg_not_finish
+	tst	os
+	beq.s	.g2lg_done
+	move.l	g2loghand(pc),d1
+	beq.s	.g2lg_done
+	move.l	a0,a1
+	moveq	#0,d3
+.g2lg_len
+	tst.b	(a1)+
+	beq.s	.g2lg_len_done
+	addq.l	#1,d3
+	bra.s	.g2lg_len
+.g2lg_len_done
+	move.l	a0,d2
+	move.l	dosbase(pc),a6
+	jsr	-48(a6)
+	move.l	g2loghand(pc),d1
+	lea	g2log_nl(pc),a0
+	move.l	a0,d2
+	moveq	#1,d3
+	move.l	dosbase(pc),a6
+	jsr	-48(a6)
+.g2lg_done
+	movem.l	(a7)+,d0-d3/a0-a1/a6
+	rts
+
+g2logname	dc.b	'dh3:gloom.log',0	;v190u transition trace log
+g2log_nl	dc.b	10
+g2loghand	dc.l	0
+g2logframe	dc	0
+g2log_msg_open	dc.b	'G2LOG OPEN v190u',0
+
+g2log_msg_script_done	dc.b	'SCRIPT DONE',0
+g2log_msg_script_rest	dc.b	'SCRIPT REST',0
+g2log_msg_script_loop	dc.b	'SCRIPT LOOP',0
+g2log_msg_script_hide	dc.b	'SCRIPT HIDE',0
+g2log_msg_script_show	dc.b	'SCRIPT SHOW',0
+g2log_msg_script_draw	dc.b	'SCRIPT DRAW',0
+g2log_msg_script_tile	dc.b	'SCRIPT TILE',0
+g2log_msg_script_pict	dc.b	'SCRIPT PICT',0
+g2log_msg_script_dark	dc.b	'SCRIPT DARK',0
+g2log_msg_script_text	dc.b	'SCRIPT TEXT',0
+g2log_msg_text_skip_fetch_b	dc.b	'TEXT SKIP FETCH BEFORE',0
+g2log_msg_text_skip_fetch_ok	dc.b	'TEXT SKIP FETCH OK',0
+g2log_msg_text_font_b	dc.b	'TEXT INITFONT BEFORE',0
+g2log_msg_text_font_ok	dc.b	'TEXT INITFONT OK',0
+g2log_msg_text_fetch_b	dc.b	'TEXT FETCH BEFORE',0
+g2log_msg_text_fetch_ok	dc.b	'TEXT FETCH OK',0
+g2log_msg_text_wrap_b	dc.b	'TEXT WRAP BEFORE',0
+g2log_msg_text_wrap_ok	dc.b	'TEXT WRAP OK',0
+g2log_msg_text_print1_b	dc.b	'TEXT PRINT SPLIT BEFORE',0
+g2log_msg_text_print1_ok	dc.b	'TEXT PRINT SPLIT OK',0
+g2log_msg_text_printf_b	dc.b	'TEXT PRINT FINAL BEFORE',0
+g2log_msg_text_printf_ok	dc.b	'TEXT PRINT FINAL OK',0
+g2log_msg_text_done	dc.b	'TEXT DONE',0
+g2log_msg_script_wait	dc.b	'SCRIPT WAIT',0
+g2log_msg_mapname	dc.b	'MAPNAME',0
+g2log_msg_tiletag	dc.b	'TILETAG',0
+g2log_msg_picname	dc.b	'PICNAME',0
+g2log_msg_scriptplay	dc.b	'SCRIPTPLAY ENTER',0
+g2log_msg_mapload_before	dc.b	'MAP LOAD BEFORE',0
+g2log_msg_mapload_ok	dc.b	'MAP LOAD OK',0
+g2log_msg_initmap_ok	dc.b	'INITMAP OK',0
+g2log_msg_loadtxts_ok	dc.b	'LOADTXTS OK',0
+g2log_msg_execevent_before	dc.b	'EXECEVENT BEFORE',0
+g2log_msg_execevent_ok	dc.b	'EXECEVENT OK',0
+g2log_msg_player_ok	dc.b	'PLAYER1 OK',0
+g2log_msg_predraw_before	dc.b	'PREDRAW BEFORE',0
+g2log_msg_predraw_ok	dc.b	'PREDRAW OK',0
+g2log_msg_dispon_ok	dc.b	'DISPON CHATON OK',0
+g2log_msg_mainloop	dc.b	'MAINLOOP DRAWALL BEFORE',0
+g2log_msg_draw_ok	dc.b	'MAINLOOP DRAWALL OK',0
+g2log_msg_after_draw	dc.b	'MAINLOOP AFTER DRAWALL LOG OK',0
+g2log_msg_menu_before	dc.b	'MENU BEFORE',0
+g2log_msg_menu_ok	dc.b	'MENU OK',0
+g2log_msg_finish_check	dc.b	'FINISHED CHECK',0
+g2log_msg_mainexit	dc.b	'MAINEXIT',0
+g2log_msg_da_enter	dc.b	'DA ENTER',0
+g2log_msg_da_wait_ok	dc.b	'DA WAIT OK',0
+g2log_msg_da_calc1_b	dc.b	'DA CALC1 BEFORE',0
+g2log_msg_da_calc1_ok	dc.b	'DA CALC1 OK',0
+g2log_msg_da_draw1_b	dc.b	'DA DRAW1 BEFORE',0
+g2log_msg_da_draw1_ok	dc.b	'DA DRAW1 OK',0
+g2log_msg_da_blit1_b	dc.b	'DA BLIT1 BEFORE',0
+g2log_msg_da_blit1_ok	dc.b	'DA BLIT1 OK',0
+g2log_msg_da_calc2_b	dc.b	'DA CALC2 BEFORE',0
+g2log_msg_da_calc2_ok	dc.b	'DA CALC2 OK',0
+g2log_msg_da_draw2_b	dc.b	'DA DRAW2 BEFORE',0
+g2log_msg_da_draw2_ok	dc.b	'DA DRAW2 OK',0
+g2log_msg_da_blit2_b	dc.b	'DA BLIT2 BEFORE',0
+g2log_msg_da_blit2_ok	dc.b	'DA BLIT2 OK',0
+g2log_msg_da_wait2_b	dc.b	'DA WAIT2 BEFORE',0
+g2log_msg_da_wait2_ok	dc.b	'DA WAIT2 OK',0
+g2log_msg_da_doc2p_b	dc.b	'DA DOC2P BEFORE',0
+g2log_msg_da_doc2p_ok	dc.b	'DA DOC2P OK',0
+g2log_msg_da_db_b	dc.b	'DA DB BEFORE',0
+g2log_msg_da_db_ok	dc.b	'DA DB OK',0
+g2log_msg_da_exit	dc.b	'DA EXIT',0
+g2log_msg_ds_enter	dc.b	'DS ENTER',0
+g2log_msg_ds_cast_b	dc.b	'DS CAST BEFORE',0
+g2log_msg_ds_cast_ok	dc.b	'DS CAST OK',0
+g2log_msg_ds_render_b	dc.b	'DS RENDER BEFORE',0
+g2log_msg_ds_render_ok	dc.b	'DS RENDER OK',0
+g2log_msg_ds_roof_b	dc.b	'DS ROOF BEFORE',0
+g2log_msg_ds_roof_ok	dc.b	'DS ROOF OK',0
+g2log_msg_ds_floor_b	dc.b	'DS FLOOR BEFORE',0
+g2log_msg_ds_floor_ok	dc.b	'DS FLOOR OK',0
+g2log_msg_ds_shapes_b	dc.b	'DS SHAPES BEFORE',0
+g2log_msg_ds_shapes_ok	dc.b	'DS SHAPES OK',0
+g2log_msg_ds_blood_b	dc.b	'DS BLOOD BEFORE',0
+g2log_msg_ds_blood_ok	dc.b	'DS BLOOD OK',0
+g2log_msg_ds_pixel_b	dc.b	'DS PIXEL BEFORE',0
+g2log_msg_ds_pixel_ok	dc.b	'DS PIXEL OK',0
+g2log_msg_ds_exit	dc.b	'DS EXIT',0
+	even
+
+	even
 
 ; v141: small binary PROGDIR:gloom.cfg persistence.
 ; Header is exactly "GLMCFG" followed by a version word. v190eb writes version 3.
@@ -19355,34 +19465,6 @@ abouttext	dc.b	16
 	dc.b	'GLOOM REFORGED IDEA BY ANDIWELI',0
 	even
 
-abouttext_g3	dc.b	14
-	dc.b	'GLOOM3 ZOMBIE EDITION',0
-	dc.b	'A GAME BY GARETH MURFIN',0
-	dc.b	0
-	dc.b	'ADDITIONAL GFX AND SFX BY',0
-	dc.b	'JAMES CAYGILL',0
-	dc.b	'CHRIS BURNS',0
-	dc.b	'RICHARD MURFIN',0
-	dc.b	0
-	dc.b	'STORY BY',0
-	dc.b	'CHRIS MURFIN',0
-	dc.b	0
-	dc.b	'BASED ON GLOOM BY MARK SIBLY',0
-	dc.b	0
-	dc.b	'GLOOM REFORGED IDEA BY ANDIWELI',0
-	even
-
-abouttext_zm	dc.b	8
-	dc.b	'ALPHA SOFTWARE',0
-	dc.b	'QUALITY AMIGA SOFTWARE',0
-	dc.b	0
-	dc.b	'FOUNDED BY GARETH MURFIN',0
-	dc.b	0
-	dc.b	'CHECK OUT THE BOOKLET NOW!',0
-	dc.b	0
-	dc.b	'GLOOM REFORGED IDEA BY ANDIWELI',0
-	even
-
 sqrinc	incbin	sqr.bin
 
 weapon1	dc.l	bullet1,sparks1
@@ -19749,7 +19831,6 @@ g2v190p_load_title_assets
 	move.l	g2title_ecs_ptr,a0
 .load	jsr	loadfiles
 	jsr	g2embed_apply_g1_fallbacks	;v190gl: title/brush/palette fallback after reload
-	jsr	g2embed_apply_zm_title_overlay	;v190hu: embedded Zombie Massacre title overlay after reload
 	jsr	forbid
 .done	movem.l	(a7)+,d0/a0
 	rts
@@ -19768,8 +19849,6 @@ g2v190p_free_title_assets
 	beq.s	.skip_pal
 	cmp.l	#g2embed_title_pal,d0
 	beq.s	.skip_pal
-	cmp.l	#g2embed_zm_title_pal,d0	; v190hu: embedded ZM title palette is static
-	beq.s	.skip_pal
 	clr.l	gloompal
 	move.l	d0,a1
 	freemem	titlepal
@@ -19777,8 +19856,6 @@ g2v190p_free_title_assets
 	move.l	gloombrush,d0
 	beq.s	.skip_brush
 	cmp.l	#g2embed_gloombrush,d0
-	beq.s	.skip_brush
-	cmp.l	#g2embed_zm_titlebrush,d0	; v190hu: embedded ZM title image is static
 	beq.s	.skip_brush
 	clr.l	gloombrush
 	move.l	d0,a1
@@ -20148,8 +20225,6 @@ g2v190aj_lut	ds.b	256
 ; -----------------------------------------------------------------------------
 
 g2_game_profile	dc	0	;0=gloom deluxe, 1=gloom original, 2=zombie massacre, 3=gloom3/compat
-g2zm_g3dcbrush	dc.l	0	; v190hu: physical Zombie Massacre g3-dc kept for ABOUT
-g2zm_old_title_pal	dc.l	0	; v190hu: physical Zombie Massacre title/g3-dc palette for ABOUT
 g2magicfiles_ptr	dc.l	magicfiles
 g2agamagicfiles_ptr	dc.l	agamagicfiles
 g2ecsmagicfiles_ptr	dc.l	ecsmagicfiles
@@ -20353,7 +20428,7 @@ zmagafiles	dc.l	gloom
 	dc.l	gloompal
 	dc.b	'pixs/title.pal',0
 	even
-	dc.l	g2zm_g3dcbrush
+	dc.l	gloombrush
 	dc.b	'pixs/g3-dc',0
 	even
 	dc.l	planar_palette
@@ -20369,9 +20444,6 @@ zmecsfiles	dc.l	gloom
 	even
 	dc.l	gloompal
 	dc.b	'pixs/title.pal',0
-	even
-	dc.l	g2zm_g3dcbrush	; v190ht: keep Zombie Massacre g3-dc available for title/menu overlay on ECS/non-AGA paths too
-	dc.b	'pixs/g3-dc',0
 	even
 	dc.l	planar_palette
 	dc.b	'stuf/palette_6',0
@@ -20481,7 +20553,7 @@ zmtitle_aga	dc.l	gloom
 	dc.l	gloompal
 	dc.b	'pixs/title.pal',0
 	even
-	dc.l	g2zm_g3dcbrush
+	dc.l	gloombrush
 	dc.b	'pixs/g3-dc',0
 	even
 	dc.l	0
@@ -20491,9 +20563,6 @@ zmtitle_ecs	dc.l	gloom
 	even
 	dc.l	gloompal
 	dc.b	'pixs/title.pal',0
-	even
-	dc.l	g2zm_g3dcbrush	; v190ht: keep Zombie Massacre g3-dc available for title/menu overlay on ECS/non-AGA paths too
-	dc.b	'pixs/g3-dc',0
 	even
 	dc.l	0
 
@@ -20666,8 +20735,8 @@ g2detectprofile
 .g2_title_has_palette
 	lea	gamename,a0		; Gloom Deluxe has gloomgame, Gloom3 usually does not
 	jsr	g2fileexists
-	beq.s	.done		; keep profile 0: Gloom Deluxe, visible title menu stays classic
-	move	#3,g2_game_profile	; Gloom3 compatibility: classic menu without START LEVEL
+	beq.s	.done		; keep profile 0: full Gloom Deluxe menu with START LEVEL
+	move	#3,g2_game_profile	; Gloom3 profile; title menu remains shared
 	rts
 .check_g1
 	lea	g2probe_misc_script,a0
@@ -20967,68 +21036,6 @@ g2embed_apply_g1_fallbacks
 	movem.l	(a7)+,d0-d1/a0-a1
 .g2emb_done
 	rts
-
-; v190hw: Zombie Massacre uses the embedded g3-zm image for the title/menu
-; overlay.  Pixels that would be affected by the menu font palette are remapped
-; to safe unused title-palette slots so blood colours stay red when text appears.
-; ABOUT stays title-only without g3-dc/g3-zm.
-g2embed_apply_zm_title_overlay
-	cmp	#2,g2_game_profile
-	bne.s	.rts
-	movem.l	d0-d1/a0-a1,-(a7)
-	move.l	gloompal,d0
-	beq.s	.no_oldpal
-	cmp.l	#g2embed_zm_title_pal,d0
-	beq.s	.no_oldpal
-	move.l	d0,g2zm_old_title_pal
-.no_oldpal
-	lea	g2embed_zm_titlebrush,a0
-	lea	g2embed_zm_titlebrush_end,a1
-	moveq	#1,d1
-	bsr.w	g2embed_decrunch_asset
-	move.l	d0,gloombrush
-	jsr	g2zm_patch_title_palette_safe_slots	; v190hw: keep g3-zm blood colours stable after menu font palette
-	; v190hw: keep the original Zombie title palette active; g3-zm uses safe title-palette slots.
-	movem.l	(a7)+,d0-d1/a0-a1
-.rts	rts
-
-; v190hw: initfontpal overwrites AGA colour slots 0..3 in several banks
-; when menu text appears.  The embedded g3-zm overlay is remapped away from
-; those slots; patch the unused title-palette slots with the original colours.
-g2zm_patch_title_palette_safe_slots
-	movem.l	d0/a0,-(a7)
-	cmp	#2,g2_game_profile
-	bne.s	.done
-	move.l	gloompal,d0
-	beq.s	.done
-	move.l	d0,a0
-	move	#$0010,208(a0)	; slot 52 <- old slot 1
-	move	#$0010,210(a0)
-	move	#$0f20,212(a0)	; slot 53 <- old slot 3 / blood red
-	move	#$0f20,214(a0)
-	move	#$0640,216(a0)	; slot 54 <- old slot 32
-	move	#$0640,218(a0)
-	move	#$0630,220(a0)	; slot 55 <- old slot 33
-	move	#$0630,222(a0)
-	move	#$0760,224(a0)	; slot 56 <- old slot 34
-	move	#$0760,226(a0)
-	move	#$0750,228(a0)	; slot 57 <- old slot 35
-	move	#$0750,230(a0)
-.done	movem.l	(a7)+,d0/a0
-	rts
-
-; v190hu: temporary ABOUT-screen restore for Zombie Massacre.
-g2zm_prepare_about_g3dc
-	cmp	#2,g2_game_profile
-	bne.s	.rts
-	move.l	g2zm_old_title_pal,d0
-	beq.s	.no_pal
-	move.l	d0,gloompal
-.no_pal
-	move.l	g2zm_g3dcbrush,d0
-	beq.s	.rts
-	move.l	d0,gloombrush
-.rts	rts
 
 ; a0=start of embedded file, a1=end of embedded file, d1=memtype.
 ; Returns d0=usable pointer.  CrM2/CrM! files are decrunched through the same
@@ -24690,544 +24697,4 @@ g2embed_gloombrush
 	dc.b	$ff,$e8,$25,$ff,$ff,$00,$28,$61,$40,$47,$28,$61,$00,$00
 g2embed_gloombrush_end
 
-	even
-; -----------------------------------------------------------------------------
-; v190hu embedded Zombie Massacre title overlay assets
-; -----------------------------------------------------------------------------
-
-	even
-g2embed_zm_titlebrush
-	dc.b	$01,$40,$00,$46,$00,$07,$00,$00,$00,$00,$00,$00,$f9,$00,$02,$09
-	dc.b	$0c,$01,$fe,$00,$02,$3f,$81,$c0,$fb,$00,$06,$03,$e0,$40,$09,$f1
-	dc.b	$83,$c0,$f7,$00,$f9,$00,$08,$09,$0c,$01,$00,$1f,$8c,$3f,$ff,$f0
-	dc.b	$fb,$00,$07,$0f,$e0,$40,$08,$b1,$83,$c0,$64,$f8,$00,$f9,$00,$08
-	dc.b	$09,$0c,$01,$00,$1f,$8c,$3e,$7e,$30,$fb,$00,$07,$0c,$20,$ff,$f7
-	dc.b	$48,$00,$40,$60,$f8,$00,$f9,$00,$08,$09,$0c,$01,$00,$00,$02,$3f
-	dc.b	$ff,$f0,$fb,$00,$07,$0f,$e8,$bf,$f6,$0e,$7c,$3f,$80,$f8,$00,$f9
-	dc.b	$00,$08,$06,$f3,$fe,$ff,$e0,$71,$c1,$81,$c0,$fb,$00,$07,$03,$d7
-	dc.b	$00,$09,$f1,$83,$80,$1f,$f8,$00,$d9,$00,$d9,$00,$f9,$00,$02,$06
-	dc.b	$18,$02,$fe,$00,$02,$7f,$03,$80,$fb,$00,$06,$0f,$c0,$80,$00,$20
-	dc.b	$23,$80,$f7,$00,$f9,$00,$08,$06,$18,$02,$00,$3f,$04,$7f,$ff,$e0
-	dc.b	$fb,$00,$07,$0f,$c0,$c0,$00,$20,$23,$c0,$e0,$f8,$00,$f9,$00,$08
-	dc.b	$06,$18,$02,$00,$33,$04,$7c,$fc,$60,$f9,$00,$05,$bf,$ff,$d8,$01
-	dc.b	$80,$e0,$f8,$00,$f9,$00,$08,$06,$18,$02,$00,$00,$08,$7f,$ff,$e0
-	dc.b	$fb,$00,$06,$0f,$d1,$3f,$ff,$df,$dc,$3f,$f7,$00,$f9,$00,$08,$01
-	dc.b	$e7,$fd,$ff,$cc,$f3,$83,$03,$80,$fb,$00,$07,$0f,$ee,$40,$00,$20
-	dc.b	$22,$40,$1e,$f8,$00,$d9,$00,$d9,$00,$f9,$00,$02,$03,$f4,$04,$fe
-	dc.b	$00,$01,$7c,$07,$fa,$00,$08,$0f,$b0,$10,$00,$06,$23,$00,$00,$c0
-	dc.b	$f9,$00,$f9,$00,$08,$03,$f4,$04,$00,$2e,$10,$7f,$ff,$e0,$fb,$00
-	dc.b	$08,$0f,$b0,$90,$00,$06,$23,$01,$e0,$c0,$f9,$00,$f9,$00,$08,$03
-	dc.b	$f4,$04,$00,$26,$10,$7b,$f8,$e0,$fa,$00,$07,$30,$1f,$ff,$f0,$0b
-	dc.b	$01,$e0,$c0,$f9,$00,$f9,$00,$08,$03,$f4,$04,$00,$00,$0c,$7f,$ff
-	dc.b	$e0,$fb,$00,$08,$0f,$b1,$6f,$ff,$f9,$dc,$fe,$00,$c0,$f9,$00,$f8
-	dc.b	$00,$06,$0b,$fb,$ff,$d9,$e3,$84,$07,$fa,$00,$07,$0f,$ce,$80,$00
-	dc.b	$06,$20,$00,$1e,$f8,$00,$d9,$00,$d9,$00,$f9,$00,$07,$01,$fc,$0f
-	dc.b	$e0,$00,$00,$79,$1f,$fa,$00,$08,$0f,$f0,$20,$06,$89,$7c,$40,$01
-	dc.b	$80,$f9,$00,$f9,$00,$08,$01,$fc,$0f,$e0,$3c,$20,$7f,$ff,$c0,$fb
-	dc.b	$00,$08,$0f,$f3,$3c,$00,$89,$7c,$41,$e7,$e0,$f9,$00,$f9,$00,$08
-	dc.b	$01,$fc,$0f,$e0,$2c,$20,$7e,$e0,$c0,$fa,$00,$07,$30,$3e,$7f,$71
-	dc.b	$7c,$41,$e7,$e0,$f9,$00,$f9,$00,$08,$01,$fc,$0f,$e0,$00,$10,$7f
-	dc.b	$ff,$c0,$fb,$00,$08,$0f,$f0,$c3,$f9,$76,$83,$be,$01,$e0,$f9,$00
-	dc.b	$f8,$00,$06,$03,$f0,$1f,$d3,$cf,$81,$1f,$fa,$00,$07,$0f,$cf,$00
-	dc.b	$06,$88,$00,$00,$18,$f8,$00,$d9,$00,$d9,$00,$f9,$00,$07,$01,$fc
-	dc.b	$0f,$80,$00,$70,$76,$3c,$fa,$00,$06,$9f,$f8,$00,$04,$00,$fe,$c0
-	dc.b	$f7,$00,$f9,$00,$08,$01,$fc,$0f,$80,$40,$70,$7f,$ff,$80,$fb,$00
-	dc.b	$08,$9f,$fa,$38,$00,$00,$fe,$c3,$c2,$70,$f9,$00,$f9,$00,$08,$01
-	dc.b	$fc,$0f,$80,$40,$70,$79,$c3,$80,$fb,$00,$08,$d0,$78,$3c,$f7,$f0
-	dc.b	$7e,$c3,$c2,$70,$f9,$00,$f9,$00,$0b,$01,$fc,$0f,$80,$00,$70,$7f
-	dc.b	$ff,$80,$00,$00,$02,$fe,$00,$08,$5f,$f9,$c7,$fb,$ff,$01,$3c,$00
-	dc.b	$70,$f9,$00,$f8,$00,$06,$03,$f0,$7f,$bf,$8f,$86,$3c,$fa,$00,$07
-	dc.b	$8f,$86,$00,$04,$00,$80,$00,$3c,$f8,$00,$d9,$00,$d9,$00,$f9,$00
-	dc.b	$07,$01,$fe,$1f,$c0,$00,$40,$7e,$70,$fe,$00,$0c,$06,$00,$00,$01
-	dc.b	$9f,$f8,$04,$78,$04,$bf,$80,$01,$80,$f9,$00,$f9,$00,$07,$01,$fe
-	dc.b	$1f,$c0,$f0,$40,$ff,$ff,$fb,$00,$09,$01,$4f,$f8,$74,$78,$04,$bf
-	dc.b	$87,$c5,$e0,$f9,$00,$f9,$00,$07,$01,$fe,$1f,$c0,$f0,$40,$f1,$8f
-	dc.b	$fe,$00,$0c,$0f,$00,$00,$01,$d0,$f8,$74,$87,$f4,$be,$87,$c5,$60
-	dc.b	$f9,$00,$f9,$00,$07,$01,$fe,$1f,$c0,$00,$40,$7f,$ff,$fe,$00,$0c
-	dc.b	$02,$00,$00,$01,$af,$f9,$8b,$87,$fb,$40,$78,$01,$e0,$f9,$00,$f8
-	dc.b	$00,$06,$01,$e0,$3f,$0f,$bf,$0e,$70,$fe,$00,$00,$09,$fe,$00,$08
-	dc.b	$0f,$06,$00,$78,$00,$01,$00,$38,$80,$f9,$00,$ee,$00,$00,$0c,$fe
-	dc.b	$00,$00,$50,$f1,$00,$d9,$00,$f9,$00,$07,$01,$fe,$7f,$e0,$00,$00
-	dc.b	$7e,$f0,$fe,$00,$0c,$0e,$00,$00,$01,$ff,$fb,$00,$40,$31,$ff,$00
-	dc.b	$03,$80,$f9,$00,$f9,$00,$07,$01,$fe,$7f,$e1,$30,$00,$7f,$ff,$fe
-	dc.b	$00,$00,$09,$fe,$00,$08,$0f,$fb,$40,$40,$31,$ff,$07,$ff,$e0,$f9
-	dc.b	$00,$f9,$00,$07,$01,$fe,$7f,$e1,$30,$00,$71,$0f,$fe,$00,$00,$0f
-	dc.b	$fe,$00,$08,$f8,$fb,$41,$8f,$c1,$bf,$07,$ff,$e0,$f9,$00,$f9,$00
-	dc.b	$07,$01,$fe,$7f,$e0,$00,$00,$7f,$ff,$fe,$00,$0c,$06,$00,$00,$01
-	dc.b	$ff,$fb,$bf,$bf,$ce,$00,$f8,$03,$e0,$f9,$00,$f8,$00,$06,$01,$80
-	dc.b	$1e,$cf,$ff,$8e,$f0,$fb,$00,$06,$01,$07,$04,$00,$40,$30,$40,$f6
-	dc.b	$00,$ee,$00,$00,$09,$ed,$00,$d9,$00,$f9,$00,$16,$01,$ff,$e5,$c0
-	dc.b	$01,$00,$7d,$f0,$00,$20,$00,$08,$80,$00,$02,$f6,$ff,$00,$28,$13
-	dc.b	$fe,$00,$03,$f8,$00,$f9,$00,$17,$01,$ff,$e5,$c0,$41,$00,$7f,$fe
-	dc.b	$00,$20,$00,$07,$80,$00,$03,$09,$ff,$00,$28,$13,$fe,$8f,$9b,$e0
-	dc.b	$f9,$00,$f9,$00,$17,$01,$ff,$e5,$c0,$41,$00,$72,$0e,$00,$f0,$00
-	dc.b	$0b,$b0,$00,$02,$ff,$ff,$01,$37,$f3,$7a,$0f,$9b,$e0,$f9,$00,$f9
-	dc.b	$00,$17,$01,$ff,$e5,$c0,$01,$00,$7f,$fe,$00,$20,$00,$1c,$78,$00
-	dc.b	$03,$f3,$ff,$3d,$d7,$ec,$01,$70,$03,$e0,$f9,$00,$f7,$00,$14,$1a
-	dc.b	$3f,$be,$ff,$8d,$f0,$00,$d8,$00,$04,$84,$00,$01,$06,$00,$c2,$08
-	dc.b	$00,$84,$80,$60,$f8,$00,$f0,$00,$02,$80,$00,$03,$fe,$00,$00,$08
-	dc.b	$f1,$00,$d9,$00,$f8,$00,$15,$ff,$c9,$c0,$00,$00,$7f,$c8,$00,$f0
-	dc.b	$00,$1b,$fa,$00,$01,$3d,$ff,$00,$00,$37,$d0,$00,$03,$f8,$00,$f8
-	dc.b	$00,$16,$ff,$c9,$c0,$00,$00,$7f,$fe,$00,$a0,$00,$14,$06,$00,$01
-	dc.b	$c2,$ff,$00,$00,$37,$d1,$9f,$1f,$c0,$f9,$00,$f8,$00,$16,$ff,$c9
-	dc.b	$c0,$00,$00,$70,$36,$00,$f8,$00,$1b,$fa,$00,$01,$bd,$ff,$00,$3f
-	dc.b	$c6,$d0,$1f,$1f,$c0,$f9,$00,$f8,$00,$16,$ff,$c9,$c0,$00,$00,$7f
-	dc.b	$fe,$00,$d8,$00,$0f,$fd,$00,$00,$7f,$ff,$3b,$ff,$c8,$2e,$60,$03
-	dc.b	$c0,$f9,$00,$f7,$00,$05,$36,$3f,$ff,$ff,$8f,$c8,$fe,$00,$0b,$04
-	dc.b	$04,$00,$02,$43,$00,$c4,$00,$31,$01,$80,$60,$f8,$00,$f0,$00,$06
-	dc.b	$20,$00,$10,$02,$00,$01,$80,$f1,$00,$d9,$00,$f8,$00,$15,$3f,$93
-	dc.b	$c0,$00,$00,$ff,$e8,$00,$f0,$00,$1f,$df,$80,$03,$d2,$fe,$00,$0c
-	dc.b	$2f,$10,$00,$02,$f8,$00,$f8,$00,$16,$3f,$93,$c0,$10,$00,$ff,$fe
-	dc.b	$00,$80,$00,$00,$40,$00,$02,$af,$fe,$36,$0c,$2f,$12,$1e,$03,$c0
-	dc.b	$f9,$00,$f8,$00,$16,$3f,$93,$c0,$10,$00,$f8,$16,$00,$e0,$00,$0f
-	dc.b	$cf,$c0,$03,$ff,$de,$06,$1f,$cc,$00,$1e,$03,$c0,$f9,$00,$f8,$00
-	dc.b	$16,$3f,$93,$c0,$00,$00,$ff,$fe,$00,$f0,$00,$1f,$9f,$00,$00,$01
-	dc.b	$fe,$41,$f3,$d0,$ed,$e0,$03,$c0,$f9,$00,$f7,$00,$14,$6c,$3f,$ef
-	dc.b	$ff,$07,$e8,$00,$18,$00,$10,$30,$40,$04,$00,$21,$b8,$00,$23,$12
-	dc.b	$00,$e0,$f8,$00,$ed,$00,$03,$40,$c0,$03,$fe,$f1,$00,$d9,$00,$f8
-	dc.b	$00,$14,$1f,$07,$f0,$00,$01,$ff,$f0,$80,$70,$00,$07,$cf,$80,$0f
-	dc.b	$61,$5c,$00,$18,$7e,$00,$0c,$f7,$00,$f8,$00,$16,$1f,$07,$f0,$10
-	dc.b	$01,$ff,$fe,$80,$00,$30,$08,$08,$40,$08,$9f,$3c,$6c,$18,$7e,$04
-	dc.b	$33,$03,$c0,$f9,$00,$f8,$00,$16,$1f,$07,$f0,$10,$01,$f0,$0e,$80
-	dc.b	$38,$30,$1f,$cb,$a0,$0f,$63,$dc,$0c,$1f,$8e,$00,$0f,$03,$c0,$f9
-	dc.b	$00,$f8,$00,$16,$1f,$07,$f0,$00,$01,$ff,$ff,$00,$70,$00,$17,$8f
-	dc.b	$c0,$08,$fc,$1c,$03,$e7,$81,$fb,$c0,$03,$c0,$f9,$00,$f7,$00,$14
-	dc.b	$f8,$0f,$ef,$fe,$0f,$f0,$c0,$48,$00,$00,$04,$60,$00,$9d,$63,$f0
-	dc.b	$00,$70,$04,$30,$c0,$f8,$00,$f0,$00,$07,$08,$00,$08,$40,$20,$07
-	dc.b	$02,$80,$f2,$00,$d9,$00,$f8,$00,$15,$0f,$0f,$fc,$01,$61,$ff,$e0
-	dc.b	$00,$18,$18,$13,$c3,$e0,$11,$ff,$f3,$00,$19,$dc,$00,$08,$04,$f8
-	dc.b	$00,$f8,$00,$16,$0f,$0f,$fc,$01,$61,$ff,$ff,$e0,$40,$20,$0c,$00
-	dc.b	$00,$36,$00,$07,$49,$19,$dc,$00,$77,$07,$80,$f9,$00,$f8,$00,$16
-	dc.b	$0f,$0f,$fc,$01,$61,$e0,$1f,$60,$70,$10,$3b,$e1,$e1,$f5,$ff,$fb
-	dc.b	$09,$1e,$1c,$00,$1f,$07,$80,$f9,$00,$f8,$00,$16,$0f,$0f,$fc,$01
-	dc.b	$61,$ff,$fc,$80,$98,$38,$27,$c3,$c0,$9b,$ff,$f3,$06,$e6,$23,$ff
-	dc.b	$80,$07,$80,$f9,$00,$f7,$00,$13,$f0,$03,$fe,$9e,$1f,$e0,$80,$28
-	dc.b	$28,$04,$22,$01,$42,$00,$04,$f0,$01,$c0,$00,$60,$f7,$00,$f2,$00
-	dc.b	$09,$01,$40,$40,$00,$18,$00,$21,$44,$00,$08,$f2,$00,$d9,$00,$f8
-	dc.b	$00,$15,$0e,$8f,$fc,$02,$43,$ff,$e3,$a0,$88,$30,$3f,$e1,$e3,$5f
-	dc.b	$93,$5c,$00,$39,$b8,$00,$30,$18,$f8,$00,$f8,$00,$08,$0e,$8f,$fc
-	dc.b	$02,$43,$ff,$f8,$41,$10,$fe,$00,$0a,$02,$b8,$6b,$c3,$03,$b9,$b8
-	dc.b	$01,$8e,$1f,$80,$f9,$00,$f8,$00,$16,$0e,$8f,$fc,$02,$43,$c0,$1b
-	dc.b	$81,$d8,$70,$3f,$f1,$e2,$bf,$98,$1e,$03,$be,$38,$01,$3e,$1f,$80
-	dc.b	$f9,$00,$f8,$00,$16,$0e,$8f,$fc,$02,$43,$ff,$f9,$f0,$8c,$78,$1f
-	dc.b	$e1,$e3,$4f,$f4,$2c,$08,$46,$47,$fe,$40,$1f,$80,$f9,$00,$f8,$00
-	dc.b	$14,$01,$70,$03,$fd,$bc,$3f,$e0,$60,$40,$00,$00,$12,$11,$50,$63
-	dc.b	$e1,$f4,$01,$80,$00,$80,$f7,$00,$f2,$00,$00,$02,$fe,$00,$05,$20
-	dc.b	$10,$00,$a0,$08,$32,$f2,$00,$d9,$00,$f8,$00,$15,$0c,$03,$f8,$04
-	dc.b	$03,$ff,$eb,$a9,$8c,$74,$2f,$e1,$e1,$f2,$70,$73,$00,$31,$38,$c0
-	dc.b	$60,$08,$f8,$00,$f8,$00,$0a,$0c,$03,$f8,$04,$03,$ff,$f8,$58,$00
-	dc.b	$0c,$10,$fe,$00,$07,$89,$f0,$1f,$31,$38,$c7,$8e,$0f,$f8,$00,$f8
-	dc.b	$00,$15,$0c,$03,$f8,$04,$03,$80,$1b,$b9,$84,$7c,$2f,$e3,$e1,$f9
-	dc.b	$71,$93,$9f,$3e,$f8,$c4,$6e,$0f,$f8,$00,$f8,$00,$15,$0c,$03,$f8
-	dc.b	$04,$03,$ff,$ff,$e9,$0c,$64,$1f,$f3,$f3,$f2,$f9,$f7,$80,$ce,$c7
-	dc.b	$38,$00,$0f,$f8,$00,$f8,$00,$14,$03,$fc,$07,$fb,$fc,$7f,$e0,$40
-	dc.b	$0a,$00,$10,$00,$00,$0f,$88,$6c,$60,$01,$00,$03,$80,$f7,$00,$f1
-	dc.b	$00,$08,$10,$80,$10,$20,$00,$00,$08,$00,$04,$f2,$00,$d9,$00,$f8
-	dc.b	$00,$15,$0f,$9f,$f0,$00,$03,$ff,$97,$f1,$04,$e0,$37,$f3,$e1,$f0
-	dc.b	$f8,$f9,$c0,$20,$60,$00,$40,$18,$f8,$00,$f8,$00,$0b,$0f,$9f,$f0
-	dc.b	$00,$03,$ff,$c4,$00,$02,$98,$08,$12,$fe,$00,$06,$f8,$7e,$20,$60
-	dc.b	$0f,$bc,$1f,$f8,$00,$f8,$00,$15,$0f,$9f,$f0,$00,$03,$00,$37,$fb
-	dc.b	$84,$f0,$37,$f3,$e1,$f8,$70,$39,$fe,$3f,$e0,$0e,$7c,$1f,$f8,$00
-	dc.b	$f8,$00,$15,$0f,$9f,$f0,$00,$03,$ff,$8b,$f9,$06,$e8,$3f,$e1,$c1
-	dc.b	$f8,$f8,$fa,$c1,$df,$9f,$f0,$00,$1f,$f8,$00,$f7,$00,$0e,$60,$0f
-	dc.b	$ff,$fc,$ff,$c0,$02,$82,$0c,$48,$12,$02,$00,$88,$c4,$fe,$00,$01
-	dc.b	$01,$80,$f7,$00,$f2,$00,$0a,$34,$00,$80,$10,$00,$00,$20,$00,$00
-	dc.b	$01,$40,$f3,$00,$d9,$00,$f8,$00,$15,$0f,$ff,$f8,$00,$03,$fc,$7f
-	dc.b	$f7,$02,$4c,$3f,$f3,$e1,$f8,$61,$38,$60,$08,$60,$01,$00,$10,$f8
-	dc.b	$00,$f8,$00,$15,$0f,$ff,$f8,$00,$03,$fe,$98,$15,$01,$04,$40,$14
-	dc.b	$21,$08,$91,$f8,$1c,$48,$60,$3e,$ba,$1e,$f8,$00,$f8,$00,$15,$0f
-	dc.b	$ff,$f8,$00,$02,$e1,$ff,$f7,$07,$cc,$77,$f7,$e1,$f8,$e1,$b8,$4c
-	dc.b	$47,$f0,$39,$ba,$1e,$f8,$00,$f8,$00,$15,$0f,$ff,$f8,$00,$03,$fc
-	dc.b	$67,$e6,$06,$58,$2f,$f3,$e0,$f0,$79,$38,$e3,$b7,$9f,$c0,$00,$1e
-	dc.b	$f8,$00,$f6,$00,$08,$07,$ff,$fd,$1e,$18,$01,$00,$a4,$08,$fe,$00
-	dc.b	$05,$10,$c7,$b0,$08,$00,$06,$f6,$00,$f3,$00,$0b,$01,$80,$10,$00
-	dc.b	$00,$50,$00,$01,$08,$00,$80,$80,$f3,$00,$d9,$00,$f8,$00,$15,$1f
-	dc.b	$ff,$f8,$00,$06,$7f,$ce,$87,$0f,$4c,$c7,$e3,$81,$f8,$cb,$01,$30
-	dc.b	$10,$f0,$00,$00,$20,$f8,$00,$f8,$00,$15,$1f,$ff,$f8,$00,$07,$50
-	dc.b	$01,$21,$0c,$88,$88,$2c,$01,$08,$ba,$e0,$d0,$10,$f0,$77,$7e,$3c
-	dc.b	$f8,$00,$f8,$00,$15,$1f,$ff,$f8,$00,$06,$47,$fe,$67,$03,$4e,$cf
-	dc.b	$eb,$81,$f8,$ff,$a1,$e0,$1f,$f0,$70,$7e,$3c,$f8,$00,$f8,$00,$15
-	dc.b	$1f,$ff,$f8,$00,$06,$4b,$ff,$c7,$0e,$84,$67,$a7,$c1,$f0,$80,$41
-	dc.b	$0f,$ef,$0f,$88,$00,$3c,$f8,$00,$f6,$00,$11,$07,$ff,$f9,$b8,$01
-	dc.b	$80,$0c,$8a,$00,$04,$00,$08,$0c,$5f,$30,$00,$00,$07,$f6,$00,$f3
-	dc.b	$00,$0a,$0c,$00,$00,$01,$40,$80,$40,$00,$00,$73,$80,$f2,$00,$d9
-	dc.b	$00,$f8,$00,$15,$2f,$fb,$7c,$00,$0a,$ef,$df,$0f,$7c,$f5,$ff,$d3
-	dc.b	$81,$fb,$7e,$43,$00,$00,$f8,$08,$00,$40,$f8,$00,$f8,$00,$15,$3f
-	dc.b	$fb,$7c,$00,$09,$90,$41,$09,$fb,$7a,$30,$1c,$71,$0a,$01,$e0,$61
-	dc.b	$00,$f8,$76,$fc,$7c,$f8,$00,$f8,$00,$15,$3f,$fb,$7c,$00,$0a,$ef
-	dc.b	$df,$0f,$80,$8d,$c7,$93,$f1,$fa,$ff,$43,$01,$1f,$d8,$78,$fc,$7c
-	dc.b	$f8,$00,$f8,$00,$15,$3f,$fb,$7c,$00,$09,$1e,$5d,$07,$fb,$ba,$bf
-	dc.b	$9f,$71,$f9,$80,$83,$9e,$ff,$07,$81,$00,$7c,$f8,$00,$f7,$00,$12
-	dc.b	$04,$83,$ff,$f5,$50,$80,$00,$7f,$76,$78,$4c,$80,$01,$00,$bf,$60
-	dc.b	$00,$20,$06,$f6,$00,$f4,$00,$0b,$02,$a1,$02,$08,$00,$01,$08,$00
-	dc.b	$00,$02,$7f,$40,$f2,$00,$d9,$00,$f8,$00,$15,$0f,$e0,$f8,$02,$04
-	dc.b	$76,$1c,$0f,$fb,$fd,$bb,$f7,$00,$73,$e3,$c6,$00,$20,$60,$c0,$00
-	dc.b	$c0,$f8,$00,$f8,$00,$15,$7f,$e0,$f8,$02,$03,$89,$24,$01,$70,$3a
-	dc.b	$34,$69,$f0,$82,$1c,$00,$40,$20,$60,$3c,$f8,$f8,$f8,$00,$f8,$00
-	dc.b	$15,$7f,$e0,$f8,$02,$01,$75,$3c,$1f,$07,$c7,$8b,$97,$f0,$73,$f3
-	dc.b	$c6,$00,$3f,$f0,$f0,$f8,$f8,$f8,$00,$f8,$00,$15,$7f,$e0,$f8,$02
-	dc.b	$06,$f9,$18,$1e,$73,$bd,$f7,$ee,$f0,$f0,$0f,$87,$bf,$df,$9f,$03
-	dc.b	$00,$f8,$f8,$00,$f7,$00,$12,$1f,$07,$fd,$fe,$8e,$00,$00,$f8,$3c
-	dc.b	$7c,$68,$00,$82,$0c,$3e,$40,$00,$00,$0c,$f6,$00,$f4,$00,$0b,$01
-	dc.b	$00,$24,$01,$04,$42,$40,$11,$00,$01,$f0,$40,$f2,$00,$d9,$00,$f8
-	dc.b	$00,$15,$07,$81,$fc,$00,$27,$ee,$78,$1f,$0f,$fb,$bf,$cf,$cf,$71
-	dc.b	$f0,$6c,$00,$51,$e0,$09,$00,$80,$f8,$00,$f8,$00,$12,$07,$81,$fc
-	dc.b	$1c,$20,$0e,$00,$00,$80,$18,$78,$53,$ff,$81,$04,$80,$00,$51,$e0
-	dc.b	$fe,$f0,$f8,$00,$f8,$00,$15,$07,$81,$fc,$1c,$27,$f0,$38,$1f,$7f
-	dc.b	$e7,$87,$ae,$30,$f1,$f1,$6c,$00,$6f,$e0,$c9,$f0,$f0,$f8,$00,$f8
-	dc.b	$00,$15,$07,$81,$fc,$00,$23,$ee,$78,$1f,$7f,$fb,$b3,$5d,$ff,$60
-	dc.b	$f9,$cf,$ff,$ae,$1f,$06,$00,$f0,$f8,$00,$f7,$00,$12,$7e,$03,$e3
-	dc.b	$dc,$0e,$40,$00,$f8,$38,$78,$71,$cf,$00,$0e,$bc,$00,$10,$00,$30
-	dc.b	$f6,$00,$f3,$00,$00,$10,$fe,$00,$05,$04,$04,$82,$00,$91,$08,$f1
-	dc.b	$00,$d9,$00,$f8,$00,$14,$03,$01,$fc,$00,$61,$dc,$78,$1e,$83,$ff
-	dc.b	$7e,$bf,$9e,$60,$ef,$18,$00,$21,$c0,$38,$01,$f7,$00,$f8,$00,$14
-	dc.b	$03,$01,$fc,$18,$62,$38,$08,$01,$00,$1d,$f9,$83,$fe,$80,$1c,$d0
-	dc.b	$36,$21,$c1,$c7,$f1,$f7,$00,$f8,$00,$14,$03,$01,$fc,$18,$63,$e0
-	dc.b	$78,$1e,$7f,$c1,$0e,$fc,$61,$71,$6f,$d8,$06,$0f,$c1,$ff,$f1,$f7
-	dc.b	$00,$f8,$00,$14,$03,$01,$fc,$00,$61,$d8,$f8,$1f,$7b,$fc,$fb,$1b
-	dc.b	$ff,$f0,$fc,$1f,$c9,$de,$3e,$00,$01,$f7,$00,$f7,$00,$10,$fe,$03
-	dc.b	$e7,$9c,$3c,$00,$21,$f8,$3e,$f1,$c7,$9f,$81,$93,$f8,$30,$20,$f4
-	dc.b	$00,$f4,$00,$0b,$02,$20,$00,$00,$04,$21,$04,$20,$00,$01,$00,$c0
-	dc.b	$f2,$00,$d9,$00,$f8,$00,$14,$01,$03,$ff,$00,$4f,$dc,$e0,$1f,$07
-	dc.b	$c1,$ff,$c7,$7c,$f0,$fb,$10,$00,$03,$82,$74,$02,$f7,$00,$f8,$00
-	dc.b	$05,$01,$03,$ff,$00,$48,$10,$fd,$00,$0a,$70,$7f,$9c,$90,$8c,$f0
-	dc.b	$ec,$03,$81,$8b,$f2,$f7,$00,$f8,$00,$14,$01,$03,$ff,$00,$4b,$c4
-	dc.b	$e0,$1e,$ff,$fe,$0f,$e0,$82,$f0,$fc,$e0,$0c,$1f,$83,$ff,$f2,$f7
-	dc.b	$00,$f8,$00,$14,$01,$03,$ff,$00,$4f,$94,$f0,$3f,$ff,$de,$7f,$17
-	dc.b	$9e,$70,$fb,$0f,$13,$fc,$7c,$00,$02,$f7,$00,$f7,$00,$0f,$fc,$00
-	dc.b	$ff,$b4,$7d,$00,$01,$fc,$1f,$f8,$1f,$7f,$00,$07,$f0,$e0,$f3,$00
-	dc.b	$f1,$00,$08,$01,$00,$20,$00,$e0,$00,$80,$07,$e0,$f2,$00,$d9,$00
-	dc.b	$f7,$00,$13,$02,$7e,$01,$ff,$b0,$c0,$1f,$03,$c0,$17,$29,$39,$60
-	dc.b	$ff,$30,$00,$06,$04,$e8,$04,$f7,$00,$f7,$00,$04,$02,$7e,$01,$fc
-	dc.b	$09,$fe,$00,$0b,$20,$08,$d9,$51,$00,$88,$e0,$50,$06,$03,$17,$e4
-	dc.b	$f7,$00,$f7,$00,$13,$02,$7e,$01,$ff,$b0,$e0,$1f,$ff,$ff,$e7,$39
-	dc.b	$e4,$e0,$f8,$d0,$1c,$1f,$07,$ef,$e4,$f7,$00,$f7,$00,$13,$02,$7e
-	dc.b	$01,$fb,$37,$e0,$1f,$ff,$df,$ef,$e0,$35,$60,$ff,$1c,$af,$f9,$f8
-	dc.b	$00,$04,$f7,$00,$f8,$00,$13,$01,$fd,$81,$fe,$00,$79,$00,$21,$fc
-	dc.b	$3f,$f8,$c6,$7f,$00,$0f,$f3,$40,$00,$00,$10,$f6,$00,$f4,$00,$01
-	dc.b	$04,$86,$fe,$00,$06,$20,$00,$1f,$c0,$80,$07,$c0,$f2,$00,$d9,$00
-	dc.b	$f8,$00,$14,$01,$20,$7e,$00,$e8,$67,$c0,$1c,$0d,$c0,$1f,$bc,$03
-	dc.b	$c0,$7e,$78,$1c,$03,$09,$c0,$0c,$f7,$00,$f8,$00,$07,$01,$20,$7e
-	dc.b	$00,$eb,$46,$40,$02,$fe,$00,$09,$23,$f7,$20,$09,$e0,$14,$03,$06
-	dc.b	$3f,$cc,$f7,$00,$f8,$00,$14,$01,$20,$7e,$00,$eb,$67,$c0,$1d,$f3
-	dc.b	$ff,$ff,$fd,$d0,$e0,$f1,$98,$1c,$33,$0f,$ff,$cc,$f7,$00,$f8,$00
-	dc.b	$14,$01,$20,$7e,$00,$ec,$e7,$80,$3f,$f1,$df,$ff,$9e,$2b,$40,$76
-	dc.b	$19,$eb,$fc,$f0,$00,$0c,$f7,$00,$f7,$00,$0e,$df,$81,$ff,$10,$3c
-	dc.b	$40,$03,$fc,$1f,$f0,$02,$2f,$80,$8f,$fe,$f2,$00,$f4,$00,$0c,$03
-	dc.b	$02,$00,$00,$02,$20,$00,$61,$d8,$20,$87,$80,$14,$f3,$00,$d9,$00
-	dc.b	$f7,$00,$12,$68,$fe,$01,$7b,$ff,$c1,$7f,$3d,$c0,$17,$f7,$cf,$40
-	dc.b	$36,$f4,$7c,$02,$1b,$80,$f6,$00,$f7,$00,$05,$68,$fe,$01,$7b,$8c
-	dc.b	$41,$fe,$00,$0a,$10,$10,$30,$80,$c9,$40,$40,$02,$04,$7f,$c0,$f7
-	dc.b	$00,$f7,$00,$13,$68,$fe,$01,$7b,$cf,$c1,$7e,$c1,$ff,$e7,$c7,$cc
-	dc.b	$40,$79,$34,$3e,$02,$1f,$ff,$c0,$f7,$00,$f7,$00,$11,$68,$fe,$01
-	dc.b	$7b,$cb,$81,$bc,$c3,$df,$ff,$c7,$fe,$60,$36,$b7,$3d,$fd,$e0,$f5
-	dc.b	$00,$f7,$00,$0f,$97,$01,$fe,$84,$7c,$40,$01,$fe,$1f,$f8,$78,$33
-	dc.b	$a0,$8f,$fc,$c2,$f3,$00,$f3,$00,$0a,$04,$40,$42,$02,$20,$08,$08
-	dc.b	$00,$20,$4f,$80,$f2,$00,$d9,$00,$f7,$00,$11,$59,$fe,$00,$3f,$fe
-	dc.b	$ca,$7f,$7d,$f0,$77,$bd,$fe,$41,$ff,$f0,$7f,$44,$33,$f5,$00,$f7
-	dc.b	$00,$13,$59,$fe,$00,$3f,$cd,$cb,$80,$02,$00,$34,$40,$01,$00,$00
-	dc.b	$0e,$00,$04,$0c,$ff,$80,$f7,$00,$f7,$00,$13,$59,$fe,$00,$3f,$ce
-	dc.b	$cf,$7e,$83,$ef,$8f,$85,$fe,$e1,$f0,$73,$ff,$c4,$3f,$ff,$80,$f7
-	dc.b	$00,$f7,$00,$11,$59,$fe,$00,$3f,$cf,$08,$fe,$81,$ef,$bb,$c5,$ff
-	dc.b	$40,$3f,$f1,$7e,$3b,$c0,$f5,$00,$f7,$00,$10,$26,$01,$ff,$c0,$39
-	dc.b	$c4,$81,$fc,$3f,$f8,$7e,$01,$81,$8f,$fc,$00,$40,$f4,$00,$f3,$00
-	dc.b	$0c,$04,$c3,$00,$02,$00,$04,$02,$00,$20,$4f,$80,$81,$80,$f4,$00
-	dc.b	$d9,$00,$f7,$00,$11,$37,$f6,$00,$2f,$fd,$d1,$fe,$ff,$c0,$c7,$de
-	dc.b	$ff,$01,$6b,$df,$ff,$c0,$26,$f5,$00,$f7,$00,$12,$37,$fe,$00,$2f
-	dc.b	$d1,$8e,$01,$00,$3c,$00,$21,$00,$e7,$d4,$34,$00,$00,$19,$ff,$f6
-	dc.b	$00,$f7,$00,$12,$37,$fe,$00,$2f,$d9,$e9,$fe,$0f,$ff,$3b,$e1,$ff
-	dc.b	$e6,$f4,$df,$ff,$e0,$3f,$ff,$f6,$00,$f7,$00,$11,$37,$fe,$00,$2f
-	dc.b	$de,$17,$fe,$0f,$ff,$3f,$c0,$ff,$01,$2f,$c3,$ff,$df,$c0,$f5,$00
-	dc.b	$f7,$00,$10,$08,$01,$ff,$d0,$2f,$f6,$01,$fc,$3f,$fc,$3f,$00,$06
-	dc.b	$8b,$f8,$00,$20,$f4,$00,$f3,$00,$01,$03,$88,$fe,$00,$05,$04,$21
-	dc.b	$00,$e7,$df,$14,$f2,$00,$d9,$00,$f7,$00,$11,$1f,$ef,$00,$1f,$f2
-	dc.b	$8f,$ff,$17,$ef,$83,$df,$ff,$a2,$57,$bf,$fb,$c0,$04,$f5,$00,$f7
-	dc.b	$00,$12,$1f,$ff,$00,$1f,$f8,$70,$00,$ec,$30,$04,$20,$00,$4d,$e8
-	dc.b	$80,$04,$20,$bb,$fe,$f6,$00,$f7,$00,$12,$1f,$ff,$00,$1f,$f7,$ef
-	dc.b	$fe,$fb,$fc,$7b,$e2,$ff,$af,$e9,$bf,$fb,$e0,$bf,$fe,$f6,$00,$f7
-	dc.b	$00,$11,$1f,$ff,$00,$1f,$f4,$1f,$ef,$fb,$fc,$7f,$c2,$7f,$e0,$16
-	dc.b	$5f,$ff,$df,$40,$f5,$00,$f5,$00,$0d,$ff,$e0,$0a,$10,$01,$fc,$3f
-	dc.b	$fc,$1f,$80,$5f,$9f,$c0,$04,$f3,$00,$f3,$00,$02,$01,$e0,$11,$fe
-	dc.b	$00,$06,$20,$00,$0d,$ee,$e0,$00,$20,$f4,$00,$d9,$00,$f7,$00,$10
-	dc.b	$01,$df,$00,$1f,$5c,$7f,$f6,$67,$db,$07,$fb,$7f,$e3,$ed,$e7,$fd
-	dc.b	$e0,$f4,$00,$f7,$00,$08,$01,$ff,$00,$1f,$e3,$80,$38,$98,$24,$fe
-	dc.b	$00,$06,$0f,$e3,$10,$02,$01,$ff,$fe,$f6,$00,$f7,$00,$12,$01,$ff
-	dc.b	$00,$1f,$34,$7f,$fe,$bf,$dc,$f7,$f0,$7f,$ef,$e3,$ff,$fd,$e1,$ff
-	dc.b	$fe,$f6,$00,$f7,$00,$10,$01,$ff,$00,$1f,$0b,$ff,$c7,$bb,$fc,$f7
-	dc.b	$f4,$7f,$f0,$1e,$e7,$ff,$fe,$f4,$00,$f5,$00,$0d,$ff,$e0,$fb,$80
-	dc.b	$01,$fc,$3f,$f8,$1b,$80,$1f,$ec,$00,$02,$f3,$00,$f3,$00,$0a,$24
-	dc.b	$00,$39,$00,$00,$08,$04,$00,$1f,$8f,$18,$f2,$00,$d9,$00,$f6,$00
-	dc.b	$0f,$7f,$00,$3f,$1c,$f7,$f2,$eb,$f2,$0f,$ef,$bf,$f7,$33,$23,$3f
-	dc.b	$e0,$f4,$00,$f6,$00,$11,$7f,$00,$3e,$e3,$c8,$0d,$10,$1c,$00,$00
-	dc.b	$40,$1b,$a4,$be,$40,$01,$ff,$dc,$f6,$00,$f6,$00,$11,$7b,$00,$3f
-	dc.b	$1f,$df,$f3,$7f,$fd,$ff,$e4,$3f,$fb,$f7,$e3,$bf,$e1,$ff,$dc,$f6
-	dc.b	$00,$f6,$00,$0f,$7f,$00,$3e,$fc,$27,$fe,$7b,$ed,$ef,$e4,$7f,$e4
-	dc.b	$43,$24,$7f,$fe,$f4,$00,$f6,$00,$0e,$04,$ff,$c1,$e0,$20,$0c,$f8
-	dc.b	$0f,$e0,$1f,$c0,$0f,$88,$3f,$40,$f3,$00,$f3,$00,$0b,$03,$d8,$01
-	dc.b	$04,$10,$10,$00,$00,$1f,$bc,$c0,$80,$f3,$00,$d9,$00,$f6,$00,$0f
-	dc.b	$20,$c0,$7f,$f7,$9f,$fe,$fb,$38,$1d,$ff,$bf,$6f,$3d,$13,$3f,$e0
-	dc.b	$f4,$00,$f6,$00,$11,$3f,$c0,$7f,$0f,$e0,$01,$00,$08,$c2,$00,$40
-	dc.b	$96,$c2,$fb,$a0,$07,$ff,$78,$f6,$00,$f6,$00,$11,$3f,$c0,$7f,$fc
-	dc.b	$7f,$ff,$ff,$fb,$fd,$ef,$bf,$66,$ff,$0c,$3f,$e7,$ff,$78,$f6,$00
-	dc.b	$f6,$00,$0f,$3f,$c0,$7e,$f3,$9f,$fe,$fb,$37,$df,$cf,$ff,$f9,$bc
-	dc.b	$04,$5f,$f8,$f4,$00,$f5,$00,$0d,$3f,$81,$04,$60,$00,$f8,$03,$c2
-	dc.b	$1f,$c0,$9f,$01,$fb,$80,$f3,$00,$f3,$00,$0b,$0f,$e0,$01,$04,$cc
-	dc.b	$20,$20,$00,$0f,$c2,$08,$20,$f3,$00,$d9,$00,$f5,$00,$0e,$80,$1f
-	dc.b	$3b,$1f,$ff,$bf,$f9,$fd,$df,$fe,$e2,$f7,$5c,$1f,$e8,$f4,$00,$f6
-	dc.b	$00,$11,$1f,$80,$ff,$4f,$e0,$00,$40,$04,$40,$00,$81,$1f,$0b,$ff
-	dc.b	$d0,$07,$fe,$f0,$f6,$00,$f6,$00,$03,$1f,$80,$fe,$38,$fe,$ff,$0a
-	dc.b	$fc,$ff,$ff,$fe,$ef,$f7,$00,$df,$ef,$fe,$f0,$f6,$00,$f6,$00,$0f
-	dc.b	$1f,$80,$1e,$f3,$1f,$ff,$ff,$f8,$b9,$df,$ff,$fc,$fb,$00,$0f,$f0
-	dc.b	$f4,$00,$f5,$00,$0d,$3f,$01,$c4,$e0,$00,$f8,$c3,$84,$1f,$81,$10
-	dc.b	$0f,$ff,$20,$f3,$00,$f3,$00,$0b,$8b,$e0,$00,$00,$04,$42,$20,$00
-	dc.b	$0f,$00,$00,$10,$f3,$00,$d9,$00,$f5,$00,$0e,$31,$7f,$fe,$3f,$ff
-	dc.b	$e6,$de,$ff,$fe,$7e,$ec,$f7,$f8,$17,$f0,$f4,$00,$f6,$00,$11,$0c
-	dc.b	$31,$ff,$87,$c0,$00,$99,$21,$82,$00,$81,$13,$0f,$fe,$a8,$0f,$f9
-	dc.b	$f0,$f6,$00,$f6,$00,$11,$0c,$31,$ff,$fd,$ff,$ff,$fe,$ff,$7f,$fe
-	dc.b	$fe,$ec,$f7,$00,$b7,$ff,$f9,$f0,$f6,$00,$f6,$00,$0f,$0c,$31,$7f
-	dc.b	$ba,$1f,$ff,$77,$df,$7d,$df,$7f,$f7,$ff,$01,$0f,$e0,$f4,$00,$f5
-	dc.b	$00,$0d,$0e,$00,$05,$c0,$00,$79,$c3,$84,$3e,$01,$13,$0f,$fe,$48
-	dc.b	$f3,$00,$f3,$00,$08,$47,$e0,$00,$88,$20,$02,$01,$80,$08,$f0,$00
-	dc.b	$d9,$00,$f5,$00,$0e,$62,$3f,$fa,$3b,$df,$c6,$dd,$79,$f6,$ff,$fb
-	dc.b	$ff,$d1,$07,$e0,$f4,$00,$f5,$00,$10,$63,$ff,$c3,$c4,$20,$79,$e7
-	dc.b	$8c,$2a,$00,$04,$07,$dd,$40,$1f,$b3,$40,$f6,$00,$f5,$00,$10,$63
-	dc.b	$ff,$fd,$fb,$df,$ff,$ff,$7d,$f7,$ff,$fb,$fe,$20,$47,$ff,$b3,$40
-	dc.b	$f6,$00,$f5,$00,$0e,$62,$3f,$b6,$7f,$ff,$f7,$1a,$fd,$dc,$f9,$f7
-	dc.b	$fe,$22,$3f,$e0,$f4,$00,$f5,$00,$0f,$1c,$00,$01,$84,$20,$70,$e3
-	dc.b	$06,$36,$00,$04,$03,$dd,$80,$00,$40,$f5,$00,$f3,$00,$09,$4b,$c0
-	dc.b	$00,$09,$e5,$8a,$2b,$06,$08,$04,$f1,$00,$d9,$00,$f5,$00,$0e,$0d
-	dc.b	$ff,$76,$4e,$3d,$9d,$0a,$fd,$af,$f1,$33,$ff,$c0,$07,$c0,$f4,$00
-	dc.b	$f5,$00,$0f,$4d,$ff,$8d,$90,$c2,$23,$f2,$8c,$7c,$0f,$cc,$03,$d8
-	dc.b	$1c,$3f,$76,$f5,$00,$f5,$00,$0f,$4d,$ff,$77,$9d,$bf,$ff,$0a,$7f
-	dc.b	$af,$ff,$fb,$fc,$20,$1f,$df,$76,$f5,$00,$f5,$00,$0e,$4d,$ff,$66
-	dc.b	$72,$5d,$ac,$f9,$b1,$d1,$f6,$b7,$fc,$27,$e3,$e0,$f4,$00,$f5,$00
-	dc.b	$0f,$12,$00,$9b,$ee,$40,$31,$16,$0c,$6e,$00,$04,$03,$d8,$00,$20
-	dc.b	$80,$f5,$00,$f3,$00,$0b,$01,$f1,$a2,$43,$e7,$ce,$3c,$0f,$c8,$00
-	dc.b	$00,$04,$f3,$00,$d9,$00,$f5,$00,$0e,$1f,$ff,$46,$e4,$7d,$fe,$7f
-	dc.b	$ef,$ff,$eb,$f7,$ff,$d8,$03,$e0,$f4,$00,$f7,$00,$11,$20,$00,$9f
-	dc.b	$ff,$bd,$3b,$a6,$33,$e7,$dc,$3c,$04,$08,$03,$d8,$38,$3f,$e0,$f5
-	dc.b	$00,$f7,$00,$11,$20,$00,$9f,$ff,$5f,$1b,$7f,$fc,$7c,$7d,$ff,$f7
-	dc.b	$ff,$fe,$00,$3f,$ff,$e0,$f5,$00,$f7,$00,$10,$20,$00,$9f,$ff,$e6
-	dc.b	$e4,$9b,$cf,$8b,$b3,$83,$ef,$f7,$fc,$27,$c7,$c0,$f4,$00,$f3,$00
-	dc.b	$0a,$a3,$df,$40,$20,$70,$0e,$7c,$08,$00,$03,$d8,$f2,$00,$f3,$00
-	dc.b	$0c,$01,$ff,$e6,$33,$e7,$de,$3c,$1f,$c8,$02,$00,$00,$20,$f4,$00
-	dc.b	$d9,$00,$f5,$00,$0e,$0f,$fe,$ff,$c0,$f4,$fe,$fb,$9e,$7f,$bd,$ff
-	dc.b	$ff,$a0,$03,$c0,$f4,$00,$f5,$00,$0f,$3f,$ff,$0e,$ff,$0e,$27,$f6
-	dc.b	$ff,$f8,$42,$24,$03,$a0,$78,$1f,$c0,$f5,$00,$f5,$00,$0f,$3f,$fe
-	dc.b	$fe,$ff,$56,$fe,$c5,$3f,$ff,$af,$3f,$fe,$01,$7f,$ff,$c0,$f5,$00
-	dc.b	$f5,$00,$0e,$3f,$fe,$ef,$c1,$aa,$dd,$3b,$c0,$07,$df,$d3,$fc,$5f
-	dc.b	$87,$e0,$f4,$00,$f4,$00,$0b,$01,$11,$fe,$f9,$02,$c8,$5e,$78,$70
-	dc.b	$c0,$01,$a0,$f2,$00,$f3,$00,$09,$01,$3f,$e7,$27,$f7,$bf,$f8,$1f
-	dc.b	$ec,$02,$f1,$00,$d9,$00,$f5,$00,$0e,$0f,$be,$f7,$80,$e0,$74,$ff
-	dc.b	$fe,$af,$de,$e3,$fd,$e0,$03,$c0,$f4,$00,$f5,$00,$0f,$1f,$be,$07
-	dc.b	$ff,$3f,$8f,$fd,$1e,$20,$c1,$02,$03,$e0,$78,$1f,$80,$f5,$00,$f5
-	dc.b	$00,$0f,$1f,$be,$f7,$bf,$ff,$ff,$8e,$fb,$7f,$ff,$0b,$fc,$00,$7f
-	dc.b	$df,$80,$f5,$00,$f5,$00,$0e,$1f,$bf,$f7,$80,$8f,$73,$73,$c4,$af
-	dc.b	$5f,$e5,$fe,$1f,$87,$e0,$f4,$00,$f4,$00,$0b,$41,$09,$ff,$70,$04
-	dc.b	$88,$3a,$c0,$00,$f4,$03,$e0,$f2,$00,$f4,$00,$09,$01,$00,$3f,$ff
-	dc.b	$8f,$ff,$9f,$30,$ff,$fe,$f0,$00,$d9,$00,$f5,$00,$0e,$0f,$fe,$f3
-	dc.b	$83,$e3,$f0,$fb,$9a,$5c,$fb,$83,$fe,$40,$03,$80,$f4,$00,$f5,$00
-	dc.b	$0e,$0f,$ff,$0f,$fd,$3c,$07,$74,$66,$62,$c0,$00,$00,$40,$e0,$3f
-	dc.b	$f4,$00,$f5,$00,$0e,$0f,$ff,$f7,$bd,$7c,$7f,$0f,$fe,$dc,$f8,$03
-	dc.b	$fc,$0c,$e7,$ff,$f4,$00,$f5,$00,$0e,$0f,$fe,$fb,$82,$1e,$37,$ff
-	dc.b	$fd,$be,$ff,$fc,$7f,$bf,$1b,$c0,$f4,$00,$f3,$00,$0b,$0c,$7f,$e3
-	dc.b	$80,$80,$03,$23,$07,$ff,$02,$40,$04,$f3,$00,$f4,$00,$0a,$01,$04
-	dc.b	$3f,$ff,$cf,$ff,$ff,$41,$ff,$fc,$80,$f1,$00,$d9,$00,$f5,$00,$0f
-	dc.b	$07,$fe,$ff,$c7,$df,$b1,$df,$bf,$fd,$3f,$06,$3c,$06,$07,$80,$70
-	dc.b	$f5,$00,$f5,$00,$08,$07,$ff,$01,$f9,$f0,$c6,$c0,$40,$85,$fe,$00
-	dc.b	$03,$06,$e0,$7c,$70,$f5,$00,$f5,$00,$0f,$07,$fe,$fe,$f9,$78,$fe
-	dc.b	$df,$f0,$ff,$f8,$07,$bc,$1e,$e3,$fc,$70,$f5,$00,$f5,$00,$0f,$07
-	dc.b	$ff,$fc,$c6,$94,$b7,$df,$ff,$79,$37,$f9,$ff,$f9,$1f,$80,$70,$f5
-	dc.b	$00,$f4,$00,$0c,$01,$01,$3f,$7f,$01,$20,$0f,$80,$0f,$fe,$40,$00
-	dc.b	$04,$f3,$00,$f3,$00,$09,$02,$3f,$e7,$cf,$ff,$ff,$07,$f7,$f8,$40
-	dc.b	$f1,$00,$d9,$00,$f5,$00,$0f,$07,$fe,$ff,$cf,$7b,$db,$37,$fe,$76
-	dc.b	$7e,$0c,$38,$0e,$23,$01,$e0,$f5,$00,$f6,$00,$10,$20,$07,$ff,$00
-	dc.b	$f0,$b5,$85,$30,$00,$9e,$00,$00,$c0,$0f,$84,$79,$e0,$f5,$00,$f6
-	dc.b	$00,$10,$20,$07,$fe,$ff,$f0,$b5,$dd,$ff,$ec,$7f,$f8,$0f,$3c,$1e
-	dc.b	$a3,$f9,$e0,$f5,$00,$f6,$00,$10,$20,$07,$ff,$ff,$4f,$79,$5d,$37
-	dc.b	$ff,$fe,$07,$f3,$1b,$f0,$5f,$01,$e0,$f5,$00,$f4,$00,$0d,$01,$00
-	dc.b	$3f,$fe,$22,$00,$13,$80,$7f,$fc,$c4,$01,$04,$80,$f4,$00,$f2,$00
-	dc.b	$08,$bf,$cf,$a7,$ff,$ff,$1f,$87,$f0,$20,$f1,$00,$d9,$00,$f5,$00
-	dc.b	$0f,$03,$fe,$ff,$da,$73,$00,$c7,$dc,$fe,$fc,$38,$10,$18,$87,$03
-	dc.b	$c0,$f5,$00,$f5,$00,$0f,$03,$ff,$00,$45,$8b,$9e,$40,$23,$2e,$00
-	dc.b	$01,$d0,$1b,$81,$f3,$c0,$f5,$00,$f5,$00,$0f,$03,$fe,$ff,$c5,$8b
-	dc.b	$9f,$7f,$fe,$ef,$f0,$3e,$58,$18,$cf,$f3,$c0,$f5,$00,$f5,$00,$0f
-	dc.b	$03,$ff,$ff,$5a,$77,$32,$47,$ff,$de,$0f,$c6,$2d,$e4,$76,$03,$c0
-	dc.b	$f5,$00,$f4,$00,$0c,$01,$00,$3f,$fa,$60,$80,$01,$10,$ff,$f9,$82
-	dc.b	$03,$08,$f3,$00,$f2,$00,$0a,$9f,$fd,$ff,$ff,$fe,$3f,$0f,$c0,$10
-	dc.b	$00,$01,$f3,$00,$d9,$00,$f5,$00,$0f,$01,$ff,$fe,$80,$00,$29,$8f
-	dc.b	$bb,$c1,$f8,$70,$00,$7c,$16,$07,$80,$f5,$00,$f5,$00,$0f,$01,$fe
-	dc.b	$01,$83,$fe,$80,$80,$44,$3f,$00,$03,$de,$7e,$09,$e7,$80,$f5,$00
-	dc.b	$f5,$00,$05,$01,$ff,$fe,$83,$ff,$90,$fe,$ff,$06,$f0,$7e,$de,$7c
-	dc.b	$1f,$e7,$80,$f5,$00,$f5,$00,$0f,$01,$ff,$ff,$80,$00,$68,$8f,$ff
-	dc.b	$41,$0f,$8c,$21,$81,$e4,$07,$80,$f5,$00,$f3,$00,$0a,$01,$7f,$fe
-	dc.b	$ef,$00,$00,$1f,$ff,$f1,$00,$02,$f2,$00,$f2,$00,$00,$03,$fe,$ff
-	dc.b	$06,$fc,$be,$0f,$80,$00,$00,$0a,$f3,$00,$d9,$00,$f5,$00,$0e,$01
-	dc.b	$ff,$fc,$40,$0f,$12,$8c,$79,$83,$fc,$47,$e0,$18,$2c,$0e,$f4,$00
-	dc.b	$f5,$00,$0e,$01,$fe,$02,$c1,$ff,$0b,$90,$84,$7f,$00,$87,$fe,$1c
-	dc.b	$01,$ae,$f4,$00,$f5,$00,$0e,$01,$ff,$fc,$81,$f7,$2f,$f0,$bd,$1f
-	dc.b	$cc,$47,$fe,$18,$3d,$ae,$f4,$00,$f5,$00,$0e,$01,$fe,$fe,$c0,$07
-	dc.b	$d0,$93,$fc,$e3,$33,$3f,$e1,$e3,$ce,$0e,$f4,$00,$f3,$00,$0b,$03
-	dc.b	$7f,$ff,$9b,$0f,$43,$ff,$ff,$c0,$00,$04,$10,$f3,$00,$f4,$00,$08
-	dc.b	$01,$00,$01,$f0,$ff,$ff,$fe,$9c,$33,$ef,$00,$d9,$00,$f4,$00,$0d
-	dc.b	$fe,$ff,$80,$1e,$2e,$38,$81,$ae,$e0,$0e,$00,$12,$58,$24,$f4,$00
-	dc.b	$f4,$00,$0d,$fe,$01,$90,$7e,$07,$e1,$7f,$1f,$07,$0e,$1c,$10,$03
-	dc.b	$24,$f4,$00,$f4,$00,$0d,$fe,$ff,$10,$6e,$0f,$e1,$7f,$37,$e0,$0e
-	dc.b	$1c,$12,$5f,$24,$f4,$00,$f4,$00,$0d,$ff,$ff,$90,$0f,$f8,$07,$80
-	dc.b	$e6,$18,$2e,$03,$ed,$bc,$24,$f4,$00,$f4,$00,$09,$01,$00,$ef,$ff
-	dc.b	$2f,$fe,$ff,$df,$e7,$d0,$f0,$00,$f4,$00,$07,$01,$00,$00,$61,$f7
-	dc.b	$ff,$ff,$d1,$ee,$00,$d9,$00,$f4,$00,$0d,$fe,$ff,$98,$7e,$bc,$9b
-	dc.b	$03,$dc,$40,$3c,$00,$b4,$30,$40,$f4,$00,$f4,$00,$0d,$ff,$00,$f8
-	dc.b	$be,$f1,$e3,$ff,$ee,$08,$3c,$bd,$02,$46,$40,$f4,$00,$f4,$00,$0d
-	dc.b	$fe,$ff,$60,$9e,$fd,$e3,$df,$df,$e0,$3c,$bc,$b6,$7e,$40,$f4,$00
-	dc.b	$f4,$00,$0d,$fe,$ff,$f8,$1f,$be,$8f,$00,$ad,$b0,$7c,$82,$49,$98
-	dc.b	$40,$f4,$00,$f4,$00,$0a,$01,$01,$9f,$fe,$fd,$ff,$ff,$fe,$49,$80
-	dc.b	$01,$f1,$00,$f1,$00,$04,$81,$43,$7c,$df,$42,$fd,$00,$00,$20,$f3
-	dc.b	$00,$d9,$00,$f4,$00,$0c,$7b,$7f,$10,$fc,$45,$8e,$67,$e9,$04,$60
-	dc.b	$c0,$e0,$21,$f3,$00,$f4,$00,$0c,$7b,$81,$f4,$7f,$f1,$4f,$ff,$cd
-	dc.b	$04,$ff,$fb,$0f,$89,$f3,$00,$f4,$00,$0c,$7b,$7e,$e4,$1c,$c5,$cf
-	dc.b	$ff,$fe,$c4,$ff,$fb,$ef,$a9,$f3,$00,$f4,$00,$0c,$7b,$fd,$f4,$3c
-	dc.b	$4f,$be,$63,$da,$e4,$ff,$c4,$10,$71,$f3,$00,$f3,$00,$07,$81,$1b
-	dc.b	$ff,$f5,$cf,$ff,$cd,$03,$ef,$00,$f3,$00,$06,$02,$00,$00,$8a,$71
-	dc.b	$9c,$24,$ee,$00,$d9,$00,$f4,$00,$0c,$2f,$7e,$20,$f8,$3f,$8e,$df
-	dc.b	$72,$18,$00,$c1,$c0,$6c,$f3,$00,$f4,$00,$0c,$3f,$01,$e3,$fc,$02
-	dc.b	$09,$e7,$52,$18,$0f,$e6,$1f,$0c,$f3,$00,$f4,$00,$0c,$3f,$7f,$c3
-	dc.b	$18,$3e,$0f,$ff,$55,$80,$0f,$e7,$df,$4c,$f3,$00,$f4,$00,$0c,$2f
-	dc.b	$fe,$e3,$f8,$3e,$4e,$db,$45,$d8,$0f,$c8,$20,$6c,$f3,$00,$f3,$00
-	dc.b	$07,$80,$34,$ff,$ff,$bf,$ff,$fa,$18,$fe,$00,$00,$20,$f3,$00,$f3
-	dc.b	$00,$00,$80,$fe,$00,$02,$41,$24,$20,$fd,$00,$00,$20,$f3,$00,$d9
-	dc.b	$00,$f3,$00,$07,$7f,$00,$e3,$7f,$9e,$7e,$d7,$e0,$fe,$00,$00,$fc
-	dc.b	$f3,$00,$f3,$00,$0b,$01,$03,$fb,$00,$12,$4e,$e7,$e0,$00,$00,$3c
-	dc.b	$5c,$f3,$00,$f3,$00,$06,$ff,$03,$10,$70,$18,$6e,$d4,$fe,$00,$01
-	dc.b	$3c,$dc,$f3,$00,$f3,$00,$07,$7f,$03,$f3,$70,$18,$6e,$e7,$e0,$fe
-	dc.b	$00,$00,$1c,$f3,$00,$f3,$00,$07,$80,$00,$ef,$ff,$ff,$f7,$8b,$e0
-	dc.b	$fe,$00,$00,$20,$f3,$00,$f3,$00,$00,$80,$fc,$00,$00,$30,$fd,$00
-	dc.b	$00,$c0,$f3,$00,$d9,$00,$f3,$00,$06,$3c,$00,$80,$7f,$be,$fd,$3b
-	dc.b	$fe,$00,$01,$c0,$40,$f3,$00,$f2,$00,$0a,$03,$80,$79,$a6,$fd,$e7
-	dc.b	$80,$00,$00,$f8,$80,$f3,$00,$f3,$00,$0b,$3e,$03,$00,$79,$a6,$f9
-	dc.b	$dc,$80,$00,$00,$f8,$42,$f3,$00,$f3,$00,$0b,$7c,$03,$80,$79,$a6
-	dc.b	$fd,$ef,$80,$00,$00,$c0,$80,$f3,$00,$f3,$00,$06,$02,$00,$81,$86
-	dc.b	$59,$07,$3b,$fd,$00,$00,$42,$f3,$00,$ed,$00,$00,$10,$fd,$00,$00
-	dc.b	$c2,$f3,$00,$d9,$00,$f3,$00,$06,$3c,$00,$00,$df,$19,$a0,$18,$fd
-	dc.b	$00,$00,$40,$f3,$00,$f3,$00,$06,$20,$02,$41,$d3,$ed,$a0,$0b,$ee
-	dc.b	$00,$f3,$00,$06,$3c,$02,$41,$d3,$ed,$a0,$13,$fd,$00,$00,$c0,$f3
-	dc.b	$00,$f3,$00,$06,$1e,$02,$41,$d3,$ed,$a0,$0b,$fd,$00,$00,$80,$f3
-	dc.b	$00,$f3,$00,$06,$20,$00,$00,$0c,$12,$00,$18,$fd,$00,$00,$c0,$f3
-	dc.b	$00,$ed,$00,$00,$10,$fd,$00,$00,$40,$f3,$00,$d9,$00,$f3,$00,$06
-	dc.b	$0c,$00,$00,$1e,$22,$00,$10,$fd,$00,$00,$40,$f3,$00,$f0,$00,$03
-	dc.b	$16,$02,$00,$10,$ee,$00,$f3,$00,$04,$1e,$00,$00,$16,$02,$fb,$00
-	dc.b	$00,$c0,$f3,$00,$f3,$00,$06,$0c,$00,$00,$16,$02,$00,$10,$fd,$00
-	dc.b	$00,$80,$f3,$00,$f3,$00,$06,$12,$00,$00,$08,$20,$00,$10,$fd,$00
-	dc.b	$00,$c0,$f3,$00,$e8,$00,$00,$40,$f3,$00,$d9,$00,$f3,$00,$00,$0c
-	dc.b	$fc,$00,$00,$10,$fd,$00,$00,$40,$f3,$00,$f3,$00,$00,$0a,$fc,$00
-	dc.b	$00,$10,$fd,$00,$00,$a0,$f3,$00,$f3,$00,$00,$0c,$fc,$00,$00,$08
-	dc.b	$fd,$00,$00,$60,$f3,$00,$f3,$00,$00,$06,$fc,$00,$00,$10,$fd,$00
-	dc.b	$00,$a0,$f3,$00,$f3,$00,$00,$02,$fc,$00,$00,$18,$fd,$00,$00,$40
-	dc.b	$f3,$00,$f3,$00,$00,$08,$fc,$00,$00,$08,$fd,$00,$00,$c0,$f3,$00
-	dc.b	$d9,$00,$f3,$00,$00,$06,$fc,$00,$00,$30,$fd,$00,$00,$80,$f3,$00
-	dc.b	$f3,$00,$00,$08,$f7,$00,$00,$40,$f3,$00,$f3,$00,$00,$0e,$fc,$00
-	dc.b	$00,$10,$fd,$00,$00,$80,$f3,$00,$f3,$00,$00,$0b,$f7,$00,$00,$40
-	dc.b	$f3,$00,$f3,$00,$00,$04,$fc,$00,$00,$30,$fd,$00,$00,$80,$f3,$00
-	dc.b	$f3,$00,$00,$04,$fc,$00,$00,$10,$fd,$00,$00,$c0,$f3,$00,$d9,$00
-	dc.b	$f3,$00,$00,$02,$fc,$00,$00,$10,$ee,$00,$f3,$00,$00,$04,$fc,$00
-	dc.b	$00,$30,$fd,$00,$00,$80,$f3,$00,$f3,$00,$00,$07,$fc,$00,$00,$20
-	dc.b	$fd,$00,$00,$80,$f3,$00,$f3,$00,$00,$04,$fc,$00,$00,$30,$fd,$00
-	dc.b	$00,$80,$f3,$00,$f3,$00,$00,$07,$fc,$00,$00,$10,$ee,$00,$f3,$00
-	dc.b	$00,$03,$e8,$00,$d9,$00,$f3,$00,$00,$02,$e8,$00,$f3,$00,$00,$04
-	dc.b	$e8,$00,$f3,$00,$00,$06,$e8,$00,$f3,$00,$00,$04,$e8,$00,$f3,$00
-	dc.b	$00,$02,$e8,$00,$f3,$00,$00,$02,$e8,$00,$d9,$00,$f3,$00,$09,$06
-	dc.b	$00,$00,$14,$0a,$a0,$45,$02,$0a,$a0,$f1,$00,$f3,$00,$09,$05,$00
-	dc.b	$00,$14,$0a,$a0,$45,$02,$0a,$a0,$f1,$00,$f3,$00,$09,$03,$00,$00
-	dc.b	$14,$0a,$a0,$55,$12,$0a,$a0,$f1,$00,$f3,$00,$09,$05,$00,$00,$14
-	dc.b	$0a,$a0,$45,$02,$0a,$a0,$f1,$00,$f3,$00,$09,$06,$00,$00,$6b,$34
-	dc.b	$59,$b2,$dd,$34,$58,$f1,$00,$f3,$00,$00,$02,$fc,$00,$01,$10,$10
-	dc.b	$ef,$00,$d9,$00,$f3,$00,$09,$06,$00,$00,$01,$40,$42,$48,$31,$01
-	dc.b	$c0,$f1,$00,$f0,$00,$06,$01,$5a,$42,$58,$71,$13,$c0,$f1,$00,$f3
-	dc.b	$00,$09,$06,$00,$00,$0b,$5a,$c2,$7c,$7b,$13,$e4,$f1,$00,$f3,$00
-	dc.b	$09,$04,$00,$00,$25,$40,$62,$c9,$35,$01,$e0,$f1,$00,$f3,$00,$09
-	dc.b	$06,$00,$00,$9a,$81,$8c,$26,$0a,$c8,$0c,$f1,$00,$f3,$00,$09,$02
-	dc.b	$00,$00,$0a,$00,$80,$24,$0a,$00,$04,$f1,$00,$d9,$00,$f0,$00,$06
-	dc.b	$20,$11,$40,$a2,$00,$11,$40,$f1,$00,$f3,$00,$09,$06,$00,$00,$20
-	dc.b	$11,$4c,$a2,$00,$11,$40,$f1,$00,$f3,$00,$09,$04,$00,$00,$2c,$15
-	dc.b	$6c,$aa,$0c,$11,$64,$f1,$00,$f3,$00,$09,$06,$00,$00,$20,$93,$40
-	dc.b	$b2,$40,$93,$40,$f1,$00,$f3,$00,$09,$04,$00,$01,$0d,$04,$20,$08
-	dc.b	$2d,$00,$2c,$f1,$00,$f3,$00,$09,$02,$00,$00,$0c,$04,$20,$08,$0c
-	dc.b	$00,$24,$f1,$00,$d9,$00,$f0,$00,$06,$24,$11,$30,$42,$0a,$11,$60
-	dc.b	$f1,$00,$f1,$00,$07,$01,$24,$11,$34,$42,$0b,$11,$68,$f1,$00,$f1
-	dc.b	$00,$07,$01,$2c,$15,$34,$cb,$0b,$55,$6c,$f1,$00,$f0,$00,$06,$24
-	dc.b	$93,$38,$52,$4a,$93,$60,$f1,$00,$f0,$00,$06,$09,$04,$00,$a9,$24
-	dc.b	$44,$04,$f1,$00,$f0,$00,$06,$08,$04,$00,$89,$00,$44,$04,$f1,$00
-	dc.b	$d9,$00,$f0,$00,$06,$08,$00,$20,$a1,$08,$14,$20,$f1,$00,$f0,$00
-	dc.b	$06,$08,$01,$28,$a1,$09,$15,$20,$f1,$00,$f0,$00,$06,$48,$c5,$28
-	dc.b	$b1,$09,$df,$24,$f1,$00,$f0,$00,$06,$08,$82,$24,$b1,$6c,$96,$20
-	dc.b	$f1,$00,$f1,$00,$07,$01,$65,$54,$c3,$0a,$02,$48,$4c,$f1,$00,$f0
-	dc.b	$00,$01,$40,$44,$fe,$00,$01,$48,$04,$f1,$00,$d9,$00,$f0,$00,$06
-	dc.b	$08,$00,$a2,$29,$09,$10,$14,$f1,$00,$f0,$00,$06,$08,$00,$ee,$a9
-	dc.b	$09,$10,$14,$f1,$00,$f0,$00,$06,$88,$c4,$ee,$b9,$09,$da,$54,$f1
-	dc.b	$00,$f0,$00,$06,$08,$82,$a2,$39,$69,$92,$14,$f1,$00,$f1,$00,$07
-	dc.b	$01,$a5,$55,$01,$02,$04,$4d,$68,$f1,$00,$f0,$00,$01,$80,$44,$fe
-	dc.b	$00,$01,$48,$40,$f1,$00,$d9,$00,$f0,$00,$06,$08,$40,$00,$29,$08
-	dc.b	$40,$04,$f1,$00,$f0,$00,$06,$08,$40,$08,$29,$08,$50,$2c,$f1,$00
-	dc.b	$f0,$00,$06,$88,$c6,$09,$39,$08,$d2,$2c,$f1,$00,$f0,$00,$06,$08
-	dc.b	$c2,$04,$39,$68,$c2,$04,$f1,$00,$f1,$00,$07,$01,$a5,$15,$61,$82
-	dc.b	$05,$01,$50,$f1,$00,$f0,$00,$02,$80,$04,$01,$ed,$00,$d9,$00,$f0
-	dc.b	$00,$06,$08,$10,$20,$2a,$09,$00,$20,$f1,$00,$f1,$00,$07,$01,$08
-	dc.b	$10,$28,$2a,$29,$00,$20,$f1,$00,$f1,$00,$07,$01,$08,$d6,$29,$3a
-	dc.b	$29,$c6,$24,$f1,$00,$f0,$00,$06,$08,$92,$24,$3a,$49,$82,$20,$f1
-	dc.b	$00,$f0,$00,$06,$25,$45,$41,$80,$04,$55,$4c,$f1,$00,$ef,$00,$05
-	dc.b	$44,$01,$00,$00,$44,$04,$f1,$00,$d9,$00,$f0,$00,$04,$0c,$10,$40
-	dc.b	$aa,$04,$ef,$00,$f0,$00,$05,$0c,$10,$48,$aa,$04,$01,$f0,$00,$f0
-	dc.b	$00,$06,$0c,$d6,$68,$bb,$0c,$c1,$60,$f1,$00,$f0,$00,$05,$0c,$92
-	dc.b	$44,$ba,$64,$82,$f0,$00,$f1,$00,$07,$01,$21,$45,$20,$01,$09,$50
-	dc.b	$68,$f1,$00,$ef,$00,$05,$44,$20,$01,$08,$40,$60,$f1,$00,$d9,$00
-	dc.b	$ef,$00,$04,$03,$08,$00,$61,$80,$f0,$00,$f0,$00,$05,$7e,$2b,$9a
-	dc.b	$45,$63,$b8,$f0,$00,$f1,$00,$06,$01,$7e,$ab,$9e,$55,$63,$b8,$f0
-	dc.b	$00,$ef,$00,$04,$13,$08,$02,$61,$80,$f0,$00,$f1,$00,$07,$01,$81
-	dc.b	$c4,$65,$b8,$9c,$47,$f0,$f1,$00,$f1,$00,$04,$01,$00,$80,$04,$10
-	dc.b	$ee,$00,$d9,$00,$d9,$00,$d9,$00,$d9,$00,$d9,$00,$d9,$00,$d9,$00
-	dc.b	$d9,$00,$d9,$00,$d9,$00,$d9,$00,$d9,$00,$d9,$00,$d9,$00,$d9,$00
-	dc.b	$d9,$00,$d9,$00,$d9,$00,$d9,$00,$d9,$00,$d9,$00,$d9,$00,$d9,$00
-	dc.b	$d9,$00,$d9,$00,$d9,$00,$d9,$00,$d9,$00,$d9,$00
-g2embed_zm_titlebrush_end
-
-	even
-g2embed_zm_title_pal
-	dc.b	$00,$00,$00,$00,$02,$10,$02,$10,$03,$20,$03,$20,$0f,$ff,$0e,$ee
-	dc.b	$03,$30,$03,$30,$04,$40,$04,$40,$02,$00,$02,$00,$01,$00,$01,$00
-	dc.b	$05,$50,$05,$50,$04,$50,$04,$50,$06,$40,$06,$40,$0f,$ff,$03,$33
-	dc.b	$04,$30,$04,$30,$05,$40,$05,$40,$02,$22,$09,$99,$04,$20,$04,$20
-	dc.b	$03,$00,$03,$00,$07,$50,$07,$50,$03,$10,$03,$10,$0e,$ee,$0b,$bb
-	dc.b	$0d,$dd,$0b,$bb,$00,$00,$09,$99,$05,$30,$05,$30,$01,$11,$0b,$bb
-	dc.b	$01,$11,$03,$33,$03,$40,$03,$40,$0e,$ee,$03,$22,$08,$50,$08,$50
-	dc.b	$06,$30,$06,$30,$02,$22,$03,$33,$0c,$cc,$0c,$cb,$06,$50,$06,$50
-	dc.b	$0d,$dd,$03,$32,$07,$60,$07,$60,$03,$33,$02,$22,$0b,$bb,$0b,$bb
-	dc.b	$0c,$cc,$02,$21,$04,$44,$0b,$bb,$04,$10,$04,$10,$03,$33,$07,$88
-	dc.b	$08,$60,$08,$60,$05,$55,$09,$99,$0b,$bb,$02,$22,$07,$40,$07,$40
-	dc.b	$08,$70,$08,$70,$04,$44,$03,$33,$0e,$ee,$09,$87,$05,$55,$04,$44
-	dc.b	$09,$70,$09,$81,$03,$33,$0d,$cc,$05,$20,$05,$20,$09,$99,$0c,$ba
-	dc.b	$09,$99,$04,$33,$0a,$aa,$05,$44,$0e,$ed,$00,$0f,$09,$60,$09,$60
-	dc.b	$0a,$aa,$0c,$cb,$07,$77,$0a,$aa,$06,$30,$02,$aa,$07,$77,$03,$33
-	dc.b	$08,$88,$02,$22,$02,$21,$0f,$03,$06,$20,$06,$20,$06,$66,$0c,$cb
-	dc.b	$02,$00,$0f,$aa,$08,$88,$0c,$cc,$04,$10,$06,$bf,$08,$76,$06,$3c
-	dc.b	$04,$32,$07,$bb,$06,$66,$03,$33,$06,$54,$01,$1f,$0f,$00,$05,$ba
-	dc.b	$0c,$00,$0d,$44,$0b,$bb,$0f,$a2,$03,$22,$0d,$22,$0b,$ba,$08,$49
-	dc.b	$0a,$99,$06,$b9,$0b,$aa,$03,$d7,$0a,$a9,$0a,$89,$06,$64,$07,$b6
-	dc.b	$0a,$a8,$0b,$1c,$02,$00,$05,$88,$02,$10,$07,$7a,$05,$33,$05,$dd
-	dc.b	$06,$54,$07,$99,$03,$22,$0c,$e0,$08,$86,$08,$43,$08,$88,$0b,$97
-	dc.b	$08,$77,$04,$a9,$0b,$bb,$0f,$30,$07,$55,$04,$aa,$06,$55,$0a,$88
-	dc.b	$0d,$dd,$09,$62,$08,$61,$08,$99,$0e,$ed,$02,$04,$05,$52,$02,$2b
-	dc.b	$03,$11,$06,$52,$0a,$aa,$08,$31,$0a,$aa,$0d,$a2,$0b,$a9,$05,$b7
-	dc.b	$04,$22,$0c,$99,$04,$33,$08,$11,$08,$77,$0d,$fa,$07,$66,$0b,$b7
-	dc.b	$08,$88,$09,$63,$0c,$cc,$07,$87,$06,$44,$02,$c2,$09,$88,$06,$74
-	dc.b	$0a,$97,$05,$b8,$0a,$96,$03,$35,$09,$98,$0c,$da,$09,$98,$0a,$27
-	dc.b	$08,$53,$02,$f2,$08,$74,$04,$4c,$09,$97,$0d,$24,$02,$00,$09,$11
-	dc.b	$04,$30,$01,$cd,$09,$85,$09,$d0,$07,$66,$02,$70,$0c,$b9,$04,$69
-	dc.b	$0c,$ba,$00,$82,$09,$86,$07,$5b,$07,$64,$07,$9b,$0c,$cc,$0c,$50
-	dc.b	$06,$51,$0b,$6d,$0d,$dc,$04,$1a,$06,$40,$01,$78,$09,$76,$01,$d5
-g2embed_zm_title_pal_end
-
-
-	even
-; v190hx9: scratch copy of chunky top 320x32 strip while drawing fixed HUD.
-g2hud_saved_top_chunky	ds.b	320*32
 	even

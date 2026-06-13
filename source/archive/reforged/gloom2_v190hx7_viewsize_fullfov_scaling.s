@@ -4,8 +4,6 @@
 	;*********
 	;
 	;planar, 020+ version.
-	;v190hy: cleanup build from stable v190hx12, old DH3:gloom.log diagnostics removed.
-	;v190hy2: keep Gloom3 intermission picture palette; skip font palette override there.
 	;
 	;6 bitplanes for ECS, 8 for AGA
 	;
@@ -639,6 +637,7 @@ wb	;
 	move.l	d0,a6
 	jsr	-60(a6)
 	move.l	d0,outhand
+	jsr	g2log_open	;v22 diagnostic level/runtime log
 	;
 	move.l	wbmess(pc),d0
 	beq.s	.nocd
@@ -722,7 +721,7 @@ nomem	move.l	wbmess(pc),d0
 	jsr	-378(a6)
 	clr.l	wbmess
 	;
-.bye	; v190hy cleanup: logger call removed
+.bye	jsr	g2log_close
 	rts
 
 ; ************* FAST SUBS ********************
@@ -1840,9 +1839,7 @@ g2view_scale_y_d0
 g2view_scale_y_d1
 	cmp	#240,hite
 	beq.s	.rts
-	; v190hx10: keep d1 scaled. hx7 restored d1 here, so sprite/blood
-	; Y positions stayed full-size while their heights were already scaled.
-	movem.l	d0/d2,-(a7)
+	movem.l	d0-d2,-(a7)
 	move	d1,d0
 	ext.l	d0
 	move	hite,d2
@@ -1850,7 +1847,7 @@ g2view_scale_y_d1
 	move	#240,d2
 	divs	d2,d0
 	move	d0,d1
-	movem.l	(a7)+,d0/d2
+	movem.l	(a7)+,d0-d2
 .rts	rts
 
 g2view_scale_y_d3
@@ -2510,36 +2507,77 @@ predrawall	;draw up everything....
 
 drawall	;
 	jsr	g2v36_hide_pointer	;v36: keep Intuition pointer hidden during gameplay
+	lea	g2log_msg_da_enter,a0
+	jsr	g2log_drawstep
 .wait	tst	doneflag
 	bne.s	.waitskip
 	bsr	vwait
 	bra.s	.wait
 .waitskip	clr	doneflag
+	lea	g2log_msg_da_wait_ok,a0
+	jsr	g2log_drawstep
 	;
 drawall_	move.l	player1(pc),player_
 	move.l	memory(pc),memat
 	;
+	lea	g2log_msg_da_calc1_b,a0
+	jsr	g2log_drawstep
 	jsr	calcscene
+	lea	g2log_msg_da_calc1_ok,a0
+	jsr	g2log_drawstep
+	lea	g2log_msg_da_draw1_b,a0
+	jsr	g2log_drawstep
 	jsr	drawscene
+	lea	g2log_msg_da_draw1_ok,a0
+	jsr	g2log_drawstep
+	lea	g2log_msg_da_blit1_b,a0
+	jsr	g2log_drawstep
 	jsr	blitscene
+	lea	g2log_msg_da_blit1_ok,a0
+	jsr	g2log_drawstep
 	;
 	move	twowins(pc),d0
 	beq.s	.show
 	;
 	move.l	player2(pc),player_
 	move.l	memory(pc),memat
+	lea	g2log_msg_da_calc2_b,a0
+	jsr	g2log_drawstep
 	jsr	calcscene
+	lea	g2log_msg_da_calc2_ok,a0
+	jsr	g2log_drawstep
+	lea	g2log_msg_da_draw2_b,a0
+	jsr	g2log_drawstep
 	jsr	drawscene
+	lea	g2log_msg_da_draw2_ok,a0
+	jsr	g2log_drawstep
+	lea	g2log_msg_da_blit2_b,a0
+	jsr	g2log_drawstep
 	jsr	blitscene
+	lea	g2log_msg_da_blit2_ok,a0
+	jsr	g2log_drawstep
 .show	;
+	lea	g2log_msg_da_wait2_b,a0
+	jsr	g2log_drawstep
 .wait2	tst	showflag
 	bne.s	.waitskip2
 	bsr	vwait
 	bra.s	.wait2
-.waitskip2	; v190hy cleanup: log marker removed
+.waitskip2	lea	g2log_msg_da_wait2_ok,a0
+	jsr	g2log_drawstep
+	lea	g2log_msg_da_doc2p_b,a0
+	jsr	g2log_drawstep
 	jsr	doc2p
+	lea	g2log_msg_da_doc2p_ok,a0
+	jsr	g2log_drawstep
+	lea	g2log_msg_da_db_b,a0
+	jsr	g2log_drawstep
 	jsr	db
+	lea	g2log_msg_da_db_ok,a0
+	jsr	g2log_drawstep
 	clr	showflag
+	lea	g2log_msg_da_exit,a0
+	jsr	g2log_drawstep
 	rts
 
 doc2p	;
@@ -2583,11 +2621,6 @@ g2hud_post_c2p
 	beq.s	.done
 	clr	g2hud_pending
 	movem.l	d0-d7/a0-a6,-(a7)
-	; v190hx9: the fixed HUD pass for smaller VIEW SIZE modes must not
-	; permanently overwrite the chunky source buffer.  The grey ESC-menu
-	; preview later uses chunky as the 3D-source image; if the HUD remains
-	; there, it appears again inside the small render window, distorted.
-	jsr	g2hud_save_top_chunky
 	jsr	g2hud_clear_top_chunky
 	move.l	g2hud_pending_player(pc),a5
 	tst.l	a5
@@ -2604,30 +2637,8 @@ g2hud_post_c2p
 	move.l	linemod(pc),d3
 	move.l	c2p(pc),a2
 	jsr	(a2)
-	jsr	g2hud_restore_top_chunky
 	movem.l	(a7)+,d0-d7/a0-a6
 .done	rts
-
-; Save/restore only the fixed top HUD strip in the chunky source buffer.
-g2hud_save_top_chunky
-	movem.l	d0/a0-a1,-(a7)
-	move.l	chunky(pc),a0
-	lea	g2hud_saved_top_chunky,a1
-	move	#2559,d0		; 320*32 bytes / 4 - 1
-.loop	move.l	(a0)+,(a1)+
-	dbf	d0,.loop
-	movem.l	(a7)+,d0/a0-a1
-	rts
-
-g2hud_restore_top_chunky
-	movem.l	d0/a0-a1,-(a7)
-	move.l	chunky(pc),a0
-	lea	g2hud_saved_top_chunky,a1
-	move	#2559,d0		; 320*32 bytes / 4 - 1
-.loop	move.l	(a1)+,(a0)+
-	dbf	d0,.loop
-	movem.l	(a7)+,d0/a0-a1
-	rts
 
 ; Clear only the fixed top HUD strip in the chunky source buffer.
 g2hud_clear_top_chunky
@@ -4722,19 +4733,33 @@ blitscene	;
 
 drawscene	;a5=player
 	; v28: pinpoint first-level crash inside drawscene.
+	lea	g2log_msg_ds_enter,a0
+	jsr	g2log_drawstep
+	lea	g2log_msg_ds_cast_b,a0
+	jsr	g2log_drawstep
 	bsr	castwalls
+	lea	g2log_msg_ds_cast_ok,a0
+	jsr	g2log_drawstep
+	lea	g2log_msg_ds_render_b,a0
+	jsr	g2log_drawstep
 	bsr	renderwalls
+	lea	g2log_msg_ds_render_ok,a0
+	jsr	g2log_drawstep
 	; v190fx: real-Amiga safe order. Do not run the v190bb wallspan
 	; void-fog pass before roof/floor; late neutral void-fog remains after flats.
 	;
 	move	roofflag(pc),d0
 	ble.s	.g2v190dm_roof_fog
+	lea	g2log_msg_ds_roof_b,a0
+	jsr	g2log_drawstep
 	move	#-255,d0
 	sub	camy(pc),d0
 	moveq	#1,d1
 	move	miny(pc),d7
 	move.l	roof(pc),a0
 	bsr	flat
+	lea	g2log_msg_ds_roof_ok,a0
+	jsr	g2log_drawstep
 	bra.s	.noroof
 .g2v190dm_roof_fog
 	moveq	#1,d1		; CEILING NO: fill ceiling area with neutral fog, not black bars
@@ -4743,6 +4768,8 @@ drawscene	;a5=player
 .noroof	;
 	move	floorflag(pc),d0
 	ble.s	.g2v190dm_floor_fog
+	lea	g2log_msg_ds_floor_b,a0
+	jsr	g2log_drawstep
 	move	camy(pc),d0
 	neg	d0
 	moveq	#-1,d1
@@ -4750,6 +4777,8 @@ drawscene	;a5=player
 	subq	#1,d7
 	move.l	floor(pc),a0
 	bsr	flat
+	lea	g2log_msg_ds_floor_ok,a0
+	jsr	g2log_drawstep
 	bra.s	.nofloor
 .g2v190dm_floor_fog
 	moveq	#-1,d1		; FLOOR NO: fill floor area with neutral fog, not black bars
@@ -4762,10 +4791,18 @@ drawscene	;a5=player
 	; keeps very long corridor openings dark instead of black, without
 	; interfering with wall/floor rendering or copying texture rows.
 	jsr	g2fill_void_fog_remaining
+	lea	g2log_msg_ds_shapes_b,a0
+	jsr	g2log_drawstep
 	bsr	drawshapes
+	lea	g2log_msg_ds_shapes_ok,a0
+	jsr	g2log_drawstep
 	; v17: original gloom2 had an early RTS here, making blood/pixelate reachable.
+	lea	g2log_msg_ds_blood_b,a0
+	jsr	g2log_drawstep
 	; v31: safe chunky blood renderer re-enabled, legacy screen-splat disabled.
 	bsr	drawblood
+	lea	g2log_msg_ds_blood_ok,a0
+	jsr	g2log_drawstep
 	;
 	; v99: ZGloom-style screen colour effects.  Teleport/exit uses pixsize
 	; as a blue-white fade timer, then the existing pixelate pass runs.
@@ -4788,8 +4825,14 @@ drawscene	;a5=player
 	move.l	player_(pc),a0
 	move	ob_pixsize(a0),d0
 	beq.s	.g2ds_no_pixel
+	lea	g2log_msg_ds_pixel_b,a0
+	jsr	g2log_drawstep
 	jsr	pixelate
+	lea	g2log_msg_ds_pixel_ok,a0
+	jsr	g2log_drawstep
 .g2ds_no_pixel
+	lea	g2log_msg_ds_exit,a0
+	jsr	g2log_drawstep
 	rts
 
 chatstuff	move	chatok(pc),d0
@@ -10058,9 +10101,6 @@ drawobjtrans	;draw transparent object (merge both colours!)
 	move.l	planar_remap(pc),a5	;remap RGB->LUT
 	move.l	planar_palette,a6
 	;
-	; v190hy4: blob shadows must be behind the sprite column.
-	; Reflections stay after the sprite via g2_draw_reflection_column_after_sprite.
-	bsr	g2_draw_blob_column_before_sprite
 .vloop	move.b	0(a3,d1),d5
 	beq.s	.skip
 	;
@@ -10082,7 +10122,7 @@ drawobjtrans	;draw transparent object (merge both colours!)
 	addx	d0,d1	;xtend
 	add.l	d7,a4
 	dbf	d4,.vloop
-	bsr	g2_draw_reflection_column_after_sprite	;v190hy4: reflections only after sprite
+	bsr	g2_draw_enemy_blob_column	;v173 reflections below transparent/invisible pickups too
 	;
 	movem.l	(a7)+,d0-d5/a5-a6
 	;
@@ -10124,15 +10164,13 @@ drawobjnorm	;normal draw object...
 	sub	d6,d1
 	add.l	d6,d1
 	;
-	; v190hy4: draw enemy blob shadow before sprite pixels so feet/gore stay on top.
-	bsr	g2_draw_blob_column_before_sprite
 .vloop	move.b	0(a3,d1),d5
 	beq.s	.skip
 	move.b	0(a2,d5),(a4)
 .skip	addx.l	d6,d1	;next src Y
 	add.l	d7,a4
 	dbf	d4,.vloop
-	bsr	g2_draw_reflection_column_after_sprite	;v190hy4: reflections only after sprite
+	bsr	g2_draw_enemy_blob_column	;v126 hard-edged dark column below enemy feet
 	;
 	movem.l	(a7)+,d0-d1/d4-d5
 	;
@@ -10265,23 +10303,6 @@ g2_setup_enemy_blob_column
 	moveq	#16,d0
 .rx_max_ok
 	move	d0,g2_shadow_rx
-	; v190hy3: anchor enemy blob shadows to the projected floor plane,
-	; not to the lower edge of the visible sprite bitmap.  Flying monsters
-	; can bob above the floor, but their shadow must stay on the ground.
-	move	camy(pc),d0
-	neg	d0
-	ext.l	d0
-	asl.l	#focshft,d0
-	divs	d2,d0
-	jsr	g2view_scale_y_d0	; keep VIEW SIZE scaling consistent with sprites
-	add	midy(pc),d0
-	cmp	#2,d0
-	blt	.done
-	move	hite(pc),d1
-	sub	#6,d1
-	cmp	d1,d0
-	bgt	.done
-	move	d0,g2_reflect_floorrow	; reused as absolute floor row for blob shadows
 	moveq	#1,d0	;v129 fallback: darker blob shadow
 	move.l	planar_remap(pc),a0
 	tst.l	a0
@@ -10406,17 +10427,16 @@ g2_prepare_reflection_column
 	jsr	g2view_scale_y_d0	; v190hx7: reflection floor row scales with view height
 	add	midy(pc),d0
 	addq	#2,d0		; v189: back to the v186 pickup reflection baseline, but about 2px higher
-	; v190hx12: safe anchor-only clipping for floor reflections.
-	; Do not clamp an off-screen pickup reflection back into the 3D window
-	; because that makes it slide along the VIEW SIZE edge.  Unlike hx11,
-	; this does not touch the low-level reflection draw pointer path.
 	cmp	#2,d0
-	blt	.no_reflect
+	bge.s	.pick_row_min_ok
+	moveq	#2,d0
+.pick_row_min_ok
 	move	hite(pc),d1
 	sub	#12,d1
 	cmp	d1,d0
-	bgt	.no_reflect
-	move	d0,g2_reflect_floorrow
+	ble.s	.pick_row_max_ok
+	move	d1,d0
+.pick_row_max_ok	move	d0,g2_reflect_floorrow
 	bra.s	.y_done
 .projectile_floor_yoff
 	move	ob_y(a2),d0
@@ -10536,20 +10556,6 @@ g2_reflect_dark_rgb
 g2_reflect_rgb
 	dc	$960,$0a0,$6f6,$66f,$a0a,$960,$0a0,$6f6
 
-g2_draw_blob_column_before_sprite
-	cmp	#1,g2_shadow_active
-	bne.s	.rts
-	bsr	g2_draw_enemy_blob_column
-.rts	rts
-
-; v190hy4: reflections still need the old after-sprite path because projectile
-; reflections use a4/the sprite underside as their relative floor anchor.
-g2_draw_reflection_column_after_sprite
-	cmp	#2,g2_shadow_active
-	bne.s	.rts
-	bsr	g2_draw_enemy_blob_column
-.rts	rts
-
 g2_draw_enemy_blob_column
 	; called from drawobjnorm/drawobjtrans after the current sprite column was drawn.
 	; a4 points one row below the drawn/clipped sprite column.
@@ -10591,20 +10597,9 @@ g2_draw_enemy_blob_column
 	moveq	#0,d5
 	moveq	#2,d6	;keep hard oval centre, no tall diamond peak
 .have_band
+	move.l	a4,a0
 	move.l	chunkymod(pc),d7
-	; v190hy3: draw the blob at the projected floor row.  The old path
-	; started from a4 (sprite column bottom), so flying sprites dragged the
-	; shadow upward with their animation/bob height.
-	move.l	chunky(pc),d0
-	move	g2_shadow_curx(pc),d3
-	lsl	#2,d3
-	lea	coloffs(pc),a0
-	add.l	0(a0,d3.w),d0
-	move.l	d0,a0
-	move	g2_reflect_floorrow(pc),d3
-	mulu	chunkymodw(pc),d3
-	add.l	d3,a0
-	sub.l	d7,a0	; keep the confirmed v132/v130 blob vertical bias
+	sub.l	d7,a0	;v132: one pixel lower than v131, still above v130
 	sub.l	d7,a0
 	sub.l	d7,a0
 	; skip down by start offset
@@ -13837,7 +13832,8 @@ execscript	cmp	#2,gametype
 .fucked	;
 	rts
 	;
-scriptdone	; v190hy cleanup: log marker removed
+scriptdone	lea	g2log_msg_script_done,a0
+	jsr	g2log
 	bsr	dispoff
 	move.l	loadingmed(pc),d0
 	beq	gameover
@@ -13851,6 +13847,10 @@ sccont	dc.b	'cont_'
 	even
 
 scriptrest	;restart point!
+	move.l	a0,-(a7)
+	lea	g2log_msg_script_rest,a0
+	jsr	g2log
+	move.l	(a7)+,a0
 	;this changes...we add this to 'gloomgame' file now.
 	;
 	move.l	a0,d1
@@ -13889,22 +13889,26 @@ scriptrest	;restart point!
 	;
 	bra	execscript
 
-scriptloop	; v190hy cleanup: log marker removed
+scriptloop	lea	g2log_msg_script_loop,a0
+	jsr	g2log
 	move.l	script,scriptat
 	bra	execscript
 
-scripthide	; v190hy cleanup: log marker removed
+scripthide	lea	g2log_msg_script_hide,a0
+	jsr	g2log
 	bsr	dispoff
 	bra	execscript
 
-scriptshow	; v190hy cleanup: log marker removed
+scriptshow	lea	g2log_msg_script_show,a0
+	jsr	g2log
 	tst.l	g2v190i_start_offset	; v190t: while skipping earlier levels, suppress old intermission screens
 	bgt	execscript
 	clr	pdelay
 	bsr	dispon
 	bra	execscript
 
-scriptdraw	; v190hy cleanup: log marker removed
+scriptdraw	lea	g2log_msg_script_draw,a0
+	jsr	g2log
 	tst.l	g2v190i_start_offset	; v190t: skip draw_ before earlier play_ entries
 	bgt	execscript
 	tst	g2v190t_reload_pic_after_level	; v190t: reload intermission IFF after gameplay, if needed
@@ -13919,10 +13923,7 @@ scriptdraw	; v190hy cleanup: log marker removed
 	move.l	gloom,d0
 .use	move.l	d0,a0
 	jsr	showpic
-	cmp	#3,g2_game_profile	; v190hy2: Gloom3 intermission pictures keep their own .pal
-	beq.s	.g2v190hy2_draw_no_fontpal
 	bsr	initfontpal
-.g2v190hy2_draw_no_fontpal
 	bra	execscript
 
 fetchrest	move.l	scriptat,a0
@@ -13980,10 +13981,15 @@ rooftag	ds.b	32
 	even
 
 scripttile	;tile command...load in floor/roof tiles!
+	lea	g2log_msg_script_tile,a0
+	jsr	g2log
 	;
 	lea	floortag(pc),a1
 	bsr	fetchrest
+	lea	g2log_msg_tiletag,a0
+	jsr	g2log
 	lea	floortag,a0
+	jsr	g2log
 	bsr	loadtile
 	bra	execscript
 
@@ -14033,6 +14039,8 @@ ecspicpath	dc.b	'pics_ehb/',0
 	even
 
 scriptpict	;load an iff
+	lea	g2log_msg_script_pict,a0
+	jsr	g2log
 	bsr	freeiff
 	lea	agapicpath(pc),a0
 	lea	picname,a1
@@ -14043,7 +14051,10 @@ scriptpict	;load an iff
 	bne.s	.aga
 	subq	#1,a1
 	bsr	fetchrest
+	lea	g2log_msg_picname,a0
+	jsr	g2log
 	lea	picname,a0
+	jsr	g2log
 	move.l	a1,-(a7)
 	bsr	permit
 	lea	picname,a0
@@ -14105,6 +14116,8 @@ g2v190t_reload_current_pic
 .rts	rts
 
 scriptdark	;
+	lea	g2log_msg_script_dark,a0
+	jsr	g2log
 	tst.l	g2v190i_start_offset	; v190t: suppress dark_ before skipped earlier levels
 	bgt	execscript
 	tst	os
@@ -14142,26 +14155,43 @@ scriptdark	;
 	bra	execscript
 
 scripttext	;print text on iff
+	lea	g2log_msg_script_text,a0
+	jsr	g2log
 	;a6=window, a4=message, d0=length of message, d6=Y
 	;
 	tst.l	g2v190i_start_offset	; v190t: consume but do not show text_ for skipped earlier levels
 	ble.s	.g2v190t_show_text
+	lea	g2log_msg_text_skip_fetch_b,a0
+	jsr	g2log
 	lea	text,a1
 	bsr	fetchrest
+	lea	g2log_msg_text_skip_fetch_ok,a0
+	jsr	g2log
 	bra	execscript
 .g2v190t_show_text
 	move	#2,pdelay
+	lea	g2log_msg_text_font_b,a0
+	jsr	g2log
 	cmp	#1,g2_game_profile	; v190cx: old Gloom intermission keeps picture palette
-	beq.s	.g2v190cx_text_no_fontpal
-	cmp	#3,g2_game_profile	; v190hy2: Gloom3 intermission keeps picture palette too
 	beq.s	.g2v190cx_text_no_fontpal
 	bsr	initfontpal
 .g2v190cx_text_no_fontpal
+	lea	g2log_msg_text_font_ok,a0
+	jsr	g2log
 	;
+	lea	g2log_msg_text_fetch_b,a0
+	jsr	g2log
 	lea	text,a1
 	bsr	fetchrest
+	lea	g2log_msg_text_fetch_ok,a0
+	jsr	g2log
 	lea	text,a0
+	jsr	g2log
+	lea	g2log_msg_text_wrap_b,a0
+	jsr	g2log
 	bsr	g2v14_wrap_script_text
+	lea	g2log_msg_text_wrap_ok,a0
+	jsr	g2log
 	;
 	lea	text,a4
 	move	bmaphite(pc),d6
@@ -14180,15 +14210,24 @@ scripttext	;print text on iff
 	move	d1,d0
 	clr.b	-(a0)
 	sub	#11,d6
+	lea	g2log_msg_text_print1_b,a0
+	jsr	g2log
 	jsr	printmess2
+	lea	g2log_msg_text_print1_ok,a0
+	jsr	g2log
 	movem.l	(a7)+,d0/d6/a4
 	;
-.done	; v190hy cleanup: log marker removed
+.done	lea	g2log_msg_text_printf_b,a0
+	jsr	g2log
 	jsr	printmess2
+	lea	g2log_msg_text_printf_ok,a0
+	jsr	g2log
 	;
 	tst	pdelay
 	bmi	execscript
 	clr	pdelay
+	lea	g2log_msg_text_done,a0
+	jsr	g2log
 	bra	execscript
 
 g2v14_wrap_script_text	;auto-wrap long text_ script lines at a word boundary
@@ -14242,6 +14281,8 @@ g2v17_wst_done
 	rts
 
 scriptwait	;
+	lea	g2log_msg_script_wait,a0
+	jsr	g2log
 	tst.l	g2v190i_start_offset	; v190t: skip wait_ before skipped earlier levels
 	bgt	execscript
 	tst	pdelay
@@ -14388,6 +14429,8 @@ comseriesmap	dc.b	'1',0
 scriptplay	;
 	;arrives here with dispon!
 	;
+	lea	g2log_msg_scriptplay(pc),a0
+	jsr	g2log
 	lea	mapname,a1
 	;
 	cmp	#2,gametype
@@ -14417,7 +14460,10 @@ scriptplay	;
 .g2v190s_noskip
 	bsr	fetchrest
 .gotname	;
+	lea	g2log_msg_mapname,a0
+	jsr	g2log
 	lea	mapname,a0
+	jsr	g2log
 	; v11: if external C2P did not load, doc2p is a dummy and
 	; gameplay would switch to a black screen. Show a readable
 	; marker instead of entering the renderer blind.
@@ -14444,6 +14490,8 @@ scriptplay	;
 	bne.s	.use
 	move.l	#mappath,d0
 .use	move.l	d0,a0
+	lea	g2log_msg_mapload_before(pc),a0
+	jsr	g2log
 	move.l	map_test(pc),d0
 	bne.s	.g2v22_use_again
 	move.l	#mappath,d0
@@ -14463,12 +14511,22 @@ g2v11_c2pfail_scriptplay
 	bra	gameover
 g2v10_map_loaded
 	;
+	lea	g2log_msg_mapload_ok(pc),a0
+	jsr	g2log
 	bsr	initmap
+	lea	g2log_msg_initmap_ok(pc),a0
+	jsr	g2log
 	bsr	loadtxts
+	lea	g2log_msg_loadtxts_ok(pc),a0
+	jsr	g2log
 	move	#$a3f7,d0
 	jsr	seedrnd
+	lea	g2log_msg_execevent_before(pc),a0
+	jsr	g2log
 	moveq	#1,d0
 	jsr	execevent
+	lea	g2log_msg_execevent_ok(pc),a0
+	jsr	g2log
 	jsr	g2v190cx_build_g1_tables	; v190cx: synthetic palette/remap for original Gloom
 	bsr	forbid
 	;
@@ -14482,6 +14540,8 @@ g2v10_map_loaded
 	bra	gameover
 g2v10_player1_ok
 	;
+	lea	g2log_msg_player_ok(pc),a0
+	jsr	g2log
 	move.l	planar_palette(pc),d0
 	beq.s	.g2v190cj_no_game_pal
 	move.l	d0,a1
@@ -14572,17 +14632,34 @@ g2v10_player1_ok
 	;
 	clr	framecnt
 	clr	paused
+	lea	g2log_msg_predraw_before(pc),a0
+	jsr	g2log
 	jsr	predrawall
+	lea	g2log_msg_predraw_ok(pc),a0
+	jsr	g2log
 	bsr	dispon
 	bsr	chaton
+	lea	g2log_msg_dispon_ok(pc),a0
+	jsr	g2log
 	;
-mainloop	; v190hy cleanup: log frame counter removed
+mainloop	addq	#1,g2logframe
+	lea	g2log_msg_mainloop,a0
+	jsr	g2log
 	jsr	drawall
+	lea	g2log_msg_draw_ok,a0
+	jsr	g2log
+	lea	g2log_msg_after_draw,a0
+	jsr	g2log
 	move	escape(pc),d0
 	beq.s	.noesc
+	lea	g2log_msg_menu_before,a0
+	jsr	g2log
 	jsr	dogamemenu
+	lea	g2log_msg_menu_ok,a0
+	jsr	g2log
 	clr	escape
-.noesc	; v190hy cleanup: log marker removed
+.noesc	lea	g2log_msg_finish_check,a0
+	jsr	g2log
 	; v105b: after the visible exit teleport pixel frame, hold a real black
 	; screen briefly before allowing the intermission screen.
 	tst	g2teleport_black_hold
@@ -14597,6 +14674,8 @@ mainloop	; v190hy cleanup: log frame counter removed
 	beq	mainloop
 	;
 mainexit	st	paused
+	lea	g2log_msg_mainexit(pc),a0
+	jsr	g2log
 	bsr	chatoff
 	bsr	dispoff
 	bsr	qsync2
@@ -17203,8 +17282,178 @@ mousexlast	dc.b	0
 mousexinit	dc	0
 keymouse_mx	dc	0
 
-; v190hy: diagnostic DH3:gloom.log logger removed for cleanup/speed.
-; v190hy: all g2log/g2log_drawstep call sites were removed.
+; v22/v94: old OS/DOS diagnostic logger for crash hunting.
+; v94 disables it on real Amiga hardware to avoid missing-volume requesters.
+g2log_open
+	rts	; v190aa: logger disabled after apostrophe diagnosis, avoid DH3 IO side effects
+	movem.l	d0-d3/a0-a1/a6,-(a7)
+	tst.l	g2loghand
+	bne.s	.g2lo_done
+	tst	os
+	beq.s	.g2lo_done
+	move.l	dosbase(pc),a6
+	lea	g2logname(pc),a0
+	move.l	a0,d1
+	move.l	#1006,d2
+	jsr	-30(a6)
+	move.l	d0,g2loghand
+	beq.s	.g2lo_done
+	lea	g2log_msg_open(pc),a0
+	jsr	g2log
+.g2lo_done
+	movem.l	(a7)+,d0-d3/a0-a1/a6
+	rts
+
+g2log_drawstep	;a0 = marker, v27 writes every frame for crash pinpointing
+	rts	;v94: logger disabled, keep call sites harmless
+	movem.l	d0-d7/a0-a6,-(a7)
+	jsr	g2log
+	movem.l	(a7)+,d0-d7/a0-a6
+	rts
+
+g2log_close
+	rts	; v190aa: logger disabled after apostrophe diagnosis
+	movem.l	d0-d1/a6,-(a7)
+	move.l	g2loghand(pc),d1
+	beq.s	.g2lc_done
+	clr.l	g2loghand
+	move.l	dosbase(pc),a6
+	jsr	-36(a6)
+.g2lc_done
+	movem.l	(a7)+,d0-d1/a6
+	rts
+
+g2log	;a0 = zero terminated marker string
+	rts	; v190aa: logger disabled after apostrophe diagnosis
+	movem.l	d0-d3/a0-a1/a6,-(a7)
+	; v190u: keep the trace file small.  Skip per-frame messages, but keep
+	; script/mapload/intermission transition markers.
+	cmp.l	#'MAIN',(a0)
+	bne.s	.g2lg_not_main
+	cmp.l	#'LOOP',4(a0)
+	beq.s	.g2lg_done
+.g2lg_not_main
+	cmp.l	#'FINI',(a0)
+	bne.s	.g2lg_not_finish
+	cmp.l	#'SHED',4(a0)
+	beq.s	.g2lg_done
+.g2lg_not_finish
+	tst	os
+	beq.s	.g2lg_done
+	move.l	g2loghand(pc),d1
+	beq.s	.g2lg_done
+	move.l	a0,a1
+	moveq	#0,d3
+.g2lg_len
+	tst.b	(a1)+
+	beq.s	.g2lg_len_done
+	addq.l	#1,d3
+	bra.s	.g2lg_len
+.g2lg_len_done
+	move.l	a0,d2
+	move.l	dosbase(pc),a6
+	jsr	-48(a6)
+	move.l	g2loghand(pc),d1
+	lea	g2log_nl(pc),a0
+	move.l	a0,d2
+	moveq	#1,d3
+	move.l	dosbase(pc),a6
+	jsr	-48(a6)
+.g2lg_done
+	movem.l	(a7)+,d0-d3/a0-a1/a6
+	rts
+
+g2logname	dc.b	'dh3:gloom.log',0	;v190u transition trace log
+g2log_nl	dc.b	10
+g2loghand	dc.l	0
+g2logframe	dc	0
+g2log_msg_open	dc.b	'G2LOG OPEN v190u',0
+
+g2log_msg_script_done	dc.b	'SCRIPT DONE',0
+g2log_msg_script_rest	dc.b	'SCRIPT REST',0
+g2log_msg_script_loop	dc.b	'SCRIPT LOOP',0
+g2log_msg_script_hide	dc.b	'SCRIPT HIDE',0
+g2log_msg_script_show	dc.b	'SCRIPT SHOW',0
+g2log_msg_script_draw	dc.b	'SCRIPT DRAW',0
+g2log_msg_script_tile	dc.b	'SCRIPT TILE',0
+g2log_msg_script_pict	dc.b	'SCRIPT PICT',0
+g2log_msg_script_dark	dc.b	'SCRIPT DARK',0
+g2log_msg_script_text	dc.b	'SCRIPT TEXT',0
+g2log_msg_text_skip_fetch_b	dc.b	'TEXT SKIP FETCH BEFORE',0
+g2log_msg_text_skip_fetch_ok	dc.b	'TEXT SKIP FETCH OK',0
+g2log_msg_text_font_b	dc.b	'TEXT INITFONT BEFORE',0
+g2log_msg_text_font_ok	dc.b	'TEXT INITFONT OK',0
+g2log_msg_text_fetch_b	dc.b	'TEXT FETCH BEFORE',0
+g2log_msg_text_fetch_ok	dc.b	'TEXT FETCH OK',0
+g2log_msg_text_wrap_b	dc.b	'TEXT WRAP BEFORE',0
+g2log_msg_text_wrap_ok	dc.b	'TEXT WRAP OK',0
+g2log_msg_text_print1_b	dc.b	'TEXT PRINT SPLIT BEFORE',0
+g2log_msg_text_print1_ok	dc.b	'TEXT PRINT SPLIT OK',0
+g2log_msg_text_printf_b	dc.b	'TEXT PRINT FINAL BEFORE',0
+g2log_msg_text_printf_ok	dc.b	'TEXT PRINT FINAL OK',0
+g2log_msg_text_done	dc.b	'TEXT DONE',0
+g2log_msg_script_wait	dc.b	'SCRIPT WAIT',0
+g2log_msg_mapname	dc.b	'MAPNAME',0
+g2log_msg_tiletag	dc.b	'TILETAG',0
+g2log_msg_picname	dc.b	'PICNAME',0
+g2log_msg_scriptplay	dc.b	'SCRIPTPLAY ENTER',0
+g2log_msg_mapload_before	dc.b	'MAP LOAD BEFORE',0
+g2log_msg_mapload_ok	dc.b	'MAP LOAD OK',0
+g2log_msg_initmap_ok	dc.b	'INITMAP OK',0
+g2log_msg_loadtxts_ok	dc.b	'LOADTXTS OK',0
+g2log_msg_execevent_before	dc.b	'EXECEVENT BEFORE',0
+g2log_msg_execevent_ok	dc.b	'EXECEVENT OK',0
+g2log_msg_player_ok	dc.b	'PLAYER1 OK',0
+g2log_msg_predraw_before	dc.b	'PREDRAW BEFORE',0
+g2log_msg_predraw_ok	dc.b	'PREDRAW OK',0
+g2log_msg_dispon_ok	dc.b	'DISPON CHATON OK',0
+g2log_msg_mainloop	dc.b	'MAINLOOP DRAWALL BEFORE',0
+g2log_msg_draw_ok	dc.b	'MAINLOOP DRAWALL OK',0
+g2log_msg_after_draw	dc.b	'MAINLOOP AFTER DRAWALL LOG OK',0
+g2log_msg_menu_before	dc.b	'MENU BEFORE',0
+g2log_msg_menu_ok	dc.b	'MENU OK',0
+g2log_msg_finish_check	dc.b	'FINISHED CHECK',0
+g2log_msg_mainexit	dc.b	'MAINEXIT',0
+g2log_msg_da_enter	dc.b	'DA ENTER',0
+g2log_msg_da_wait_ok	dc.b	'DA WAIT OK',0
+g2log_msg_da_calc1_b	dc.b	'DA CALC1 BEFORE',0
+g2log_msg_da_calc1_ok	dc.b	'DA CALC1 OK',0
+g2log_msg_da_draw1_b	dc.b	'DA DRAW1 BEFORE',0
+g2log_msg_da_draw1_ok	dc.b	'DA DRAW1 OK',0
+g2log_msg_da_blit1_b	dc.b	'DA BLIT1 BEFORE',0
+g2log_msg_da_blit1_ok	dc.b	'DA BLIT1 OK',0
+g2log_msg_da_calc2_b	dc.b	'DA CALC2 BEFORE',0
+g2log_msg_da_calc2_ok	dc.b	'DA CALC2 OK',0
+g2log_msg_da_draw2_b	dc.b	'DA DRAW2 BEFORE',0
+g2log_msg_da_draw2_ok	dc.b	'DA DRAW2 OK',0
+g2log_msg_da_blit2_b	dc.b	'DA BLIT2 BEFORE',0
+g2log_msg_da_blit2_ok	dc.b	'DA BLIT2 OK',0
+g2log_msg_da_wait2_b	dc.b	'DA WAIT2 BEFORE',0
+g2log_msg_da_wait2_ok	dc.b	'DA WAIT2 OK',0
+g2log_msg_da_doc2p_b	dc.b	'DA DOC2P BEFORE',0
+g2log_msg_da_doc2p_ok	dc.b	'DA DOC2P OK',0
+g2log_msg_da_db_b	dc.b	'DA DB BEFORE',0
+g2log_msg_da_db_ok	dc.b	'DA DB OK',0
+g2log_msg_da_exit	dc.b	'DA EXIT',0
+g2log_msg_ds_enter	dc.b	'DS ENTER',0
+g2log_msg_ds_cast_b	dc.b	'DS CAST BEFORE',0
+g2log_msg_ds_cast_ok	dc.b	'DS CAST OK',0
+g2log_msg_ds_render_b	dc.b	'DS RENDER BEFORE',0
+g2log_msg_ds_render_ok	dc.b	'DS RENDER OK',0
+g2log_msg_ds_roof_b	dc.b	'DS ROOF BEFORE',0
+g2log_msg_ds_roof_ok	dc.b	'DS ROOF OK',0
+g2log_msg_ds_floor_b	dc.b	'DS FLOOR BEFORE',0
+g2log_msg_ds_floor_ok	dc.b	'DS FLOOR OK',0
+g2log_msg_ds_shapes_b	dc.b	'DS SHAPES BEFORE',0
+g2log_msg_ds_shapes_ok	dc.b	'DS SHAPES OK',0
+g2log_msg_ds_blood_b	dc.b	'DS BLOOD BEFORE',0
+g2log_msg_ds_blood_ok	dc.b	'DS BLOOD OK',0
+g2log_msg_ds_pixel_b	dc.b	'DS PIXEL BEFORE',0
+g2log_msg_ds_pixel_ok	dc.b	'DS PIXEL OK',0
+g2log_msg_ds_exit	dc.b	'DS EXIT',0
+	even
+
+	even
 
 ; v141: small binary PROGDIR:gloom.cfg persistence.
 ; Header is exactly "GLMCFG" followed by a version word. v190eb writes version 3.
@@ -25226,8 +25475,3 @@ g2embed_zm_title_pal
 	dc.b	$06,$51,$0b,$6d,$0d,$dc,$04,$1a,$06,$40,$01,$78,$09,$76,$01,$d5
 g2embed_zm_title_pal_end
 
-
-	even
-; v190hx9: scratch copy of chunky top 320x32 strip while drawing fixed HUD.
-g2hud_saved_top_chunky	ds.b	320*32
-	even

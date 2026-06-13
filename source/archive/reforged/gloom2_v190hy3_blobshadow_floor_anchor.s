@@ -10058,9 +10058,6 @@ drawobjtrans	;draw transparent object (merge both colours!)
 	move.l	planar_remap(pc),a5	;remap RGB->LUT
 	move.l	planar_palette,a6
 	;
-	; v190hy4: blob shadows must be behind the sprite column.
-	; Reflections stay after the sprite via g2_draw_reflection_column_after_sprite.
-	bsr	g2_draw_blob_column_before_sprite
 .vloop	move.b	0(a3,d1),d5
 	beq.s	.skip
 	;
@@ -10082,7 +10079,7 @@ drawobjtrans	;draw transparent object (merge both colours!)
 	addx	d0,d1	;xtend
 	add.l	d7,a4
 	dbf	d4,.vloop
-	bsr	g2_draw_reflection_column_after_sprite	;v190hy4: reflections only after sprite
+	bsr	g2_draw_enemy_blob_column	;v173 reflections below transparent/invisible pickups too
 	;
 	movem.l	(a7)+,d0-d5/a5-a6
 	;
@@ -10124,15 +10121,13 @@ drawobjnorm	;normal draw object...
 	sub	d6,d1
 	add.l	d6,d1
 	;
-	; v190hy4: draw enemy blob shadow before sprite pixels so feet/gore stay on top.
-	bsr	g2_draw_blob_column_before_sprite
 .vloop	move.b	0(a3,d1),d5
 	beq.s	.skip
 	move.b	0(a2,d5),(a4)
 .skip	addx.l	d6,d1	;next src Y
 	add.l	d7,a4
 	dbf	d4,.vloop
-	bsr	g2_draw_reflection_column_after_sprite	;v190hy4: reflections only after sprite
+	bsr	g2_draw_enemy_blob_column	;v126 hard-edged dark column below enemy feet
 	;
 	movem.l	(a7)+,d0-d1/d4-d5
 	;
@@ -10535,20 +10530,6 @@ g2_reflect_dark_rgb
 	dc	$520,$040,$030,$404,$404,$520,$040,$030	; v190du: weapon 4 colour only matches weapon 5
 g2_reflect_rgb
 	dc	$960,$0a0,$6f6,$66f,$a0a,$960,$0a0,$6f6
-
-g2_draw_blob_column_before_sprite
-	cmp	#1,g2_shadow_active
-	bne.s	.rts
-	bsr	g2_draw_enemy_blob_column
-.rts	rts
-
-; v190hy4: reflections still need the old after-sprite path because projectile
-; reflections use a4/the sprite underside as their relative floor anchor.
-g2_draw_reflection_column_after_sprite
-	cmp	#2,g2_shadow_active
-	bne.s	.rts
-	bsr	g2_draw_enemy_blob_column
-.rts	rts
 
 g2_draw_enemy_blob_column
 	; called from drawobjnorm/drawobjtrans after the current sprite column was drawn.
