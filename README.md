@@ -31,49 +31,29 @@ The project will proceed step by step, with stability and authenticity taking pr
    Fixed startup/Guru issues and turned it into a usable standalone source base.
 2. **Fixed Devpac/assembler issues**
    Corrected branch range problems, oversized `bsr` jumps, and other build errors.
-3. **Centered the screen output properly**
-   The game screen is now correctly centered; screen position 40 became the good anchor.
-4. **Fixed wrong colors caused by bitplane/stride issues**
+3. **Fixed wrong colors caused by bitplane/stride issues**
    The incorrect 256-line stride approach was discarded; the compact 240-line plane span is the correct path.
-5. **Restored correct texture rendering**
+4. **Restored correct texture rendering**
    Wall and level graphics now render properly in the `gloom2.s` path, without distortion or wrong colors.
-6. **Made the level playable again**
+5. **Made the levels playable again**
    Movement, collision, and the main gameplay path are working again in the new `gloom2.s` version.
-7. **Fixed menu/ESC behavior**
+6. **Fixed menu/ESC behavior**
    The menu now opens cleanly with a single ESC press instead of causing repeated or broken behavior.
-8. **Reworked weapon, muzzleflash, and HUD handling**
+7. **Reworked weapon, muzzleflash, and HUD handling**
    Weapon placement, gunbob, projectile origin, muzzleflash size, status bar elements, and health bar alignment were improved.
-9. **Improved blood splatter / messy effects**
+8. **Improved blood splatter / messy effects**
    Blood splatter effects work again and were moved closer to the intended original look.
-10. **Reworked distance fog / far rendering**
-    Current focus: smoother distance darkening, fewer harsh shading steps, stronger fade-out after roughly six texture widths, and dark far corridors instead of fully black gaps.
+9. **Reworked distance fog / far rendering**
+   Current focus: smoother distance darkening, fewer harsh shading steps, stronger fade-out after roughly six texture widths, and dark far corridors instead of fully black gaps.
+10. **Reworked renderer**
+    Bayer dithering was added to the hard transitions between lighter and darker shading for softer transitions.
 
 
 ## Screenshots
 
-### Revised renderer
-
-- More depth
-- Depth fog softly blends in
-- Bayer dithering for better transitions
-
 <p align="center">
-<img width="867" height="647" alt="image" src="https://github.com/user-attachments/assets/78e7cc21-75ef-4ad2-9281-96649b3e8c63" />
+   
 </p>
-
-<details>
-<summary> more Screenshots</summary>
-
-<p align="center">
-<br/>
-<img width="1026" height="800" alt="image" src="https://github.com/user-attachments/assets/885a5c9a-4c3b-48c2-b75d-d99f79149a65" />
-
-<img width="1026" height="800" alt="image" src="https://github.com/user-attachments/assets/3a7ae507-4b8d-4650-890e-ff2bb23609fa" />
-
-<img width="1026" height="800" alt="image" src="https://github.com/user-attachments/assets/f80e473c-04c7-452b-a747-42169354db2a" />
-</p>
-</details>
-
 
 ## Release
 
