@@ -52,7 +52,14 @@ The project will proceed step by step, with stability and authenticity taking pr
 ## Screenshots
 
 <p align="center">
-   
+<img width="800" height="600" alt="image" src="https://github.com/user-attachments/assets/9798e255-de1e-4cf4-8de6-82639863d55a" />
+<img width="800" height="600" alt="image" src="https://github.com/user-attachments/assets/63560c87-a0ca-4136-bca9-5e43aa91043f" />
+<img width="800" height="600" alt="image" src="https://github.com/user-attachments/assets/d1441ec6-9a27-436b-8421-62e479a04205" />
+<img width="800" height="600" alt="image" src="https://github.com/user-attachments/assets/43d3c228-81cf-4844-bb5c-053d2616e79c" />
+<img width="800" height="600" alt="image" src="https://github.com/user-attachments/assets/544b011a-02b5-41ec-bfee-0858a7f4df2b" />
+<img width="800" height="600" alt="image" src="https://github.com/user-attachments/assets/de284e60-e5aa-4d4a-a2e0-eda331296848" />
+<img width="800" height="600" alt="image" src="https://github.com/user-attachments/assets/b30aaffe-983b-449c-bae6-619b5711af32" />
+
 </p>
 
 ## Release
