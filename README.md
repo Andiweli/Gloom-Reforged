@@ -17,10 +17,11 @@ The goal is *not* to turn Gloom into a completely different engine, but to moder
 - [x] Improved keyboard and mouse controls for a smoother FPS-style experience
 - [x] Integrating new options in the ingame-menu
 - [x] Improved render depth for far areas (to possibly avoid banding)
-- [ ] Faster and cleaner loading behaviour compared to the current source build
-- [ ] Optional visual enhancements such as muzzle flashes, atmospheric effects and subtle dynamic lighting
-- [ ] Keeping compatibility with real Amiga systems as a priority, not only emulators
+- [x] Optional visual enhancements such as muzzle flashes, atmospheric effects and subtle dynamic lighting
+- [x] Keeping compatibility with real Amiga systems as a priority, not only emulators
 - [x] Maintaining the original Gloom gameplay structure, assets and atmosphere as the foundation
+- [x] Compatibility to Gloom Deluxe, Gloom 3 and Zombie Massacre *(Gloom has other assets, no gun, other statusbar, etc)*
+- [ ] Graphicscard/P96 compatibility
 
 The project will proceed step by step, with stability and authenticity taking priority over feature creep. Each improvement should feel like something that could have belonged in a polished Amiga-era enhanced edition of Gloom.
 
@@ -50,17 +51,33 @@ The project will proceed step by step, with stability and authenticity taking pr
 
 ## Screenshots
 
+### Revised renderer
+
+- More depth
+- Depth fog softly blends in
+- Bayer dithering for better transitions
+
 <p align="center">
+<img width="867" height="647" alt="image" src="https://github.com/user-attachments/assets/78e7cc21-75ef-4ad2-9281-96649b3e8c63" />
+</p>
+
+<details>
+<summary> more Screenshots</summary>
+
+<p align="center">
+<br/>
 <img width="1026" height="800" alt="image" src="https://github.com/user-attachments/assets/885a5c9a-4c3b-48c2-b75d-d99f79149a65" />
 
 <img width="1026" height="800" alt="image" src="https://github.com/user-attachments/assets/3a7ae507-4b8d-4650-890e-ff2bb23609fa" />
 
 <img width="1026" height="800" alt="image" src="https://github.com/user-attachments/assets/f80e473c-04c7-452b-a747-42169354db2a" />
 </p>
+</details>
+
 
 ## Release
 
-As soon as there is a stable basic version available. 
+Look at the [Release section](https://github.com/Andiweli/GloomReforged/releases).
 
 ## Legal / Source Code Notice
 
