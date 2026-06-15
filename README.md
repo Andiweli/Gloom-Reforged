@@ -10,6 +10,11 @@ That repository serves as the clean reference base from which this project is be
 
 The goal is *not* to turn Gloom into a completely different engine, but to modernize and improve it where it makes sense on real Amiga hardware, while preserving the look, feel, speed, atmosphere, and gameplay identity of the classic release.
 
+> [!NOTE]
+> AGA only, so if you try on other than A1200/A4000 it won't work.
+> If you expect AAA PC shadows and reflections you might be disappointed, we are still talking about Gloom, the Engine is the same as in the 90s. It's blog-shadows and "reflection-ish" colored dots on the floor.
+> And of course it needs more power than the old one because of the changes. So don't expect it works better than original Gloom.
+
 ## Planned scope includes
 
 - [x] Bug fixes for the original source code in gloom2.s
