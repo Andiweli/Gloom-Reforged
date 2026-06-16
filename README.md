@@ -12,7 +12,7 @@ The goal is *not* to turn Gloom into a completely different engine, but to moder
 
 > [!WARNING]
 > - **AGA only**, so if you try on other than A1200/A4000 it won't work 🙂  
-> - If you expect AAA PC shadows and reflections you might be disappointed, we are still talking about Gloom, the Engine is the same as in the 90s. It's blog-shadows and "reflection-ish" colored dots on the floor *(see screenshot 4 and 5)*.  
+> - If you expect AAA PC shadows and reflections you might be disappointed, we are still talking about Gloom, the Engine is the same as in the 90s. It has optional blob-shadows and "reflection-ish" colored dots on the floor *(see screenshot 4 and 5)*.  
 > - And of course it needs more power than the old one because of the changes. So don't expect it works better than original Gloom.  
 > - And this is only compatible and tested with PiStorm32 - it might/might not work on other hardware constellations.
 
