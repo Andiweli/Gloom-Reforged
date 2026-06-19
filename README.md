@@ -19,11 +19,10 @@ The goal is *not* to turn Gloom into a completely different engine, but to moder
 ## Planned scope includes
 
 - [x] Bug fixes for the original source code in gloom2.s
-- [x] Integrating the health/weapon-bar and gun/muzzleflash graphics
+- [x] Integrating an universal health/weapon-bar 
 - [x] Improved keyboard and mouse controls for a smoother FPS-style experience
-- [x] Integrating new options in the ingame-menu
-- [x] Improved render depth for far areas (to possibly avoid banding)
-- [x] Optional visual enhancements such as muzzle flashes, atmospheric effects and subtle dynamic lighting
+- [x] Integrating new options in the ingame-menu (cheats, subtle reflections and blob-shadows)
+- [x] Improved render depth for far areas (including Bayer-dithering to avoid banding)
 - [x] Keeping compatibility with real Amiga systems as a priority, not only emulators
 - [x] Maintaining the original Gloom gameplay structure, assets and atmosphere as the foundation
 - [x] Compatibility to Gloom Deluxe, Gloom 3 and Zombie Massacre *(Gloom has other assets, no gun, other statusbar, etc)*
