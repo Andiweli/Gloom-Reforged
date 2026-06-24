@@ -19,7 +19,7 @@
 	;gloom2p96_c51: taller 48px direct RGB24 bottom probe, no extra bottom buffer.
 	;gloom2p96_c59: re-enable P96 after two-player fixes; keep P96 skipped during TWO PLAYER.
 	;gloom2p96_c60b: safe rollback from c60/c60a static ARGB startup probe crash; back to c59 P96 path.
-	;gloom2p96_c86zc7: rollback to c86zc4 enemy reflections, wall reflections off, no dark remap; less dither/more stable pixels near the floor seam.
+	;gloom2p96_c86p: c86o + 2P teleport duration match + floor/ceiling cfg mirror/save fix.
 	;
 	;6 bitplanes for ECS, 8 for AGA
 	;
@@ -1216,8 +1216,8 @@ dogamemenu	;
 	jsr	dispoff
 	jsr	finitmenu
 	jsr	g2v190aj_restore_game_palette	; restore gameplay palette after grey/font menu palette
-	jsr	clspic
-	jsr	clspic
+	bsr	clspic
+	bsr	clspic
 	jsr	dispon
 .findone
 	;
@@ -3890,161 +3890,6 @@ g2fill_void_fog_remaining
 	movem.l	(a7)+,d0-d7/a0-a6
 	rts
 
-; c86zc1: experimental full weak wall reflection.
-; This starts over from the good c86zb3 enemy-reflection anchor instead of
-; reusing the problematic wall-depth test branch.  Each solid rendered wall
-; column is mirrored below its own visible foot.  The reflection is deliberately
-; very weak: roughly 20 percent of the source pixels survive through ordered
-; dither, fading further with depth and down the mirrored tail.  Source pixels
-; stay palette-correct because they are sampled from the already rendered
-; chunky wall column; no new colour mapping is attempted here.
-g2_draw_wall_reflection_lite
-	movem.l	d0-d7/a0-a6,-(a7)
-	move.l	chunky(pc),a2
-	tst.l	a2
-	beq.w	.done
-	move	floorflag(pc),d0
-	ble.w	.done
-	move.l	vertdraws(pc),a0
-	lea	coloffs(pc),a1
-	move	width(pc),d7
-	beq.w	.done
-	subq	#1,d7
-	clr	d4		; screen X for stable Bayer phase
-.col_loop
-	tst.l	vd_data(a0)
-	beq	.col_next
-	move	vd_y(a0),d0
-	add	midy(pc),d0		; visible wall top on screen
-	move	vd_h(a0),d1
-	ble	.col_next
-	add	d0,d1
-	subq	#1,d1		; visible wall foot/bottom row
-	cmp	midy(pc),d1
-	blt	.col_next		; only mirror walls reaching the floor half
-	move	hite(pc),d2
-	sub	#8,d2		; safe last destination row
-	move	d1,d3
-	addq	#1,d3		; first destination row below wall foot
-	cmp	d2,d3
-	bge	.col_next		; no visible floor room below the wall foot
-	; c86zc2: distance-building wall reflection height.  The previous full-weak
-	; test mirrored too tall at every distance.  Now the wanted depth is driven
-	; by the visible wall height, but with strong distance caps: far walls only
-	; get a very shallow reflection, approaching walls can build higher.
-	move	vd_h(a0),d6
-	asr	#3,d6		; visible wall height / 8 -> DBF-ish reflection depth
-	cmp	#1,d6
-	bge.s	.depth_min_ok
-	moveq	#1,d6		; minimum 2 visible rows when reflection exists
-.depth_min_ok
-	move	vd_z(a0),d5
-	tst	g2_visibility
-	bgt.s	.depth_adv
-	cmp	#(1<<grdshft),d5
-	blo.s	.depth_near
-	cmp	#(2<<grdshft),d5
-	blo.s	.depth_mid
-	moveq	#2,d5		; far: max 3 rows
-	bra.s	.depth_cap_apply
-.depth_mid
-	moveq	#8,d5		; medium: max 9 rows
-	bra.s	.depth_cap_apply
-.depth_near
-	moveq	#19,d5		; near: max 20 rows
-	bra.s	.depth_cap_apply
-.depth_adv
-	cmp	#(2<<grdshft),d5
-	blo.s	.depth_near
-	cmp	#(4<<grdshft),d5
-	blo.s	.depth_mid
-	moveq	#2,d5		; far advanced: max 3 rows
-.depth_cap_apply
-	cmp	d5,d6
-	ble.s	.depth_cap_ok
-	move	d5,d6
-.depth_cap_ok
-	cmp	#1,d6
-	bge.s	.depth_floor_ok
-	moveq	#1,d6
-.depth_floor_ok
-	move	d2,d5
-	sub	d3,d5		; available DBF count below wall foot
-	cmp	d5,d6
-	ble.s	.depth_avail_ok
-	move	d5,d6
-.depth_avail_ok
-	cmp	#0,d6
-	blt	.col_next
-	move.l	(a1),d5		; chunky X offset for this column
-	move	d1,d2
-	mulu	chunkymodw(pc),d2
-	move.l	a2,a3
-	add.l	d5,a3
-	add.l	d2,a3		; source starts at rendered wall foot
-	move	d3,d2
-	mulu	chunkymodw(pc),d2
-	move.l	a2,a4
-	add.l	d5,a4
-	add.l	d2,a4		; destination starts below wall foot
-	moveq	#0,d5		; reflection row index
-.row_loop
-	; about 80 percent weaker than a 1:1 copy: sparse top, sparser tail.
-	moveq	#4,d3		; top: clearer at the wall foot
-	cmp	#4,d5
-	blt.s	.have_thr
-	moveq	#2,d3		; early fade down
-	cmp	#10,d5
-	blt.s	.have_thr
-	moveq	#1,d3		; coarse tail
-.have_thr
-	; distance/fog also thins the reflected wall columns.
-	move	vd_z(a0),d1
-	tst	g2_visibility
-	bgt.s	.fog_adv
-	cmp	#(4<<grdshft),d1
-	blo.s	.fog_done
-	sub	#(4<<grdshft),d1
-	lsr	#6,d1
-	sub	d1,d3
-	bra.s	.fog_done
-.fog_adv
-	lsr	#7,d1
-	sub	d1,d3
-.fog_done
-	tst	d3
-	bgt.s	.fog_keep
-	bra	.skip_px
-.fog_keep
-	move	d4,d0
-	and	#3,d0
-	move	d5,d1
-	and	#3,d1
-	lsl	#2,d1
-	add	d0,d1
-	lea	g2_enemy_ref_bayer4(pc),a5
-	moveq	#0,d0
-	move.b	0(a5,d1.w),d0
-	cmp	d3,d0
-	bge.s	.skip_px
-	moveq	#0,d0
-	move.b	(a3),d0
-	beq.s	.skip_px
-	move.b	d0,(a4)
-.skip_px
-	add.l	chunkymod(pc),a4
-	sub.l	chunkymod(pc),a3
-	addq	#1,d5
-	dbf	d6,.row_loop
-.col_next
-	addq	#1,d4
-	lea	vd_size(a0),a0
-	addq.l	#4,a1
-	dbf	d7,.col_loop
-.done
-	movem.l	(a7)+,d0-d7/a0-a6
-	rts
-
 g2tint_lut	ds.b	256
 	even
 
@@ -5219,10 +5064,6 @@ drawscene	;a5=player
 	subq	#1,d7
 	jsr	g2fill_disabled_flat_fog
 .nofloor	;
-	; c86zc1: full weak wall-reflection test.  Run after floor/ceiling so the
-	; sparse reflected pixels sit on top of the floor, but before sprites/blood.
-	; c86zc4: wall reflections removed again.  Keep the wall-reflection routine
-	; in the source for possible later experiments, but do not call it now.
 	; v190bd: after floor/ceiling, fill any still-empty no-wall columns with
 	; a global dark wall fog colour sampled earlier from a far wall.  This
 	; keeps very long corridor openings dark instead of black, without
@@ -10200,83 +10041,7 @@ drawsolidstrip	macro
 .rts	;
 	endm
 
-; c86zb1: build a simple per-column nearest transparent-strip cover table
-; before drawing shapes.  Enemy floor reflections can then be suppressed while
-; the enemy is still behind a nearer door/window/transparent strip.
-g2_build_reflect_coverz
-	movem.l	d0-d3/a0-a2,-(a7)
-	lea	g2_reflect_coverz(pc),a0
-	move	#319,d0
-	move	#32767,d1
-.g2c86zb1_clr
-	move	d1,(a0)+
-	dbf	d0,.g2c86zb1_clr
-	lea	shapelist(pc),a2
-.g2c86zb1_scan
-	move.l	(a2),d0
-	beq.s	.g2c86zb1_done
-	move.l	d0,a2
-	tst.l	sh_shape(a2)
-	bne.s	.g2c86zb1_scan	; only transparent wall strips have sh_shape=0
-	move	sh_x(a2),d1
-	add	midx(pc),d1
-	bmi.s	.g2c86zb1_scan
-	cmp	width(pc),d1
-	bge.s	.g2c86zb1_scan
-	add	d1,d1
-	lea	g2_reflect_coverz(pc),a0
-	move	0(a0,d1.w),d2
-	move	sh_z(a2),d3
-	cmp	d2,d3
-	bge.s	.g2c86zb1_scan	; keep nearest/smallest Z only
-	move	d3,0(a0,d1.w)
-	bra.s	.g2c86zb1_scan
-.g2c86zb1_done
-	movem.l	(a7)+,d0-d3/a0-a2
-	rts
-
-; return d0=1 if the current enemy centre column is still behind a nearer
-; transparent strip/door/window, so its floor reflection should stay hidden.
-g2_enemy_reflection_blocked_by_cover
-	moveq	#0,d0
-	move	g2_enemy_ref_cx(pc),d1
-	bmi.s	.rts
-	cmp	width(pc),d1
-	bge.s	.rts
-	add	d1,d1
-	lea	g2_reflect_coverz(pc),a0
-	move	0(a0,d1.w),d1
-	cmp	#32767,d1
-	beq.s	.rts
-	cmp	d2,d1
-	bge.s	.rts		; strip is not nearer than the enemy
-	moveq	#1,d0
-.rts	rts
-
-; c86zb3: stricter runtime cover test for the actual reflection column.
-; The c86zb1 centre-column test can miss partially covered enemies behind
-; windows or half-transparent doors.  This one runs inside the reflection
-; draw path and suppresses each covered column independently.
-g2_enemy_reflection_current_column_blocked
-	movem.l	d1/a0,-(a7)
-	moveq	#0,d0
-	move	g2_enemy_ref_curx(pc),d1
-	bmi.s	.rts
-	cmp	width(pc),d1
-	bge.s	.rts
-	add	d1,d1
-	lea	g2_reflect_coverz(pc),a0
-	move	0(a0,d1.w),d1
-	cmp	#32767,d1
-	beq.s	.rts
-	cmp	g2_enemy_ref_z(pc),d1
-	bge.s	.rts		; cover is not nearer than the enemy
-	moveq	#1,d0
-.rts	movem.l	(a7)+,d1/a0
-	rts
-
-drawshapes	bsr	g2_build_reflect_coverz
-	lea	shapelist(pc),a6
+drawshapes	lea	shapelist(pc),a6
 	;
 .drawloop	move.l	(a6),d0
 	beq	.rts
@@ -10547,7 +10312,6 @@ drawshapes	bsr	g2_build_reflect_coverz
 	;
 	jsr	(a3)	;drawobjnorm/invs
 	clr	g2_shadow_active	;v126 shadow state belongs to this one sprite
-	clr	g2_enemy_ref_active	;c86r separate enemy reflection state
 	;
 	move.l	(a7)+,a6
 	bra	.drawloop
@@ -10651,10 +10415,7 @@ drawobjtrans	;draw transparent object (merge both colours!)
 .zbad	tst	g2_shadow_active
 	ble.s	.noshinc
 	addq	#1,g2_shadow_curx
-.noshinc	tst	g2_enemy_ref_active
-	ble.s	.noerinc
-	addq	#1,g2_enemy_ref_curx
-.noerinc	add.l	d5,d0
+.noshinc	add.l	d5,d0
 	moveq	#0,d7
 	addx.l	d7,d0	;next src X
 	lea	vd_size(a6),a6
@@ -10704,10 +10465,7 @@ drawobjnorm	;normal draw object...
 .zbad	tst	g2_shadow_active
 	ble	.noshinc
 	addq	#1,g2_shadow_curx
-.noshinc	tst	g2_enemy_ref_active
-	ble.s	.noerinc
-	addq	#1,g2_enemy_ref_curx
-.noerinc	add.l	d5,d0
+.noshinc	add.l	d5,d0
 	moveq	#0,d7
 	addx.l	d7,d0	;next src X
 	lea	vd_size(a6),a6
@@ -10755,7 +10513,6 @@ thermostrip	movem.l	d0-d2/d4-d5,-(a7)
 g2_setup_enemy_blob_column
 	movem.l	d0-d7/a0-a2,-(a7)
 	clr	g2_shadow_active
-	clr	g2_enemy_ref_active	;c86r reflection state is separate from blob shadows
 	move.l	sh_prev(a6),a2	;object owner copied when shape was queued
 	tst.l	a2
 	beq	.done
@@ -10804,15 +10561,6 @@ g2_setup_enemy_blob_column
 	beq	.setup_reflection
 	cmp.l	#invincgot,d0
 	beq	.setup_reflection
-	; c86r: living enemies may get a weak mirrored floor reflection.
-	; This state is separate from blob shadows so BLOB SHADOW colour/path stays unchanged.
-	tst	ob_colltype(a2)
-	bne	.try_blob
-	tst	ob_hitpoints(a2)
-	ble	.try_blob
-	cmp	#3<<grdshft,d2
-	bgt	.try_blob
-	bsr	g2_prepare_enemy_reflection_safe
 	bra	.try_blob
 	;
 .setup_reflection
@@ -10892,190 +10640,6 @@ g2_setup_enemy_blob_column
 	move	#1,g2_shadow_active
 .done	movem.l	(a7)+,d0-d7/a0-a2
 	rts
-
-; c86y: safe mirrored enemy floor reflection; keep proven air-gap floor start.
-; This intentionally does not reuse g2_shadow_active, g2_shadow_col or the blob
-; draw routine.  The previous c86q attempt mixed these paths and could recolour
-; blob shadows or read past sprite data.
-g2_prepare_enemy_reflection_safe
-	; d7=start screen column, d3=visible clipped sprite width, d4=visible height, d2=depth
-	move	d2,g2_enemy_ref_z	;c86zb3 keep enemy depth for per-column cover blocking
-	move	d7,g2_enemy_ref_curx
-	move	d7,d0
-	move	d3,d1
-	lsr	#1,d1
-	add	d1,d0
-	move	d0,g2_enemy_ref_cx
-	move	d3,d0
-	lsr	#1,d0
-	cmp	#4,d0
-	bge.s	.rx_min_ok
-	moveq	#4,d0
-.rx_min_ok
-	cmp	#28,d0
-	ble.s	.rx_max_ok
-	moveq	#28,d0
-.rx_max_ok
-	move	d0,g2_enemy_ref_rx
-	; c86zc2: full-but-weak enemy reflection now builds with distance.
-	; Keep the fuller silhouette when close, but avoid showing a tall reflection
-	; immediately at range.  Visible sprite height is still the base, then a
-	; distance cap controls how much of it can appear.
-	move	d4,d0
-	cmp	#2,d0
-	bge.s	.rh_min_ok
-	moveq	#2,d0
-.rh_min_ok
-	move	d2,d1
-	cmp	#(1<<grdshft),d1
-	blo.s	.rh_near
-	cmp	#(2<<grdshft),d1
-	blo.s	.rh_mid
-	moveq	#5,d1		; far: max 5 rows
-	bra.s	.rh_cap_apply
-.rh_mid
-	moveq	#12,d1		; medium: max 12 rows
-	bra.s	.rh_cap_apply
-.rh_near
-	moveq	#24,d1		; close: max 24 rows
-.rh_cap_apply
-	cmp	d1,d0
-	ble.s	.rh_max_ok
-	move	d1,d0
-.rh_max_ok
-	move	d0,g2_enemy_ref_h
-	; projected floor row, same anchor idea as confirmed blob shadows
-	move	camy(pc),d0
-	neg	d0
-	ext.l	d0
-	asl.l	#focshft,d0
-	divs	d2,d0
-	jsr	g2view_scale_y_d0
-	add	midy(pc),d0
-	cmp	#2,d0
-	blt.s	.no_ref
-	move	hite(pc),d1
-	sub	#12,d1
-	cmp	d1,d0
-	bgt.s	.no_ref
-	; c86za: keep the grounded enemy reflection from c86y, but suppress
-	; reflections for airborne/floating enemies entirely for now.  Their
-	; pointed/uneven lower silhouettes still looked wrong mirrored.
-	move	ob_y(a2),d1
-	bpl.s	.airgap_done
-	bra.s	.no_ref
-.airgap_done
-	move	hite(pc),d1
-	sub	#10,d1
-	cmp	d1,d0
-	bgt.s	.no_ref
-	move	d0,g2_enemy_ref_floorrow
-	bsr	g2_enemy_reflection_blocked_by_cover
-	tst	d0
-	bne.s	.no_ref
-	move	#1,g2_enemy_ref_active
-	rts
-.no_ref
-	clr	g2_enemy_ref_active
-	rts
-
-; Draw a weak mirrored column by sampling the already-rendered sprite column
-; above a4 and writing sparse/darkened pixels below the projected floor.
-; This is a conservative visual probe: no source-shape pointer, no palette pointer,
-; no blob-shadow colour reuse.
-g2_draw_enemy_mirror_reflection_safe
-	movem.l	d0-d7/a0-a3,-(a7)
-	tst	g2_enemy_ref_active
-	ble	.rts
-	move	g2_enemy_ref_curx(pc),d0
-	move	d0,d1
-	sub	g2_enemy_ref_cx(pc),d1
-	bpl.s	.abs_ok
-	neg	d1
-.abs_ok
-	move	g2_enemy_ref_rx(pc),d2
-	cmp	d2,d1
-	bgt	.rts
-	bsr	g2_enemy_reflection_current_column_blocked
-	tst	d0
-	bne	.rts
-	move.l	chunkymod(pc),d7
-	move.l	a4,a3
-	sub.l	d7,a3	; first source sample: bottom visible sprite pixel
-	move.l	chunky(pc),d0
-	move	g2_enemy_ref_curx(pc),d3
-	lsl	#2,d3
-	lea	coloffs(pc),a0
-	add.l	0(a0,d3.w),d0
-	move.l	d0,a0
-	move	g2_enemy_ref_floorrow(pc),d3
-	addq	#1,d3
-	mulu	chunkymodw(pc),d3
-	add.l	d3,a0
-	; status/gun safety limit
-	move.l	chunky(pc),d0
-	move	g2_enemy_ref_curx(pc),d3
-	lsl	#2,d3
-	lea	coloffs(pc),a1
-	add.l	0(a1,d3.w),d0
-	move.l	d0,a1
-	move	hite(pc),d3
-	sub	#10,d3
-	mulu	chunkymodw(pc),d3
-	add.l	d3,a1
-	move	g2_enemy_ref_h(pc),d6
-	subq	#1,d6
-	blt	.rts
-	moveq	#0,d5
-.yloop
-	cmp.l	a1,a0
-	bhi	.rts
-	; c86zc1: full but very weak enemy mirror.  The reflected silhouette is
-	; taller/more complete, but only about 20 percent of the pixels survive
-	; near the feet and less toward the tail.
-	moveq	#8,d4		; top: less dither / more stable near the feet
-	cmp	#3,d5
-	blt.s	.dither_pick
-	moveq	#5,d4		; early mid: still fuller than c86zc4
-	cmp	#8,d5
-	blt.s	.dither_pick
-	moveq	#3,d4		; lower: coarse fade
-	cmp	#14,d5
-	blt.s	.dither_pick
-	moveq	#1,d4		; tail: sparse end
-.dither_pick
-	move	g2_enemy_ref_curx(pc),d0
-	and	#3,d0
-	move	d5,d1
-	and	#3,d1
-	lsl	#2,d1
-	add	d0,d1
-	lea	g2_enemy_ref_bayer4(pc),a2
-	moveq	#0,d0
-	move.b	0(a2,d1.w),d0
-	cmp	d4,d0
-	bge	.next
-	moveq	#0,d0
-	move.b	(a3),d0
-	beq.s	.next
-	; sampled pixel is already in the final chunky palette.  Do not map it again,
-	; otherwise transparent/normal enemy columns can turn into wrong colours.
-	move.b	d0,(a0)
-.next
-	add.l	d7,a0
-	sub.l	d7,a3
-	addq	#1,d5
-	dbf	d6,.yloop
-.rts	movem.l	(a7)+,d0-d7/a0-a3
-	rts
-
-; c86w/c86y 4x4 ordered threshold table for enemy-reflection transparency.
-g2_enemy_ref_bayer4
-	dc.b	0,8,2,10,12,4,14,6,3,11,1,9,15,7,13,5
-
-; c86zb1: nearest transparent strip z per screen column.  Used to suppress
-; enemy floor reflections while the enemy is still behind a door/window/strip.
-g2_reflect_coverz	ds.w	320
 
 ; prepare coloured reflection under bullets or weapon pickups.
 ; active=2 means reflection, active=1 means enemy blob shadow.
@@ -11325,12 +10889,8 @@ g2_draw_blob_column_before_sprite
 ; reflections use a4/the sprite underside as their relative floor anchor.
 g2_draw_reflection_column_after_sprite
 	cmp	#2,g2_shadow_active
-	bne.s	.no_projectile_reflect
+	bne.s	.rts
 	bsr	g2_draw_enemy_blob_column
-.no_projectile_reflect
-	tst	g2_enemy_ref_active
-	ble.s	.rts
-	bsr	g2_draw_enemy_mirror_reflection_safe
 .rts	rts
 
 g2_draw_enemy_blob_column
@@ -15212,7 +14772,7 @@ pickcombat	;pick combat zone...
 	bne.s	.pick
 	moveq	#7,d0
 	move	d0,comsleft
-.pick	jsr	rndn
+.pick	bsr	rndn
 	lea	commaps(pc),a0
 	subq	#1,comsleft
 	move	comsleft(pc),d1
@@ -16757,15 +16317,6 @@ g2_reflect_floorrow	dc	0	;v181 absolute floor row for pickup/upgrade reflections
 g2_reflect_pickup	dc	0	;v169 current reflection owner is stationary pickup/powerup
 g2_reflect_softedge	dc	0	;v135 reflection-only edge feather/dither flag
 g2_reflect_edge_col	dc	0	;v137 lighter outer reflection colour
-g2_enemy_ref_active	dc	0	;c86r independent enemy mirror-reflection state
-g2_enemy_ref_curx	dc	0
-g2_enemy_ref_cx	dc	0
-g2_enemy_ref_rx	dc	0
-g2_enemy_ref_floorrow	dc	0
-g2_enemy_ref_h	dc	0
-g2_enemy_ref_z	dc	0	;c86zb3 enemy depth for per-column cover blocking
-g2_enemy_ref_srcidx	dc.l	0	;c86x source-mask index for uneven transparent sprite bottoms
-g2_enemy_ref_srcstep	dc.l	0	;c86x source-mask y step
 trainer_invincible	dc	0
 trainer_bouncy	dc	0
 trainer_onehit	dc	0	;0=NO, -1=YES one-shot enemy kills
@@ -18670,7 +18221,7 @@ p96winlog_skip_len	equ	*-p96winlog_skip
 ; preview into the already opened Workbench/P96 window every few frames.
 p96prevlog_name	dc.b	'RAM:gloom_p96_preview.txt',0
 	even
-p96prevlog_ok	dc.b	'P96 preview: c86zc1 P96 off full weak reflections test active',10
+p96prevlog_ok	dc.b	'P96 preview: c86p P96 off 2P teleport duration cfgfix active',10
 p96prevlog_ok_len	equ	*-p96prevlog_ok
 p96prevlog_skip	dc.b	'P96 preview: skipped, no window',10
 p96prevlog_skip_len	equ	*-p96prevlog_skip
