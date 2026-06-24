@@ -10,14 +10,19 @@ That repository serves as the clean reference base from which this project is be
 
 The goal is *not* to turn Gloom into a completely different engine, but to modernize and improve it where it makes sense on real Amiga hardware, while preserving the look, feel, speed, atmosphere, and gameplay identity of the classic release.
 
+> [!WARNING]
+> - **AGA only**, so if you try on other than A1200/A4000 it won't work. I heard some people wondered it doesn't work on A500 🙂  
+> - If you expect AAA PC shadows and reflections you might be disappointed, we are still talking about Gloom, the Engine is the same as in the 90s. It has optional blob-shadows and "reflection-ish" colored dots on the floor *(see screenshot 4 and 5)*. If you want PC-quality-Gloom try [ZGLOOM](https://github.com/Andiweli?tab=repositories&q=ZGLOOM&type=&language=&sort=).  
+> - And of course it needs more power than the old one because of the changes. So don't expect it works better than original Gloom or even fullscreen on 68020.  
+> - And this is only compatible and tested with PiStorm32 and Amiga OS 3.2.3 - it might/might not work on other hardware/software constellations.
+
 ## Planned scope includes
 
 - [x] Bug fixes for the original source code in gloom2.s
-- [x] Integrating the health/weapon-bar and gun/muzzleflash graphics
+- [x] Integrating an universal health/weapon-bar 
 - [x] Improved keyboard and mouse controls for a smoother FPS-style experience
-- [x] Integrating new options in the ingame-menu
-- [x] Improved render depth for far areas (to possibly avoid banding)
-- [x] Optional visual enhancements such as muzzle flashes, atmospheric effects and subtle dynamic lighting
+- [x] Integrating new options in the ingame-menu (cheats, subtle reflections and blob-shadows)
+- [x] Improved render depth for far areas (including Bayer-dithering to avoid banding)
 - [x] Keeping compatibility with real Amiga systems as a priority, not only emulators
 - [x] Maintaining the original Gloom gameplay structure, assets and atmosphere as the foundation
 - [x] Compatibility to Gloom Deluxe, Gloom 3 and Zombie Massacre *(Gloom has other assets, no gun, other statusbar, etc)*
