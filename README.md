@@ -18,14 +18,14 @@ The goal is *not* to turn Gloom into a completely different engine, but to moder
 
 ## Planned scope includes
 
-- [x] Bug fixes for the original source code in gloom2.s
-- [x] Integrating an universal health/weapon-bar 
+- [x] Bug fixes for the original source code in gloom2.s as only the gloom.s code was 99% complete
 - [x] Improved keyboard and mouse controls for a smoother FPS-style experience
-- [x] Integrating new options in the ingame-menu (cheats, subtle reflections and blob-shadows)
 - [x] Improved render depth for far areas (including Bayer-dithering to avoid banding)
-- [x] Keeping compatibility with real Amiga systems as a priority, not only emulators
+- [x] Integrating new options in the ingame-menu (cheats, subtle reflections and blob-shadows)
+- [x] Integrating an universal health/weapon-bar 
 - [x] Maintaining the original Gloom gameplay structure, assets and atmosphere as the foundation
 - [x] Compatibility to Gloom Deluxe, Gloom 3 and Zombie Massacre *(Gloom has other assets, no gun, other statusbar, etc)*
+- [x] Keeping compatibility with real Amiga systems as a priority, not only emulators
 - [ ] Graphicscard/P96 compatibility
 
 The project will proceed step by step, with stability and authenticity taking priority over feature creep. Each improvement should feel like something that could have belonged in a polished Amiga-era enhanced edition of Gloom.
@@ -33,26 +33,26 @@ The project will proceed step by step, with stability and authenticity taking pr
 ## Most critical changes so far
 
 1. **Made `gloom2.s` bootable again**
-   Fixed startup/Guru issues and turned it into a usable standalone source base.
-2. **Fixed Devpac/assembler issues**
-   Corrected branch range problems, oversized `bsr` jumps, and other build errors.
-3. **Fixed wrong colors caused by bitplane/stride issues**
+   Fixed startup/Guru issues and turned it into a usable standalone source base, some issues are still persistent.
+2. **Fixed wrong colors caused by bitplane/stride issues**
    The incorrect 256-line stride approach was discarded; the compact 240-line plane span is the correct path.
-4. **Restored correct texture rendering**
+3. **Restored correct texture rendering**
    Wall and level graphics now render properly in the `gloom2.s` path, without distortion or wrong colors.
-5. **Made the levels playable again**
-   Movement, collision, and the main gameplay path are working again in the new `gloom2.s` version.
-6. **Fixed menu/ESC behavior**
+4. **Fixed menu/ESC behavior**
    The menu now opens cleanly with a single ESC press instead of causing repeated or broken behavior.
-7. **Reworked weapon, muzzleflash, and HUD handling**
+5. **Reworked weapon, muzzleflash, and HUD handling**
    Weapon placement, gunbob, projectile origin, muzzleflash size, status bar elements, and health bar alignment were improved.
-8. **Improved blood splatter / messy effects**
+6. **Improved blood splatter / messy effects**
    Blood splatter effects work again and were moved closer to the intended original look.
-9. **Reworked distance fog / far rendering**
+7. **Reworked distance fog / far rendering**
    Current focus: smoother distance darkening, fewer harsh shading steps, stronger fade-out after roughly six texture widths, and dark far corridors instead of fully black gaps.
-10. **Reworked renderer**
+8. **Reworked renderer**
     Bayer dithering was added to the hard transitions between lighter and darker shading for softer transitions.
 
+## Known issues
+
+- TWO PLAYER COMBAT crashes when used more than once in a gaming session (worked only on gloom.s but not gloom2.s)
+- Display or loading errors on specific hardware configurations
 
 ## Screenshots
 
