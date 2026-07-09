@@ -26,7 +26,8 @@ The goal is *not* to turn Gloom into a completely different engine, but to moder
 - [x] Maintaining the original Gloom gameplay structure, assets and atmosphere as the foundation
 - [x] Compatibility to Gloom Deluxe, Gloom 3 and Zombie Massacre *(Gloom has other assets, no gun, other statusbar, etc)*
 - [x] Keeping compatibility with real Amiga systems as a priority, not only emulators
-- [ ] Graphicscard/P96 compatibility
+- [x] Graphicscard/P96 compatibility (basic functionality)
+- [ ] Graphicscard/P96 full renderpath
 
 The project will proceed step by step, with stability and authenticity taking priority over feature creep. Each improvement should feel like something that could have belonged in a polished Amiga-era enhanced edition of Gloom.
 
