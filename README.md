@@ -52,6 +52,7 @@ The project will proceed step by step, with stability and authenticity taking pr
 ## Known issues
 
 - TWO PLAYER COMBAT crashes when used more than once in a gaming session (worked only on gloom.s but not gloom2.s)
+- REMOTE LINK OPTIONS crashes when selected after a game (not when started fresh)
 - Display or loading errors on specific hardware configurations
 
 ## Screenshots
