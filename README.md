@@ -6,9 +6,10 @@
 
 This project aims to build an enhanced Amiga version of Gloom, based on the original, unmodified source code published at [earok/GloomAmiga](https://github.com/earok/GloomAmiga).
 
-That repository serves as the clean reference base from which this project is being ported, reorganized, fixed, and carefully extended.
-
 The goal is *not* to turn Gloom into a completely different engine, but to modernize and improve it where it makes sense on real Amiga hardware, while preserving the look, feel, speed, atmosphere, and gameplay identity of the classic release.
+
+> [!NOTE]
+> Nine years ago, the Gloom (not Gloom Deluxe) source code was released. This fork/port is based on the Gloom source code and has been extended with features from the non-functional "gloom2.s". This source code was presumably intended as the basis for Gloom Deluxe, but it had texture rendering errors, no HUD, no P96, the combat mode was broken, and palettes were not displayed correctly.
 
 > [!WARNING]
 > - **AGA only**, so if you try on other than A1200/A4000 it won't work. I heard some people wondered it doesn't work on A500 🙂  
@@ -52,9 +53,8 @@ The project will proceed step by step, with stability and authenticity taking pr
 
 ## Known issues
 
-- TWO PLAYER COMBAT crashes when used more than once in a gaming session (worked only on gloom.s but not gloom2.s)
-- REMOTE LINK OPTIONS crashes when selected after a game (not when started fresh)
-- Display or loading errors on specific hardware configurations
+- TWO PLAYER COMBAT crashes when used more than once in a gaming session (worked only on gloom.s but not gloom2.s) - might remove it completely
+- REMOTE LINK OPTIONS crashes when selected after a game (not when started fresh) - might remove it completely
 
 ## Screenshots
 
