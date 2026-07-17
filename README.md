@@ -57,7 +57,7 @@ The project will proceed step by step, with stability and authenticity taking pr
 - Without a tool type, AGA mode is started
 - AGA = Start AGA mode
 - P96 = Use P96 graphics card mode (AGA as base)
-- 1:1 = 320x256 rendering (only in use with P96)
+- 5:4 = 320x256 rendering (only in use with P96)
 - WIDE = Widescreen is rendered at 400x240/428x240 (only in use with P96)
 - STRETCH = Stretched image to 400x240/428x240 (only in use with P96)
 - HIRES = Twice the resolution of the above, means 640x512, 800x480/854x480 (only in use with P96)
