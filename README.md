@@ -17,6 +17,21 @@ The goal is *not* to turn Gloom into a completely different engine, but to moder
 > - And of course it needs more power than the old one because of the changes. So don't expect it works better than original Gloom or even fullscreen on 68020.  
 > - And this is only compatible and tested with PiStorm32 and Amiga OS 3.2.3 - it might/might not work on other hardware/software constellations.
 
+## Features in this version
+
+- Blob shadows of enemies and body parts
+- Simple reflections of weapons and upgrades, as well as enemies and walls
+- Built-in cheat menu
+- Tool types for the various game options:
+  - Without a tool type, AGA mode is started
+  - AGA = Start AGA mode
+  - P96 = Use P96 graphics card mode (AGA as base)
+  - 1:1 = 320x256 rendering (only in use with P96)
+  - WIDE = Widescreen is rendered at 400x240/428x240 (only in use with P96)
+  - STRETCH = Stretched image to 400x240/428x240 (only in use with P96)
+  - HIRES = Twice the resolution of the above, means 640x512, 800x480/854x480 (only in use with P96)
+  - FPS = Displays a frame counter in the bottom right corner (Gloom caps at 25 FPS)
+
 ## Planned scope includes
 
 - [x] Bug fixes for the original source code in gloom2.s as only the gloom.s code was 99% complete
@@ -54,8 +69,8 @@ The project will proceed step by step, with stability and authenticity taking pr
 
 ## Known issues
 
-- TWO PLAYER COMBAT crashes when used more than once in a gaming session (worked only on gloom.s but not gloom2.s) - might remove it completely
-- REMOTE LINK OPTIONS crashes when selected after a game (not when started fresh) - might remove it completely
+- TWO PLAYER COMBAT crashes when used more than once in a gaming session (worked only on gloom.s but not gloom2.s) - removed in 1.7
+- REMOTE LINK OPTIONS crashes when selected after a game (not when started fresh) - removed in 1.7
 
 ## Screenshots
 
