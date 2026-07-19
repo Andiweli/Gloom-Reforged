@@ -15,7 +15,11 @@ The goal is *not* to turn Gloom into a completely different engine, but to moder
 > - **AGA only**, so if you try on other than A1200/A4000 it won't work. I heard some people wondered it doesn't work on A500 🙂  
 > - If you expect AAA PC shadows and reflections you might be disappointed, we are still talking about Gloom, the Engine is the same as in the 90s. It has optional blob-shadows and "reflection-ish" colored dots on the floor *(see screenshot 4 and 5)*. If you want PC-quality-Gloom try [ZGLOOM](https://github.com/Andiweli?tab=repositories&q=ZGLOOM&type=&language=&sort=).  
 > - And of course it needs more power than the old one because of the changes. So don't expect it works better than original Gloom or even fullscreen on 68020.  
-> - And this is only compatible and tested with PiStorm32 and Amiga OS 3.2.3 - it might/might not work on other hardware/software constellations.
+
+## Gloom Reforged has been successfully tested on the following configurations
+
+- Amiga 1200: PiStorm32+CM4, TF1260, V1200
+- Amiga 4000: Cyberstorm MKII 060, ZZ9000
 
 ## Scope includes
 
