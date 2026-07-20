@@ -12,12 +12,12 @@ The goal is *not* to turn Gloom into a completely different engine, but to moder
 > Nine years ago, the Gloom (not Gloom Deluxe) source code was released. This fork/port is based on the Gloom source code and has been extended with features from the non-functional "gloom2.s". This source code was presumably intended as the basis for Gloom Deluxe, but it had texture rendering errors, no HUD, no P96, the combat mode was broken, and palettes were not displayed correctly.
 
 > [!WARNING]
-> - **AGA only**, so if you try on other than A1200/A4000 it won't work. I heard some people wondered it doesn't work on A500 🙂  
 > - If you expect AAA PC shadows and reflections you might be disappointed, we are still talking about Gloom, the Engine is the same as in the 90s. It has optional blob-shadows and "reflection-ish" colored dots on the floor *(see screenshot 4 and 5)*. If you want PC-quality-Gloom try [ZGLOOM](https://github.com/Andiweli?tab=repositories&q=ZGLOOM&type=&language=&sort=).  
 > - And of course it needs more power than the old one because of the changes. So don't expect it works better than original Gloom or even fullscreen on 68020.  
 
 ## Gloom Reforged has been successfully tested on the following configurations
 
+- Amiga 600: PiStorm600 Pi3A
 - Amiga 1200: PiStorm32+CM4, TF1260, V1200
 - Amiga 4000: Cyberstorm MKII 060, ZZ9000
 
@@ -32,8 +32,8 @@ The goal is *not* to turn Gloom into a completely different engine, but to moder
 - [x] Compatibility to Gloom Deluxe, Gloom 3 and Zombie Massacre *(Gloom has other assets, no gun, other statusbar, etc)*
 - [x] Keeping compatibility with real Amiga systems as a priority, not only emulators
 - [x] Graphicscard/P96 compatibility (basic functionality, but still AGA paths in it)
-- [ ] Widescreen support and renderer (pictures excluded)
-- [ ] true ECS port (32 colors) 
+- [x] Widescreen support and renderer (pictures excluded)
+- [x] true ECS port (32 colors) 
 
 The project will proceed step by step, with stability and authenticity taking priority over feature creep. Each improvement should feel like something that could have belonged in a polished Amiga-era enhanced edition of Gloom.
 
