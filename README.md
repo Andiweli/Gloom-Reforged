@@ -4,7 +4,7 @@
 ![AI Assisted Coding](https://img.shields.io/badge/AI-Assisted%20Coding-white)
 ![Controls](https://img.shields.io/badge/Controls-Keyboard%20%2F%20Mouse%20%2F%20Joypad-green)
 
-This project aims to build an enhanced Amiga version of Gloom, based on the original, unmodified source code published at [earok/GloomAmiga](https://github.com/earok/GloomAmiga).
+This project aims to build an enhanced Amiga version of Gloom, based on the original, unmodified source code published at [earok/GloomAmiga](https://github.com/earok/GloomAmiga). Currently, Gloom Reforged is compatible with ECS and AGA Amigas (and basic Picasso96 compatibility for AGA Amigas).
 
 The goal is *not* to turn Gloom into a completely different engine, but to modernize and improve it where it makes sense on real Amiga hardware, while preserving the look, feel, speed, atmosphere, and gameplay identity of the classic release.
 
