@@ -25,7 +25,7 @@ The goal is *not* to turn Gloom into a completely different engine, but to moder
 - Amiga 1200: V1200 (Fullscreen 25FPS)
 - Amiga 4000: Cyberstorm MKII 060 ZZ9000 (Fullscreen 25FPS)
 
-## Scope includes
+## Scope of this project
 
 - [x] Bug fixes for the original source code in gloom2.s as only the gloom.s code was 99% complete
 - [x] Improved keyboard and mouse controls for a smoother FPS-style experience
@@ -37,7 +37,10 @@ The goal is *not* to turn Gloom into a completely different engine, but to moder
 - [x] Keeping compatibility with real Amiga systems as a priority, not only emulators
 - [x] Graphicscard/P96 compatibility (basic functionality, but still AGA paths in it)
 - [x] Widescreen support and renderer (pictures excluded)
-- [x] true ECS port (32 colors) 
+- [x] true ECS port (32 colors)
+- [ ] integrating [Kalm's C2P routines](https://github.com/Kalmalyzer/kalms-c2p)
+- [ ] Performance optimizing (especially weaker processors)
+- [ ] extending ECS/AGA renderarea to 320x256 instead of 320x240
 
 The project will proceed step by step, with stability and authenticity taking priority over feature creep. Each improvement should feel like something that could have belonged in a polished Amiga-era enhanced edition of Gloom.
 
