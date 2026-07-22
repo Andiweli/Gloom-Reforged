@@ -24,7 +24,7 @@ Nine years ago, the Gloom (not Gloom Deluxe) source code was released. This fork
 | Amiga 1000 TF536          | 5                   | *                   | 10               |
 | Amiga 1200 PiStorm32 CM4  | 25                  | 25                  | 25               |
 | Amiga 1200 TF1260@94MHz   | 12                  |                     |                  |
-| Amiga 1200 TF1260@50MHz   | 7                   | *                   | 20               |
+| Amiga 1200 TF1260@50MHz   | 7                   | 9                   | 20               |
 | Amiga 1200 V1200          | *                   |                     |                  |
 | Amiga 4000 CS MKII        | *                   |                     |                  |
 
