@@ -13,7 +13,7 @@ The goal is *not* to turn Gloom into a completely different engine, but to moder
 
 > [!WARNING]
 > - If you expect AAA PC shadows and reflections you might be disappointed, we are still talking about Gloom, the Engine is the same as in the 90s. It has optional blob-shadows and "reflection-ish" colored dots on the floor *(see screenshot 4 and 5)*. If you want PC-quality-Gloom try [ZGLOOM](https://github.com/Andiweli?tab=repositories&q=ZGLOOM&type=&language=&sort=).  
-> - And of course it needs more power than the old one because of the changes. So don't expect it works better than original Gloom or even fullscreen on 68020.  
+> - It needs more CPU power than the original Gloom. **A PISTORM IS HIGHLY RECOMMENDED!**   
 
 ## Gloom Reforged has been successfully tested on the following configurations
 
