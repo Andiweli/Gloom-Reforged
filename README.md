@@ -1,4 +1,4 @@
-# Gloom Reforged
+# GLOOM Reforged
 
 ![OS](https://img.shields.io/badge/OS-AmigaOS%203%2B-blue)
 ![AI Assisted Coding](https://img.shields.io/badge/AI-Assisted%20Coding-white)
@@ -7,9 +7,11 @@
 This project aims to build an enhanced Amiga version of Gloom, based on the original, unmodified source code published at [earok/GloomAmiga](https://github.com/earok/GloomAmiga). Currently, Gloom Reforged is compatible with ECS and AGA Amigas (and basic Picasso96 compatibility for AGA Amigas). And it is **NOT** - I reapeat - **NOT** optimized for anything below PiStorm/68040.
 
 > [!WARNING]
-> - This game needs more CPU power than the original Gloom. **A PISTORM IS HIGHLY RECOMMENDED TO ACHIEVE STABLE FRAME RATES OF THE MAXIMUM 20-25 FPS!**   
+> This game needs much more CPU power than the original Gloom.  
+> **A PISTORM IS HIGHLY RECOMMENDED TO ACHIEVE STABLE FRAME RATES OF THE MAXIMUM 20-25 FPS!**   
 
-The goal is *not* to turn Gloom into a completely different engine, but to modernize and improve it where it makes sense on real Amiga hardware, while preserving the look, feel, speed, atmosphere, and gameplay identity of the classic release.  
+The goal is *not* to turn Gloom into a completely different engine, but to modernize it where it makes sense, while preserving the look, feel, atmosphere, and gameplay identity of the classic release.
+
 Nine years ago, the Gloom (not Gloom Deluxe) source code was released. This fork/port is based on the Gloom source code and has been extended with features from the non-functional "gloom2.s". This source code was presumably intended as the basis for Gloom Deluxe, but it had texture rendering errors, no HUD, no P96, the combat mode was broken, and palettes were not displayed correctly.
 
 ## Gloom Reforged has been successfully tested on the following configurations
@@ -19,13 +21,18 @@ Nine years ago, the Gloom (not Gloom Deluxe) source code was released. This fork
 |---------------------------|---------------------|---------------------|------------------|
 | Amiga 500 PiStorm Zero    | 22                  |                     |                  |
 | Amiga 600 PiStorm Pi3A    | 22                  |                     | 25               |
-| Amiga 1000 TF536          | 5                   |                     | 10               |
+| Amiga 1000 TF536          | 5                   | *                   | 10               |
 | Amiga 1200 PiStorm32 CM4  | 25                  | 25                  | 25               |
 | Amiga 1200 TF1260@94MHz   | 12                  |                     |                  |
+| Amiga 1200 TF1260@50MHz   | 7                   | *                   | 20               |
 | Amiga 1200 V1200          | *                   |                     |                  |
 | Amiga 4000 CS MKII        | *                   |                     |                  |
 
-*) Please use `gloomreforged stock fps` or `gloomreforged turbo fps` to benchmark. Always use Map1_1 of Gloom Deluxe. Go straight, kill enemies, enter exit. Note lowest FPS.
+*) Please use `gloomreforged stock fps` or `gloomreforged turbo fps` to benchmark. Always use map1_1 of Gloom Deluxe. Go straight, kill enemies, enter exit. Note lowest FPS.  
+
+> [!NOTE]
+> The tooltype `STOCK` removes the improved Bayer-dithered renderer and uses the stock renderer from Gloom.  
+> The tooltype `TURBO` activates 2x2 pixel rendering, nearly the same as the original Gloom (not Deluxe).
 
 ## Scope of this project
 
