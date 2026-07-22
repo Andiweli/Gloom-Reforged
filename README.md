@@ -19,11 +19,11 @@ The goal is *not* to turn Gloom into a completely different engine, but to moder
 
 - Amiga 500: PiStorm PiZero (Fullscreen 22 FPS)
 - Amiga 600: PiStorm600 Pi3A (Fullscreen 25FPS)
-- Amiga 1000: Rejuvenator 1MB Chip TF536 (Medium Window Size 16FPS)
+- Amiga 1000: Rejuvenator 1MB Chip TF536 (Medium Window Size 16FPS, Fullscreen 5FPS)
 - Amiga 1200: PiStorm32+CM4 (Fullscreen 25FPS)
-- Amiga 1200: TF1260@060 Rev.6 (Fullscreen 25FPS)
-- Amiga 1200: V1200 (Fullscreen 25FPS)
-- Amiga 4000: Cyberstorm MKII 060 ZZ9000 (Fullscreen 25FPS)
+- Amiga 1200: TF1260@060 Rev.6 
+- Amiga 1200: V1200 
+- Amiga 4000: Cyberstorm MKII 060 ZZ9000 
 
 ## Scope of this project
 
