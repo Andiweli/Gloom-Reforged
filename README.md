@@ -4,26 +4,24 @@
 ![AI Assisted Coding](https://img.shields.io/badge/AI-Assisted%20Coding-white)
 ![Controls](https://img.shields.io/badge/Controls-Keyboard%20%2F%20Mouse%20%2F%20Joypad-green)
 
-This project aims to build an enhanced Amiga version of Gloom, based on the original, unmodified source code published at [earok/GloomAmiga](https://github.com/earok/GloomAmiga). Currently, Gloom Reforged is compatible with ECS and AGA Amigas (and basic Picasso96 compatibility for AGA Amigas).
-
-The goal is *not* to turn Gloom into a completely different engine, but to modernize and improve it where it makes sense on real Amiga hardware, while preserving the look, feel, speed, atmosphere, and gameplay identity of the classic release.
-
-> [!NOTE]
-> Nine years ago, the Gloom (not Gloom Deluxe) source code was released. This fork/port is based on the Gloom source code and has been extended with features from the non-functional "gloom2.s". This source code was presumably intended as the basis for Gloom Deluxe, but it had texture rendering errors, no HUD, no P96, the combat mode was broken, and palettes were not displayed correctly.
+This project aims to build an enhanced Amiga version of Gloom, based on the original, unmodified source code published at [earok/GloomAmiga](https://github.com/earok/GloomAmiga). Currently, Gloom Reforged is compatible with ECS and AGA Amigas (and basic Picasso96 compatibility for AGA Amigas). And it is **NOT** - I reapeat - **NOT** optimized for anything below PiStorm/68040.
 
 > [!WARNING]
-> - If you expect AAA PC shadows and reflections you might be disappointed, we are still talking about Gloom, the Engine is the same as in the 90s. It has optional blob-shadows and "reflection-ish" colored dots on the floor *(see screenshot 4 and 5)*. If you want PC-quality-Gloom try [ZGLOOM](https://github.com/Andiweli?tab=repositories&q=ZGLOOM&type=&language=&sort=).  
-> - It needs more CPU power than the original Gloom. **A PISTORM IS HIGHLY RECOMMENDED!**   
+> - This game needs more CPU power than the original Gloom. **A PISTORM IS HIGHLY RECOMMENDED TO ACHIEVE STABLE FRAME RATES OF THE MAXIMUM 20-25 FPS!**   
+
+The goal is *not* to turn Gloom into a completely different engine, but to modernize and improve it where it makes sense on real Amiga hardware, while preserving the look, feel, speed, atmosphere, and gameplay identity of the classic release.  
+Nine years ago, the Gloom (not Gloom Deluxe) source code was released. This fork/port is based on the Gloom source code and has been extended with features from the non-functional "gloom2.s". This source code was presumably intended as the basis for Gloom Deluxe, but it had texture rendering errors, no HUD, no P96, the combat mode was broken, and palettes were not displayed correctly.
 
 ## Gloom Reforged has been successfully tested on the following configurations
+*(AGA/ECS, without any enhancements or P96)*
 
 - Amiga 500: PiStorm PiZero (Fullscreen 22 FPS)
 - Amiga 600: PiStorm600 Pi3A (Fullscreen 25FPS)
-- Amiga 1000: Rejuvenator 1MB Chip TF536 (Medium Window Size 16FPS, Fullscreen 5FPS)
+- Amiga 1000: Rejuvenator 1MB Chip TF536 (Fullscreen 5FPS, Medium Window 16FPS, TURBO flag 10FPS)
 - Amiga 1200: PiStorm32+CM4 (Fullscreen 25FPS)
-- Amiga 1200: TF1260@060 Rev.6 
-- Amiga 1200: V1200 
-- Amiga 4000: Cyberstorm MKII 060 ZZ9000 
+- Amiga 1200: TF1260@060 Rev.6 (- waiting -)
+- Amiga 1200: V1200 (- waiting -)
+- Amiga 4000: Cyberstorm MKII 060 ZZ9000 (- waiting -)
 
 ## Scope of this project
 
