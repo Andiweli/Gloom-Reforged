@@ -13,15 +13,19 @@ The goal is *not* to turn Gloom into a completely different engine, but to moder
 Nine years ago, the Gloom (not Gloom Deluxe) source code was released. This fork/port is based on the Gloom source code and has been extended with features from the non-functional "gloom2.s". This source code was presumably intended as the basis for Gloom Deluxe, but it had texture rendering errors, no HUD, no P96, the combat mode was broken, and palettes were not displayed correctly.
 
 ## Gloom Reforged has been successfully tested on the following configurations
-*(AGA/ECS, without any enhancements or P96)*
+*(AGA/ECS, without any enhancements or P96, Fullscreen only)*
 
-- Amiga 500: PiStorm PiZero (Fullscreen 22 FPS)
-- Amiga 600: PiStorm600 Pi3A (Fullscreen 25FPS)
-- Amiga 1000: Rejuvenator 1MB Chip TF536 (Fullscreen 5FPS, Medium Window 16FPS, TURBO flag 10FPS)
-- Amiga 1200: PiStorm32+CM4 (Fullscreen 25FPS)
-- Amiga 1200: TF1260@060 Rev.6 (- waiting -)
-- Amiga 1200: V1200 (- waiting -)
-- Amiga 4000: Cyberstorm MKII 060 ZZ9000 (- waiting -)
+| System                    | FPS (AGA/ECS)       | FPS STOCK*          | FPS TURBO*       |
+|---------------------------|---------------------|---------------------|------------------|
+| Amiga 500 PiStorm Zero    | 22                  |                     |                  |
+| Amiga 600 PiStorm Pi3A    | 22                  |                     | 25               |
+| Amiga 1000 TF536          | 5                   |                     | 10               |
+| Amiga 1200 PiStorm32 CM4  | 25                  | 25                  | 25               |
+| Amiga 1200 TF1260@94MHz   | 12                  |                     |                  |
+| Amiga 1200 V1200          | *                   |                     |                  |
+| Amiga 4000 CS MKII        | *                   |                     |                  |
+
+*) Please use `gloomreforged stock fps` or `gloomreforged turbo fps` to benchmark. Always use Map1_1 of Gloom Deluxe. Go straight, kill enemies, enter exit. Note lowest FPS.
 
 ## Scope of this project
 
