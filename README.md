@@ -1,22 +1,40 @@
-# Gloom Reforged
+# GLOOM Reforged
 
 ![OS](https://img.shields.io/badge/OS-AmigaOS%203%2B-blue)
 ![AI Assisted Coding](https://img.shields.io/badge/AI-Assisted%20Coding-white)
 ![Controls](https://img.shields.io/badge/Controls-Keyboard%20%2F%20Mouse%20%2F%20Joypad-green)
 
-This project aims to build an enhanced Amiga version of Gloom, based on the original, unmodified source code published at [earok/GloomAmiga](https://github.com/earok/GloomAmiga).
-
-That repository serves as the clean reference base from which this project is being ported, reorganized, fixed, and carefully extended.
-
-The goal is *not* to turn Gloom into a completely different engine, but to modernize and improve it where it makes sense on real Amiga hardware, while preserving the look, feel, speed, atmosphere, and gameplay identity of the classic release.
+This project aims to build an enhanced Amiga version of Gloom, based on the original, unmodified source code published at [earok/GloomAmiga](https://github.com/earok/GloomAmiga). Currently, Gloom Reforged is compatible with ECS and AGA Amigas (and basic Picasso96 compatibility for AGA Amigas). And it is **NOT** - I reapeat - **NOT** optimized for anything below PiStorm/68040.
 
 > [!WARNING]
-> - **AGA only**, so if you try on other than A1200/A4000 it won't work. I heard some people wondered it doesn't work on A500 🙂  
-> - If you expect AAA PC shadows and reflections you might be disappointed, we are still talking about Gloom, the Engine is the same as in the 90s. It has optional blob-shadows and "reflection-ish" colored dots on the floor *(see screenshot 4 and 5)*. If you want PC-quality-Gloom try [ZGLOOM](https://github.com/Andiweli?tab=repositories&q=ZGLOOM&type=&language=&sort=).  
-> - And of course it needs more power than the old one because of the changes. So don't expect it works better than original Gloom or even fullscreen on 68020.  
-> - And this is only compatible and tested with PiStorm32 and Amiga OS 3.2.3 - it might/might not work on other hardware/software constellations.
+> This game needs much more CPU power than the original Gloom.  
+> **A PISTORM IS HIGHLY RECOMMENDED TO ACHIEVE STABLE FRAME RATES OF THE MAXIMUM 20-25 FPS!**   
 
-## Planned scope includes
+The goal is *not* to turn Gloom into a completely different engine, but to modernize it where it makes sense, while preserving the look, feel, atmosphere, and gameplay identity of the classic release.
+
+Nine years ago, the Gloom (not Gloom Deluxe) source code was released. This fork/port is based on the Gloom source code and has been extended with features from the non-functional "gloom2.s". This source code was presumably intended as the basis for Gloom Deluxe, but it had texture rendering errors, no HUD, no P96, the combat mode was broken, and palettes were not displayed correctly.
+
+## Gloom Reforged has been successfully tested on the following configurations
+*(AGA/ECS, without any enhancements or P96, Fullscreen only)*
+
+| System                    | FPS (AGA/ECS)       | FPS STOCK*          | FPS TURBO*       |
+|---------------------------|---------------------|---------------------|------------------|
+| Amiga 500 PiStorm Zero    | 22                  |                     |                  |
+| Amiga 600 PiStorm Pi3A    | 22                  |                     | 25               |
+| Amiga 1000 TF536          | 5                   | *                   | 10               |
+| Amiga 1200 PiStorm32 CM4  | 25                  | 25                  | 25               |
+| Amiga 1200 TF1260@94MHz   | 12                  |                     |                  |
+| Amiga 1200 TF1260@50MHz   | 7                   | 9                   | 20               |
+| Amiga 1200 V1200          | *                   |                     |                  |
+| Amiga 4000 CS MKII        | *                   |                     |                  |
+
+*) Please use `gloomreforged stock fps` or `gloomreforged turbo fps` to benchmark. Always use map1_1 of Gloom Deluxe. Go straight, kill enemies, enter exit. Note lowest FPS.  
+
+> [!NOTE]
+> The tooltype `STOCK` removes the improved Bayer-dithered renderer and uses the stock renderer from Gloom.  
+> The tooltype `TURBO` activates 2x2 pixel rendering, nearly the same as the original Gloom (not Deluxe).
+
+## Scope of this project
 
 - [x] Bug fixes for the original source code in gloom2.s as only the gloom.s code was 99% complete
 - [x] Improved keyboard and mouse controls for a smoother FPS-style experience
@@ -27,7 +45,11 @@ The goal is *not* to turn Gloom into a completely different engine, but to moder
 - [x] Compatibility to Gloom Deluxe, Gloom 3 and Zombie Massacre *(Gloom has other assets, no gun, other statusbar, etc)*
 - [x] Keeping compatibility with real Amiga systems as a priority, not only emulators
 - [x] Graphicscard/P96 compatibility (basic functionality, but still AGA paths in it)
-- [ ] Graphicscard/P96 full renderpath
+- [x] Widescreen support and renderer (pictures excluded)
+- [x] true ECS port (32 colors)
+- [ ] integrating [Kalm's C2P routines](https://github.com/Kalmalyzer/kalms-c2p)
+- [ ] Performance optimizing (especially weaker processors)
+- [ ] extending ECS/AGA renderarea to 320x256 instead of 320x240
 
 The project will proceed step by step, with stability and authenticity taking priority over feature creep. Each improvement should feel like something that could have belonged in a polished Amiga-era enhanced edition of Gloom.
 
@@ -50,11 +72,22 @@ The project will proceed step by step, with stability and authenticity taking pr
 8. **Reworked renderer**
     Bayer dithering was added to the hard transitions between lighter and darker shading for softer transitions.
 
+## Tooltypes (Icon or CLI)
+
+- Without a tool type, AGA mode is started
+- AGA = Start AGA mode
+- ECS = Start ECS Mode
+- P96 = Use P96 graphics card mode (AGA necessary)
+- 5:4 = 320x256 rendering (only in use with P96)
+- WIDE = Widescreen is rendered at 400x240/428x240 (only in use with P96)
+- STRETCH = Stretched image to 400x240/428x240 (only in use with P96)
+- HIRES = Twice the resolution of the above, means 640x512, 800x480/854x480 (only in use with P96)
+- FPS = Displays a frame counter in the bottom right corner (Gloom caps at 25 FPS)
+
 ## Known issues
 
-- TWO PLAYER COMBAT crashes when used more than once in a gaming session (worked only on gloom.s but not gloom2.s)
-- REMOTE LINK OPTIONS crashes when selected after a game (not when started fresh)
-- Display or loading errors on specific hardware configurations
+- TWO PLAYER COMBAT crashes when used more than once in a gaming session (worked only on gloom.s but not gloom2.s) - removed in 1.7
+- REMOTE LINK OPTIONS crashes when selected after a game (not when started fresh) - removed in 1.7
 
 ## Screenshots
 
