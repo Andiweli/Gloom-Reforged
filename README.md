@@ -8,7 +8,8 @@ This project aims to build an enhanced Amiga version of Gloom, based on the orig
 
 > [!WARNING]
 > This game needs much more CPU power than the original Gloom.  
-> **A PISTORM IS HIGHLY RECOMMENDED TO ACHIEVE STABLE FRAME RATES OF THE MAXIMUM 20-25 FPS!**   
+> **A PISTORM IS HIGHLY RECOMMENDED TO ACHIEVE STABLE FRAME RATES OF THE MAXIMUM 20-25 FPS!**  
+> Picasso96 output is highly experimental at the moment! Use at your own risk.
 
 The goal is *not* to turn Gloom into a completely different engine, but to modernize it where it makes sense, while preserving the look, feel, atmosphere, and gameplay identity of the classic release.
 
