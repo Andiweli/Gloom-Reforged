@@ -30,11 +30,6 @@ Nine years ago, the Gloom (not Gloom Deluxe) source code was released. This fork
 | Amiga 4000 CS MKII            | 12.5                |
 | Apollo A6000                  | 25.0                |
 
-*) Please use `gloomreforged stock fps` or `gloomreforged turbo fps` to benchmark. Always use map1_1 of Gloom Deluxe. Go straight, kill enemies, enter exit. Note lowest FPS.  
-
-> [!NOTE]
-> The tooltype `STOCK` removes the improved Bayer-dithered renderer and uses the stock renderer from Gloom.  
-> The tooltype `TURBO` activates 2x2 pixel rendering, nearly the same as the original Gloom (not Deluxe).
 
 ## Scope of this project
 
@@ -49,9 +44,10 @@ Nine years ago, the Gloom (not Gloom Deluxe) source code was released. This fork
 - [x] Graphicscard/P96 compatibility (basic functionality, but still AGA paths in it)
 - [x] Widescreen support and renderer (pictures excluded)
 - [x] true ECS port (32 colors)
-- [ ] integrating [Kalm's C2P routines](https://github.com/Kalmalyzer/kalms-c2p)
-- [ ] Performance optimizing (especially weaker processors)
-- [ ] extending ECS/AGA renderarea to 320x256 instead of 320x240
+- [x] integrating [Kalm's C2P routines](https://github.com/Kalmalyzer/kalms-c2p)
+- [x] Performance optimizing (especially weaker processors)
+- [ ] implement a true P96 rendering routine
+
 
 The project will proceed step by step, with stability and authenticity taking priority over feature creep. Each improvement should feel like something that could have belonged in a polished Amiga-era enhanced edition of Gloom.
 
@@ -76,18 +72,19 @@ The project will proceed step by step, with stability and authenticity taking pr
 
 ## Tooltypes (Icon or CLI)
 
-- Without a tool type, AGA mode is started
+- Without a tool type, auto recognition kicks in
 - AGA = Start AGA mode
-- ECS = Start ECS Mode
+- ECS = Start ECS Mode (only on AGA)
 - P96 = Use P96 graphics card mode (AGA necessary)
+- STOCK = use the default renderer from 90s Gloom without effects, Nasty violence mode, new Bayer-dithering and depth-fog
 - FPS = Displays a frame counter in the bottom right corner (Gloom caps at 25 FPS)
 
 ## Known issues
 
-- TWO PLAYER COMBAT crashes when used more than once in a gaming session (worked only on gloom.s but not gloom2.s) - removed in 1.7
-- REMOTE LINK OPTIONS crashes when selected after a game (not when started fresh) - removed in 1.7
+- TWO PLAYER COMBAT (not working 100%) removed in 1.7
+- REMOTE LINK OPTIONS (not working 100%) removed in 1.7
 
-## Screenshots
+## Screenshots (deprecated)
 
 <p align="center">
 <img width="800" height="600" alt="image" src="https://github.com/user-attachments/assets/9798e255-de1e-4cf4-8de6-82639863d55a" />
