@@ -6,6 +6,8 @@
 
 This project aims to build an enhanced Amiga version of Gloom, based on the original, unmodified source code published at [earok/GloomAmiga](https://github.com/earok/GloomAmiga). Currently, Gloom Reforged is compatible with ECS and AGA Amigas (and basic Picasso96 compatibility for AGA Amigas). And it is **NOT** - I reapeat - **NOT** optimized for anything below PiStorm/68040.
 
+[Watch the latest preview](https://vimeo.com/1213335312?share=copy&fl=sv&fe=ci) of Gloom Reforged v1.10.0 on Vimeo.
+
 > [!WARNING]
 > This game needs much more CPU power than the original Gloom.  
 > **A PISTORM IS HIGHLY RECOMMENDED TO ACHIEVE STABLE FRAME RATES OF THE MAXIMUM 20-25 FPS!**  
@@ -84,7 +86,9 @@ The project will proceed step by step, with stability and authenticity taking pr
 - TWO PLAYER COMBAT (not working 100%) removed in 1.7
 - REMOTE LINK OPTIONS (not working 100%) removed in 1.7
 
-## Screenshots (deprecated)
+## Screenshots (old v1.4)
+
+[Watch the latest preview](https://vimeo.com/1213335312?share=copy&fl=sv&fe=ci) of Gloom Reforged v1.10.0 on Vimeo.
 
 <p align="center">
 <img width="800" height="600" alt="image" src="https://github.com/user-attachments/assets/9798e255-de1e-4cf4-8de6-82639863d55a" />
