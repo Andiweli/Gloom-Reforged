@@ -22,8 +22,8 @@ Nine years ago, the Gloom (not Gloom Deluxe) source code was released. This fork
 
 | System                        | FPS (AGA/ECS)       |
 |-------------------------------|---------------------|
-| Amiga 500 PiStorm Zero        | *                   |
-| Amiga 600 PiStorm Pi3A        | *                   |
+| Amiga 500 PiStorm Zero        | 25                  |
+| Amiga 600 PiStorm Pi3A        | 25                  |
 | Amiga 1000 TF536              | 4.8                 |
 | Amiga 1200 PiStorm32 CM4      | 25.0                |
 | Amiga 1200 TF1260@94MHz       | 19.4                |
