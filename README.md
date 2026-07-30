@@ -90,16 +90,34 @@ The project will proceed step by step, with stability and authenticity taking pr
 
 [Watch the latest preview](https://vimeo.com/1213335312?share=copy&fl=sv&fe=ci) of Gloom Reforged v1.10.0 on Vimeo.
 
-<p align="center">
-<img width="580" height="326" alt="image" src="https://github.com/Andiweli/Gloom-Reforged/blob/master/images/1_titlescreen.jpg" />
-<img width="580" height="326" alt="image" src="https://github.com/Andiweli/Gloom-Reforged/blob/master/images/2_titlemenu.jpg" />
-<img width="580" height="326" alt="image" src="https://github.com/Andiweli/Gloom-Reforged/blob/master/images/3_intermissionscreen.jpg" />
-<img width="580" height="326" alt="image" src="https://github.com/Andiweli/Gloom-Reforged/blob/master/images/4_ingamemenu.jpg" />
-<img width="580" height="326" alt="image" src="https://github.com/Andiweli/Gloom-Reforged/blob/master/images/5_bayerdither%2Bvisibility.jpg" />
-<img width="580" height="326" alt="image" src="https://github.com/Andiweli/Gloom-Reforged/blob/master/images/6_reflections.jpg" />
-<img width="580" height="326" alt="image" src="https://github.com/Andiweli/Gloom-Reforged/blob/master/images/7_invisibilitymode.jpg" />
-<img width="580" height="326" alt="image" src="https://github.com/Andiweli/Gloom-Reforged/blob/master/images/8_nastyviolencemode.jpg" />
-<img width="580" height="326" alt="image" src="https://github.com/Andiweli/Gloom-Reforged/blob/master/images/9_twoplayersplitscreen.jpg" />
+
+**Titlescreen as usual** _(extended to widescreen 16:9_
+![Titlescreen as usual](https://github.com/Andiweli/Gloom-Reforged/blob/master/images/1_titlescreen.jpg)
+
+**Titlemenu with reworked options and sorting, also new Violence mode "Nasty"**
+![Titlemenu with reworked options and sorting, also new Violence mode "Nasty"](https://github.com/Andiweli/Gloom-Reforged/blob/master/images/2_titlemenu.jpg)
+
+**Intermission screen** _(extended to widescreen 16:9)_
+![Intermission screen](https://github.com/Andiweli/Gloom-Reforged/blob/master/images/3_intermissionscreen.jpg)
+
+**New ingame menu with effects, options and cheats**
+![New ingame menu with effects, options and cheats](https://github.com/Andiweli/Gloom-Reforged/blob/master/images/4_ingamemenu.jpg)
+
+**Bayer-dither-renderer and two different visabilities** _(render depths)_
+![Bayer-dither-renderer and two different visabilities](https://github.com/Andiweli/Gloom-Reforged/blob/master/images/5_bayerdither%2Bvisibility.jpg)
+
+**New reflections on enemies, walls and weapons/upgrades** _(needs PiStorm)_
+![New reflections on enemies, walls and weapons/upgrades](https://github.com/Andiweli/Gloom-Reforged/blob/master/images/6_reflections.jpg)
+
+**New invisibilty mode when "Invisibility"-powerup is taken**
+![New invisibilty mode when "Invisibility"-powerup is taken](https://github.com/Andiweli/Gloom-Reforged/blob/master/images/7_invisibilitymode.jpg)
+
+**Nasty-Violence with procedual-generated pools of blood**
+![Nasty-Violence with pools of blood](https://github.com/Andiweli/Gloom-Reforged/blob/master/images/8_nastyviolencemode.jpg)
+
+**Two-Player Splitscreen** _(also optimized for widescreen 16:9)_
+![Two-Player Splitscreen](https://github.com/Andiweli/Gloom-Reforged/blob/master/images/9_twoplayersplitscreen.jpg)
+
 
 </p>
 
