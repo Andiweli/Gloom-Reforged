@@ -17,43 +17,34 @@ The goal is *not* to turn Gloom into a completely different engine, but to moder
 
 Nine years ago, the Gloom (not Gloom Deluxe) source code was released. This fork/port is based on the Gloom source code and has been extended with features from the non-functional "gloom2.s". This source code was presumably intended as the basis for Gloom Deluxe, but it had texture rendering errors, no HUD, no P96, the combat mode was broken, and palettes were not displayed correctly.
 
-## Baseline values determined using the [GloomBench benchmark](https://github.com/Andiweli/Gloom-Reforged/releases/tag/Benchmark)
-*(Version 1.10, AGA/ECS, without any enhancements or P96)*
 
-| System                        | FPS (AGA/ECS)       |
-|-------------------------------|---------------------|
-| Amiga 500 PiStorm Zero        | 25                  |
-| Amiga 600 PiStorm Pi3A        | 25                  |
-| Amiga 1000 TF536              | 4.8                 |
-| Amiga 1200 PiStorm32 CM4      | 25.0                |
-| Amiga 1200 TF1260@94MHz       | 19.4                |
-| Amiga 1200 CSPPC@50MHz        | 14.5                |
-| Amiga 1200 V1200              | 25.0                |
-| Amiga 4000 CS MKII            | 12.5                |
-| Apollo A6000                  | 25.0                |
+## SCOPE OF THIS PROJECT
 
+### IN the Scope of this project
 
-## Scope of this project
+- Bugfix for the original source code in gloom2.s as only the gloom.s code was 99% complete
+- Improve keyboard and mouse controls for a smoother FPS-style experience
+- Improve render depth for far areas (including Bayer-dithering to avoid banding)
+- Integrate new options in the ingame-menu (cheats, subtle reflections and blob-shadows)
+- Integrate an universal health/weapon-bar 
+- Maintain the original Gloom gameplay structure, assets and atmosphere as the foundation
+- Compatibility to Gloom Deluxe, Gloom 3 and Zombie Massacre *(Gloom has other assets, no gun, other statusbar, etc)*
+- Keep compatibility with real Amiga systems as a priority, not only emulators
+- Graphicscard/P96 compatibility
+- Widescreen support and renderer (Images are artificially widened)
+- True ECS port (32 colors)
+- Integrate [Kalm's C2P routines](https://github.com/Kalmalyzer/kalms-c2p)
+- Performance optimizing (especially weaker processors)
 
-- [x] Bug fixes for the original source code in gloom2.s as only the gloom.s code was 99% complete
-- [x] Improved keyboard and mouse controls for a smoother FPS-style experience
-- [x] Improved render depth for far areas (including Bayer-dithering to avoid banding)
-- [x] Integrating new options in the ingame-menu (cheats, subtle reflections and blob-shadows)
-- [x] Integrating an universal health/weapon-bar 
-- [x] Maintaining the original Gloom gameplay structure, assets and atmosphere as the foundation
-- [x] Compatibility to Gloom Deluxe, Gloom 3 and Zombie Massacre *(Gloom has other assets, no gun, other statusbar, etc)*
-- [x] Keeping compatibility with real Amiga systems as a priority, not only emulators
-- [x] Graphicscard/P96 compatibility (basic functionality, but still AGA paths in it)
-- [x] Widescreen support and renderer (pictures excluded)
-- [x] true ECS port (32 colors)
-- [x] integrating [Kalm's C2P routines](https://github.com/Kalmalyzer/kalms-c2p)
-- [x] Performance optimizing (especially weaker processors)
-- [ ] implement a true P96 rendering routine
+### NOT in the Scope of this project
 
+- No true high resolutions, as even a 060@94MHz has its limit at 320x240 AGA
+- Support for 3rd party extensions like 8Bit Killer or others
 
 The project will proceed step by step, with stability and authenticity taking priority over feature creep. Each improvement should feel like something that could have belonged in a polished Amiga-era enhanced edition of Gloom.
 
-## Most critical changes so far
+
+## MOST CRITICAL CHANGES MADE
 
 1. **Made `gloom2.s` bootable again**
    Fixed startup/Guru issues and turned it into a usable standalone source base, some issues are still persistent.
@@ -72,7 +63,8 @@ The project will proceed step by step, with stability and authenticity taking pr
 8. **Reworked renderer**
     Bayer dithering was added to the hard transitions between lighter and darker shading for softer transitions.
 
-## Tooltypes (Icon or CLI)
+
+## TOOLTYPES (Icon or CLI)
 
 - Without a tool type, auto recognition kicks in
 - AGA = Start AGA mode
@@ -81,12 +73,8 @@ The project will proceed step by step, with stability and authenticity taking pr
 - STOCK = use the default renderer from 90s Gloom without effects, Nasty violence mode, new Bayer-dithering and depth-fog
 - FPS = Displays a frame counter in the bottom right corner (Gloom caps at 25 FPS)
 
-## Known issues
 
-- TWO PLAYER COMBAT (not working 100%) removed in 1.7
-- REMOTE LINK OPTIONS (not working 100%) removed in 1.7
-
-## Screenshots
+## SCREENSHOTS
 
 [Watch the latest preview](https://vimeo.com/1213335312?share=copy&fl=sv&fe=ci) of Gloom Reforged v1.10.0 on Vimeo.
 
@@ -119,13 +107,35 @@ The project will proceed step by step, with stability and authenticity taking pr
 ![Two-Player Splitscreen](https://github.com/Andiweli/Gloom-Reforged/blob/master/images/9_twoplayersplitscreen.jpg)
 
 
-</p>
+## KNOWN ISSUES
 
-## Release
+- TWO PLAYER COMBAT (not working 100%) removed in 1.7
+- REMOTE LINK OPTIONS (not working 100%) removed in 1.7
+
+
+## BASELINE VALUES
+Determined using the [GloomBench benchmark](https://github.com/Andiweli/Gloom-Reforged/releases/tag/Benchmark)
+*(Version 1.10, AGA/ECS, without any enhancements or P96)*
+
+| System                        | FPS (AGA/ECS)       |
+|-------------------------------|---------------------|
+| Amiga 500 PiStorm Zero        | 25                  |
+| Amiga 600 PiStorm Pi3A        | 25                  |
+| Amiga 1000 TF536              | 4.8                 |
+| Amiga 1200 PiStorm32 CM4      | 25.0                |
+| Amiga 1200 TF1260@94MHz       | 19.4                |
+| Amiga 1200 CSPPC@50MHz        | 14.5                |
+| Amiga 1200 V1200              | 25.0                |
+| Amiga 4000 CS MKII            | 12.5                |
+| Apollo A6000                  | 25.0                |
+
+
+## RELEASE
 
 Look at the [Release section](https://github.com/Andiweli/GloomReforged/releases).
 
-## Legal / Source Code Notice
+
+## LEGAL / SOURCE CODE NOTICE
 
 This project is based on the publicly available original source code of **Gloom**. All original rights, trademarks, names, graphics, audio, game data and related assets remain the property of their respective owners.
 
