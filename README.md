@@ -86,7 +86,7 @@ The project will proceed step by step, with stability and authenticity taking pr
 - TWO PLAYER COMBAT (not working 100%) removed in 1.7
 - REMOTE LINK OPTIONS (not working 100%) removed in 1.7
 
-## Screenshots (old v1.4)
+## Screenshots
 
 [Watch the latest preview](https://vimeo.com/1213335312?share=copy&fl=sv&fe=ci) of Gloom Reforged v1.10.0 on Vimeo.
 
