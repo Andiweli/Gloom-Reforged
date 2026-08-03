@@ -38,7 +38,7 @@ Nine years ago, the Gloom (not Gloom Deluxe) source code was released. This fork
 
 ### NOT in the Scope of this project
 
-- No true high resolutions, as even a 060@94MHz has its limit at 320x240 AGA
+- No high resolutions
 - Support for 3rd party extensions like 8Bit Killer or others
 
 The project will proceed step by step, with stability and authenticity taking priority over feature creep. Each improvement should feel like something that could have belonged in a polished Amiga-era enhanced edition of Gloom.
