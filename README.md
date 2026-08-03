@@ -46,7 +46,7 @@ The project will proceed step by step, with stability and authenticity taking pr
 
 ## MOST CRITICAL CHANGES MADE
 
-1. **Made `gloom2.s` bootable again**. 
+1. **Made `gloom2.s` bootable again**  
    Fixed startup/Guru issues and turned it into a usable standalone source base, some issues are still persistent.
 2. **Fixed wrong colors caused by bitplane/stride issues**  
    The incorrect 256-line stride approach was discarded; the compact 240-line plane span is the correct path.
