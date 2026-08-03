@@ -46,21 +46,21 @@ The project will proceed step by step, with stability and authenticity taking pr
 
 ## MOST CRITICAL CHANGES MADE
 
-1. **Made `gloom2.s` bootable again**
+1. **Made `gloom2.s` bootable again**. 
    Fixed startup/Guru issues and turned it into a usable standalone source base, some issues are still persistent.
-2. **Fixed wrong colors caused by bitplane/stride issues**
+2. **Fixed wrong colors caused by bitplane/stride issues**  
    The incorrect 256-line stride approach was discarded; the compact 240-line plane span is the correct path.
-3. **Restored correct texture rendering**
+3. **Restored correct texture rendering**  
    Wall and level graphics now render properly in the `gloom2.s` path, without distortion or wrong colors.
-4. **Fixed menu/ESC behavior**
+4. **Fixed menu/ESC behavior**  
    The menu now opens cleanly with a single ESC press instead of causing repeated or broken behavior.
-5. **Reworked weapon, muzzleflash, and HUD handling**
+5. **Reworked weapon, muzzleflash, and HUD handling**  
    Weapon placement, gunbob, projectile origin, muzzleflash size, status bar elements, and health bar alignment were improved.
-6. **Improved blood splatter / messy effects**
+6. **Improved blood splatter / messy effects**  
    Blood splatter effects work again and were moved closer to the intended original look.
-7. **Reworked distance fog / far rendering**
+7. **Reworked distance fog / far rendering**  
    Current focus: smoother distance darkening, fewer harsh shading steps, stronger fade-out after roughly six texture widths, and dark far corridors instead of fully black gaps.
-8. **Reworked renderer**
+8. **Reworked renderer**  
     Bayer dithering was added to the hard transitions between lighter and darker shading for softer transitions.
 
 
