@@ -4,14 +4,13 @@
 ![AI Assisted Coding](https://img.shields.io/badge/AI-Assisted%20Coding-white)
 ![Controls](https://img.shields.io/badge/Controls-Keyboard%20%2F%20Mouse%20%2F%20Joypad-green)
 
-This project aims to build an enhanced Amiga version of Gloom, based on the original, unmodified source code published at [earok/GloomAmiga](https://github.com/earok/GloomAmiga). Currently, Gloom Reforged is compatible with ECS and AGA Amigas (and basic Picasso96 compatibility for AGA Amigas). And it is **NOT** - I reapeat - **NOT** optimized for anything below PiStorm/68040.
+This project aims to build an enhanced Amiga version of Gloom, based on the original, unmodified source code published at [earok/GloomAmiga](https://github.com/earok/GloomAmiga). Currently, Gloom Reforged is compatible with ECS and AGA Amigas as well as with Picasso96 graphicscards. And it is **NOT** - I reapeat - **NOT** optimized for anything below PiStorm/68040.
 
-[Watch the latest preview](https://vimeo.com/1213335312?share=copy&fl=sv&fe=ci) of Gloom Reforged v1.10.0 on Vimeo.
+[Watch a preview](https://vimeo.com/1213335312?share=copy&fl=sv&fe=ci) of Gloom Reforged v1.10.0 on Vimeo.
 
 > [!WARNING]
 > This game needs more CPU power than the original Gloom.  
 > **A PISTORM OR AT LEAST 060@100MHz IS HIGHLY RECOMMENDED TO ACHIEVE STABLE FRAME RATES OF THE MAXIMUM 20-25 FPS!**  
-> Picasso96 output is experimental at the moment! Use at your own risk.
 
 The goal is *not* to turn Gloom into a completely different engine, but to modernize it where it makes sense, while preserving the look, feel, atmosphere, and gameplay identity of the classic release.
 
@@ -69,7 +68,7 @@ The project will proceed step by step, with stability and authenticity taking pr
 - Without a tool type, auto recognition kicks in
 - AGA = Start AGA mode
 - ECS = Start ECS Mode (only on AGA)
-- P96 = Use P96 graphics card mode (AGA necessary)
+- P96 = Use P96 graphics card mode
 - STOCK = use the default renderer from 90s Gloom without effects, Nasty violence mode, new Bayer-dithering and depth-fog
 - FPS = Displays a frame counter in the bottom right corner (Gloom caps at 25 FPS)
 
