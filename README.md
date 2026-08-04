@@ -4,9 +4,9 @@
 ![AI Assisted Coding](https://img.shields.io/badge/AI-Assisted%20Coding-white)
 ![Controls](https://img.shields.io/badge/Controls-Keyboard%20%2F%20Mouse%20%2F%20Joypad-green)
 
-This project aims to build an enhanced Amiga version of Gloom, based on the original, unmodified source code published at [earok/GloomAmiga](https://github.com/earok/GloomAmiga). Currently, Gloom Reforged is compatible with ECS and AGA Amigas as well as with Picasso96 graphicscards. And it is **NOT** - I reapeat - **NOT** optimized for anything below PiStorm/68040.
+This project aims to build an enhanced Amiga version of Gloom, based on the original, unmodified source code published at [earok/GloomAmiga](https://github.com/earok/GloomAmiga). Gloom Reforged is compatible with ECS and AGA Amigas as well as with Picasso96 graphicscards. And it is **NOT** - I reapeat - **NOT** optimized for anything below PiStorm/68040.
 
-[Watch a preview](https://vimeo.com/1213335312?share=copy&fl=sv&fe=ci) of Gloom Reforged v1.10.0 on Vimeo.
+[Watch](https://vimeo.com/1213335312?share=copy&fl=sv&fe=ci) Gloom Reforged v1.10.0 on Vimeo.
 
 > [!WARNING]
 > This game needs more CPU power than the original Gloom.  
@@ -60,16 +60,18 @@ The project will proceed step by step, with stability and authenticity taking pr
 7. **Reworked distance fog / far rendering**  
    Current focus: smoother distance darkening, fewer harsh shading steps, stronger fade-out after roughly six texture widths, and dark far corridors instead of fully black gaps.
 8. **Reworked renderer**  
-    Bayer dithering was added to the hard transitions between lighter and darker shading for softer transitions.
+   Bayer dithering was added to the hard transitions between lighter and darker shading for softer transitions.
+9. **Genuine Picasso96 mode**  
+   A direct P96 output mode allows playing on AGA and ECS with P96 graphics cards. 
 
 
 ## TOOLTYPES (Icon or CLI)
 
-- Without a tool type, auto recognition kicks in
+- Without a tool type, auto recognition kicks in (AGA on AGA machines, ECS on ECS machines)
 - AGA = Start AGA mode
 - ECS = Start ECS Mode (only on AGA)
-- P96 = Use P96 graphics card mode
-- STOCK = use the default renderer from 90s Gloom without effects, Nasty violence mode, new Bayer-dithering and depth-fog
+- P96 = Use P96 graphics card mode, followed by a requester asking for your desired screenmode
+- STOCK = use the default renderer from the 90s-Gloom without effects, no Nasty violence mode, no new Bayer-dithering and depth-fog
 - FPS = Displays a frame counter in the bottom right corner (Gloom caps at 25 FPS)
 
 
