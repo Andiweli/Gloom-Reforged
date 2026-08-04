@@ -77,7 +77,7 @@ The project will proceed step by step, with stability and authenticity taking pr
 
 ## SCREENSHOTS
 
-[Watch the latest preview](https://vimeo.com/1213335312?share=copy&fl=sv&fe=ci) of Gloom Reforged v1.10.0 on Vimeo.
+[Watch](https://vimeo.com/1213335312?share=copy&fl=sv&fe=ci) Gloom Reforged v1.10.0 on Vimeo.
 
 
 **Titlescreen as usual** _(extended to widescreen 16:9_
