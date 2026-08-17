@@ -3,6 +3,7 @@
 ![OS](https://img.shields.io/badge/OS-AmigaOS%203%2B-blue)
 ![AI Assisted Coding](https://img.shields.io/badge/AI-Assisted%20Coding-white)
 ![Controls](https://img.shields.io/badge/Controls-Keyboard%20%2F%20Mouse%20%2F%20Joypad-green)
+[![PayPal](https://img.shields.io/badge/PayPal-Support%20this%20project-0070BA?logo=paypal&logoColor=white)](https://paypal.me/andiweli)
 
 This project aims to build an enhanced Amiga version of Gloom, based on the original, unmodified source code published at [earok/GloomAmiga](https://github.com/earok/GloomAmiga). Gloom Reforged is compatible with ECS and AGA Amigas as well as with Picasso96 graphicscards. And it is **NOT** - I reapeat - **NOT** optimized for anything below PiStorm/68040.
 
@@ -134,7 +135,6 @@ Determined using the [GloomBench benchmark](https://github.com/Andiweli/Gloom-Re
 ## RELEASE
 
 Look at the [Release section](https://github.com/Andiweli/GloomReforged/releases).
-
 
 ## LEGAL / SOURCE CODE NOTICE
 
