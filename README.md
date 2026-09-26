@@ -5,7 +5,7 @@
 ![Controls](https://img.shields.io/badge/Controls-Keyboard%20%2F%20Mouse%20%2F%20Joypad-green)
 [![Support via PayPal](https://img.shields.io/badge/Support%20via-PayPal-0070BA?logo=paypal&logoColor=white)](https://paypal.me/andiweli)
 
-This project aims to build an enhanced Amiga version of Gloom, based on the original, unmodified source code published at [earok/GloomAmiga](https://github.com/earok/GloomAmiga). Gloom Reforged is compatible with ECS and AGA Amigas as well as with Picasso96 graphicscards. And it is **NOT** - I reapeat - **NOT** optimized for anything below PiStorm/68040.
+This project aims to build an enhanced Amiga version of Gloom, based on the original, unmodified source code published at [earok/GloomAmiga](https://github.com/earok/GloomAmiga). Gloom Reforged is compatible with ECS and AGA Amigas as well as with Picasso96 graphicscards.  
 
 [Watch](https://vimeo.com/1213335312?share=copy&fl=sv&fe=ci) Gloom Reforged v1.10.0 on Vimeo.
 
