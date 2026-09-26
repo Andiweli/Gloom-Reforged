@@ -1263,7 +1263,7 @@ readjoys	;fill in appropriate 'joyxn' block...check escape
 	or	finished2(pc),d0
 	bne.s	.rts
 	;
-	qkey	$45
+	jsr	g2hotkeys_menu_key	; ESC or F10
 	sne	escape
 	;
 	move.l	player1(pc),a0
@@ -3810,10 +3810,8 @@ checkfire	;
 	move	cheat(pc),d0
 	beq.s	.nocheat
 	;
-	qkey	$5f	;help?????
-	beq.s	.noend
-	move	#3,finished
-	rts
+	; HELP is handled once per press by g2hotkeys_poll (Unlimited Health).
+	move.l	rawtable,a0	; remaining legacy cheat keys still need the matrix
 .noend	key	10
 	beq.s	.nohealth
 	bsr	inchealth

@@ -952,8 +952,8 @@ exone	equ	1<<exshft
 exhalf	equ	exone>>1
 
 	jmp	entrypoint
-	; c87b70s: public 1.9.1 marker; ECS/AGA/P96 remain official runtime paths.
-g2release_marker	dc.b	'Gloom Reforged v2.0 (c87b80o) by Andreas ',39,'Andiweli',39,' Stuermer',0
+	; v2.1: public release marker; ECS/AGA/P96 remain official runtime paths.
+g2release_marker	dc.b	'Gloom Reforged v2.1 (c87b80o) by Andreas ',39,'Andiweli',39,' Stuermer',0
 	even
 
 	rsreset

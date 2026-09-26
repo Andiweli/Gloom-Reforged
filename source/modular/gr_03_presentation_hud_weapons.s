@@ -1,3 +1,4 @@
+; Step 1: Bayer gates use the live switch (also forced OFF by STOCK).
 predrawall	;draw up everything....
 	;
 	;status bar too...
@@ -1646,7 +1647,7 @@ g2_draw_wall_reflection_lite
 
 	; STOCK normally locks reflections off. Retain the historic safety bypass
 	; so a forced internal STOCK/reflection combination still avoids Bayer work.
-	tst	g2stock_enabled
+	tst	g2_bayer_disabled
 	bne.s	.g2stock_wall_reflect_draw
 	; Compare the threshold directly with the 4x4 Bayer sample.
 	move	d5,d0
@@ -1822,7 +1823,7 @@ flat	;
 	clr	g2_bayer_thresh
 	; c87b63 STOCK: keep the current discrete shade and skip all Bayer
 	; look-ahead/table setup for this scanline.
-	tst	g2stock_enabled
+	tst	g2_bayer_disabled
 	bne.w	.g2v190ej_flatblend_done
 	; v190eo: include the first and second visible shade bands too.
 	; The v190em test skipped everything below 2 texture widths,
@@ -1998,9 +1999,9 @@ flat	;
 	swap	d4
 	swap	d6
 	;
-	; c87b69: STOCK keeps a base-palette loop, while normal mode keeps the
-	; ordered Bayer blend. Both use the confirmed FLAT4 loop whenever the
-	; current owner is row-major (ECS/AGA Kalm or P96 direct linear).
+	; Step 2a: only the actual STOCK profile selects the legacy flat loop.
+	; The live Bayer switch controls g2_bayer_thresh above (zero when OFF).
+	; Keep the normal resolution/span path for both Bayer YES and NO.
 	tst	g2stock_enabled
 	bne.w	.g2stock_flat_draw_setup
 	move	d7,g2_bayer_ybase

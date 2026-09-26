@@ -2811,7 +2811,7 @@ g2tok_set_p96
 	bra	g2tok_next
 
 g2tok_set_fps
-	move	#-1,g2fps_enabled	;c87a6: runtime-only; deliberately absent from gloom.cfg
+	clr	g2fps_enabled	; Step 3b: always start OFF, even with legacy FPS token
 	bra	g2tok_next
 
 g2tok_set_stock

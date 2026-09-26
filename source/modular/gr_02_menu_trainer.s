@@ -55,72 +55,78 @@ dogamemenu	;
 .resolution_left
 	bsr	trainer_prev_resolution
 .resolution_done
-	jsr	opton
+	jsr	g2resolution_live_menu
 	bra	.loop
 .notresolution
 	cmp	#3,d0
+	bne.s	.notbayer
+	bsr	trainer_toggle_bayer
+	jsr	g2p96_ingame_menu_floorceil_live_refresh
+	bra	.loop
+.notbayer
+	cmp	#4,d0
 	bne.s	.notroof
 	tst	roofflag
 	bgt.s	.roof_off
 	move	#1,roofflag
 	bra.s	.rskip
 .roof_off	move	#-1,roofflag
-.rskip	move	roofflag,roofflag2	;c87b69: CEILING row 3
+.rskip	move	roofflag,roofflag2	;c87b69: CEILING row 4
 	bsr	trainer_update_ceiling_text
 	jsr	g2cfg_save
 	jsr	g2p96_ingame_menu_floorceil_live_refresh
 	bra	.loop
 .notroof
-	cmp	#4,d0
+	cmp	#5,d0
 	bne.s	.notfloor
 	tst	floorflag
 	bgt.s	.floor_off
 	move	#1,floorflag
 	bra.s	.fskip
 .floor_off	move	#-1,floorflag
-.fskip	move	floorflag,floorflag2	;c87b69: FLOOR row 4
+.fskip	move	floorflag,floorflag2	;c87b69: FLOOR row 5
 	bsr	trainer_update_floor_text
 	jsr	g2cfg_save
 	jsr	g2p96_ingame_menu_floorceil_live_refresh
 	bra	.loop
 .notfloor
-	cmp	#6,d0
+	cmp	#7,d0
 	bne.s	.notblob
 	bsr	trainer_toggle_blobshadow
-	jsr	opton
+	jsr	g2p96_ingame_menu_floorceil_live_refresh
 	bra	.loop
 .notblob
-	cmp	#7,d0
+	cmp	#8,d0
 	bne.s	.notrefl
 	bsr	trainer_toggle_reflections
-	jsr	opton
+	jsr	g2p96_ingame_menu_floorceil_live_refresh
 	bra	.loop
 .notrefl
-	cmp	#8,d0
+	cmp	#9,d0
 	bne.s	.notvis
 	bsr	trainer_toggle_visibility
-	jsr	opton
+	jsr	g2p96_ingame_menu_floorceil_live_refresh
 	bra	.loop
 .notvis
-	cmp	#10,d0
+	cmp	#11,d0
 	bne.s	.notinv
 	bsr	trainer_toggle_inv
 	jsr	opton
 	bra	.loop
 .notinv
-	cmp	#11,d0
+	cmp	#12,d0
 	bne.s	.notbouncy
 	bsr	trainer_toggle_bouncy
 	jsr	opton
 	bra	.loop
 .notbouncy
-	cmp	#12,d0
+	cmp	#13,d0
 	bne.s	.notonehit
 	bsr	trainer_toggle_onehit
 	jsr	opton
 	bra	.loop
 .notonehit
-	cmp	#13,d0
+	cmp	#14,d0
 	bne.s	.notweapon
 	cmp	#$0100,d7
 	beq.s	.weapon_left
@@ -130,7 +136,7 @@ dogamemenu	;
 .weapon_done	jsr	opton
 	bra	.loop
 .notweapon
-	cmp	#14,d0
+	cmp	#15,d0
 	bne.s	.notboost
 	cmp	#$0100,d7
 	beq.s	.boost_left
@@ -140,7 +146,7 @@ dogamemenu	;
 .boost_done	jsr	opton
 	bra	.loop
 .notboost
-	cmp	#16,d0
+	cmp	#17,d0
 	bne	.loop
 	tst	d7
 	bne	.loop
@@ -193,12 +199,14 @@ g2stock_capture_cfg_options
 	move	g2_blobshadow,g2stock_cfg_blobshadow
 	move	g2_reflections,g2stock_cfg_reflections
 	move	g2_visibility,g2stock_cfg_visibility
+	move	g2_bayer_disabled,g2stock_cfg_bayer
 	rts
 
 g2stock_enforce_effects_off
 	; c87b69: pure runtime STOCK lock. Persisted choices remain untouched.
 	tst	g2stock_enabled
 	beq.s	.rts
+	move	#-1,g2_bayer_disabled	; Step 1: STOCK also locks the live Bayer switch to NO
 	move	#-1,g2_blobshadow
 	move	#-1,g2_reflections
 	move	#-1,g2_visibility
@@ -239,7 +247,10 @@ trainer_toggle_blobshadow
 
 trainer_toggle_reflections
 	tst	g2stock_enabled
+	bne.s	.locked
+	tst	g2_bayer_disabled
 	beq.s	.normal
+.locked
 	move	#-1,g2_reflections
 	bsr	trainer_update_reflection_text
 	rts
@@ -586,6 +597,7 @@ trainer_update_display_texts
 	movem.l	d0-d7/a0-a6,-(a7)
 	bsr	g2stock_enforce_effects_off
 	bsr	trainer_update_resolution_text
+	bsr	trainer_update_bayer_text
 	bsr	trainer_update_floor_text
 	bsr	trainer_update_ceiling_text
 	bsr	trainer_update_blob_text
@@ -639,6 +651,35 @@ trainer_update_resolution_text
 	move.b	d0,(a0)+
 	bra.s	.copy
 .done	rts
+
+ ; Step 1: runtime choice; 0=YES, -1=NO. STOCK keeps its original lock.
+trainer_toggle_bayer
+	tst	g2stock_enabled
+	bne.s	.locked
+	not.w	g2_bayer_disabled
+	bra.s	trainer_update_bayer_text
+.locked
+	move	#-1,g2_bayer_disabled
+trainer_update_bayer_text
+	; Step 1b: disabling Bayer also disables reflections immediately.
+	; Re-enabling Bayer leaves reflections OFF until selected explicitly.
+	tst	g2_bayer_disabled
+	beq.s	.text
+	move	#-1,g2_reflections
+	bsr	trainer_update_reflection_text
+.text
+	lea	game_bayer+21,a0
+	tst	g2_bayer_disabled
+	bne.s	.no
+	move.b	#'Y',(a0)+
+	move.b	#'E',(a0)+
+	move.b	#'S',(a0)
+	rts
+.no
+	move.b	#'N',(a0)+
+	move.b	#'O',(a0)+
+	move.b	#' ',(a0)
+	rts
 
 trainer_update_floor_text
 	lea	game_floor,a0

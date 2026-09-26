@@ -48,7 +48,7 @@ g2rc4_lowbw_phase_v21           dc.w 0
 g2rc4_saved_modeid_v21          dc.l 0
         even
 
-g2rc4_cfg_buffer_v21            ds.b 48
+g2rc4_cfg_buffer_v21            ds.b 52 ; v4 + P961 + BAY1
         even
 g2rc4_input_port_v21            dc.l 0
 g2rc4_input_ioreq_ptr_v21       dc.l 0
@@ -303,7 +303,7 @@ g2rc4_p96prefs_save_v21
         beq.w   .done
         lea     g2rc4_cfg_buffer_v21(pc),a0
         moveq   #0,d0
-        moveq   #11,d1
+        moveq   #12,d1
 .clear
         move.l  d0,(a0)+
         dbf     d1,.clear
@@ -318,7 +318,7 @@ g2rc4_p96prefs_save_v21
         move.l  d7,d1
         lea     g2rc4_cfg_buffer_v21(pc),a0
         move.l  a0,d2
-        move.l  #G2RC4_CFG_BASE_LEN_V21,d3
+        move.l  #G2RC4_CFG_TOTAL_LEN_V21+6,d3
         jsr     -42(a6)
         move.l  d0,d6
         move.l  d7,d1
@@ -357,6 +357,14 @@ g2rc4_p96prefs_save_v21
         move    #-1,(a0)+              ; visibility
         clr     (a0)+                  ; resolution 1x1
 .have_prefix
+        ; The requester saves BEFORE gameplay cfg load. Preserve BAY1 here,
+        ; otherwise selecting a screenmode would erase saved Bayer NO.
+        lea     g2rc4_cfg_buffer_v21+G2RC4_CFG_TOTAL_LEN_V21(pc),a0
+        cmp.l   #'BAY1',(a0)
+        beq.w   .bayer_preserved
+        move.l  #'BAY1',(a0)+
+        clr.w   (a0)
+.bayer_preserved
         lea     g2rc4_cfg_buffer_v21+G2RC4_CFG_BASE_LEN_V21(pc),a0
         move.l  #G2RC4_CFG_EXT_SIG_V21,(a0)+
         tst     g2rc4_save_screenmode_v21
@@ -388,7 +396,7 @@ g2rc4_p96prefs_save_v21
         move.l  d7,d1
         lea     g2rc4_cfg_buffer_v21(pc),a0
         move.l  a0,d2
-        move.l  #G2RC4_CFG_TOTAL_LEN_V21,d3
+        move.l  #G2RC4_CFG_TOTAL_LEN_V21+6,d3
         jsr     -48(a6)
         move.l  d7,d1
         jsr     -36(a6)

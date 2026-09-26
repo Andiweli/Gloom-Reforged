@@ -119,8 +119,13 @@ g2p96_menu_redraw_gameplay_source_once
 	bmi.s	.done
 	move.l	player1,player_
 	move.l	memory,memat
+	; Step 2: match the normal one-player world-resolution pipeline.
+	jsr	g2kalms_prepare_frame_layout
+	jsr	g2p96_gameplay_prepare_linear_frame
+	jsr	g2quality_prepare_frame
 	jsr	calcscene
 	jsr	drawscene
+	jsr	g2quality_expand_restore
 	jsr	blitscene
 	jsr	g2p96_gameplay_persistent_update
 	jsr	g2p96_menu_refresh_index_backdrop_c87b78p

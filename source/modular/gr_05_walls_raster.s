@@ -1,3 +1,4 @@
+; Step 1: Bayer gates use the live switch (also forced OFF by STOCK).
 makewalls	;
 	;New approach!
 	;
@@ -1031,7 +1032,7 @@ drawsolidstrip	macro
 	clr	g2_bayer_thresh
 	; c87b63 STOCK: select the existing undithered fast wall loop and skip
 	; all Bayer transition probing for this column.
-	tst	g2stock_enabled
+	tst	g2_bayer_disabled
 	bne.w	.g2v190ej_wallblend_setup_done
 	move	vd_z(a0),d6
 	tst	g2_visibility
@@ -2110,7 +2111,7 @@ g2_draw_enemy_mirror_reflection_safe
 	moveq	#1,d4		; tail: sparse end
 .dither_pick
 	; c87b63 STOCK: retain the mirror geometry but skip the ordered mask.
-	tst	g2stock_enabled
+	tst	g2_bayer_disabled
 	bne.s	.g2stock_enemy_ref_draw
 	move	g2_enemy_ref_curx(pc),d0
 	and	#3,d0
@@ -2956,7 +2957,7 @@ g2_draw_enemy_blob_column
 .rdraw	move	g2_shadow_col(pc),d4
 		; c87b63 STOCK keeps the reflection geometry but bypasses the ordered
 		; transparency mask and its per-row table/branch work.
-		tst	g2stock_enabled
+		tst	g2_bayer_disabled
 		bne.w	.g2stock_reflection_solid
 		; c86zdm: complete reflection remains Bayer-dithered.  The
 		; extended far range is deliberately much sparser/darker before

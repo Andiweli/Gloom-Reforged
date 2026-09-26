@@ -2178,13 +2178,15 @@ g2v10_player1_ok
 	bsr	syncup
 	;
 	clr	framecnt
+	jsr	g2hotkeys_seed	; do not inherit a held key from title/intermission
 	clr	paused
 	jsr	predrawall
 	jsr	g2fps_reset	;c87a6: reset actual presented-FPS interval after buffer-prime frames
 	bsr	dispon
 	bsr	chaton
 	;
-mainloop	; v190hy cleanup: log frame counter removed
+mainloop	; Step 2: handle option keys at a main-task frame boundary
+	jsr	g2hotkeys_poll
 	jsr	drawall
 	move	escape,d0
 	beq.s	.noesc
@@ -3390,18 +3392,19 @@ joyb5	dc	0,0
 
 	even
 
-gamemenu	dc.b	17
+gamemenu	dc.b	18
 	dc.b	'CONTINUE',0
 	dc.b	92,0
 	; c87b69: world-render resolution; all overlays and output remain native.
 game_resolution	dc.b	'         RESOLUTION: 1x1 PIXELS                  ',0
+game_bayer	dc.b	'    BAYER DITHERING: YES                        ',0
 	; CEILING precedes FLOOR consistently in every game profile.
 game_ceil	dc.b	'            CEILING: YES                        ',0
 game_floor	dc.b	'              FLOOR: YES                        ',0
 	dc.b	92,0
 game_blob	dc.b	'       BLOB SHADOWS: NO                         ',0
 game_reflections	dc.b	'        REFLECTIONS: NO                         ',0
-game_visibility	dc.b	'       VIEW DISTANCE: DEFAULT                    ',0
+game_visibility	dc.b	'      VIEW DISTANCE:  DEFAULT                    ',0
 	dc.b	92,0
 game_inv	dc.b	'   UNLIMITED HEALTH: NO                         ',0
 game_bouncy	dc.b	'     BOUNCY BULLETS: NO                         ',0
@@ -3425,6 +3428,7 @@ trainer_resolution_2x2	dc.b	'2x2 PIXELS',0
 	even
 
 g2_resolution	dc	0	;c87b69 0=1x1, 1=2x1, 2=1x2, 3=2x2
+g2_bayer_disabled	dc	0	; Step 1: session switch, 0=YES (default), -1=NO
 
 
 g2_blobshadow	dc	-1	;v116c menu flag, v126 enables enemy blob shadow

@@ -1,4 +1,5 @@
 entrypoint	;
+	move.l	a7,g2menu_entry_sp	; fatal menu allocation: return via original task stack
 	clr.l	map_test
 	clr.l	g2display_cli_ptr	;c86zdv: optional DISPLAY= parser starts clean
 	move.l	4.w,a6
@@ -20,11 +21,12 @@ cli	;
 	bne.s	wb
 	lea	tempfile,a1
 	move.l	a1,map_test
-.loop	move.b	(a0)+,(a1)
+	jsr	g2safe_copy_map_parameter
+	tst.l	d0
 	beq.s	wb
-	cmp.b	#10,(a1)+
-	bne.s	.loop
-	clr.b	-(a1)
+	clr.l	map_test
+	moveq	#20,d0		; reject overlong @ parameter before acquiring resources
+	rts
 wb	;
 	lea	dosname,a1
 	move.l	4.w,a6

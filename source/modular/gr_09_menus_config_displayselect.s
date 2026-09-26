@@ -212,6 +212,10 @@ initmenu2	;
 	mulu	bitplanes(pc),d0
 	moveq	#2,d1
 	allocmem	menustrip
+	tst.l	d0
+	bne.s	.strip_alloc_ok
+	jmp	g2menu_allocation_failed	; no null strip copy, no partial-menu continuation
+.strip_alloc_ok
 	move.l	d0,(a5)+
 	move.l	d0,a1	;strip address
 	;
@@ -552,7 +556,7 @@ readmenujoy	;encode to d0!
 	move.l	joyb0(pc),d0
 	or.l	d0,joyb
 	;
-	qkey	$45
+	jsr	g2hotkeys_menu_key	; ESC or F10, same release handling
 	beq.s	.noesc
 	tst	game_menu_active
 	beq.s	.noesc
@@ -587,6 +591,7 @@ unselmenu	move	d0,-(a7)
 	rts
 
 readmenusel	;read menu selection!
+	jsr	g2hotkeys_poll_menu	; both native and P96 selection loops
 	tst	linked
 	bne.s	.link
 	;
@@ -1003,6 +1008,7 @@ keymouse_mx	dc	0
 ; v4 appends the RESOLUTION word. v1-v3 migrate safely to 1x1 PIXELS.
 g2cfg_load
 	movem.l	d0-d7/a0-a6,-(a7)
+	clr	g2_bayer_disabled	; old configs default to Bayer YES
 	move.l	dosbase,a6
 	lea	g2cfg_name(pc),a0
 	move.l	a0,d1
@@ -1013,13 +1019,13 @@ g2cfg_load
 	move.l	d7,d1
 	lea	g2cfg_buf(pc),a0
 	move.l	a0,d2
-	move.l	#g2cfg_len,d3
+	move.l	#g2cfg_len+18,d3
 	jsr	-42(a6)
 	move.l	d0,d6
 	move.l	d7,d1
 	jsr	-36(a6)
 	cmp.l	#g2cfg_len,d6
-	beq.s	.len_ok
+	bge.s	.len_ok
 	cmp.l	#g2cfg_len_v3,d6
 	beq.s	.len_ok
 	cmp.l	#g2cfg_len_v2,d6
@@ -1062,6 +1068,16 @@ g2cfg_load
 	bne.s	.no_resolution
 	move	(a0)+,g2_resolution
 .no_resolution
+	cmp.l	#g2cfg_len+18,d6
+	blt.s	.no_bayer
+	lea	g2cfg_buf+g2cfg_len+12,a0
+	cmp.l	#'BAY1',(a0)+
+	bne.s	.no_bayer
+	tst.w	(a0)
+	beq.s	.no_bayer
+	move	#-1,g2_bayer_disabled
+	move	#-1,g2_reflections	; saved Bayer NO keeps reflections locked OFF
+.no_bayer
 	bsr	g2cfg_sanitize
 	bsr	g2cfg_apply_view
 .load_done
@@ -1121,6 +1137,14 @@ g2cfg_save
 	moveq	#-1,d0
 .rc4_cfg_store_low
 	move	d0,(a0)+
+	; Keep the v4/P961 prefix intact; append the independent Bayer setting.
+	move.l	#'BAY1',(a0)+
+	move	g2_bayer_disabled,d0
+	tst	g2stock_enabled
+	beq.s	.store_bayer
+	move	g2stock_cfg_bayer,d0	; STOCK must not overwrite the saved normal choice
+.store_bayer
+	move	d0,(a0)+
 	move.l	dosbase,a6
 	lea	g2cfg_name(pc),a0
 	move.l	a0,d1
@@ -1131,7 +1155,7 @@ g2cfg_save
 	move.l	d7,d1
 	lea	g2cfg_buf(pc),a0
 	move.l	a0,d2
-	move.l	#g2cfg_len+12,d3
+	move.l	#g2cfg_len+18,d3
 	jsr	-48(a6)
 	move.l	d7,d1
 	jsr	-36(a6)
@@ -1229,7 +1253,8 @@ g2cfg_len_old	equ	6+2+(10*2)
 g2cfg_len_v2	equ	6+2+(11*2)
 g2cfg_len_v3	equ	6+2+(12*2)
 g2cfg_len	equ	6+2+(13*2)
-g2cfg_buf	ds.b	g2cfg_len+12
+g2cfg_buf	ds.b	g2cfg_len+18
+g2stock_cfg_bayer	dc.w	0
 	even
 
 savefile	;a0=name, a1=mem, d0=length
