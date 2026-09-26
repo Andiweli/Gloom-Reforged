@@ -1,0 +1,181 @@
+Gloom Reforged v2.0 - conservative modular source test
+======================================================
+
+Basis
+-----
+Original source: GloomReforged.s
+Original size: 1418272 bytes
+Original lines: 51645
+Original SHA-256: 6573079f283563c1d69a522889870597cde9e6bf363581df47266ad00c70b294
+
+Goal
+----
+This is a layout-preserving INCLUDE split. No source line from the original was edited,
+reordered, normalized or reformatted inside the modules. The modules are contiguous
+byte ranges of the released c87b80o source and remain in the exact original order.
+
+GloomReforged_Recombined.s is the literal concatenation of gr_00..gr_24. It is verified
+byte-for-byte identical to the uploaded GloomReforged.s.
+
+GloomReforged_Modular.s contains only GenAm INCLUDE directives, in the same order.
+All include files are deliberately kept in the same directory as the master file. This
+keeps the existing relative INCBIN names (arc.bin, gridoffs4.bin, sqr.bin, etc.) in the
+same source-directory context as the monolithic build.
+
+Module boundaries were chosen only where conditional-assembly, MACRO and REPT nesting
+is at depth zero. Hot routines were not relocated; therefore code/data order and all
+branch/PC-relative distances are intended to remain exactly unchanged after INCLUDE
+expansion.
+
+Modules
+-------
+gr_00_header_defs.s
+  original lines 1-1523 (1523 lines, 77890 bytes)
+  SHA-256 8420929b623c1cc457b535a7f9620500f90afc4f0874a2ddb6c5e20ccccfcb4f
+  Build history, constants, structures, macros, startup data before entrypoint
+
+gr_01_startup_audio.s
+  original lines 1524-2005 (482 lines, 10675 bytes)
+  SHA-256 60a0f4a41a2aab6c41774f04450dce74e592626d6e87ca08051bd6ddf827aaec
+  Entrypoint/Workbench-CLI startup, shutdown path, fast-sub entry, input helpers and Paula SFX
+
+gr_02_menu_trainer.s
+  original lines 2006-3808 (1803 lines, 40960 bytes)
+  SHA-256 5341de0b15b8275fdb7bbc13ae27333edb2a17d7f4732601261c62a11b649e68
+  In-game menu, trainer/options, projection helpers and pre-presentation helpers
+
+gr_03_presentation_hud_weapons.s
+  original lines 3809-6940 (3132 lines, 67351 bytes)
+  SHA-256 2feb37b3080d975a60b7b3be25045d743ae17dd8faba3c0498f8c9064dc18afa
+  predrawall/drawall, two-player presentation, C2P dispatch, HUD, weapon/muzzle and related hot drawing
+
+gr_04_scene_objects.s
+  original lines 6941-11939 (4999 lines, 90460 bytes)
+  SHA-256 e75ea4e4c29b9debf9df07b1c05d32515b99ec8d7468f6c79d44868f25af5a16
+  calcscene/drawscene scene traversal, object/physics/gameplay hot routines up to wall-list construction
+
+gr_05_walls_raster.s
+  original lines 11940-15102 (3163 lines, 69416 bytes)
+  SHA-256 797cdaea43a1c1fe70f12309a73163ff6563fc8eed1b65561ea2e8088117d93c
+  Wall construction/projection/casting/rasterisation including dothezone3, castwalls, drawsolidstrip and renderwalls
+
+gr_06_data_core.s
+  original lines 15103-15536 (434 lines, 7092 bytes)
+  SHA-256 353ee5f57b74ed49dcc2449b5445e39b8f209527cfab687a0a6645171518cb4e
+  Original core DATA block and large runtime storage
+
+gr_07_slow_subs_assets.s
+  original lines 15537-16932 (1396 lines, 23377 bytes)
+  SHA-256 218d7302b0fc28e76db3cfde3803d6590320b95bd6d8040cc6189153c0b0373b
+  Original SLOW SUBS: palette, loading, drawing and asset/support routines before serial code
+
+gr_08_serial_gameflow.s
+  original lines 16933-21018 (4086 lines, 94849 bytes)
+  SHA-256 ff852b2b9e2dad5b12f7feb79c1905ba7b72f6d69fafc21e117afb84d4ffb4e2
+  Serial/link code, main initialization/game flow, script and level-selection support
+
+gr_09_menus_config_displayselect.s
+  original lines 21019-22978 (1960 lines, 45238 bytes)
+  SHA-256 3350cec07901612f9e19d28b2fbf114ab7096a7ef5df877cb5bd56e328b66ead
+  Title/menu core, input/window-adjacent support, gloom.cfg persistence and DISPLAY/ToolType parsing
+
+gr_10_p96_native_display.s
+  original lines 22979-25594 (2616 lines, 54888 bytes)
+  SHA-256 975b5f356c348a3dccee87bcbf826397e57d90a995bd63a37504ddceaca401ef
+  Picasso96 probe, persistent screen/window/display lifecycle and native display/C2P support
+
+gr_11_kalm_c2p_grey_menu.s
+  original lines 25595-27518 (1924 lines, 35539 bytes)
+  SHA-256 ab8d88437b35607e5b5d556fcf93f2f751e06595ff7c78ad65b6ebca736449e2
+  Embedded Kalm C2P implementations and following legacy/grey-menu support
+
+gr_12_profiles_embedded_assets.s
+  original lines 27519-33364 (5846 lines, 333447 bytes)
+  SHA-256 74267652f4d82396110b16536fc9a0bba18b59631de5de06669d79b9873e0725
+  Black Magic/Gloom profile compatibility and embedded title/overlay asset payloads
+
+gr_13_p96_menu_native.s
+  original lines 33365-35008 (1644 lines, 38966 bytes)
+  SHA-256 4328e529a7ddea848d14081836754882906dc44cd70aebc67794bc522a7e8526
+  P96-native menu navigation, glyph/cache and menu-compositor core before static presenter
+
+gr_14_p96_static_intermission.s
+  original lines 35009-37962 (2954 lines, 69126 bytes)
+  SHA-256 a42455898a6482a35d96dd4116e329ca6a28a1111e9b118d325c31237bda4c7d
+  P96 staged static-screen/title/intermission presenter and related direct menu/text support
+
+gr_15_fps_wide_menu.s
+  original lines 37963-40171 (2209 lines, 62686 bytes)
+  SHA-256 97e2df57a06c11d79e2c5193d76903f8cbc36761265f91823208d2014d37ac63
+  Presented-FPS counter plus WIDE/5:4/menu repair helpers up to ECS title-brush layer
+
+gr_16_ecs_title_palettes.s
+  original lines 40172-41497 (1326 lines, 33879 bytes)
+  SHA-256 849802fa1db25689be646e130796c7e24f8ded7e6960226856f38aa59df6de65
+  ECS title-brush remapping, preflight/logging and embedded ECS/EHB intermission palettes
+
+gr_17_resolution_quality.s
+  original lines 41498-42004 (507 lines, 15435 bytes)
+  SHA-256 9dbaf51b31c8059fb36fee823466092c93cdba134c02fbc570e23235b91d730d
+  Saved 1x1/2x1/1x2/2x2 world-resolution implementation for one/two player
+
+gr_18_p96_requester_core.s
+  original lines 42005-43810 (1806 lines, 48703 bytes)
+  SHA-256 020734098c02a45057482aae77151842df895196cb39b3492d8ecf6f79093d8e
+  Filtered P96 mode requester, custom Intuition requester, P96MODEID and related mode-selection support
+
+gr_19_renderer_optimizations_effects.s
+  original lines 43811-45006 (1196 lines, 27978 bytes)
+  SHA-256 edbbf5814f94c311e0dba54f916afd09d03fc0ba71b5c00e73e8b2494a336337
+  Flat/wall optimized span/dither paths plus later heart/decal/visibility helpers
+
+gr_20_p96_menu_rect_publisher.s
+  original lines 45007-45320 (314 lines, 7306 bytes)
+  SHA-256 21a2148e542706dbbe3fc260c7af02d2c14dcdf98948d06ef5db9fdff8d6e48a
+  Safe P96 menu rectangle/cache/batch publisher layer
+
+gr_21_p96_clut_backend.s
+  original lines 45321-47581 (2261 lines, 52371 bytes)
+  SHA-256 2ababffe4261f3f385b246fab847b863ddb5aee575d7640a13c4324f7c2a776d
+  P96 palette ownership, CLUT runtime, direct gameplay/FPS/static/menu indexed backend
+
+gr_22_p96_direct_indexed_modes.s
+  original lines 47582-50081 (2500 lines, 61783 bytes)
+  SHA-256 1673e47609e33d9de7fced307b9567017dae60df2eabecf19380c9ec21fb3f41
+  Direct indexed title/intermission plus 5:4/WIDE host-aware P96 mode layers
+
+gr_23_p96_late_release_layers.s
+  original lines 50082-50718 (637 lines, 19034 bytes)
+  SHA-256 5ee656ac70ba6d409c5c5692ec10fba124459cba94fea7508c6614580fe6e22f
+  Late P96 release layers: intermission pens, two-player direct modes, menu refresh, planar-removal and RC3 mode-list selector
+
+gr_24_rc4_requester_preferences_lowbw.s
+  original lines 50719-51645 (927 lines, 29823 bytes)
+  SHA-256 09bd68812701c4d6d4867b02e753adef2e20e509f084b179a848042af6e0ba86
+  RC4/RC5-era saved P96 mode, L-Shift override, classic requester refresh/selection and Low Bandwidth publisher
+
+Local verification already performed
+------------------------------------
+Concatenate gr_00..gr_24 SHA-256: 6573079f283563c1d69a522889870597cde9e6bf363581df47266ad00c70b294
+Original GloomReforged.s SHA-256:  6573079f283563c1d69a522889870597cde9e6bf363581df47266ad00c70b294
+Result: IDENTICAL
+
+GenAm test on the Amiga
+-----------------------
+1. Keep the original GloomReforged.s unchanged as the v2.0 reference.
+2. Put GloomReforged_Modular.s and all gr_*.s files in the same directory as the
+   original source and its INCBIN assets.
+3. Assemble the original source and save the executable as GloomReforged_MONO.
+4. Assemble GloomReforged_Modular.s with exactly the same GenAm 3.18 options and save
+   the executable as GloomReforged_MOD.
+5. Compare file size and preferably a binary checksum. With debug/line-information
+   output disabled, the executable should be byte-identical because INCLUDE is textual.
+   If debug/line source information is enabled, source-file metadata can make the final
+   executable differ even when CODE/DATA hunks are identical.
+
+Important
+---------
+This first pass intentionally does NOT move routines into new semantic order. Doing so
+would change addresses and may create/remove GenAm PC-relative and short-branch range
+issues. Once this INCLUDE build is proven, individual modules can be cleaned internally
+one at a time with separate regression tests.
