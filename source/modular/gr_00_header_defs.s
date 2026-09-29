@@ -1,3 +1,6 @@
+; v2.2 / c87b80p: consolidate hardware-tested renderer and native menu fixes.
+; Bayer lookup, low-resolution scaling, period palettes, native screen/audio
+; separation, menu strip release and live-menu WaitBlit boundaries. No logging.
 ; c87b80o / RC5 GenAmFix1: GenAm 3.18 branch-range fix only.
 ;                            The failed-OpenWindow path in windowtask now
 ;                            uses a nearby inverted short branch plus an
@@ -952,8 +955,8 @@ exone	equ	1<<exshft
 exhalf	equ	exone>>1
 
 	jmp	entrypoint
-	; v2.1: public release marker; ECS/AGA/P96 remain official runtime paths.
-g2release_marker	dc.b	'Gloom Reforged v2.1 (c87b80o) by Andreas ',39,'Andiweli',39,' Stuermer',0
+	; v2.2: public release marker; ECS/AGA/P96 remain official runtime paths.
+g2release_marker	dc.b	'Gloom Reforged v2.2 (c87b80p) by Andreas ',39,'Andiweli',39,' Stuermer',0
 	even
 
 	rsreset

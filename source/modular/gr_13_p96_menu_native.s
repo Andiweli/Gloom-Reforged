@@ -372,6 +372,7 @@ g2p96_gameplay_hide_pointer
 	move.l	chipzero,a1
 	move.l	a1,d1
 	beq	.done
+	lea	128(a1),a1	;Fix3b: private sprite area; never overwrite audio silence
 	move.l	d0,a0
 	moveq	#16,d0	;RC5: complete 16-row invisible Intuition pointer
 	moveq	#16,d1	;full 16-pixel sprite width

@@ -5697,8 +5697,10 @@ g2p96_ingame_menu_floorceil_live_refresh
 	jsr	g2p96_menu_all_rows_present
 	move	(a7),curropt
 	jsr	opton
-	bra.s	.refresh_wait_release
+	bra.w	.refresh_wait_release
 .aga_refresh_full
+	; MenuBlitSync1: finish the selected-row blit before CPU access/free.
+	jsr	g2menu_refresh_wait_blit
 	; c87b12: rebuild in the same order as the initial in-game menu:
 	; gameplay -> grey backdrop -> complete menu.  The old order composed the
 	; menu first and then C2P-swapped the grey gameplay over it, leaving only
@@ -5706,13 +5708,21 @@ g2p96_ingame_menu_floorceil_live_refresh
 	jsr	g2v190aj_restore_game_palette
 	jsr	finitmenu
 	jsr	predrawall
+	; MenuBlitSync1: Complete any render blits before the grey/CPU conversion.
+	jsr	g2menu_refresh_wait_blit
 	jsr	g2v190aj_grey_menu_backdrop
+	; MenuBlitSync1: Finish backdrop work before initmenu2 copies planar rows.
+	jsr	g2menu_refresh_wait_blit
 	move	(a7),curropt
 	lea	gamemenu,a4
 	jsr	initmenu2
+	; MenuBlitSync1: Finish the last menu glyph before selected-row composition.
+	jsr	g2menu_refresh_wait_blit
 	move	(a7),curropt
 .refresh_done
 	jsr	opton		;c87b12: selected row over the fully rebuilt grey menu
+	; MenuBlitSync1: Do not hand back a still-running selected-row blit.
+	jsr	g2menu_refresh_wait_blit
 .refresh_wait_release
 	jsr	g2wide_floorceil_wait_release_quit_fix
 	addq	#2,a7
@@ -5844,3 +5854,17 @@ g2p96_menu_selmenu_stable
 	jsr	g2p96_menu_apply_saved_blink_phase	;c86zgs: no cadence reset/no stale OFF row
 	bra	.wait
 
+
+; MenuBlitSync1: native live-menu boundary only, no file I/O or frame delay.
+; Graphics WaitBlit handles chipset busy-bit quirks and preserves registers.
+; Preserve our library-base change and CCR as well, so only completion
+; ordering changes. graphics.library is already open for this display path.
+; This does not drain QBlit queues or synchronize ChangeVPBitMap messages.
+g2menu_refresh_wait_blit
+	move.w	ccr,-(a7)
+	move.l	a6,-(a7)
+	move.l	grbase,a6
+	jsr	-228(a6)	;graphics.library WaitBlit
+	move.l	(a7)+,a6
+	move.w	(a7)+,ccr
+	rts

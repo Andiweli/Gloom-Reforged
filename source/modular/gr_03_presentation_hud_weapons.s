@@ -1,5 +1,8 @@
 ; Step 1: Bayer gates use the live switch (also forced OFF by STOCK).
 predrawall	;draw up everything....
+	; Performance patch 3: reinstall the blank pointer at gameplay/menu
+	; rebuild boundaries. Window creation and inputon retain their own calls.
+	jsr	g2v36_hide_pointer
 	;
 	;status bar too...
 	;
@@ -18,7 +21,9 @@ predrawall	;draw up everything....
 	bra	drawall_
 
 drawall	;
-	jsr	g2v36_hide_pointer	;v36: keep Intuition pointer hidden during gameplay
+	; Keep the cheap hardware guard each frame, without repeating SetPointer.
+	; Intuition pointer setup remains at window/input/rebuild boundaries.
+	move	#$0020,$dff096
 .wait	tst	doneflag
 	bne.s	.waitskip
 	jsr	vwait

@@ -1,3 +1,4 @@
+; 2.1 performance trial 2: compact two-pixel expansion and paired row copy.
 ; =============================================================================
 ; c87b69 - saved world RESOLUTION selector
 ;
@@ -122,12 +123,23 @@ g2quality_expand_restore
         adda.l  d1,a1
         lea     g2resolution_dupbyte_table,a2
         move.w  d0,d7
-        subq.w  #1,d7
-.x_loop
+        ; Two source pixels per loop; backwards preserves in-place overlap.
+        ; Clear index once: MOVE.B below cannot change its upper bits.
         moveq   #0,d0
+        lsr.w   #1,d7
+        bcc.s   .x_pairs
+        move.b  -(a0),d0
+        move.w  0(a2,d0.w*2),-(a1)
+.x_pairs
+        subq.w  #1,d7
+        bmi.s   .x_finished
+.x_loop
+        move.b  -(a0),d0
+        move.w  0(a2,d0.w*2),-(a1)
         move.b  -(a0),d0
         move.w  0(a2,d0.w*2),-(a1)
         dbf     d7,.x_loop
+.x_finished
         movem.l (a7)+,d0-d2/d7/a0-a2
         bra.w   .restore
 
@@ -184,22 +196,41 @@ g2quality_expand_restore
 .xy_row
         move.l  a1,a4
         move.w  g2resolution_compact_width,d6
-        subq.w  #1,d6
-.xy_expand
+        ; Two source pixels per loop; backwards preserves in-place overlap.
+        ; Clear index once: MOVE.B below cannot change its upper bits.
         moveq   #0,d0
+        lsr.w   #1,d6
+        bcc.s   .xy_pairs
         move.b  -(a0),d0
         move.w  0(a2,d0.w*2),-(a4)
-        dbf     d6,.xy_expand
+.xy_pairs
+        subq.w  #1,d6
+        bmi.s   .xy_finished
+.xy_loop
+        move.b  -(a0),d0
+        move.w  0(a2,d0.w*2),-(a4)
+        move.b  -(a0),d0
+        move.w  0(a2,d0.w*2),-(a4)
+        dbf     d6,.xy_loop
+.xy_finished
         move.l  a4,a1
         move.l  a4,a3
         move.l  a4,a5
         suba.w  g2resolution_saved_width,a5
         move.w  g2resolution_saved_width,d6
         lsr.w   #2,d6
+        ; Two longwords per loop, with one-longword tail for e.g. 428px.
+        lsr.w   #1,d6
+        bcc.s   .xy_copy_pairs
+        move.l  (a3)+,(a5)+
+.xy_copy_pairs
         subq.w  #1,d6
+        bmi.s   .xy_copy_finished
 .xy_copy_upper
         move.l  (a3)+,(a5)+
+        move.l  (a3)+,(a5)+
         dbf     d6,.xy_copy_upper
+.xy_copy_finished
         suba.w  g2resolution_saved_width,a1
         dbf     d7,.xy_row
         movem.l (a7)+,d0-d3/d6-d7/a0-a5
@@ -315,12 +346,23 @@ g2twop_quality_expand_half
         adda.l  d1,a1
         lea     g2resolution_dupbyte_table,a2
         move.w  d0,d7
-        subq.w  #1,d7
-.tx_loop
+        ; Two source pixels per loop; backwards preserves in-place overlap.
+        ; Clear index once: MOVE.B below cannot change its upper bits.
         moveq   #0,d0
+        lsr.w   #1,d7
+        bcc.s   .tx_pairs
+        move.b  -(a0),d0
+        move.w  0(a2,d0.w*2),-(a1)
+.tx_pairs
+        subq.w  #1,d7
+        bmi.s   .tx_finished
+.tx_loop
+        move.b  -(a0),d0
+        move.w  0(a2,d0.w*2),-(a1)
         move.b  -(a0),d0
         move.w  0(a2,d0.w*2),-(a1)
         dbf     d7,.tx_loop
+.tx_finished
         movem.l (a7)+,d0-d3/d7/a0-a2
         bra.w   .restore
 
@@ -385,22 +427,41 @@ g2twop_quality_expand_half
         move.l  a1,a4
         move.w  d3,d6
         lsr.w   #1,d6
-        subq.w  #1,d6
-.txy_expand
+        ; Two source pixels per loop; backwards preserves in-place overlap.
+        ; Clear index once: MOVE.B below cannot change its upper bits.
         moveq   #0,d0
+        lsr.w   #1,d6
+        bcc.s   .txy_pairs
         move.b  -(a0),d0
         move.w  0(a2,d0.w*2),-(a4)
-        dbf     d6,.txy_expand
+.txy_pairs
+        subq.w  #1,d6
+        bmi.s   .txy_finished
+.txy_loop
+        move.b  -(a0),d0
+        move.w  0(a2,d0.w*2),-(a4)
+        move.b  -(a0),d0
+        move.w  0(a2,d0.w*2),-(a4)
+        dbf     d6,.txy_loop
+.txy_finished
         move.l  a4,a1
         move.l  a4,a3
         move.l  a4,a5
         suba.w  d3,a5
         move.w  d3,d6
         lsr.w   #2,d6
+        ; Two longwords per loop, with one-longword tail for e.g. 428px.
+        lsr.w   #1,d6
+        bcc.s   .txy_copy_pairs
+        move.l  (a3)+,(a5)+
+.txy_copy_pairs
         subq.w  #1,d6
+        bmi.s   .txy_copy_finished
 .txy_copy_upper
         move.l  (a3)+,(a5)+
+        move.l  (a3)+,(a5)+
         dbf     d6,.txy_copy_upper
+.txy_copy_finished
         suba.w  d3,a1
         dbf     d7,.txy_row
         movem.l (a7)+,d0-d3/d6-d7/a0-a5

@@ -745,7 +745,21 @@ g2v17_wait_menu_release
 	movem.l	(a7)+,d0
 	rts
 
-calcoffset	move	#320,d0
+calcoffset
+	; Native P96 ONE PLAYER owns a full, packed source at offset zero.
+	; predrawall calls here on menu return while WIDE/5:4 geometry may
+	; already be active. The planar 320x240 centering below would turn
+	; 320-428 into an unsigned shifted offset and disable g2quality.
+	cmp	#2,g2display_mode
+	bne.s	.planar_offset
+	tst	p96gameplay_persist_active
+	beq.s	.planar_offset
+	tst	twowins
+	bne.s	.planar_offset
+	clr.l	offset
+	rts
+.planar_offset
+	move	#320,d0
 	sub	width,d0		;c87b19a: absolute range-safe
 	lsr	#4,d0
 	ext.l	d0

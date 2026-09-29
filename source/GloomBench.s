@@ -1,3 +1,28 @@
+; GloomBench v2.2 / c87b80p-bench1
+; Shared code: complete Gloom Reforged v2.2 modules gr_00..gr_27.
+; Benchmark: supplied silent map1_1 harness and RAM: P96 diagnostics retained.
+; F1..F7/F9/HELP use the shared edge-triggered hotkeys; F10/ESC opens the menu.
+; Each accepted hotkey/menu return starts 16 warmup + 257 measured frames anew.
+; Gameplay options are session-only; requester preferences still preserve BAY1.
+; Keys: F1 resolution (1x1/2x1/1x2/2x2), F2 Bayer, F3 ceiling, F4 floor,
+;       F5 blob shadows, F6 reflections, F7 view distance, F8 unused,
+;       F9 FPS overlay, F10/ESC menu, HELP unlimited health.
+;       Existing STOCK and Bayer/reflection restrictions still apply.
+; Result: RAM:GloomBench_result.txt plus CLI output; final effective options
+;         are included. Do not compare runs with different FPS/LowBW settings.
+; Build: assemble this complete single source beside the original INCbin assets.
+; Validation: vasm 2.0f, -m68020 -no-opt -Fhunkexe; no assembly errors.
+;            Six existing label-name warnings (rts/data/offset/c2p/text/db).
+;            Restart/camera instruction model: 257 restart positions checked.
+;            GenAm 3.18 and Amiga hardware validation still required.
+; Smoke test: AGA/ECS/P96; tap each F-key, hold one key (one change only),
+;             open F10 menu, change options repeatedly, return and use F1 again.
+;             Stop changing options to allow a complete fresh benchmark run.
+; Historical source notes below describe earlier development stages.
+; =============================================================================
+; v2.2 / c87b80p: consolidate hardware-tested renderer and native menu fixes.
+; Bayer lookup, low-resolution scaling, period palettes, native screen/audio
+; separation, menu strip release and live-menu WaitBlit boundaries. No logging.
 ; c87b80o / RC5 GenAmFix1: GenAm 3.18 branch-range fix only.
 ;                            The failed-OpenWindow path in windowtask now
 ;                            uses a nearby inverted short branch plus an
@@ -18,47 +43,19 @@
 ;                of assuming exact RGB565 $FFFF exists in every gameplay LUT.
 ;                RC4 requester/preferences and wall DIVS overflow fix unchanged.
 ;==============================================================================
-; c87b80m / RC4: Restore the original Gloom2 wall-endpoint DIVS overflow
-;                decision before the Reforged projection-scaling helpers.
-;                This prevents helper condition codes from hiding an overflow
-;                and intermittently discarding edge-on walls while turning.
-;                Includes the confirmed TEST5 requester: saved P96 mode,
-;                left-Shift override, Low Bandwidth, latched mode + OK,
-;                refreshed SIMPLE_REFRESH redraw and final classic layout.
+; c87b80m / RC4: Integrate the hardware-confirmed GloomBench requester into
+;                the full game: saved validated P96 ModeID, left-Shift startup
+;                override, optional Low Bandwidth publishing, final classic
+;                layout, latched Screenmode selection with explicit OK, and
+;                IDCMP_REFRESHWINDOW redraw. Restore original Gloom2 DIVS
+;                overflow handling before wall endpoint X-scaling to address
+;                intermittent wall disappearance while turning.
 ;==============================================================================
-; c87b80l / v2.1 TEST5: Handle IDCMP_REFRESHWINDOW in the confirmed
-;                         hand-drawn TEST4 requester. Simple-refresh damage is
-;                         bracketed with BeginRefresh/EndRefresh and the complete
-;                         current UI state is redrawn without changing the latched
-;                         mode or either checkbox. TEST4 selection/OK unchanged.
-;==============================================================================
-; c87b80i / v2.1 TEST2: Polish the two P96 preference rows in the first
-;                         requester. Save Screenmode now has the aligned
-;                         second line "(L-Shift at startup overrides)",
-;                         Low Bandwidth uses "Low Bandwidth (eg. pVision)",
-;                         and the preference block begins four pixels lower
-;                         to add a half Topaz-8 line below a full six-mode list.
-;                         Preference storage and low-bandwidth behaviour are unchanged.
-;==============================================================================
-; c87b80g / v2.1 TEST1: P96 preference experiment for GloomBench. The first
-;                         P96 requester now contains Save Screenmode and Low
-;                         Bandwidth checkboxes. A saved validated ModeID is
-;                         read from a backward-compatible extension appended
-;                         to PROGDIR:gloom.cfg. Holding left Shift during
-;                         startup bypasses the saved ModeID and reopens the
-;                         requester. Low Bandwidth publishes only every second
-;                         rendered gameplay frame to the active P96 screen.
-;==============================================================================
-; c87b80f / RC3: Use the authoritative P96 mode list for geometry
-;                  discovery and direct validated ModeID selection. This fixes
-;                  pVision, whose p96BestModeIDTagList always returned INVALID.
-;==============================================================================
-; GloomBench Reforged v2.0 RC3 - standalone benchmark source
-; Based on the confirmed Gloom Reforged c87b80f RC3 display core
-; renderer/display core. Adds only deterministic map1_1 automation,
-; audio/script suppression and CLI/RAM: result output.
-; DISPLAY selection remains the normal RC3 ECS/AGA/P96 path.
-;==============================================================================
+; c87b80f / RC3: Replace p96BestModeIDTagList availability probing with
+;                  authoritative p96AllocModeListTagList scanning. pVision
+;                  exposes valid CLUT8 modes in the list but returns INVALID_ID
+;                  from BestModeID. The selected first validated ModeID is used
+;                  directly; P96MODEID remains the explicit alternate selector.
 ; c87b80e: Second release-candidate source hardening pass. Remove the
 ;          permanently dormant GLOOMBENCH2 automation harness, result
 ;          writer and audio/loading gates from the assembled program.
@@ -980,8 +977,8 @@ exone	equ	1<<exshft
 exhalf	equ	exone>>1
 
 	jmp	entrypoint
-	; c87b70s: public 1.9.1 marker; ECS/AGA/P96 remain official runtime paths.
-g2release_marker	dc.b	'GloomBench v2.0 (c87b80o) by Andreas ',39,'Andiweli',39,' Stuermer',0
+	; v2.2: public release marker; ECS/AGA/P96 remain official runtime paths.
+g2release_marker	dc.b	'GloomBench v2.2 (c87b80p-bench1) by Andreas ',39,'Andiweli',39,' Stuermer',0
 	even
 
 	rsreset
@@ -1550,6 +1547,7 @@ tempfile	ds.b	64
 wbmess	dc.l	0	;workbench message!
 
 entrypoint	;
+	move.l	a7,g2menu_entry_sp	; fatal menu allocation: return via original task stack
 	clr.l	map_test
 	clr.l	g2display_cli_ptr	;c86zdv: optional DISPLAY= parser starts clean
 	move.l	4.w,a6
@@ -1571,11 +1569,12 @@ cli	;
 	bne.s	wb
 	lea	tempfile,a1
 	move.l	a1,map_test
-.loop	move.b	(a0)+,(a1)
+	jsr	g2safe_copy_map_parameter
+	tst.l	d0
 	beq.s	wb
-	cmp.b	#10,(a1)+
-	bne.s	.loop
-	clr.b	-(a1)
+	clr.l	map_test
+	moveq	#20,d0		; reject overlong @ parameter before acquiring resources
+	rts
 wb	;
 	lea	dosname,a1
 	move.l	4.w,a6
@@ -1622,7 +1621,7 @@ wb	;
 	jsr	initmain
 	tst	g2p96_fatal_open_error_c87b79o
 	bne.w	exittoos		;c87b79o: selected P96 failed, never open a native display behind it
-	jsr	g2bench2_configure	; standalone bench: ignore gloom.cfg, force reproducible 1x1 defaults
+	jsr	g2bench2_configure	; benchmark defaults, independent of gameplay config
 	jsr	g2stock_capture_cfg_options	;c87b67: preserve saved choices before STOCK overlay
 	jsr	g2stock_enforce_effects_off	;c87b67: runtime only; gloom.cfg remains unchanged
 	jsr	g2basic_log_reset	;c87b26: create RAM:gloom_basic.log + startup snapshot
@@ -1634,7 +1633,7 @@ wb	;
 	; Normal Gloom Reforged title/episode flow.
 	; v41x diagnostic: bigfont returned, continue to title music start.
 	;
-.intro	jmp	g2bench2_entry	; standalone bench: launch map1_1 and exit after result
+.intro	jmp	g2bench2_entry	; standalone map1_1 benchmark
 	tst	g2p96_fatal_open_error_c87b79o
 	bne.w	exittoos		;c87b79o: P96-or-exit contract
 	jsr	g2v190p_load_title_assets	; v190p: reload title art if gameplay freed it
@@ -1697,7 +1696,7 @@ wb	;
 	;
 exittoos	jsr	g2p96_display_shutdown	;c86zfq: central shutdown display-state close
 	jsr	inputoff	; v34: restore ciaa/rawkey vectors before OS exit/closewindow
-	jsr	g2bench2_noop	; standalone bench never writes gloom.cfg
+	jsr	g2bench2_noop	; benchmark options are session-only
 	jsr	freeobjlist2
 	jsr	permit
 	jsr	finitdisplay
@@ -2087,72 +2086,78 @@ dogamemenu	;
 .resolution_left
 	bsr	trainer_prev_resolution
 .resolution_done
-	jsr	opton
+	jsr	g2resolution_live_menu
 	bra	.loop
 .notresolution
 	cmp	#3,d0
+	bne.s	.notbayer
+	bsr	trainer_toggle_bayer
+	jsr	g2p96_ingame_menu_floorceil_live_refresh
+	bra	.loop
+.notbayer
+	cmp	#4,d0
 	bne.s	.notroof
 	tst	roofflag
 	bgt.s	.roof_off
 	move	#1,roofflag
 	bra.s	.rskip
 .roof_off	move	#-1,roofflag
-.rskip	move	roofflag,roofflag2	;c87b69: CEILING row 3
+.rskip	move	roofflag,roofflag2	;c87b69: CEILING row 4
 	bsr	trainer_update_ceiling_text
 	jsr	g2cfg_save
 	jsr	g2p96_ingame_menu_floorceil_live_refresh
 	bra	.loop
 .notroof
-	cmp	#4,d0
+	cmp	#5,d0
 	bne.s	.notfloor
 	tst	floorflag
 	bgt.s	.floor_off
 	move	#1,floorflag
 	bra.s	.fskip
 .floor_off	move	#-1,floorflag
-.fskip	move	floorflag,floorflag2	;c87b69: FLOOR row 4
+.fskip	move	floorflag,floorflag2	;c87b69: FLOOR row 5
 	bsr	trainer_update_floor_text
 	jsr	g2cfg_save
 	jsr	g2p96_ingame_menu_floorceil_live_refresh
 	bra	.loop
 .notfloor
-	cmp	#6,d0
+	cmp	#7,d0
 	bne.s	.notblob
 	bsr	trainer_toggle_blobshadow
-	jsr	opton
+	jsr	g2p96_ingame_menu_floorceil_live_refresh
 	bra	.loop
 .notblob
-	cmp	#7,d0
+	cmp	#8,d0
 	bne.s	.notrefl
 	bsr	trainer_toggle_reflections
-	jsr	opton
+	jsr	g2p96_ingame_menu_floorceil_live_refresh
 	bra	.loop
 .notrefl
-	cmp	#8,d0
+	cmp	#9,d0
 	bne.s	.notvis
 	bsr	trainer_toggle_visibility
-	jsr	opton
+	jsr	g2p96_ingame_menu_floorceil_live_refresh
 	bra	.loop
 .notvis
-	cmp	#10,d0
+	cmp	#11,d0
 	bne.s	.notinv
 	bsr	trainer_toggle_inv
 	jsr	opton
 	bra	.loop
 .notinv
-	cmp	#11,d0
+	cmp	#12,d0
 	bne.s	.notbouncy
 	bsr	trainer_toggle_bouncy
 	jsr	opton
 	bra	.loop
 .notbouncy
-	cmp	#12,d0
+	cmp	#13,d0
 	bne.s	.notonehit
 	bsr	trainer_toggle_onehit
 	jsr	opton
 	bra	.loop
 .notonehit
-	cmp	#13,d0
+	cmp	#14,d0
 	bne.s	.notweapon
 	cmp	#$0100,d7
 	beq.s	.weapon_left
@@ -2162,7 +2167,7 @@ dogamemenu	;
 .weapon_done	jsr	opton
 	bra	.loop
 .notweapon
-	cmp	#14,d0
+	cmp	#15,d0
 	bne.s	.notboost
 	cmp	#$0100,d7
 	beq.s	.boost_left
@@ -2172,7 +2177,7 @@ dogamemenu	;
 .boost_done	jsr	opton
 	bra	.loop
 .notboost
-	cmp	#16,d0
+	cmp	#17,d0
 	bne	.loop
 	tst	d7
 	bne	.loop
@@ -2225,12 +2230,14 @@ g2stock_capture_cfg_options
 	move	g2_blobshadow,g2stock_cfg_blobshadow
 	move	g2_reflections,g2stock_cfg_reflections
 	move	g2_visibility,g2stock_cfg_visibility
+	move	g2_bayer_disabled,g2stock_cfg_bayer
 	rts
 
 g2stock_enforce_effects_off
 	; c87b69: pure runtime STOCK lock. Persisted choices remain untouched.
 	tst	g2stock_enabled
 	beq.s	.rts
+	move	#-1,g2_bayer_disabled	; Step 1: STOCK also locks the live Bayer switch to NO
 	move	#-1,g2_blobshadow
 	move	#-1,g2_reflections
 	move	#-1,g2_visibility
@@ -2271,7 +2278,10 @@ trainer_toggle_blobshadow
 
 trainer_toggle_reflections
 	tst	g2stock_enabled
+	bne.s	.locked
+	tst	g2_bayer_disabled
 	beq.s	.normal
+.locked
 	move	#-1,g2_reflections
 	bsr	trainer_update_reflection_text
 	rts
@@ -2618,6 +2628,7 @@ trainer_update_display_texts
 	movem.l	d0-d7/a0-a6,-(a7)
 	bsr	g2stock_enforce_effects_off
 	bsr	trainer_update_resolution_text
+	bsr	trainer_update_bayer_text
 	bsr	trainer_update_floor_text
 	bsr	trainer_update_ceiling_text
 	bsr	trainer_update_blob_text
@@ -2671,6 +2682,35 @@ trainer_update_resolution_text
 	move.b	d0,(a0)+
 	bra.s	.copy
 .done	rts
+
+ ; Step 1: runtime choice; 0=YES, -1=NO. STOCK keeps its original lock.
+trainer_toggle_bayer
+	tst	g2stock_enabled
+	bne.s	.locked
+	not.w	g2_bayer_disabled
+	bra.s	trainer_update_bayer_text
+.locked
+	move	#-1,g2_bayer_disabled
+trainer_update_bayer_text
+	; Step 1b: disabling Bayer also disables reflections immediately.
+	; Re-enabling Bayer leaves reflections OFF until selected explicitly.
+	tst	g2_bayer_disabled
+	beq.s	.text
+	move	#-1,g2_reflections
+	bsr	trainer_update_reflection_text
+.text
+	lea	game_bayer+21,a0
+	tst	g2_bayer_disabled
+	bne.s	.no
+	move.b	#'Y',(a0)+
+	move.b	#'E',(a0)+
+	move.b	#'S',(a0)
+	rts
+.no
+	move.b	#'N',(a0)+
+	move.b	#'O',(a0)+
+	move.b	#' ',(a0)
+	rts
 
 trainer_update_floor_text
 	lea	game_floor,a0
@@ -2736,7 +2776,21 @@ g2v17_wait_menu_release
 	movem.l	(a7)+,d0
 	rts
 
-calcoffset	move	#320,d0
+calcoffset
+	; Native P96 ONE PLAYER owns a full, packed source at offset zero.
+	; predrawall calls here on menu return while WIDE/5:4 geometry may
+	; already be active. The planar 320x240 centering below would turn
+	; 320-428 into an unsigned shifted offset and disable g2quality.
+	cmp	#2,g2display_mode
+	bne.s	.planar_offset
+	tst	p96gameplay_persist_active
+	beq.s	.planar_offset
+	tst	twowins
+	bne.s	.planar_offset
+	clr.l	offset
+	rts
+.planar_offset
+	move	#320,d0
 	sub	width,d0		;c87b19a: absolute range-safe
 	lsr	#4,d0
 	ext.l	d0
@@ -3833,7 +3887,11 @@ g2gun_name_miscraw	dc.b	'misc/gun',0
 g2gun_name_stufraw	dc.b	'stuf/gun',0
 	even
 
+; Step 1: Bayer gates use the live switch (also forced OFF by STOCK).
 predrawall	;draw up everything....
+	; Performance patch 3: reinstall the blank pointer at gameplay/menu
+	; rebuild boundaries. Window creation and inputon retain their own calls.
+	jsr	g2v36_hide_pointer
 	;
 	;status bar too...
 	;
@@ -3852,7 +3910,9 @@ predrawall	;draw up everything....
 	bra	drawall_
 
 drawall	;
-	jsr	g2v36_hide_pointer	;v36: keep Intuition pointer hidden during gameplay
+	; Keep the cheap hardware guard each frame, without repeating SetPointer.
+	; Intuition pointer setup remains at window/input/rebuild boundaries.
+	move	#$0020,$dff096
 .wait	tst	doneflag
 	bne.s	.waitskip
 	jsr	vwait
@@ -3889,7 +3949,7 @@ g2drawall_show
 	; c87b78b: native P96 gameplay owner/presenter. A successful P96 copy skips
 	; the planar doc2p/db present. The non-P96 and explicit failure rollback paths
 	; remain unchanged; no removed legacy ToolType is consulted here.
-	jsr	g2bench_p96_present_dispatch_v21	;c87b80l: optional every-second-frame P96 publish
+	jsr	g2bench_p96_present_dispatch_v21	;RC4: optional every-second-frame P96 publish
 	tst	p96gameplay_skip_aga_present
 	beq	.g2c86zfa_do_aga_present
 	jsr	g2twop_restore_after_c2p
@@ -5481,7 +5541,7 @@ g2_draw_wall_reflection_lite
 
 	; STOCK normally locks reflections off. Retain the historic safety bypass
 	; so a forced internal STOCK/reflection combination still avoids Bayer work.
-	tst	g2stock_enabled
+	tst	g2_bayer_disabled
 	bne.s	.g2stock_wall_reflect_draw
 	; Compare the threshold directly with the 4x4 Bayer sample.
 	move	d5,d0
@@ -5657,7 +5717,7 @@ flat	;
 	clr	g2_bayer_thresh
 	; c87b63 STOCK: keep the current discrete shade and skip all Bayer
 	; look-ahead/table setup for this scanline.
-	tst	g2stock_enabled
+	tst	g2_bayer_disabled
 	bne.w	.g2v190ej_flatblend_done
 	; v190eo: include the first and second visible shade bands too.
 	; The v190em test skipped everything below 2 texture widths,
@@ -5833,9 +5893,9 @@ flat	;
 	swap	d4
 	swap	d6
 	;
-	; c87b69: STOCK keeps a base-palette loop, while normal mode keeps the
-	; ordered Bayer blend. Both use the confirmed FLAT4 loop whenever the
-	; current owner is row-major (ECS/AGA Kalm or P96 direct linear).
+	; Step 2a: only the actual STOCK profile selects the legacy flat loop.
+	; The live Bayer switch controls g2_bayer_thresh above (zero when OFF).
+	; Keep the normal resolution/span path for both Bayer YES and NO.
 	tst	g2stock_enabled
 	bne.w	.g2stock_flat_draw_setup
 	move	d7,g2_bayer_ybase
@@ -8230,7 +8290,7 @@ readjoys	;fill in appropriate 'joyxn' block...check escape
 	or	finished2(pc),d0
 	bne.s	.rts
 	;
-	qkey	$45
+	jsr	g2hotkeys_menu_key	; ESC or F10
 	sne	escape
 	;
 	move.l	player1(pc),a0
@@ -10776,10 +10836,8 @@ checkfire	;
 	move	cheat(pc),d0
 	beq.s	.nocheat
 	;
-	qkey	$5f	;help?????
-	beq.s	.noend
-	move	#3,finished
-	rts
+	; HELP is handled once per press by g2hotkeys_poll (Unlimited Health).
+	move.l	rawtable,a0	; remaining legacy cheat keys still need the matrix
 .noend	key	10
 	beq.s	.nohealth
 	bsr	inchealth
@@ -11963,6 +12021,7 @@ sample_keymouse_vb	;v34/v29a: VBlank direct mouse yaw for KEYBMOUSE, mid speed
 gridoffs	incbin	gridoffs4.bin
 gridoffsf
 
+; Step 1: Bayer gates use the live switch (also forced OFF by STOCK).
 makewalls	;
 	;New approach!
 	;
@@ -12996,7 +13055,7 @@ drawsolidstrip	macro
 	clr	g2_bayer_thresh
 	; c87b63 STOCK: select the existing undithered fast wall loop and skip
 	; all Bayer transition probing for this column.
-	tst	g2stock_enabled
+	tst	g2_bayer_disabled
 	bne.w	.g2v190ej_wallblend_setup_done
 	move	vd_z(a0),d6
 	tst	g2_visibility
@@ -13030,79 +13089,21 @@ drawsolidstrip	macro
 	; shade band may now get its last-quarter darker Bayer lead-in.
 	cmp	#14,d5
 	bcc	.g2v190ej_wallblend_setup_done
-	movem.l	d1/d6/d7/a2,-(a7)
-	move.l	darktable(pc),a5
-	moveq	#15,d7
-	move	d6,d1
-	add	#24,d1
-	cmp	#maxz-1,d1
-	bls.s	.g2v190em_wallblend_24ok
-	move	#maxz-1,d1
-.g2v190em_wallblend_24ok
-	move	0(a5,d1*2),d1
-	cmp	d5,d1
-	bhi	.g2v190em_wallblend_set
-	moveq	#11,d7
-	move	d6,d1
-	add	#48,d1
-	cmp	#maxz-1,d1
-	bls.s	.g2v190em_wallblend_48ok
-	move	#maxz-1,d1
-.g2v190em_wallblend_48ok
-	move	0(a5,d1*2),d1
-	cmp	d5,d1
-	bhi	.g2v190em_wallblend_set
-	moveq	#7,d7
-	move	d6,d1
-	add	#72,d1
-	cmp	#maxz-1,d1
-	bls.s	.g2v190em_wallblend_72ok
-	move	#maxz-1,d1
-.g2v190em_wallblend_72ok
-	move	0(a5,d1*2),d1
-	cmp	d5,d1
-	bhi	.g2v190em_wallblend_set
-	; v190ep: softer sparse start before the normal wall shade lead-in.
-	moveq	#4,d7
-	move	d6,d1
-	add	#96,d1
-	cmp	#maxz-1,d1
-	bls.s	.g2v190em_wallblend_96ok
-	move	#maxz-1,d1
-.g2v190em_wallblend_96ok
-	move	0(a5,d1*2),d1
-	cmp	d5,d1
-	bhi	.g2v190em_wallblend_set
-	moveq	#2,d7
-	move	d6,d1
-	add	#112,d1
-	cmp	#maxz-1,d1
-	bls.s	.g2v190ep_wallblend_112ok
-	move	#maxz-1,d1
-.g2v190ep_wallblend_112ok
-	move	0(a5,d1*2),d1
-	cmp	d5,d1
-	bhi	.g2v190em_wallblend_set
-	moveq	#1,d7
-	move	d6,d1
-	add	#128,d1
-	cmp	#maxz-1,d1
-	bls.s	.g2v190ep_wallblend_128ok
-	move	#maxz-1,d1
-.g2v190ep_wallblend_128ok
-	move	0(a5,d1*2),d1
-	cmp	d5,d1
-	bls.s	.g2v190em_wallblend_restore
-.g2v190em_wallblend_set
-	move	d7,g2_bayer_thresh
+	; Bayer lookup: exact threshold for [current shade][scaled distance].
+	; Built immediately after initdarktable, including non-monotonic tables.
+	; d5<14 and 0<=d6<maxz are established by the unchanged guards above.
+	; Pointer rows avoid multiplying the shade or changing live d1/d7/a2.
+	lea	g2wall_bayer_rows,a5
+	move.l	0(a5,d5.w*4),a5
+	move.b	0(a5,d6.w),g2_bayer_thresh+1 ; low byte; word cleared above
+	tst	g2_bayer_thresh
+	beq.w	.g2v190ej_wallblend_setup_done
 	addq	#1,d5
 	cmp	#14,d5
 	bls.s	.g2v190em_wallblend_palok
 	moveq	#14,d5
 .g2v190em_wallblend_palok
 	move.l	0(a2,d5*4),a5
-.g2v190em_wallblend_restore
-	movem.l	(a7)+,d1/d6/d7/a2
 .g2v190ej_wallblend_setup_done
 	tst	g2_bayer_thresh
 	bne.w	.g2v190ej_wall_dither_setup
@@ -13149,6 +13150,13 @@ drawsolidstrip	macro
 	; 020/030 retain the exact original one-pixel loop below.
 	cmp.w	#g2kalms_cpu_040,g2kalms_cpu_mode
 	beq.w	.g2p10_wall_dither4
+	; Palette-period patch: amortize four palette choices over tall columns.
+	; Short columns retain the original loop; 040/060 retain their own path.
+	cmp.w	#16,d4
+	blo.s	.g2wall_period_short
+	jsr	g2wall_dither_period4
+	bra.w	.g2p10_wall_dither_done
+.g2wall_period_short
 	subq	#1,d4	; original DBF count for 020/030
 	sub	d3,d2
 	add.l	d3,d2	; set X flag immediately before the legacy loop
@@ -14075,7 +14083,7 @@ g2_draw_enemy_mirror_reflection_safe
 	moveq	#1,d4		; tail: sparse end
 .dither_pick
 	; c87b63 STOCK: retain the mirror geometry but skip the ordered mask.
-	tst	g2stock_enabled
+	tst	g2_bayer_disabled
 	bne.s	.g2stock_enemy_ref_draw
 	move	g2_enemy_ref_curx(pc),d0
 	and	#3,d0
@@ -14921,7 +14929,7 @@ g2_draw_enemy_blob_column
 .rdraw	move	g2_shadow_col(pc),d4
 		; c87b63 STOCK keeps the reflection geometry but bypasses the ordered
 		; transparency mask and its per-row table/branch work.
-		tst	g2stock_enabled
+		tst	g2_bayer_disabled
 		bne.w	.g2stock_reflection_solid
 		; c86zdm: complete reflection remains Bayer-dithered.  The
 		; extended far range is deliberately much sparser/darker before
@@ -15126,6 +15134,98 @@ vwait	tst	os
 	movem.l	(a7)+,d0-d1/a0-a1/a6
 	rts
 
+; =============================================================================
+; Palette-period patch: 020/030 Bayer walls, dispatched for height >= 16.
+; Same inputs as the existing dither loop: a2 points at the first Bayer cell,
+; a3 texture column, a4 base palette, a5 darker palette; d7 threshold.
+; d2/d3 already SWAPped, d4 positive height, d0 destination row stride.
+; The Bayer pattern repeats after four rows even for a clipped start row.
+; Select four palette addresses once; no Bayer reads/comparisons in the loop.
+; Preserve a0 (strip), a4 (base palette) and a6 (column offset iterator).
+; Caller already saves/restores d1/d7/a2. a5 and d0/d3 remain unchanged.
+; =============================================================================
+g2wall_dither_period4
+	movem.l	a0/a4/a6,-(a7)
+	move.l	a4,a0
+	move.b	(a2),d6
+	cmp.b	d7,d6
+	bcc.s	.row0_ready
+	move.l	a5,a0
+.row0_ready
+	move.l	a4,a6
+	move.b	4(a2),d6
+	cmp.b	d7,d6
+	bcc.s	.row1_ready
+	move.l	a5,a6
+.row1_ready
+	; Read both remaining cells before repurposing the Bayer pointer a2.
+	move.b	8(a2),d6
+	move.b	12(a2),d1
+	move.l	a4,a2
+	cmp.b	d7,d6
+	bcc.s	.row2_ready
+	move.l	a5,a2
+.row2_ready
+	cmp.b	d7,d1
+	bcc.s	.row3_ready
+	move.l	a5,a4
+.row3_ready
+	move	d4,d1
+	and	#3,d1
+	lsr	#2,d4
+	subq	#1,d4
+	subq	#1,d1
+	; Clear the texture index once. Subsequent byte loads keep bits 8..31 zero.
+	moveq	#0,d5
+	; Keep the original fixed-point initialisation and uninterrupted X chain.
+	sub	d3,d2
+	add.l	d3,d2
+	tst	d4
+	bmi.w	.tail
+.group
+	move.b	0(a3,d2),d5
+	move.b	0(a0,d5),(a1)
+	addx.l	d3,d2
+	add.l	d0,a1
+	move.b	0(a3,d2),d5
+	move.b	0(a6,d5),(a1)
+	addx.l	d3,d2
+	add.l	d0,a1
+	move.b	0(a3,d2),d5
+	move.b	0(a2,d5),(a1)
+	addx.l	d3,d2
+	add.l	d0,a1
+	move.b	0(a3,d2),d5
+	move.b	0(a4,d5),(a1)
+	addx.l	d3,d2
+	add.l	d0,a1
+	dbf	d4,.group
+.tail
+	; Tail starts at the same Bayer phase after every complete group.
+	; DBF preserves X; do not replace it with SUBQ between texture advances.
+	tst	d1
+	bmi.s	.done
+	move.b	0(a3,d2),d5
+	move.b	0(a0,d5),(a1)
+	addx.l	d3,d2
+	add.l	d0,a1
+	dbf	d1,.tail1
+	bra.s	.done
+.tail1
+	move.b	0(a3,d2),d5
+	move.b	0(a6,d5),(a1)
+	addx.l	d3,d2
+	add.l	d0,a1
+	dbf	d1,.tail2
+	bra.s	.done
+.tail2
+	move.b	0(a3,d2),d5
+	move.b	0(a2,d5),(a1)
+	addx.l	d3,d2
+	add.l	d0,a1
+.done
+	movem.l	(a7)+,a0/a4/a6
+	rts
 ;************** DATA ***************************
 
 data
@@ -17374,7 +17474,9 @@ initmain	;
 	allocmem	temppal
 	move.l	d0,temppal
 .osskipz	;
-	move.l	#128,d0	;v38: enough chip RAM for a full blank 16x16 Intuition pointer
+	; Fix3b: keep audio silence at +0 separate from writable sprite data.
+	; Bytes 0..127: audio zero buffer; bytes 128..255: blank pointer.
+	move.l	#256,d0	;MEMF_CLEAR below initializes both chip RAM regions
 	move.l	#$10002,d1
 	allocmem	chipzero
 	move.l	d0,chipzero
@@ -18169,7 +18271,7 @@ conttxts	ds.b	160
 	even
 
 execscript_med	;
-	jmp	execscript	; standalone bench: no waitquiet/loading MED
+	jmp	execscript	; silent benchmark: no loading MED
 	;
 	move.l	loadingmed(pc),d0
 	beq.s	execscript
@@ -18272,21 +18374,21 @@ scriptloop	; v190hy cleanup: log marker removed
 	move.l	script,scriptat
 	bra	execscript
 
-scripthide	; standalone bench: no intermission hide/show state
-	jmp	execscript	;c86zfq: native P96 script/intermission owns display
+scripthide	; v190hy cleanup: log marker removed
+	jmp	execscript	; benchmark: skip intermission command
 	bsr	dispoff
 	bra	execscript
 
-scriptshow	; standalone bench: no intermission display
-	jmp	execscript	;c86zfq: reveal AGA/intermission before dispon
+scriptshow	; v190hy cleanup: log marker removed
+	jmp	execscript	; benchmark: skip intermission command
 	tst.l	g2v190i_start_offset	; v190t: while skipping earlier levels, suppress old intermission screens
 	bgt	execscript
 	clr	pdelay
 	bsr	dispon
 	bra	execscript
 
-scriptdraw	; standalone bench: no intermission draw
-	jmp	execscript	;c86zfq: native P96 intermission before drawing
+scriptdraw	; v190hy cleanup: log marker removed
+	jmp	execscript	; benchmark: skip intermission command
 	tst.l	g2v190i_start_offset	; v190t: skip draw_ before earlier play_ entries
 	bgt	execscript
 	tst	g2v190t_reload_pic_after_level	; v190t: reload intermission IFF after gameplay, if needed
@@ -18524,8 +18626,8 @@ agapicpath	dc.b	'pics/',0
 ecspicpath	dc.b	'pics_ehb/',0
 	even
 
-scriptpict	; standalone bench: consume picture command without loading
-	jmp	g2bench2_skip_script_line	;c86zfq: picture scripts use the native P96 intermission owner
+scriptpict	;load an iff
+	jmp	g2bench2_skip_script_line	; benchmark: skip intermission command
 	bsr	freeiff
 	lea	agapicpath(pc),a0
 	lea	picname,a1
@@ -18621,8 +18723,8 @@ g2v190t_reload_current_pic
 .close	bsr	forbid
 .rts	rts
 
-scriptdark	; standalone bench: no intermission palette fade
-	jmp	execscript	;c86zfq: palette darken in the native P96 intermission owner
+scriptdark	;
+	jmp	execscript	; benchmark: skip intermission command
 	tst.l	g2v190i_start_offset	; v190t: suppress dark_ before skipped earlier levels
 	bgt	execscript
 	tst	os
@@ -18659,8 +18761,10 @@ scriptdark	; standalone bench: no intermission palette fade
 	dbf	d0,.loop
 	bra	execscript
 
-scripttext	; standalone bench: consume text command without drawing
-	jmp	g2bench2_skip_script_line	;c86zfq: text overlays in the native P96 intermission owner
+scripttext	;print text on iff
+	;a6=window, a4=message, d0=length of message, d6=Y
+	;
+	jmp	g2bench2_skip_script_line	; benchmark: skip intermission command
 	tst.l	g2v190i_start_offset	; v190t: consume but do not show text_ for skipped earlier levels
 	ble.s	.g2v190t_show_text
 	lea	text,a1
@@ -18783,8 +18887,8 @@ g2v17_wst_done
 	movem.l	(a7)+,d1-d7/a0
 	rts
 
-scriptwait	; standalone bench: consume wait line without input
-	jmp	g2bench2_skip_script_line	; v190t: skip wait_ before skipped earlier levels
+scriptwait	;
+	jmp	g2bench2_skip_script_line	; benchmark: skip intermission command
 	bgt	execscript
 	tst	pdelay
 	bmi	execscript
@@ -19134,17 +19238,20 @@ g2bench2_level_nolmed
 	bsr	syncup
 	;
 	clr	framecnt
+	jsr	g2hotkeys_seed	; do not inherit a held key from title/intermission
 	clr	paused
 	jsr	predrawall
 	jsr	g2fps_reset	;c87a6: reset actual presented-FPS interval after buffer-prime frames
 	bsr	dispon
 	bsr	chaton
 	;
-mainloop	; deterministic standalone benchmark frame
+mainloop	; benchmark: same main-task hotkeys as the v2.2 game
+	jsr	g2hotkeys_poll
 	jsr	g2bench2_frame_gate
 	move	escape,d0
 	beq.s	.noesc
 	jsr	dogamemenu
+	jsr	g2bench22_restart	; exclude menu dwell and remeasure the complete path
 	jsr	g2fps_restart_window	;c87a6: discard menu dwell before next FPS sample
 	clr	escape
 .noesc	; v190hy cleanup: log marker removed
@@ -20346,18 +20453,19 @@ joyb5	dc	0,0
 
 	even
 
-gamemenu	dc.b	17
+gamemenu	dc.b	18
 	dc.b	'CONTINUE',0
 	dc.b	92,0
 	; c87b69: world-render resolution; all overlays and output remain native.
 game_resolution	dc.b	'         RESOLUTION: 1x1 PIXELS                  ',0
+game_bayer	dc.b	'    BAYER DITHERING: YES                        ',0
 	; CEILING precedes FLOOR consistently in every game profile.
 game_ceil	dc.b	'            CEILING: YES                        ',0
 game_floor	dc.b	'              FLOOR: YES                        ',0
 	dc.b	92,0
 game_blob	dc.b	'       BLOB SHADOWS: NO                         ',0
 game_reflections	dc.b	'        REFLECTIONS: NO                         ',0
-game_visibility	dc.b	'       VIEW DISTANCE: DEFAULT                    ',0
+game_visibility	dc.b	'      VIEW DISTANCE:  DEFAULT                    ',0
 	dc.b	92,0
 game_inv	dc.b	'   UNLIMITED HEALTH: NO                         ',0
 game_bouncy	dc.b	'     BOUNCY BULLETS: NO                         ',0
@@ -20381,6 +20489,7 @@ trainer_resolution_2x2	dc.b	'2x2 PIXELS',0
 	even
 
 g2_resolution	dc	0	;c87b69 0=1x1, 1=2x1, 2=1x2, 3=2x2
+g2_bayer_disabled	dc	0	; Step 1: session switch, 0=YES (default), -1=NO
 
 
 g2_blobshadow	dc	-1	;v116c menu flag, v126 enables enemy blob shadow
@@ -21254,6 +21363,10 @@ initmenu2	;
 	mulu	bitplanes(pc),d0
 	moveq	#2,d1
 	allocmem	menustrip
+	tst.l	d0
+	bne.s	.strip_alloc_ok
+	jmp	g2menu_allocation_failed	; no null strip copy, no partial-menu continuation
+.strip_alloc_ok
 	move.l	d0,(a5)+
 	move.l	d0,a1	;strip address
 	;
@@ -21594,7 +21707,7 @@ readmenujoy	;encode to d0!
 	move.l	joyb0(pc),d0
 	or.l	d0,joyb
 	;
-	qkey	$45
+	jsr	g2hotkeys_menu_key	; ESC or F10, same release handling
 	beq.s	.noesc
 	tst	game_menu_active
 	beq.s	.noesc
@@ -21629,6 +21742,7 @@ unselmenu	move	d0,-(a7)
 	rts
 
 readmenusel	;read menu selection!
+	jsr	g2hotkeys_poll_menu	; both native and P96 selection loops
 	tst	linked
 	bne.s	.link
 	;
@@ -21795,8 +21909,12 @@ finitmenu	;clean up menu operation
 	move	numopts(pc),d2
 	subq	#1,d2
 .loop	addq	#4,a5
-	move.l	(a5)+,a1
+	; Live-menu fix: MOVEA does not set Z. Test the actual strip pointer,
+	; never flags left by FreeMem/DBF from the preceding menu row.
+	move.l	(a5)+,d0
 	beq.s	.g2c87b79w_no_strip
+	move.l	d0,a1
+	clr.l	-4(a5)	; consumed slot: no stale pointer after teardown
 	freemem	menustrip
 .g2c87b79w_no_strip
 	dbf	d2,.loop
@@ -21866,7 +21984,8 @@ initdarktable	;
 	move	d3,(a1)+
 	;
 	dbf	d2,.loop
-	;
+	; Rebuild on every darktable initialization; no per-frame invalidation.
+	jsr	g2wall_bayer_build
 	rts
 
 initrawmap	lea	ascmap(pc),a0
@@ -22045,6 +22164,7 @@ keymouse_mx	dc	0
 ; v4 appends the RESOLUTION word. v1-v3 migrate safely to 1x1 PIXELS.
 g2cfg_load
 	movem.l	d0-d7/a0-a6,-(a7)
+	clr	g2_bayer_disabled	; old configs default to Bayer YES
 	move.l	dosbase,a6
 	lea	g2cfg_name(pc),a0
 	move.l	a0,d1
@@ -22055,13 +22175,13 @@ g2cfg_load
 	move.l	d7,d1
 	lea	g2cfg_buf(pc),a0
 	move.l	a0,d2
-	move.l	#g2cfg_len,d3
+	move.l	#g2cfg_len+18,d3
 	jsr	-42(a6)
 	move.l	d0,d6
 	move.l	d7,d1
 	jsr	-36(a6)
 	cmp.l	#g2cfg_len,d6
-	beq.s	.len_ok
+	bge.s	.len_ok
 	cmp.l	#g2cfg_len_v3,d6
 	beq.s	.len_ok
 	cmp.l	#g2cfg_len_v2,d6
@@ -22104,6 +22224,16 @@ g2cfg_load
 	bne.s	.no_resolution
 	move	(a0)+,g2_resolution
 .no_resolution
+	cmp.l	#g2cfg_len+18,d6
+	blt.s	.no_bayer
+	lea	g2cfg_buf+g2cfg_len+12,a0
+	cmp.l	#'BAY1',(a0)+
+	bne.s	.no_bayer
+	tst.w	(a0)
+	beq.s	.no_bayer
+	move	#-1,g2_bayer_disabled
+	move	#-1,g2_reflections	; saved Bayer NO keeps reflections locked OFF
+.no_bayer
 	bsr	g2cfg_sanitize
 	bsr	g2cfg_apply_view
 .load_done
@@ -22111,6 +22241,7 @@ g2cfg_load
 	rts
 
 g2cfg_save
+	rts	; GloomBench: F-keys/menu must never overwrite gameplay settings
 	movem.l	d0-d7/a0-a6,-(a7)
 	lea	g2cfg_buf(pc),a0
 	move.l	#'GLMC',(a0)+
@@ -22143,6 +22274,34 @@ g2cfg_save
 	move	g2_visibility,(a0)+
 .visibility_done
 	move	g2_resolution,(a0)+
+	; RC4: append the same backward-compatible P96 preferences used by GloomBench.
+	move.l	#'P961',(a0)+
+	tst	g2bench_save_screenmode_v21
+	beq.s	.rc4_cfg_no_modeid
+	move.l	g2bench_saved_modeid_v21,d0
+	bra.s	.rc4_cfg_store_modeid
+.rc4_cfg_no_modeid
+	moveq	#0,d0
+.rc4_cfg_store_modeid
+	move.l	d0,(a0)+
+	move	g2bench_save_screenmode_v21,d0
+	beq.s	.rc4_cfg_store_save
+	moveq	#-1,d0
+.rc4_cfg_store_save
+	move	d0,(a0)+
+	move	g2bench_low_bandwidth_v21,d0
+	beq.s	.rc4_cfg_store_low
+	moveq	#-1,d0
+.rc4_cfg_store_low
+	move	d0,(a0)+
+	; Keep the v4/P961 prefix intact; append the independent Bayer setting.
+	move.l	#'BAY1',(a0)+
+	move	g2_bayer_disabled,d0
+	tst	g2stock_enabled
+	beq.s	.store_bayer
+	move	g2stock_cfg_bayer,d0	; STOCK must not overwrite the saved normal choice
+.store_bayer
+	move	d0,(a0)+
 	move.l	dosbase,a6
 	lea	g2cfg_name(pc),a0
 	move.l	a0,d1
@@ -22153,7 +22312,7 @@ g2cfg_save
 	move.l	d7,d1
 	lea	g2cfg_buf(pc),a0
 	move.l	a0,d2
-	move.l	#g2cfg_len,d3
+	move.l	#g2cfg_len+18,d3
 	jsr	-48(a6)
 	move.l	d7,d1
 	jsr	-36(a6)
@@ -22251,7 +22410,8 @@ g2cfg_len_old	equ	6+2+(10*2)
 g2cfg_len_v2	equ	6+2+(11*2)
 g2cfg_len_v3	equ	6+2+(12*2)
 g2cfg_len	equ	6+2+(13*2)
-g2cfg_buf	ds.b	g2cfg_len
+g2cfg_buf	ds.b	g2cfg_len+18
+g2stock_cfg_bayer	dc.w	0
 	even
 
 savefile	;a0=name, a1=mem, d0=length
@@ -23216,6 +23376,15 @@ finitdisplay	push
 	move.l	grbase(pc),a6
 	jsr	-$3cc(a6)	;free dbufinfo
 	;
+	; Close our synchronous covering window before its owning screen.
+	move.l	oswindow,d0
+	beq.s	.native_window_closed
+	move.l	d0,a0
+	move.l	int(pc),a6
+	jsr	-72(a6)	; CloseWindow; IDCMPFlags=0, no messages to drain
+	clr.l	oswindow
+	clr.l	newwindow_s
+.native_window_closed
 	move.l	screen(pc),a0
 	move.l	int(pc),a6
 	jsr	-66(a6)
@@ -23279,8 +23448,8 @@ newscreen_v	dc	0	;viewmode
 newwindow	dc	0,0	;x,y
 	dc	320,240	;w,h ;v17: keep compact 240-line window
 	dc.b	0,0	;pens
-	dc.l	$c0000	;idcmp flags! $40000=active,
-	dc.l	$11940	;flags! (RMB trap)
+	dc.l	0	; synchronous covering window: no undrained IDCMP messages
+	dc.l	$11840	;ACTIVATE|BORDERLESS|SIMPLE_REFRESH|RMBTRAP; no BACKDROP
 	dc.l	0	;gadgets
 	dc.l	0	;checkmark
 	dc.l	0	;title
@@ -23359,6 +23528,7 @@ g2v36_hide_pointer	;force invisible pointer for the game screen/window
 	move.l	chipzero,a1	;v37: pointer image must live in chip RAM
 	move.l	a1,d1
 	beq.s	.rts
+	lea	128(a1),a1	;Fix3b: private sprite area; never overwrite audio silence
 	move.l	d0,a0
 	moveq	#16,d0	;RC5: complete 16-row invisible Intuition pointer
 	moveq	#16,d1	;RC5: full 16-pixel sprite width
@@ -23547,10 +23717,33 @@ g2ecs3_bitmaps_ready
 	move.l	d0,a0
 	move.l	a0,screen
 	bne.s	.g2c86zdc_screen_ok
-	clr.w	os	;c86zdc: failed OS screen, avoid null-screen gray/pointer hang by falling back to custom display path
+	clr.w	os	; OpenScreen failed: use existing direct-display fallback
 	bra.w	.noos
 .g2c86zdc_screen_ok
-	jsr	g2v36_hide_pointer	;v39: hide OS mouse sprite immediately after custom screen opens
+	; Open the covering window synchronously. The legacy windowtask is
+	; not started anywhere in this source. Its flags alone had no effect.
+	; No IDCMP port: input remains owned by the existing hardware readers.
+	move.l	screen(pc),newwindow_s
+	move.l	int(pc),a6
+	lea	newwindow(pc),a0
+	jsr	-204(a6)	; OpenWindow
+	move.l	d0,oswindow
+	bne.s	.native_window_ok
+	; Do not continue with an uncovered screen after OpenWindow failure.
+	; Match the existing OpenScreen-failure custom-display fallback.
+	move.l	screen(pc),a0
+	move.l	int(pc),a6
+	jsr	-66(a6)	; CloseScreen (no window exists)
+	clr.l	screen
+	clr.l	newwindow_s
+	clr.w	os
+	bra.w	.noos
+.native_window_ok
+	jsr	g2v36_hide_pointer
+	move.l	screen(pc),a0
+	move.l	int(pc),a6
+	moveq	#0,d0
+	jsr	-282(a6)	; ShowTitle(FALSE), explicit screen-bar suppression
 	move.l	screen(pc),a0
 	lea	44(a0),a0
 	;
@@ -33219,8 +33412,10 @@ g2p96_ingame_menu_floorceil_live_refresh
 	jsr	g2p96_menu_all_rows_present
 	move	(a7),curropt
 	jsr	opton
-	bra.s	.refresh_wait_release
+	bra.w	.refresh_wait_release
 .aga_refresh_full
+	; MenuBlitSync1: finish the selected-row blit before CPU access/free.
+	jsr	g2menu_refresh_wait_blit
 	; c87b12: rebuild in the same order as the initial in-game menu:
 	; gameplay -> grey backdrop -> complete menu.  The old order composed the
 	; menu first and then C2P-swapped the grey gameplay over it, leaving only
@@ -33228,13 +33423,21 @@ g2p96_ingame_menu_floorceil_live_refresh
 	jsr	g2v190aj_restore_game_palette
 	jsr	finitmenu
 	jsr	predrawall
+	; MenuBlitSync1: Complete any render blits before the grey/CPU conversion.
+	jsr	g2menu_refresh_wait_blit
 	jsr	g2v190aj_grey_menu_backdrop
+	; MenuBlitSync1: Finish backdrop work before initmenu2 copies planar rows.
+	jsr	g2menu_refresh_wait_blit
 	move	(a7),curropt
 	lea	gamemenu,a4
 	jsr	initmenu2
+	; MenuBlitSync1: Finish the last menu glyph before selected-row composition.
+	jsr	g2menu_refresh_wait_blit
 	move	(a7),curropt
 .refresh_done
 	jsr	opton		;c87b12: selected row over the fully rebuilt grey menu
+	; MenuBlitSync1: Do not hand back a still-running selected-row blit.
+	jsr	g2menu_refresh_wait_blit
 .refresh_wait_release
 	jsr	g2wide_floorceil_wait_release_quit_fix
 	addq	#2,a7
@@ -33366,6 +33569,20 @@ g2p96_menu_selmenu_stable
 	jsr	g2p96_menu_apply_saved_blink_phase	;c86zgs: no cadence reset/no stale OFF row
 	bra	.wait
 
+
+; MenuBlitSync1: native live-menu boundary only, no file I/O or frame delay.
+; Graphics WaitBlit handles chipset busy-bit quirks and preserves registers.
+; Preserve our library-base change and CCR as well, so only completion
+; ordering changes. graphics.library is already open for this display path.
+; This does not drain QBlit queues or synchronize ChangeVPBitMap messages.
+g2menu_refresh_wait_blit
+	move.w	ccr,-(a7)
+	move.l	a6,-(a7)
+	move.l	grbase,a6
+	jsr	-228(a6)	;graphics.library WaitBlit
+	move.l	(a7)+,a6
+	move.w	(a7)+,ccr
+	rts
 ; -----------------------------------------------------------------------------
 ; c86zji: P96-native menu selection/navigation row updates.
 ;
@@ -33487,8 +33704,13 @@ g2p96_menu_redraw_gameplay_source_once
 	bmi.s	.done
 	move.l	player1,player_
 	move.l	memory,memat
+	; Step 2: match the normal one-player world-resolution pipeline.
+	jsr	g2kalms_prepare_frame_layout
+	jsr	g2p96_gameplay_prepare_linear_frame
+	jsr	g2quality_prepare_frame
 	jsr	calcscene
 	jsr	drawscene
+	jsr	g2quality_expand_restore
 	jsr	blitscene
 	jsr	g2p96_gameplay_persistent_update
 	jsr	g2p96_menu_refresh_index_backdrop_c87b78p
@@ -33735,6 +33957,7 @@ g2p96_gameplay_hide_pointer
 	move.l	chipzero,a1
 	move.l	a1,d1
 	beq	.done
+	lea	128(a1),a1	;Fix3b: private sprite area; never overwrite audio silence
 	move.l	d0,a0
 	moveq	#16,d0	;RC5: complete 16-row invisible Intuition pointer
 	moveq	#16,d1	;full 16-pixel sprite width
@@ -37823,7 +38046,7 @@ g2tok_set_p96
 	bra	g2tok_next
 
 g2tok_set_fps
-	move	#-1,g2fps_enabled	;c87a6: runtime-only; deliberately absent from gloom.cfg
+	move	#-1,g2fps_enabled	; retain benchmark FPS ToolType support; F9 toggles it
 	bra	g2tok_next
 
 g2tok_set_stock
@@ -41499,6 +41722,7 @@ g2ecs_emb_pal_19
 
 	even
 
+; 2.1 performance trial 2: compact two-pixel expansion and paired row copy.
 ; =============================================================================
 ; c87b69 - saved world RESOLUTION selector
 ;
@@ -41623,12 +41847,23 @@ g2quality_expand_restore
         adda.l  d1,a1
         lea     g2resolution_dupbyte_table,a2
         move.w  d0,d7
-        subq.w  #1,d7
-.x_loop
+        ; Two source pixels per loop; backwards preserves in-place overlap.
+        ; Clear index once: MOVE.B below cannot change its upper bits.
         moveq   #0,d0
+        lsr.w   #1,d7
+        bcc.s   .x_pairs
+        move.b  -(a0),d0
+        move.w  0(a2,d0.w*2),-(a1)
+.x_pairs
+        subq.w  #1,d7
+        bmi.s   .x_finished
+.x_loop
+        move.b  -(a0),d0
+        move.w  0(a2,d0.w*2),-(a1)
         move.b  -(a0),d0
         move.w  0(a2,d0.w*2),-(a1)
         dbf     d7,.x_loop
+.x_finished
         movem.l (a7)+,d0-d2/d7/a0-a2
         bra.w   .restore
 
@@ -41685,22 +41920,41 @@ g2quality_expand_restore
 .xy_row
         move.l  a1,a4
         move.w  g2resolution_compact_width,d6
-        subq.w  #1,d6
-.xy_expand
+        ; Two source pixels per loop; backwards preserves in-place overlap.
+        ; Clear index once: MOVE.B below cannot change its upper bits.
         moveq   #0,d0
+        lsr.w   #1,d6
+        bcc.s   .xy_pairs
         move.b  -(a0),d0
         move.w  0(a2,d0.w*2),-(a4)
-        dbf     d6,.xy_expand
+.xy_pairs
+        subq.w  #1,d6
+        bmi.s   .xy_finished
+.xy_loop
+        move.b  -(a0),d0
+        move.w  0(a2,d0.w*2),-(a4)
+        move.b  -(a0),d0
+        move.w  0(a2,d0.w*2),-(a4)
+        dbf     d6,.xy_loop
+.xy_finished
         move.l  a4,a1
         move.l  a4,a3
         move.l  a4,a5
         suba.w  g2resolution_saved_width,a5
         move.w  g2resolution_saved_width,d6
         lsr.w   #2,d6
+        ; Two longwords per loop, with one-longword tail for e.g. 428px.
+        lsr.w   #1,d6
+        bcc.s   .xy_copy_pairs
+        move.l  (a3)+,(a5)+
+.xy_copy_pairs
         subq.w  #1,d6
+        bmi.s   .xy_copy_finished
 .xy_copy_upper
         move.l  (a3)+,(a5)+
+        move.l  (a3)+,(a5)+
         dbf     d6,.xy_copy_upper
+.xy_copy_finished
         suba.w  g2resolution_saved_width,a1
         dbf     d7,.xy_row
         movem.l (a7)+,d0-d3/d6-d7/a0-a5
@@ -41816,12 +42070,23 @@ g2twop_quality_expand_half
         adda.l  d1,a1
         lea     g2resolution_dupbyte_table,a2
         move.w  d0,d7
-        subq.w  #1,d7
-.tx_loop
+        ; Two source pixels per loop; backwards preserves in-place overlap.
+        ; Clear index once: MOVE.B below cannot change its upper bits.
         moveq   #0,d0
+        lsr.w   #1,d7
+        bcc.s   .tx_pairs
+        move.b  -(a0),d0
+        move.w  0(a2,d0.w*2),-(a1)
+.tx_pairs
+        subq.w  #1,d7
+        bmi.s   .tx_finished
+.tx_loop
+        move.b  -(a0),d0
+        move.w  0(a2,d0.w*2),-(a1)
         move.b  -(a0),d0
         move.w  0(a2,d0.w*2),-(a1)
         dbf     d7,.tx_loop
+.tx_finished
         movem.l (a7)+,d0-d3/d7/a0-a2
         bra.w   .restore
 
@@ -41886,22 +42151,41 @@ g2twop_quality_expand_half
         move.l  a1,a4
         move.w  d3,d6
         lsr.w   #1,d6
-        subq.w  #1,d6
-.txy_expand
+        ; Two source pixels per loop; backwards preserves in-place overlap.
+        ; Clear index once: MOVE.B below cannot change its upper bits.
         moveq   #0,d0
+        lsr.w   #1,d6
+        bcc.s   .txy_pairs
         move.b  -(a0),d0
         move.w  0(a2,d0.w*2),-(a4)
-        dbf     d6,.txy_expand
+.txy_pairs
+        subq.w  #1,d6
+        bmi.s   .txy_finished
+.txy_loop
+        move.b  -(a0),d0
+        move.w  0(a2,d0.w*2),-(a4)
+        move.b  -(a0),d0
+        move.w  0(a2,d0.w*2),-(a4)
+        dbf     d6,.txy_loop
+.txy_finished
         move.l  a4,a1
         move.l  a4,a3
         move.l  a4,a5
         suba.w  d3,a5
         move.w  d3,d6
         lsr.w   #2,d6
+        ; Two longwords per loop, with one-longword tail for e.g. 428px.
+        lsr.w   #1,d6
+        bcc.s   .txy_copy_pairs
+        move.l  (a3)+,(a5)+
+.txy_copy_pairs
         subq.w  #1,d6
+        bmi.s   .txy_copy_finished
 .txy_copy_upper
         move.l  (a3)+,(a5)+
+        move.l  (a3)+,(a5)+
         dbf     d6,.txy_copy_upper
+.txy_copy_finished
         suba.w  d3,a1
         dbf     d7,.txy_row
         movem.l (a7)+,d0-d3/d6-d7/a0-a5
@@ -42012,7 +42296,7 @@ g2resolution_apply_after_menu
 ; Stage 1 is a compact Intuition requester containing only supported resolutions
 ; that actually exist as exact 8-bit CLUT P96 modes on the current system.
 ; Stage 2 is the official p96RequestModeIDTagList requester, constrained to the
-; selected exact width/height, 8-bit depth and RGBFB_CLUT. Gloom Reforged 2.0
+; selected exact width/height, 8-bit depth and RGBFB_CLUT. Gloom Reforged 2.2
 ; no longer exposes 16-bit modes in the native P96 mode contract.
 ;
 ; Supported output geometries:
@@ -42039,7 +42323,7 @@ G2P96_MA_FORMATSALLOWED	equ	G2P96_MA_DUMMY+$0008
 G2P96_MA_WINDOWTITLE		equ	G2P96_MA_DUMMY+$000a
 G2P96_MA_OKTEXT		equ	G2P96_MA_DUMMY+$000b
 G2P96_MA_CANCELTEXT		equ	G2P96_MA_DUMMY+$000c
-G2P96_RGBFF_SUPPORTED	equ	RGBFF_CLUT	;Gloom Reforged 2.0 exposes native 8-bit CLUT only
+G2P96_RGBFF_SUPPORTED	equ	RGBFF_CLUT	;Gloom Reforged 2.2 exposes native 8-bit CLUT only
 G2P96_IDA_DEPTH		equ	2
 G2P96_IDA_BYTESPERPIXEL	equ	3
 G2P96_IDA_BITSPERPIXEL	equ	4
@@ -42460,7 +42744,7 @@ g2p96_req_gadget_buffer	ds.b	64
 g2p96_req_intuition_name	dc.b	'intuition.library',0
 g2p96_req_title	dc.b	'Gloom Reforged P96',0
 g2p96_req_body_prefix
-	dc.b	'Gloom Reforged 2.0 uses native direct-indexed',10
+	dc.b	'GloomBench 2.2 uses native direct-indexed',10
 	dc.b	'8-bit Picasso96 output',10,10
 	dc.b	'Select an available P96 output size',10,10,0
 g2p96_req_body_footer
@@ -42515,7 +42799,7 @@ g2p96_req_bad_override_body
 ; Canonical build identifier kept at EOF to preserve the established placement.
 ; The former verbose P96 palette-map diagnostic block was removed in c87b79m; c87b79n makes DISPLAY=P96 the sole planar-source owner.
 ; -----------------------------------------------------------------------------
-g2build_version_text	dc.b	'2.0 c87b80o'
+g2build_version_text	dc.b	'2.2 c87b80p-bench1'
 g2build_version_text_end
 g2build_version_text_len	equ	g2build_version_text_end-g2build_version_text
 
@@ -43502,20 +43786,20 @@ g2p96_req_custom_title	dc.b	'Gloom Reforged P96'
 g2p96_req_custom_title_end
 g2p96_req_custom_title_len	equ	g2p96_req_custom_title_end-g2p96_req_custom_title
 
-g2p96_req_custom_warning1	dc.b	'Gloom Reforged v2.0'
+g2p96_req_custom_warning1	dc.b	'GloomBench v2.2'
 g2p96_req_custom_warning1_end
 g2p96_req_custom_warning1_len	equ	g2p96_req_custom_warning1_end-g2p96_req_custom_warning1
-	dcb.b	10,0			; preserve TEST2 binary layout
+	dcb.b	10,0			; preserve established binary spacing
 
 g2p96_req_custom_warning2	dc.b	'Direct 8-Bit CLUT P96'
 g2p96_req_custom_warning2_end
 g2p96_req_custom_warning2_len	equ	g2p96_req_custom_warning2_end-g2p96_req_custom_warning2
-	dcb.b	14,0			; preserve TEST2 binary layout
+	dcb.b	14,0			; preserve established binary spacing
 
 g2p96_req_custom_select	dc.b	'Select a Screenmode and Options'
 g2p96_req_custom_select_end
 g2p96_req_custom_select_len	equ	g2p96_req_custom_select_end-g2p96_req_custom_select
-	dcb.b	4,0			; preserve TEST2 binary layout
+	dcb.b	4,0			; preserve established binary spacing
 
 g2p96_req_custom_footer1	dc.b	'The following requester shows'
 g2p96_req_custom_footer1_end
@@ -50622,6 +50906,1467 @@ g2p96_static_decode_gloombrush_direct_y_c87b79x
 	movem.l	(a7)+,d0-d7/a0-a6
 	rts
 
+
+; =============================================================================
+; c87b80f / RC3 - robust P96 mode-list selection
+;
+; pVision with Picasso96API.library 2.455 exposes all valid modes through
+; p96AllocModeListTagList(), while p96BestModeIDTagList() returns INVALID_ID
+; even for exact geometries.  The released chooser therefore obtains each
+; candidate directly from the authoritative P96 mode list, then validates the
+; DisplayID against the unchanged direct CLUT8 renderer contract.
+;
+; The compact geometry chooser remains unchanged.  Selecting a geometry now
+; uses its already validated first ModeID directly.  P96MODEID remains available
+; when a particular card/timing must be forced on a multi-board setup.
+; =============================================================================
+
+G2P96_RC3_MODE_WIDTH       equ 62
+G2P96_RC3_MODE_HEIGHT      equ 64
+G2P96_RC3_MODE_DEPTH       equ 66
+G2P96_RC3_MODE_DISPLAYID   equ 68
+
+        even
+g2p96_req_modelist_tags_c87b80f
+        dc.l    TAG_DONE,0
+
+; Return the first exact, genuine 8-bit CLUT ModeID for p96target_width/height.
+; Output d0.l = validated ModeID, or zero.  The allocated P96 list is always
+; released before returning.
+g2p96_req_best_current_c87b80f
+        movem.l d1-d7/a0-a6,-(a7)
+        moveq   #0,d7
+        move.l  p96base,d0
+        beq.w   .done
+        move.l  d0,a6
+        lea     g2p96_req_modelist_tags_c87b80f,a0
+        jsr     -72(a6)                 ; p96AllocModeListTagList
+        move.l  d0,a4
+        beq.w   .done
+
+        move.l  (a4),a3                 ; List.lh_Head
+.loop
+        move.l  a3,d0
+        beq.s   .free
+        move.l  (a3),d0                 ; tail sentinel: ln_Succ == 0
+        beq.s   .free
+
+        moveq   #0,d0
+        move    G2P96_RC3_MODE_WIDTH(a3),d0
+        cmp     p96target_width,d0
+        bne.s   .next
+        moveq   #0,d0
+        move    G2P96_RC3_MODE_HEIGHT(a3),d0
+        cmp     p96target_height,d0
+        bne.s   .next
+        moveq   #0,d0
+        move    G2P96_RC3_MODE_DEPTH(a3),d0
+        cmp     #8,d0
+        bne.s   .next
+
+        move.l  G2P96_RC3_MODE_DISPLAYID(a3),d0
+        jsr     g2p96_req_validate_current_c87b78j
+        tst.l   d0
+        beq.s   .next
+        move.l  d0,d7
+        bra.s   .free
+
+.next
+        move.l  (a3),a3
+        bra.s   .loop
+
+.free
+        move.l  a4,a0
+        move.l  p96base,a6
+        jsr     -78(a6)                 ; p96FreeModeList
+.done
+        move.l  d7,d0
+        movem.l (a7)+,d1-d7/a0-a6
+        rts
+
+; Stage 1 already stored one exact validated ModeID per displayed geometry.
+; Return that ID directly instead of invoking p96RequestModeIDTagList(), whose
+; empty result on pVision was the reason no usable resolution could be started.
+g2p96_req_select_candidate_c87b80f
+        movem.l d1/a0,-(a7)
+        moveq   #0,d0
+        move    g2p96_req_selected_index,d0
+        bmi.s   .invalid
+        cmp     #5,d0
+        bhi.s   .invalid
+        lsl     #2,d0
+        lea     g2p96_req_candidate_ids,a0
+        move.l  0(a0,d0.w),d0
+        bra.s   .done
+.invalid
+        moveq   #0,d0
+.done
+        movem.l (a7)+,d1/a0
+        rts
+
+; =============================================================================
+; c87b80m / Gloom Reforged v2.0 RC4 shared P96 requester
+; Ported directly from the hardware-confirmed GloomBench TEST5 source.
+; Saved P96 ModeID + left-Shift override + low-bandwidth P96 publishing.
+;
+; Config compatibility:
+;   The original 34-byte gloom.cfg v4 payload remains byte-for-byte at the
+;   beginning of the file.  This test appends a 12-byte "P961" extension:
+;       +0  long  signature 'P961'
+;       +4  long  saved P96 ModeID (zero when Save Screenmode is unchecked)
+;       +8  word  save flag (0/-1)
+;       +10 word  low-bandwidth flag (0/-1)
+;   The original 34-byte v4 prefix remains compatible. RC4 writes and
+;   preserves the 12-byte extension on every normal configuration save.
+; =============================================================================
+
+G2BENCH_CFG_BASE_LEN_V21      equ g2cfg_len
+G2BENCH_CFG_EXT_LEN_V21       equ 12
+G2BENCH_CFG_TOTAL_LEN_V21     equ G2BENCH_CFG_BASE_LEN_V21+G2BENCH_CFG_EXT_LEN_V21
+G2BENCH_CFG_EXT_SIG_V21       equ 'P961'
+G2BENCH_INPUT_IOREQ_LEN_V21   equ 48
+G2BENCH_IEQUALIFIER_LSHIFT    equ $0001
+G2BENCH_INPUT_LVO_PEEKQUALIFIER equ -42
+G2BENCH_REQ_SAVE_HIT_V21      equ -2
+G2BENCH_REQ_LOWBW_HIT_V21     equ -3
+G2BENCH_REQ_OK_HIT_V21        equ -4
+G2BENCH_REQ_SAVE_BASE_Y_V21   equ 170
+G2BENCH_REQ_SHIFT_BASE_Y_V21  equ 180
+G2BENCH_REQ_LOWBW_BASE_Y_V21  equ 192
+G2BENCH_REQ_ACTION_Y_V21      equ 200
+G2BENCH_REQ_SAVE_HIT_TOP_V21  equ 161
+G2BENCH_REQ_SAVE_HIT_END_V21  equ 183
+G2BENCH_REQ_LOWBW_HIT_TOP_V21 equ 184
+G2BENCH_REQ_LOWBW_HIT_END_V21 equ 200
+G2BENCH_REQ_ACTION_W_V21      equ 80
+G2BENCH_REQ_OK_X_V21          equ 16
+G2BENCH_REQ_AGA_X_V21         equ 110
+G2BENCH_REQ_CANCEL_X_V21      equ 204
+
+        even
+g2bench_save_screenmode_v21       dc.w 0
+g2bench_low_bandwidth_v21         dc.w 0
+g2bench_lshift_override_v21       dc.w 0
+g2bench_saved_mode_used_v21       dc.w 0
+g2bench_requester_selected_v21    dc.w 0
+g2bench_req_selected_row_v21      dc.w -1
+g2bench_lowbw_phase_v21           dc.w 0
+g2bench_saved_modeid_v21          dc.l 0
+        even
+
+g2bench_cfg_buffer_v21            ds.b 52 ; v4 + P961 + BAY1
+        even
+g2bench_input_port_v21            dc.l 0
+g2bench_input_ioreq_ptr_v21       dc.l 0
+        even
+g2bench_input_name_v21            dc.b 'input.device',0
+        even
+
+; Load only the appended P96 preferences before display selection.
+; The normal gameplay configuration is loaded later through g2cfg_load.
+g2bench_p96prefs_load_v21
+        movem.l d0-d7/a0-a6,-(a7)
+        clr     g2bench_save_screenmode_v21
+        clr     g2bench_low_bandwidth_v21
+        clr     g2bench_saved_mode_used_v21
+        clr.l   g2bench_saved_modeid_v21
+        move.l  dosbase,d0
+        beq.w   .done
+        move.l  d0,a6
+        lea     g2cfg_name,a0
+        move.l  a0,d1
+        move.l  #1005,d2
+        jsr     -30(a6)                 ; Open MODE_OLDFILE
+        move.l  d0,d7
+        beq.w   .done
+        move.l  d7,d1
+        lea     g2bench_cfg_buffer_v21(pc),a0
+        move.l  a0,d2
+        move.l  #G2BENCH_CFG_TOTAL_LEN_V21,d3
+        jsr     -42(a6)                 ; Read
+        move.l  d0,d6
+        move.l  d7,d1
+        jsr     -36(a6)                 ; Close
+        cmp.l   #G2BENCH_CFG_TOTAL_LEN_V21,d6
+        bcs.w   .done
+        lea     g2bench_cfg_buffer_v21(pc),a0
+        cmp.l   #'GLMC',(a0)+
+        bne.w   .done
+        cmp.b   #'F',(a0)+
+        bne.w   .done
+        cmp.b   #'G',(a0)+
+        bne.w   .done
+        move    (a0),d0
+        cmp     #1,d0
+        blt.w   .done
+        cmp     #4,d0
+        bgt.w   .done
+        lea     g2bench_cfg_buffer_v21+G2BENCH_CFG_BASE_LEN_V21(pc),a0
+        cmp.l   #G2BENCH_CFG_EXT_SIG_V21,(a0)+
+        bne.w   .done
+        move.l  (a0)+,g2bench_saved_modeid_v21
+        move    (a0)+,d0
+        beq.w   .save_off
+        move    #-1,g2bench_save_screenmode_v21
+        bra.w   .save_done
+.save_off
+        clr     g2bench_save_screenmode_v21
+.save_done
+        move    (a0)+,d0
+        beq.w   .low_off
+        move    #-1,g2bench_low_bandwidth_v21
+        bra.w   .done
+.low_off
+        clr     g2bench_low_bandwidth_v21
+.done
+        movem.l (a7)+,d0-d7/a0-a6
+        rts
+
+; Snapshot only the left Shift qualifier through input.device V36+.
+; Failure to open the device simply leaves the override disabled.
+g2bench_lshift_probe_v21
+        movem.l d0-d7/a0-a6,-(a7)
+        clr     g2bench_lshift_override_v21
+        clr.l   g2bench_input_port_v21
+        clr.l   g2bench_input_ioreq_ptr_v21
+        moveq   #0,d7                   ; device-open flag
+        move.l  4.w,a6
+        cmp.w   #36,20(a6)              ; V36 supplies CreateIORequest/PeekQualifier
+        bcs.w   .done
+        jsr     -666(a6)                ; CreateMsgPort
+        move.l  d0,g2bench_input_port_v21
+        beq.w   .done
+        move.l  d0,a0
+        moveq   #G2BENCH_INPUT_IOREQ_LEN_V21,d0
+        jsr     -654(a6)                ; CreateIORequest
+        move.l  d0,g2bench_input_ioreq_ptr_v21
+        beq.w   .delete_port
+        move.l  d0,a1
+        lea     g2bench_input_name_v21(pc),a0
+        moveq   #0,d0                   ; unit 0
+        moveq   #0,d1                   ; flags
+        jsr     -444(a6)                ; OpenDevice
+        tst.l   d0
+        bne.w   .delete_ioreq
+        moveq   #-1,d7
+        move.l  g2bench_input_ioreq_ptr_v21,a1
+        move.l  20(a1),d0               ; io_Device / InputBase
+        beq.w   .close
+        move.l  d0,a6
+        cmp.w   #36,20(a6)              ; Library.lib_Version
+        bcs.w   .close
+        jsr     G2BENCH_INPUT_LVO_PEEKQUALIFIER(a6)
+        and.w   #G2BENCH_IEQUALIFIER_LSHIFT,d0
+        beq.w   .close
+        move    #-1,g2bench_lshift_override_v21
+.close
+        tst     d7
+        beq.w   .delete_ioreq
+        move.l  4.w,a6
+        move.l  g2bench_input_ioreq_ptr_v21,a1
+        jsr     -450(a6)                ; CloseDevice
+.delete_ioreq
+        move.l  g2bench_input_ioreq_ptr_v21,d0
+        beq.w   .delete_port
+        move.l  d0,a0
+        move.l  4.w,a6
+        jsr     -660(a6)                ; DeleteIORequest
+        clr.l   g2bench_input_ioreq_ptr_v21
+.delete_port
+        move.l  g2bench_input_port_v21,d0
+        beq.w   .done
+        move.l  d0,a0
+        move.l  4.w,a6
+        jsr     -672(a6)                ; DeleteMsgPort
+        clr.l   g2bench_input_port_v21
+.done
+        movem.l (a7)+,d0-d7/a0-a6
+        rts
+
+; Validate the saved ID through the exact same host-aware P96MODEID contract,
+; while preserving the visible ToolType source/override state.
+g2bench_validate_saved_mode_v21
+        movem.l d1-d7/a0-a6,-(a7)
+        move    g2p96_modeid_override_valid,d4
+        move    g2p96_modeid_override_used,d5
+        move.l  g2p96_modeid_override_value,d6
+        move    #-1,g2p96_modeid_override_valid
+        clr     g2p96_modeid_override_used
+        move.l  g2bench_saved_modeid_v21,g2p96_modeid_override_value
+        jsr     g2p96_modeid_override_validate_host_c87b78s
+        move.l  d0,d7
+        move    d4,g2p96_modeid_override_valid
+        move    d5,g2p96_modeid_override_used
+        move.l  d6,g2p96_modeid_override_value
+        move.l  d7,d0
+        movem.l (a7)+,d1-d7/a0-a6
+        rts
+
+; Full RC4 requester flow plus the optional saved-ModeID fast path.
+g2bench_p96_mode_requester_probe_v21
+        movem.l d1-d7/a0-a6,-(a7)
+        jsr     g2bench_p96prefs_load_v21
+        jsr     g2bench_lshift_probe_v21
+        clr     g2bench_saved_mode_used_v21
+        clr     g2bench_requester_selected_v21
+        clr     g2bench_lowbw_phase_v21
+        clr     g2p96_req_abort_startup
+        clr.l   p96modeid
+        clr     p96modeid_depth
+        clr     p96modeid_state
+        move.l  #RGBFB_CLUT,p96modeid_rgbformat
+        cmp     #2,g2display_mode
+        beq.w   .is_p96
+        move    #2,p96modeid_state
+        bra.w   .done
+.is_p96
+        tst     p96present
+        bne.w   .have_library
+        jsr     g2p96_req_show_nolib
+        jsr     g2p96_req_fallback_aga
+        bra.w   .done
+.have_library
+        clr     g2p96_modeid_override_used
+        tst     g2p96_modeid_override_present
+        beq.w   .try_saved
+        jsr     g2p96_modeid_override_validate_host_c87b78s
+        tst.l   d0
+        bne.w   .accept
+        jsr     g2p96_req_show_bad_override
+        bra.w   .normal_requester
+.try_saved
+        tst     g2bench_lshift_override_v21
+        bne.w   .normal_requester
+        tst     g2bench_save_screenmode_v21
+        beq.w   .normal_requester
+        move.l  g2bench_saved_modeid_v21,d0
+        beq.w   .normal_requester
+        jsr     g2bench_validate_saved_mode_v21
+        tst.l   d0
+        beq.w   .normal_requester
+        move    #-1,g2bench_saved_mode_used_v21
+        bra.w   .accept
+.normal_requester
+        jsr     g2p96_req_build_candidates_host_c87b78s
+        tst     g2p96_req_available_count
+        bne.w   .choose
+        jsr     g2p96_req_show_nomodes_host_c87b78s
+        jsr     g2p96_req_fallback_aga
+        bra.w   .done
+.choose
+        move    #-1,g2bench_req_selected_row_v21
+        jsr     g2p96_req_show_resolution
+        tst.l   d0
+        bgt.w   .selected
+        bmi.w   .use_chipset
+        move    #-1,g2p96_req_abort_startup
+        jsr     g2p96_close
+        bra.w   .done
+.use_chipset
+        jsr     g2p96_req_fallback_aga
+        bra.w   .done
+.selected
+        subq    #1,d0
+        move    d0,g2p96_req_selected_index
+        jsr     g2p96_req_apply_candidate
+        jsr     g2p96_req_select_candidate_c87b80f
+        cmp.l   #P96_INVALID_ID,d0
+        beq.w   .choose
+        tst.l   d0
+        beq.w   .choose
+        jsr     g2p96_req_validate_current
+        tst.l   d0
+        bne.w   .selected_valid
+        jsr     g2p96_req_show_invalid
+        bra.w   .choose
+.selected_valid
+        move    #-1,g2bench_requester_selected_v21
+.accept
+        move.l  d0,d7
+        move.l  d7,p96modeid
+        move.l  p96base,a6
+        move.l  d7,d0
+        moveq   #G2P96_IDA_DEPTH,d1
+        jsr     -84(a6)
+        move    d0,p96modeid_depth
+        move.l  d7,d0
+        moveq   #P96IDA_RGBFORMAT,d1
+        jsr     -84(a6)
+        move.l  d0,p96modeid_rgbformat
+        move    #1,p96modeid_state
+        tst     g2bench_requester_selected_v21
+        beq.w   .done
+        jsr     g2bench_p96prefs_save_v21
+.done
+        movem.l (a7)+,d1-d7/a0-a6
+        moveq   #0,d0
+        rts
+
+; Preserve the user's existing binary config prefix, append/update only P961.
+g2bench_p96prefs_save_v21
+        movem.l d0-d7/a0-a6,-(a7)
+        move.l  dosbase,d0
+        beq.w   .done
+        lea     g2bench_cfg_buffer_v21(pc),a0
+        moveq   #0,d0
+        moveq   #12,d1
+.clear
+        move.l  d0,(a0)+
+        dbf     d1,.clear
+
+        move.l  dosbase,a6
+        lea     g2cfg_name,a0
+        move.l  a0,d1
+        move.l  #1005,d2
+        jsr     -30(a6)
+        move.l  d0,d7
+        beq.w   .build_default
+        move.l  d7,d1
+        lea     g2bench_cfg_buffer_v21(pc),a0
+        move.l  a0,d2
+        move.l  #G2BENCH_CFG_TOTAL_LEN_V21+6,d3
+        jsr     -42(a6)
+        move.l  d0,d6
+        move.l  d7,d1
+        jsr     -36(a6)
+        cmp.l   #g2cfg_len_old,d6
+        bcs.w   .build_default
+        lea     g2bench_cfg_buffer_v21(pc),a0
+        cmp.l   #'GLMC',(a0)+
+        bne.w   .build_default
+        cmp.b   #'F',(a0)+
+        bne.w   .build_default
+        cmp.b   #'G',(a0)+
+        bne.w   .build_default
+        move    (a0),d0
+        cmp     #1,d0
+        blt.w   .build_default
+        cmp     #4,d0
+        ble.w   .have_prefix
+.build_default
+        lea     g2bench_cfg_buffer_v21(pc),a0
+        move.l  #'GLMC',(a0)+
+        move.b  #'F',(a0)+
+        move.b  #'G',(a0)+
+        move    #4,(a0)+
+        move    #320,(a0)+
+        move    #240,(a0)+
+        move    #1,(a0)+               ; floor
+        move    #1,(a0)+               ; ceiling
+        move    #-1,(a0)+              ; blob shadows
+        move    #-1,(a0)+              ; reflections
+        clr     (a0)+                  ; invincible
+        clr     (a0)+                  ; bouncy
+        clr     (a0)+                  ; weapon
+        clr     (a0)+                  ; boost
+        clr     (a0)+                  ; one hit
+        move    #-1,(a0)+              ; visibility
+        clr     (a0)+                  ; resolution 1x1
+.have_prefix
+        ; The requester saves BEFORE gameplay cfg load. Preserve BAY1 here,
+        ; otherwise selecting a screenmode would erase saved Bayer NO.
+        lea     g2bench_cfg_buffer_v21+G2BENCH_CFG_TOTAL_LEN_V21(pc),a0
+        cmp.l   #'BAY1',(a0)
+        beq.w   .bayer_preserved
+        move.l  #'BAY1',(a0)+
+        clr.w   (a0)
+.bayer_preserved
+        lea     g2bench_cfg_buffer_v21+G2BENCH_CFG_BASE_LEN_V21(pc),a0
+        move.l  #G2BENCH_CFG_EXT_SIG_V21,(a0)+
+        tst     g2bench_save_screenmode_v21
+        beq.w   .no_saved_id
+        move.l  p96modeid,d0
+        bra.w   .store_id
+.no_saved_id
+        moveq   #0,d0
+.store_id
+        move.l  d0,(a0)+
+        move    g2bench_save_screenmode_v21,d0
+        beq.w   .store_save
+        moveq   #-1,d0
+.store_save
+        move    d0,(a0)+
+        move    g2bench_low_bandwidth_v21,d0
+        beq.w   .store_low
+        moveq   #-1,d0
+.store_low
+        move    d0,(a0)+
+
+        lea     g2cfg_name,a0
+        move.l  a0,d1
+        move.l  #1006,d2
+        move.l  dosbase,a6
+        jsr     -30(a6)
+        move.l  d0,d7
+        beq.w   .done
+        move.l  d7,d1
+        lea     g2bench_cfg_buffer_v21(pc),a0
+        move.l  a0,d2
+        move.l  #G2BENCH_CFG_TOTAL_LEN_V21+6,d3
+        jsr     -48(a6)
+        move.l  d7,d1
+        jsr     -36(a6)
+
+        tst     g2bench_save_screenmode_v21
+        beq.w   .clear_runtime_saved
+        move.l  p96modeid,g2bench_saved_modeid_v21
+        bra.w   .done
+.clear_runtime_saved
+        clr.l   g2bench_saved_modeid_v21
+.done
+        movem.l (a7)+,d0-d7/a0-a6
+        rts
+
+; Checkbox-aware replacement drawing for the established custom requester.
+g2bench_p96_req_custom_draw_v21
+        movem.l d0-d7/a0-a6,-(a7)
+        move.l  g2p96_req_custom_window,d0
+        beq.w   .done
+        move.l  d0,a0
+        move.l  50(a0),a1
+        move.l  g2p96_req_custom_grbase,a6
+        moveq   #G2P96_REQ_PEN_BG,d0
+        jsr     -348(a6)
+        moveq   #0,d0
+        jsr     -354(a6)
+
+        moveq   #0,d0
+        moveq   #0,d1
+        move    #G2P96_REQ_CONTENT_W-1,d2
+        move    #G2P96_REQ_CONTENT_H-1,d3
+        moveq   #G2P96_REQ_PEN_BG,d4
+        jsr     g2p96_req_custom_rect
+
+        moveq   #5,d0
+        moveq   #2,d1
+        move    #G2P96_REQ_CONTENT_W-6,d2
+        moveq   #25,d3
+        moveq   #G2P96_REQ_PEN_SHADOW,d4
+        jsr     g2p96_req_custom_rect
+        moveq   #6,d0
+        moveq   #3,d1
+        move    #G2P96_REQ_CONTENT_W-7,d2
+        moveq   #24,d3
+        moveq   #G2P96_REQ_PEN_HILITE,d4
+        jsr     g2p96_req_custom_rect
+        lea     g2p96_req_custom_warning1,a0
+        move    #g2p96_req_custom_warning1_len,d0
+        moveq   #0,d1
+        move    #G2P96_REQ_CONTENT_W,d2
+        moveq   #11,d3
+        moveq   #G2P96_REQ_PEN_TEXT,d4
+        jsr     g2p96_req_custom_text_center
+        lea     g2p96_req_custom_warning2,a0
+        move    #g2p96_req_custom_warning2_len,d0
+        moveq   #0,d1
+        move    #G2P96_REQ_CONTENT_W,d2
+        moveq   #21,d3
+        moveq   #G2P96_REQ_PEN_TEXT,d4
+        jsr     g2p96_req_custom_text_center
+        lea     g2p96_req_custom_select,a0
+        move    #g2p96_req_custom_select_len,d0
+        moveq   #0,d1
+        move    #G2P96_REQ_CONTENT_W,d2
+        move    #G2P96_REQ_SELECT_BASE,d3
+        moveq   #G2P96_REQ_PEN_TEXT,d4
+        jsr     g2p96_req_custom_text_center
+
+        ; Screenmode rows are selection buttons. The chosen row remains latched
+        ; in the title-bar accent colour until OK is pressed.
+        moveq   #0,d6
+        move    g2p96_req_display_count,d7
+        subq    #1,d7
+        bmi.w   .buttons_done
+.buttons_loop
+        moveq   #G2P96_REQ_MODE_X,d0
+        move    d6,d1
+        mulu    #G2P96_REQ_MODE_STEP,d1
+        add     #G2P96_REQ_MODE_Y,d1
+        lea     g2p96_req_map,a0
+        moveq   #0,d2
+        move.b  0(a0,d6.w),d2
+        lea     g2p96_req_custom_label_ptrs,a0
+        move.l  0(a0,d2*4),a1
+        lea     g2p96_req_custom_label_lens,a0
+        move    0(a0,d2*2),d2
+        move.l  a1,a0
+        cmp     g2bench_req_selected_row_v21,d6
+        bne.w   .normal_button
+        jsr     g2bench_p96_req_custom_button_selected_v21
+        bra.w   .button_done
+.normal_button
+        jsr     g2p96_req_custom_button
+.button_done
+        addq    #1,d6
+        dbf     d7,.buttons_loop
+.buttons_done
+
+        ; Save-screenmode checkbox.
+        lea     g2bench_checkbox_off_v21(pc),a0
+        tst     g2bench_save_screenmode_v21
+        beq.w   .save_box_ready
+        lea     g2bench_checkbox_on_v21(pc),a0
+.save_box_ready
+        moveq   #3,d0
+        move    #12,d1
+        move    #G2BENCH_REQ_SAVE_BASE_Y_V21,d2
+        moveq   #G2P96_REQ_PEN_TEXT,d3
+        jsr     g2p96_req_custom_text
+        lea     g2bench_save_label_v21(pc),a0
+        move    #g2bench_save_label_len_v21,d0
+        move    #44,d1
+        move    #G2BENCH_REQ_SAVE_BASE_Y_V21,d2
+        moveq   #G2P96_REQ_PEN_TEXT,d3
+        jsr     g2p96_req_custom_text
+        lea     g2bench_shift_note_v21(pc),a0
+        move    #g2bench_shift_note_len_v21,d0
+        move    #44,d1
+        move    #G2BENCH_REQ_SHIFT_BASE_Y_V21,d2
+        moveq   #G2P96_REQ_PEN_TEXT,d3
+        jsr     g2p96_req_custom_text
+
+        ; Low-bandwidth checkbox.
+        lea     g2bench_checkbox_off_v21(pc),a0
+        tst     g2bench_low_bandwidth_v21
+        beq.w   .low_box_ready
+        lea     g2bench_checkbox_on_v21(pc),a0
+.low_box_ready
+        moveq   #3,d0
+        move    #12,d1
+        move    #G2BENCH_REQ_LOWBW_BASE_Y_V21,d2
+        moveq   #G2P96_REQ_PEN_TEXT,d3
+        jsr     g2p96_req_custom_text
+        lea     g2bench_lowbw_label_v21(pc),a0
+        move    #g2bench_lowbw_label_len_v21,d0
+        move    #44,d1
+        move    #G2BENCH_REQ_LOWBW_BASE_Y_V21,d2
+        moveq   #G2P96_REQ_PEN_TEXT,d3
+        jsr     g2p96_req_custom_text
+
+        ; Final actions: OK confirms the latched row; AGA/ECS and CANCEL keep
+        ; their established immediate actions.
+        move    #G2BENCH_REQ_OK_X_V21,d0
+        move    #G2BENCH_REQ_ACTION_Y_V21,d1
+        lea     g2p96_req_ok,a0
+        move    #G2P96_REQ_OK_LEN,d2
+        jsr     g2bench_p96_req_custom_button_80_v21
+        move    #G2BENCH_REQ_AGA_X_V21,d0
+        move    #G2BENCH_REQ_ACTION_Y_V21,d1
+        lea     g2p96_req_aga,a0
+        move    #G2P96_REQ_AGA_LEN,d2
+        jsr     g2bench_p96_req_custom_button_80_v21
+        move    #G2BENCH_REQ_CANCEL_X_V21,d0
+        move    #G2BENCH_REQ_ACTION_Y_V21,d1
+        lea     g2p96_req_cancel,a0
+        move    #G2P96_REQ_CANCEL_LEN,d2
+        jsr     g2bench_p96_req_custom_button_80_v21
+.done
+        movem.l (a7)+,d0-d7/a0-a6
+        rts
+
+; Repair exposed SIMPLE_REFRESH damage without disturbing the current state.
+; BeginRefresh restricts the full redraw to Intuition's damaged region;
+; EndRefresh(TRUE) then completes and clears the refresh state.
+g2bench_p96_req_custom_refresh_v21
+        movem.l d0-d7/a0-a6,-(a7)
+        move.l  g2p96_req_custom_window,d0
+        beq.w   .done
+        move.l  d0,a0
+        move.l  g2p96_req_custom_intbase,a6
+        jsr     -354(a6)                ; BeginRefresh(window)
+        jsr     g2bench_p96_req_custom_draw_v21
+        move.l  g2p96_req_custom_window,a0
+        moveq   #-1,d0                  ; Complete=TRUE
+        move.l  g2p96_req_custom_intbase,a6
+        jsr     -366(a6)                ; EndRefresh(window,TRUE)
+.done
+        movem.l (a7)+,d0-d7/a0-a6
+        rts
+
+; Mouse/keyboard/refresh wait loop. UI changes redraw the same window.
+g2bench_p96_req_custom_wait_v21
+        movem.l d1-d7/a0-a6,-(a7)
+.wait
+        move.l  g2p96_req_custom_window,a0
+        move.l  86(a0),a0
+        move.l  4.w,a6
+        jsr     -384(a6)
+.drain
+        move.l  g2p96_req_custom_window,a0
+        move.l  86(a0),a0
+        move.l  4.w,a6
+        jsr     -372(a6)
+        tst.l   d0
+        beq.w   .wait
+        move.l  d0,a2
+        move.l  20(a2),d4
+        moveq   #0,d5
+        move    24(a2),d5
+        moveq   #0,d6
+        move    32(a2),d6
+        moveq   #0,d7
+        move    34(a2),d7
+        move.l  a2,a1
+        move.l  4.w,a6
+        jsr     -378(a6)
+        cmp.l   #$00000004,d4           ; IDCMP_REFRESHWINDOW
+        beq.w   .refresh
+        cmp.l   #$00000008,d4
+        beq.w   .mouse
+        cmp.l   #$00000400,d4
+        beq.w   .key
+        bra.w   .drain
+.refresh
+        jsr     g2bench_p96_req_custom_refresh_v21
+        bra.w   .drain
+.mouse
+        cmp     #$0068,d5
+        bne.w   .drain
+        move    d6,d0
+        move    d7,d1
+        jsr     g2bench_p96_req_custom_hit_v21
+        cmp     #G2BENCH_REQ_SAVE_HIT_V21,d0
+        beq.w   .toggle_save
+        cmp     #G2BENCH_REQ_LOWBW_HIT_V21,d0
+        beq.w   .toggle_low
+        cmp     #G2BENCH_REQ_OK_HIT_V21,d0
+        beq.w   .confirm
+        cmp     #-1,d0
+        beq.w   .drain
+        tst     d0
+        beq.w   .done                  ; CANCEL
+        move    g2p96_req_display_count,d1
+        addq    #1,d1
+        cmp     d1,d0
+        beq.w   .done                  ; AGA/ECS
+        cmp     g2p96_req_display_count,d0
+        bhi.w   .drain
+        subq    #1,d0
+        move    d0,g2bench_req_selected_row_v21
+        bra.w   .redraw
+.toggle_save
+        tst     g2bench_save_screenmode_v21
+        beq.w   .save_on
+        clr     g2bench_save_screenmode_v21
+        bra.w   .redraw
+.save_on
+        move    #-1,g2bench_save_screenmode_v21
+        bra.w   .redraw
+.toggle_low
+        tst     g2bench_low_bandwidth_v21
+        beq.w   .low_on
+        clr     g2bench_low_bandwidth_v21
+        bra.w   .redraw
+.low_on
+        move    #-1,g2bench_low_bandwidth_v21
+.redraw
+        jsr     g2bench_p96_req_custom_draw_v21
+        bra.w   .drain
+.confirm
+        move    g2bench_req_selected_row_v21,d0
+        bmi.w   .drain
+        addq    #1,d0
+        bra.w   .done
+.key
+        btst    #7,d5
+        bne.w   .drain
+        and     #$007f,d5
+        cmp     #$45,d5
+        beq.w   .cancel
+        cmp     #$33,d5
+        beq.w   .cancel
+        cmp     #$20,d5
+        beq.w   .use_chipset
+        cmp     #$44,d5               ; RETURN = OK
+        beq.w   .confirm
+        cmp     #$43,d5               ; numeric ENTER = OK
+        beq.w   .confirm
+        cmp     #1,d5
+        bcs.w   .drain
+        cmp     #6,d5
+        bhi.w   .drain
+        cmp     g2p96_req_display_count,d5
+        bhi.w   .drain
+        subq    #1,d5
+        move    d5,g2bench_req_selected_row_v21
+        bra.w   .redraw
+.use_chipset
+        moveq   #0,d0
+        move    g2p96_req_display_count,d0
+        addq    #1,d0
+        bra.w   .done
+.cancel
+        moveq   #0,d0
+.done
+        movem.l (a7)+,d1-d7/a0-a6
+        rts
+
+; Return mode/action values compatible with the original hit tester, plus
+; -2/-3 for the two checkbox rows.
+g2bench_p96_req_custom_hit_v21
+        movem.l d1-d5,-(a7)
+        move    d0,d2
+        move    d1,d3
+        sub     g2p96_req_custom_origin_x,d2
+        sub     g2p96_req_custom_origin_y,d3
+        moveq   #-1,d0
+
+        cmp     #G2BENCH_REQ_ACTION_Y_V21,d3
+        blt.w   .checkboxes
+        cmp     #G2BENCH_REQ_ACTION_Y_V21+22,d3
+        bge.w   .done
+        cmp     #G2BENCH_REQ_OK_X_V21,d2
+        blt.w   .done
+        cmp     #G2BENCH_REQ_OK_X_V21+G2BENCH_REQ_ACTION_W_V21,d2
+        blt.w   .ok
+        cmp     #G2BENCH_REQ_AGA_X_V21,d2
+        blt.w   .done
+        cmp     #G2BENCH_REQ_AGA_X_V21+G2BENCH_REQ_ACTION_W_V21,d2
+        blt.w   .use_chipset
+        cmp     #G2BENCH_REQ_CANCEL_X_V21,d2
+        blt.w   .done
+        cmp     #G2BENCH_REQ_CANCEL_X_V21+G2BENCH_REQ_ACTION_W_V21,d2
+        bge.w   .done
+        moveq   #0,d0
+        bra.w   .done
+.ok
+        moveq   #G2BENCH_REQ_OK_HIT_V21,d0
+        bra.w   .done
+.use_chipset
+        moveq   #0,d0
+        move    g2p96_req_display_count,d0
+        addq    #1,d0
+        bra.w   .done
+
+.checkboxes
+        cmp     #8,d2
+        blt.w   .mode_list
+        cmp     #292,d2
+        bge.w   .mode_list
+        cmp     #G2BENCH_REQ_SAVE_HIT_TOP_V21,d3
+        blt.w   .mode_list
+        cmp     #G2BENCH_REQ_SAVE_HIT_END_V21,d3
+        blt.w   .save_hit
+        cmp     #G2BENCH_REQ_LOWBW_HIT_TOP_V21,d3
+        blt.w   .mode_list
+        cmp     #G2BENCH_REQ_LOWBW_HIT_END_V21,d3
+        blt.w   .low_hit
+        bra.w   .mode_list
+.save_hit
+        moveq   #G2BENCH_REQ_SAVE_HIT_V21,d0
+        bra.w   .done
+.low_hit
+        moveq   #G2BENCH_REQ_LOWBW_HIT_V21,d0
+        bra.w   .done
+
+.mode_list
+        cmp     #G2P96_REQ_MODE_X,d2
+        blt.w   .done
+        cmp     #G2P96_REQ_MODE_X+G2P96_REQ_MODE_W,d2
+        bge.w   .done
+        cmp     #G2P96_REQ_MODE_Y,d3
+        blt.w   .done
+        move    d3,d4
+        sub     #G2P96_REQ_MODE_Y,d4
+        moveq   #0,d5
+.row_loop
+        cmp     #G2P96_REQ_MODE_H,d4
+        bcs.w   .row_hit
+        sub     #G2P96_REQ_MODE_STEP,d4
+        bmi.w   .done
+        addq    #1,d5
+        cmp     #6,d5
+        bcs.w   .row_loop
+        bra.w   .done
+.row_hit
+        cmp     g2p96_req_display_count,d5
+        bcc.w   .done
+        move    d5,d0
+        addq    #1,d0
+.done
+        movem.l (a7)+,d1-d5
+        rts
+
+; Selected full-width screenmode button. The accent fill uses the same
+; classic pen reserved for the requester/title-bar colour and the inverted
+; edge treatment makes the row look latched rather than momentarily clicked.
+g2bench_p96_req_custom_button_selected_v21
+        movem.l d0-d7/a0-a2,-(a7)
+        move    d0,d5
+        move    d1,d6
+        move.l  a0,a2
+        move    d2,d7
+        move    d5,d0
+        move    d6,d1
+        move    d5,d2
+        add     #G2P96_REQ_MODE_W-1,d2
+        move    d6,d3
+        add     #G2P96_REQ_MODE_H-1,d3
+        moveq   #G2P96_REQ_PEN_SHADOW,d4
+        jsr     g2p96_req_custom_rect
+        move    d5,d0
+        addq    #1,d0
+        move    d6,d1
+        addq    #1,d1
+        move    d5,d2
+        add     #G2P96_REQ_MODE_W-2,d2
+        move    d6,d3
+        add     #G2P96_REQ_MODE_H-2,d3
+        moveq   #G2P96_REQ_PEN_ACCENT,d4
+        jsr     g2p96_req_custom_rect
+        ; Bottom and right highlight complete the pressed/latched bevel.
+        move    d5,d0
+        addq    #1,d0
+        move    d6,d1
+        add     #G2P96_REQ_MODE_H-1,d1
+        move    d5,d2
+        add     #G2P96_REQ_MODE_W-1,d2
+        move    d6,d3
+        add     #G2P96_REQ_MODE_H-1,d3
+        moveq   #G2P96_REQ_PEN_HILITE,d4
+        jsr     g2p96_req_custom_rect
+        move    d5,d0
+        add     #G2P96_REQ_MODE_W-1,d0
+        move    d6,d1
+        addq    #1,d1
+        move    d5,d2
+        add     #G2P96_REQ_MODE_W-1,d2
+        move    d6,d3
+        add     #G2P96_REQ_MODE_H-1,d3
+        moveq   #G2P96_REQ_PEN_HILITE,d4
+        jsr     g2p96_req_custom_rect
+        move.l  a2,a0
+        move    d7,d0
+        move    d5,d1
+        add     #12,d1
+        move    d6,d2
+        add     #G2P96_REQ_MODE_TEXT_BASE,d2
+        moveq   #G2P96_REQ_PEN_HILITE,d3
+        jsr     g2p96_req_custom_text
+        movem.l (a7)+,d0-d7/a0-a2
+        rts
+
+; d0=x, d1=y, a0=label, d2=label length; 80x22 action button.
+g2bench_p96_req_custom_button_80_v21
+        movem.l d0-d7/a0-a2,-(a7)
+        move    d0,d5
+        move    d1,d6
+        move.l  a0,a2
+        move    d2,d7
+        move    d5,d0
+        move    d6,d1
+        move    d5,d2
+        add     #G2BENCH_REQ_ACTION_W_V21-1,d2
+        move    d6,d3
+        add     #21,d3
+        moveq   #G2P96_REQ_PEN_SHADOW,d4
+        jsr     g2p96_req_custom_rect
+        move    d5,d0
+        addq    #1,d0
+        move    d6,d1
+        addq    #1,d1
+        move    d5,d2
+        add     #G2BENCH_REQ_ACTION_W_V21-2,d2
+        move    d6,d3
+        add     #20,d3
+        moveq   #G2P96_REQ_PEN_BG,d4
+        jsr     g2p96_req_custom_rect
+        move    d5,d0
+        move    d6,d1
+        move    d5,d2
+        add     #G2BENCH_REQ_ACTION_W_V21-2,d2
+        move    d6,d3
+        moveq   #G2P96_REQ_PEN_HILITE,d4
+        jsr     g2p96_req_custom_rect
+        move    d5,d0
+        move    d6,d1
+        move    d5,d2
+        move    d6,d3
+        add     #20,d3
+        moveq   #G2P96_REQ_PEN_HILITE,d4
+        jsr     g2p96_req_custom_rect
+        move.l  a2,a0
+        move    d7,d0
+        move    d5,d1
+        move    #G2BENCH_REQ_ACTION_W_V21,d2
+        move    d6,d3
+        add     #G2P96_REQ_ACTION_TEXT_BASE,d3
+        moveq   #G2P96_REQ_PEN_TEXT,d4
+        jsr     g2p96_req_custom_text_center
+        movem.l (a7)+,d0-d7/a0-a2
+        rts
+
+; Render every frame into Fast RAM as before, but publish only alternating
+; completed frames to an already active P96 gameplay screen when enabled.
+g2bench_p96_present_dispatch_v21
+        cmp     #2,g2display_mode
+        bne.w   .normal_reset
+        tst     g2bench_low_bandwidth_v21
+        beq.w   .normal_reset
+        tst     p96gameplay_persist_active
+        beq.w   .normal_reset
+        tst     p96newgame_hold_black_c87b79c
+        bne.w   .normal_reset
+        cmp     #P96DSP_GAMEPLAY,p96display_state
+        bne.w   .normal_reset
+        tst     p96gameplay_linear_ready
+        beq.w   .normal_reset
+        tst     g2bench_lowbw_phase_v21
+        beq.w   .publish
+        clr     g2bench_lowbw_phase_v21
+        move    #-1,p96gameplay_skip_aga_present
+        rts
+.publish
+        move    #-1,g2bench_lowbw_phase_v21
+        jmp     g2p96_gameplay_present_probe
+.normal_reset
+        clr     g2bench_lowbw_phase_v21
+        jmp     g2p96_gameplay_present_probe
+
+        even
+g2bench_checkbox_off_v21     dc.b '[ ] '
+g2bench_checkbox_on_v21      dc.b '[X] '
+g2bench_save_label_v21       dc.b 'Save Screenmode'
+g2bench_save_label_end_v21
+g2bench_save_label_len_v21   equ g2bench_save_label_end_v21-g2bench_save_label_v21
+g2bench_shift_note_v21       dc.b '(L-Shift at startup overrides)'
+g2bench_shift_note_end_v21
+g2bench_shift_note_len_v21   equ g2bench_shift_note_end_v21-g2bench_shift_note_v21
+g2bench_lowbw_label_v21      dc.b 'Low Bandwidth (eg. pVision)'
+g2bench_lowbw_label_end_v21
+g2bench_lowbw_label_len_v21  equ g2bench_lowbw_label_end_v21-g2bench_lowbw_label_v21
+g2bench_req_title_v22        dc.b 'GloomBench (Picasso96 Mode)',0
+        even
+
+; End of Gloom Reforged v2.0 RC4 requester/preferences additions.
+; =============================================================================
+; Step 2: live menu resolution and frame-boundary option hotkeys.
+; All external calls/references are absolute; the new code is appended so the
+; existing renderer is not expanded by an entire input dispatcher.
+; Keyboard interrupts only maintain the existing raw matrix. No DOS/rendering
+; work is added to an interrupt. F8 is deliberately not sampled; F9 toggles the FPS overlay.
+; =============================================================================
+
+; Same condition flags as qkey $45: Z clear while ESC or F10 is held.
+; The existing menu trigger/release path owns F10 exactly like ESC.
+g2hotkeys_menu_key
+	move.l	rawtable,a0
+	btst	#5,8(a0)		; raw $45 = ESC
+	bne.w	.done
+	btst	#1,11(a0)		; raw $59 = F10
+.done	rts
+
+; d0.w: bits 0..6 = F1..F7; bit 8 = HELP; bit 9 = F9. Changes only d0/a0 and CCR.
+g2hotkeys_sample
+	move.l	rawtable,a0
+	moveq	#0,d0
+	move.b	10(a0),d0		; raw $50..$57
+	and.w	#$007f,d0		; exclude F8
+	btst	#7,11(a0)		; raw $5f = HELP
+	beq.w	.f9
+	bset	#8,d0
+.f9
+	btst	#0,11(a0)		; raw $58 = F9; F10 stays on the ESC path
+	beq.w	.done
+	bset	#9,d0
+.done	rts
+
+; Called at each new level; held title/intermission keys are not new presses.
+g2hotkeys_seed
+	movem.l	d0/a0,-(a7)
+	jsr	g2hotkeys_sample
+	move.w	d0,g2hotkeys_previous
+	clr.w	g2hotkeys_edges
+	movem.l	(a7)+,d0/a0
+	rts
+
+g2hotkeys_poll_menu
+	tst	game_menu_active
+	beq.w	.done
+	jsr	g2hotkeys_poll
+.done	rts
+
+; Called only by the gameplay main loop or the in-game menu selection loop.
+; Keep the caller's registers and pause state, including across trainer_apply.
+; The saved edge mask lives in memory because existing option routines may
+; freely use any data register. Record all held keys BEFORE a live refresh.
+g2hotkeys_poll
+	movem.l	d0-d7/a0-a6,-(a7)
+	jsr	g2hotkeys_sample
+	move.w	g2hotkeys_previous,d1
+	not.w	d1
+	and.w	d0,d1
+	move.w	d0,g2hotkeys_previous
+	move.w	d1,g2hotkeys_edges
+	beq.w	.done
+	; Do not alter an outgoing level or its teleport presentation.
+	tst	finished
+	bne.w	.done
+	tst	finished2
+	bne.w	.done
+	tst	g2teleport_blackout
+	bne.w	.done
+	move	paused,-(a7)
+	st	paused
+
+	btst	#0,g2hotkeys_edges+1
+	beq.w	.f2
+	jsr	trainer_next_resolution
+.f2
+	btst	#1,g2hotkeys_edges+1
+	beq.w	.f3
+	jsr	trainer_toggle_bayer
+.f3
+	btst	#2,g2hotkeys_edges+1
+	beq.w	.f4
+	jsr	g2hotkeys_toggle_ceiling
+.f4
+	btst	#3,g2hotkeys_edges+1
+	beq.w	.f5
+	jsr	g2hotkeys_toggle_floor
+.f5
+	btst	#4,g2hotkeys_edges+1
+	beq.w	.f6
+	jsr	trainer_toggle_blobshadow
+.f6
+	btst	#5,g2hotkeys_edges+1
+	beq.w	.f7
+	moveq	#0,d7		; forward NO -> WEAPON -> ALL -> NO
+	jsr	trainer_toggle_reflections
+.f7
+	btst	#6,g2hotkeys_edges+1
+	beq.w	.help
+	jsr	trainer_toggle_visibility
+.help
+	btst	#0,g2hotkeys_edges	; bit 8 in the big-endian word
+	beq.w	.fps
+	jsr	trainer_toggle_inv
+.fps
+	btst	#1,g2hotkeys_edges	; bit 9 = F9
+	beq.w	.apply
+	jsr	g2hotkeys_toggle_fps
+.apply
+	jsr	g2hotkeys_notice_for_edges	; final effective values, same HUD slot as pickups
+	; Re-arm persistent P96 WIDE/5:4 geometry before drawing a changed raster.
+	jsr	g2resolution_apply_after_menu
+	tst	game_menu_active
+	beq.w	.resume
+	; One redraw for all simultaneous option presses, with selected row intact.
+	jsr	g2p96_ingame_menu_floorceil_live_refresh
+.resume
+	move	(a7)+,paused
+	jsr	g2bench22_restart	; complete new run with the final effective settings
+.done
+	movem.l	(a7)+,d0-d7/a0-a6
+	rts
+
+; Existing binary ceiling/floor semantics, shared by the hotkey dispatcher.
+g2hotkeys_toggle_ceiling
+	tst	roofflag
+	bgt.w	.off
+	move	#1,roofflag
+	bra.w	.text
+.off	move	#-1,roofflag
+.text	move	roofflag,roofflag2
+	jmp	trainer_update_ceiling_text
+
+g2hotkeys_toggle_floor
+	tst	floorflag
+	bgt.w	.off
+	move	#1,floorflag
+	bra.w	.text
+.off	move	#-1,floorflag
+.text	move	floorflag,floorflag2
+	jmp	trainer_update_floor_text
+
+; Use the existing FPS flag, including the initial FPS ToolType selection.
+; Start a fresh interval so disabled/menu time never dilutes the next reading.
+g2hotkeys_toggle_fps
+	not.w	g2fps_enabled
+	jmp	g2fps_restart_window
+
+; Menu arrows/activation use this after trainer_next/prev_resolution.
+; The existing refresh redraws both halves for TWO PLAYER, or prepares and
+; expands the single-player world before HUD/menu composition.
+g2resolution_live_menu
+	jsr	g2resolution_apply_after_menu
+	jmp	g2p96_ingame_menu_floorceil_live_refresh
+
+	even
+g2hotkeys_previous	dc.w	0
+g2hotkeys_edges		dc.w	0
+
+; -----------------------------------------------------------------------------
+; Step 4: option feedback through the existing timed pickup-message HUD slot.
+; The old message routine consumes an INLINE string at its return address,
+; so a dynamic string must set ob_mess/ob_messlen/ob_messtimer directly.
+; All option changes have completed; display the actual post-lock value.
+; One HUD slot: simultaneous keys use F9, then the highest F1..F7 as priority.
+; F8 is unused; HELP and F10 do not emit a new option notice here.
+; -----------------------------------------------------------------------------
+g2hotkeys_notice_for_edges
+	movem.l	d0-d2/a0-a5,-(a7)
+	btst	#1,g2hotkeys_edges	; bit 9 = F9
+	beq.w	.options
+	lea	g2hotkeys_fps_no,a0
+	tst	g2fps_enabled
+	beq.w	.emit
+	lea	g2hotkeys_fps_yes,a0
+	bra.w	.emit
+.options
+	move.w	g2hotkeys_edges,d0
+	and.w	#$007f,d0
+	beq.w	.done
+	moveq	#6,d1
+.find
+	btst	d1,d0
+	bne.w	.found
+	subq.w	#1,d1
+	bra.w	.find
+.found
+	lea	g2hotkeys_notice_rows,a0
+	lsl.w	#2,d1
+	move.l	0(a0,d1.w),a0
+.emit
+	bsr.w	g2hotkeys_notice_from_row
+.done
+	movem.l	(a7)+,d0-d2/a0-a5
+	rts
+
+; a0 = menu row. Labels end at ':', all value fields begin at byte 21.
+; Copy at most 63 bytes, discard padding and colon, insert one separator.
+; a3 tracks the last non-space endpoint so trailing padding never reaches HUD.
+g2hotkeys_notice_from_row
+	lea	21(a0),a1
+	lea	g2hotkeys_notice_buffer,a2
+	move.l	a2,a3
+	moveq	#63,d2
+.leading
+	cmp.b	#' ',(a0)
+	bne.w	.label
+	addq.l	#1,a0
+	bra.w	.leading
+.label
+	move.b	(a0)+,d0
+	beq.w	.publish
+	cmp.b	#':',d0
+	beq.w	.separator
+	move.b	d0,(a2)+
+	move.l	a2,a3
+	subq.w	#1,d2
+	beq.w	.publish
+	bra.w	.label
+.separator
+	move.b	#' ',(a2)+
+	subq.w	#1,d2
+	beq.w	.publish
+.value_leading
+	cmp.b	#' ',(a1)
+	bne.w	.value
+	addq.l	#1,a1
+	bra.w	.value_leading
+.value
+	move.b	(a1)+,d0
+	beq.w	.publish
+	move.b	d0,(a2)+
+	cmp.b	#' ',d0
+	beq.w	.value_space
+	move.l	a2,a3
+.value_space
+	subq.w	#1,d2
+	beq.w	.publish
+	bra.w	.value
+.publish
+	clr.b	(a3)
+	move.l	a3,d0
+	sub.l	#g2hotkeys_notice_buffer,d0
+	beq.w	.done
+	move.l	player1,d1
+	beq.w	.player2
+	move.l	d1,a5
+	bsr.w	.set_player
+.player2
+	tst	twowins
+	beq.w	.done
+	move.l	player2,d1
+	beq.w	.done
+	move.l	d1,a5
+	bsr.w	.set_player
+.done
+	rts
+.set_player
+	move.l	#g2hotkeys_notice_buffer,ob_mess(a5)
+	move.w	d0,ob_messlen(a5)
+	move.w	#127,ob_messtimer(a5)	; same lifetime and renderer as pickup notices
+	rts
+
+	even
+g2hotkeys_notice_rows
+	dc.l	game_resolution,game_bayer,game_ceil,game_floor
+	dc.l	game_blob,game_reflections,game_visibility
+; FPS has no menu row. Use the identical value-field layout and YES/NO style.
+g2hotkeys_fps_yes	dc.b	'FPS:                 YES',0
+g2hotkeys_fps_no	dc.b	'FPS:                 NO',0
+	even
+g2hotkeys_notice_buffer	ds.b	64
+; =============================================================================
+; Step 3: bounded CLI map argument and controlled menu-allocation failure.
+; =============================================================================
+
+; Input: a0 = text after '@', a1 = tempfile (64 bytes).
+; Output: d0 = 0 on success, -1 on overflow; changes d1/a0/a1.
+; Accept at most 63 data bytes followed by NUL or LF. Always terminate within
+; the buffer. On overflow the caller exits, never opens a truncated map name.
+g2safe_copy_map_parameter
+	moveq	#63,d1
+.loop
+	move.b	(a0)+,d0
+	beq.w	.terminated
+	cmp.b	#10,d0
+	beq.w	.terminated
+	tst.w	d1
+	beq.w	.overflow
+	move.b	d0,(a1)+
+	subq.w	#1,d1
+	bra.w	.loop
+.terminated
+	clr.b	(a1)
+	moveq	#0,d0
+	rts
+.overflow
+	clr.b	(a1)
+	moveq	#-1,d0
+	rts
+
+; All initmenu/initmenu2 callers run in the main task after initmain.
+; A failed strip allocation cannot continue: selected-row restoration assumes
+; valid strip storage. Abandon nested menu frames using the stack captured at
+; entrypoint, then use the same complete cleanup as an ordinary game exit.
+; Do not free strips separately: every successful allocmem menustrip belongs
+; to memlist, and exittoos/freememlist frees the partial set exactly once.
+; No finitmenu walk over an incomplete/stale menustrips array is performed.
+g2menu_allocation_failed
+	st	paused			; stop gameplay logic before tearing down its memory
+	move.l	g2menu_entry_sp,a7
+	jsr	exittoos		; display/input/audio/interrupts/objects/memlist/dir
+	moveq	#20,d0			; AmigaDOS failure return code
+	rts
+
+	even
+g2menu_entry_sp	dc.l	0
+; Gloom Reforged 2.1 - wall Bayer precomputation, performance trial 1.
+; Appended at EOF: large storage must not extend existing PC-relative spans.
+;
+; Exact table: byte threshold[shade 0..13][scaled distance 0..maxz-1].
+; First matching probe wins, with the original unsigned comparison and clamp.
+; No monotonicity assumption. No palette pointers/colours are cached.
+; initdarktable is the sole darktable writer in this source and calls this
+; builder after its final store. DEFAULT/ADVANCED scale distance at runtime;
+; Bayer OFF and shade >=14 bypass the lookup exactly as before.
+; Static storage follows the existing program data convention. No new heap
+; allocation or cleanup path. 14*2048 + 14*4 = 28728 bytes of table storage.
+;
+; Preserves every used register. Invoked during initialization, not rendering.
+g2wall_bayer_build
+	movem.l	d0-d7/a0-a2,-(a7)
+	move.l	darktable,a0
+	lea	g2wall_bayer_table,a1
+	moveq	#0,d5
+.shade
+	moveq	#0,d6
+.distance
+	moveq	#15,d7
+	move	d6,d4
+	add	#24,d4
+	cmp	#maxz-1,d4
+	bls.s	.probe0
+	move	#maxz-1,d4
+.probe0
+	move	0(a0,d4.w*2),d0
+	cmp	d5,d0
+	bhi.w	.store
+	moveq	#11,d7
+	move	d6,d4
+	add	#48,d4
+	cmp	#maxz-1,d4
+	bls.s	.probe1
+	move	#maxz-1,d4
+.probe1
+	move	0(a0,d4.w*2),d0
+	cmp	d5,d0
+	bhi.w	.store
+	moveq	#7,d7
+	move	d6,d4
+	add	#72,d4
+	cmp	#maxz-1,d4
+	bls.s	.probe2
+	move	#maxz-1,d4
+.probe2
+	move	0(a0,d4.w*2),d0
+	cmp	d5,d0
+	bhi.w	.store
+	moveq	#4,d7
+	move	d6,d4
+	add	#96,d4
+	cmp	#maxz-1,d4
+	bls.s	.probe3
+	move	#maxz-1,d4
+.probe3
+	move	0(a0,d4.w*2),d0
+	cmp	d5,d0
+	bhi.w	.store
+	moveq	#2,d7
+	move	d6,d4
+	add	#112,d4
+	cmp	#maxz-1,d4
+	bls.s	.probe4
+	move	#maxz-1,d4
+.probe4
+	move	0(a0,d4.w*2),d0
+	cmp	d5,d0
+	bhi.w	.store
+	moveq	#1,d7
+	move	d6,d4
+	add	#128,d4
+	cmp	#maxz-1,d4
+	bls.s	.probe5
+	move	#maxz-1,d4
+.probe5
+	move	0(a0,d4.w*2),d0
+	cmp	d5,d0
+	bhi.w	.store
+	moveq	#0,d7
+.store
+	move.b	d7,(a1)+
+	addq	#1,d6
+	cmp	#maxz,d6
+	blo.w	.distance
+	addq	#1,d5
+	cmp	#14,d5
+	blo.w	.shade
+	movem.l	(a7)+,d0-d7/a0-a2
+	rts
+
+	even
+g2wall_bayer_rows
+	dc.l	g2wall_bayer_table+0*maxz
+	dc.l	g2wall_bayer_table+1*maxz
+	dc.l	g2wall_bayer_table+2*maxz
+	dc.l	g2wall_bayer_table+3*maxz
+	dc.l	g2wall_bayer_table+4*maxz
+	dc.l	g2wall_bayer_table+5*maxz
+	dc.l	g2wall_bayer_table+6*maxz
+	dc.l	g2wall_bayer_table+7*maxz
+	dc.l	g2wall_bayer_table+8*maxz
+	dc.l	g2wall_bayer_table+9*maxz
+	dc.l	g2wall_bayer_table+10*maxz
+	dc.l	g2wall_bayer_table+11*maxz
+	dc.l	g2wall_bayer_table+12*maxz
+	dc.l	g2wall_bayer_table+13*maxz
+g2wall_bayer_table
+	ds.b	14*maxz
+	even
+
 ; =============================================================================
 ; GLOOMBENCH REFORGED 2.0 RC3 - standalone map1_1 benchmark harness
 ; =============================================================================
@@ -50641,7 +52386,7 @@ g2p96_static_decode_gloombrush_direct_y_c87b79x
 
 	even
 g2bench2_release_marker
-	dc.b	'GloomBench Reforged v2.1 RC5 / c87b80o standalone',0
+	dc.b	'GloomBench Reforged v2.2 / c87b80p-bench1 standalone',0
 	even
 
 g2bench2_state		dc	0	;0 idle, 1 warmup, 2 measured, 3 finished
@@ -50680,8 +52425,8 @@ g2bench2_result_name
 
 ; Fixed-width result fields are filled immediately before output.
 g2bench2_result_buffer
-	dc.b	'GLOOMBENCH REFORGED 2.1 RC5',10
-	dc.b	'BUILD=c87b80o',10
+	dc.b	'GLOOMBENCH REFORGED 2.2',10
+	dc.b	'BUILD=c87b80p-bench1',10
 	dc.b	'GAME='
 g2bench2_result_game	ds.b	16
 	dc.b	10,'DISPLAY='
@@ -50693,7 +52438,33 @@ g2bench2_result_cpu_digit	ds.b	1
 	dc.b	'0',10,'REFRESH='
 g2bench2_result_refresh	ds.b	2
 	dc.b	'HZ',10
-	dc.b	'PATH=MAP1_1 TO EXIT EVENT 24',10
+	dc.b	'RESTART=16 WARMUP + 257 FRAMES AFTER HOTKEY OR MENU',10
+	dc.b	'RESOLUTION='
+g2bench22_result_resolution	ds.b	27
+	dc.b	10
+	dc.b	'BAYER_DITHERING='
+g2bench22_result_bayer	ds.b	27
+	dc.b	10
+	dc.b	'CEILING='
+g2bench22_result_ceiling	ds.b	27
+	dc.b	10
+	dc.b	'FLOOR='
+g2bench22_result_floor	ds.b	27
+	dc.b	10
+	dc.b	'BLOB_SHADOWS='
+g2bench22_result_blob	ds.b	27
+	dc.b	10
+	dc.b	'REFLECTIONS='
+g2bench22_result_reflections	ds.b	27
+	dc.b	10
+	dc.b	'VIEW_DISTANCE='
+g2bench22_result_visibility	ds.b	27
+	dc.b	10
+	dc.b	'FPS_OVERLAY='
+g2bench22_result_fps	dc.b	'NO '
+	dc.b	10,'STOCK='
+g2bench22_result_stock	dc.b	'NO '
+	dc.b	10,'PATH=MAP1_1 TO EXIT EVENT 24',10
 	dc.b	'WARMUP=00016',10
 	dc.b	'FRAMES='
 g2bench2_result_frames	ds.b	5
@@ -50730,7 +52501,8 @@ g2bench2_output_ecs	dc.b	'6BPL C2P    '
 ; Replaces normal config loading. DISPLAY selection has already happened from
 ; CLI/ToolType/requester; only gameplay variables are made deterministic here.
 g2bench2_configure
-	clr	g2_resolution		; fixed 1x1 world raster for comparable runs
+	clr	g2_bayer_disabled	; reproducible initial Bayer YES (STOCK may lock it OFF)
+	clr	g2_resolution		; initial 1x1; F1/menu may select another raster
 	clr	gametype		; ONE PLAYER
 	clr	twowins
 	clr	linked
@@ -50961,8 +52733,11 @@ g2bench2_find_target
 
 ; Place the player/camera at the exact deterministic point before rendering.
 g2bench2_before_frame
+	cmp	#1,g2bench2_state
+	beq.s	.g2b2bf_active
 	cmp	#2,g2bench2_state
 	bne.s	.g2b2bf_done
+.g2b2bf_active
 	movem.l	d0-d2/a5,-(a7)
 	move.l	player1,a5
 	move	g2bench2_frames,d0
@@ -50998,6 +52773,7 @@ g2bench2_after_frame
 	clr	g2bench2_frames
 	move.l	g2bench2_start_x,g2bench2_current_x
 	move.l	g2bench2_start_z,g2bench2_current_z
+	jsr	g2bench22_begin_measurement	; remove transient hotkey HUD text before timing
 	move	framecnt,g2bench2_start_vbl
 	bra.w	.g2b2af_restore
 .g2b2af_running
@@ -51067,6 +52843,7 @@ g2bench2_u16_5
 ; Fill display/game/CPU metadata and write the result both to RAM: and stdout.
 g2bench2_write_result
 	movem.l	d0-d7/a0-a6,-(a7)
+	jsr	g2bench22_result_options
 
 	; Game profile, fixed width 16.
 	lea	g2bench2_game_deluxe(pc),a0
@@ -51678,7 +53455,7 @@ g2bench_p96diag_filename
         even
 
 g2bench_p96diag_header
-        dc.b    '*** GLOOMBENCH V2.0 RC3 P96 MODE DIAGNOSTICS ***',10
+        dc.b    '*** GLOOMBENCH V2.2 P96 MODE DIAGNOSTICS ***',10
         dc.b    'Diagnostic only: benchmark and renderer paths are unchanged.',10
         dc.b    'Reject bits: 01 invalid, 02 width, 04 height, 08 not-P96,',10
         dc.b    '10 not-CLUT, 20 depth, 40 bytes/pixel, 80 bits/pixel.',10,10,0
@@ -51799,104 +53576,8 @@ g2bench_p96diag_mode_line_len equ g2bench_p96diag_mode_line_end-g2bench_p96diag_
 
 
 
-; =============================================================================
-; c87b80f / RC3 - robust P96 mode-list selection
-;
-; pVision with Picasso96API.library 2.455 exposes all valid modes through
-; p96AllocModeListTagList(), while p96BestModeIDTagList() returns INVALID_ID
-; even for exact geometries.  The released chooser therefore obtains each
-; candidate directly from the authoritative P96 mode list, then validates the
-; DisplayID against the unchanged direct CLUT8 renderer contract.
-;
-; The compact geometry chooser remains unchanged.  Selecting a geometry now
-; uses its already validated first ModeID directly.  P96MODEID remains available
-; when a particular card/timing must be forced on a multi-board setup.
-; =============================================================================
 
-G2P96_RC3_MODE_WIDTH       equ 62
-G2P96_RC3_MODE_HEIGHT      equ 64
-G2P96_RC3_MODE_DEPTH       equ 66
-G2P96_RC3_MODE_DISPLAYID   equ 68
-
-        even
-g2p96_req_modelist_tags_c87b80f
-        dc.l    TAG_DONE,0
-
-; Return the first exact, genuine 8-bit CLUT ModeID for p96target_width/height.
-; Output d0.l = validated ModeID, or zero.  The allocated P96 list is always
-; released before returning.
-g2p96_req_best_current_c87b80f
-        movem.l d1-d7/a0-a6,-(a7)
-        moveq   #0,d7
-        move.l  p96base,d0
-        beq.w   .done
-        move.l  d0,a6
-        lea     g2p96_req_modelist_tags_c87b80f,a0
-        jsr     -72(a6)                 ; p96AllocModeListTagList
-        move.l  d0,a4
-        beq.w   .done
-
-        move.l  (a4),a3                 ; List.lh_Head
-.loop
-        move.l  a3,d0
-        beq.s   .free
-        move.l  (a3),d0                 ; tail sentinel: ln_Succ == 0
-        beq.s   .free
-
-        moveq   #0,d0
-        move    G2P96_RC3_MODE_WIDTH(a3),d0
-        cmp     p96target_width,d0
-        bne.s   .next
-        moveq   #0,d0
-        move    G2P96_RC3_MODE_HEIGHT(a3),d0
-        cmp     p96target_height,d0
-        bne.s   .next
-        moveq   #0,d0
-        move    G2P96_RC3_MODE_DEPTH(a3),d0
-        cmp     #8,d0
-        bne.s   .next
-
-        move.l  G2P96_RC3_MODE_DISPLAYID(a3),d0
-        jsr     g2p96_req_validate_current_c87b78j
-        tst.l   d0
-        beq.s   .next
-        move.l  d0,d7
-        bra.s   .free
-
-.next
-        move.l  (a3),a3
-        bra.s   .loop
-
-.free
-        move.l  a4,a0
-        move.l  p96base,a6
-        jsr     -78(a6)                 ; p96FreeModeList
-.done
-        move.l  d7,d0
-        movem.l (a7)+,d1-d7/a0-a6
-        rts
-
-; Stage 1 already stored one exact validated ModeID per displayed geometry.
-; Return that ID directly instead of invoking p96RequestModeIDTagList(), whose
-; empty result on pVision was the reason no usable resolution could be started.
-g2p96_req_select_candidate_c87b80f
-        movem.l d1/a0,-(a7)
-        moveq   #0,d0
-        move    g2p96_req_selected_index,d0
-        bmi.s   .invalid
-        cmp     #5,d0
-        bhi.s   .invalid
-        lsl     #2,d0
-        lea     g2p96_req_candidate_ids,a0
-        move.l  0(a0,d0.w),d0
-        bra.s   .done
-.invalid
-        moveq   #0,d0
-.done
-        movem.l (a7)+,d1/a0
-        rts
-
-
+	even
 ; RC3 diagnostic summary: report the IDs selected by the same mode-list finder
 ; now used by the actual chooser.  The complete raw modelist remains above.
 g2bench_p96diag_dump_candidates_c87b80f
@@ -51934,919 +53615,7 @@ g2bench_p96diag_candidate_section_c87b80f
 g2bench_p96diag_modelist_prefix_c87b80f
         dc.b    'MODELIST ',0
 
-; =============================================================================
-; c87b80l / GloomBench v2.1 TEST5 latched screenmode + OK requester
-; Based directly on the user-confirmed c87b80g TEST1 source.
-; Saved P96 ModeID + left-Shift override + low-bandwidth P96 publishing.
-;
-; Config compatibility:
-;   The original 34-byte gloom.cfg v4 payload remains byte-for-byte at the
-;   beginning of the file.  This test appends a 12-byte "P961" extension:
-;       +0  long  signature 'P961'
-;       +4  long  saved P96 ModeID (zero when Save Screenmode is unchecked)
-;       +8  word  save flag (0/-1)
-;       +10 word  low-bandwidth flag (0/-1)
-;   Existing Gloom Reforged 2.0 RC3 reads only its normal first 34 bytes and
-;   therefore remains compatible. If RC3 later saves its menu settings it will
-;   truncate the test extension, which simply causes this requester to return.
-; =============================================================================
 
-G2BENCH_CFG_BASE_LEN_V21      equ g2cfg_len
-G2BENCH_CFG_EXT_LEN_V21       equ 12
-G2BENCH_CFG_TOTAL_LEN_V21     equ G2BENCH_CFG_BASE_LEN_V21+G2BENCH_CFG_EXT_LEN_V21
-G2BENCH_CFG_EXT_SIG_V21       equ 'P961'
-G2BENCH_INPUT_IOREQ_LEN_V21   equ 48
-G2BENCH_IEQUALIFIER_LSHIFT    equ $0001
-G2BENCH_INPUT_LVO_PEEKQUALIFIER equ -42
-G2BENCH_REQ_SAVE_HIT_V21      equ -2
-G2BENCH_REQ_LOWBW_HIT_V21     equ -3
-G2BENCH_REQ_OK_HIT_V21        equ -4
-G2BENCH_REQ_SAVE_BASE_Y_V21   equ 170
-G2BENCH_REQ_SHIFT_BASE_Y_V21  equ 180
-G2BENCH_REQ_LOWBW_BASE_Y_V21  equ 192
-G2BENCH_REQ_ACTION_Y_V21      equ 200
-G2BENCH_REQ_SAVE_HIT_TOP_V21  equ 161
-G2BENCH_REQ_SAVE_HIT_END_V21  equ 183
-G2BENCH_REQ_LOWBW_HIT_TOP_V21 equ 184
-G2BENCH_REQ_LOWBW_HIT_END_V21 equ 200
-G2BENCH_REQ_ACTION_W_V21      equ 80
-G2BENCH_REQ_OK_X_V21          equ 16
-G2BENCH_REQ_AGA_X_V21         equ 110
-G2BENCH_REQ_CANCEL_X_V21      equ 204
-
-        even
-g2bench_save_screenmode_v21       dc.w 0
-g2bench_low_bandwidth_v21         dc.w 0
-g2bench_lshift_override_v21       dc.w 0
-g2bench_saved_mode_used_v21       dc.w 0
-g2bench_requester_selected_v21    dc.w 0
-g2bench_req_selected_row_v21      dc.w -1
-g2bench_lowbw_phase_v21           dc.w 0
-g2bench_saved_modeid_v21          dc.l 0
-        even
-
-g2bench_cfg_buffer_v21            ds.b 48
-        even
-g2bench_input_port_v21            dc.l 0
-g2bench_input_ioreq_ptr_v21       dc.l 0
-        even
-g2bench_input_name_v21            dc.b 'input.device',0
-        even
-
-; Load only the appended P96 preferences. The deterministic benchmark gameplay
-; settings remain independent of gloom.cfg exactly as in RC3.
-g2bench_p96prefs_load_v21
-        movem.l d0-d7/a0-a6,-(a7)
-        clr     g2bench_save_screenmode_v21
-        clr     g2bench_low_bandwidth_v21
-        clr     g2bench_saved_mode_used_v21
-        clr.l   g2bench_saved_modeid_v21
-        move.l  dosbase,d0
-        beq.w   .done
-        move.l  d0,a6
-        lea     g2cfg_name,a0
-        move.l  a0,d1
-        move.l  #1005,d2
-        jsr     -30(a6)                 ; Open MODE_OLDFILE
-        move.l  d0,d7
-        beq.w   .done
-        move.l  d7,d1
-        lea     g2bench_cfg_buffer_v21(pc),a0
-        move.l  a0,d2
-        move.l  #G2BENCH_CFG_TOTAL_LEN_V21,d3
-        jsr     -42(a6)                 ; Read
-        move.l  d0,d6
-        move.l  d7,d1
-        jsr     -36(a6)                 ; Close
-        cmp.l   #G2BENCH_CFG_TOTAL_LEN_V21,d6
-        bcs.w   .done
-        lea     g2bench_cfg_buffer_v21(pc),a0
-        cmp.l   #'GLMC',(a0)+
-        bne.w   .done
-        cmp.b   #'F',(a0)+
-        bne.w   .done
-        cmp.b   #'G',(a0)+
-        bne.w   .done
-        move    (a0),d0
-        cmp     #1,d0
-        blt.w   .done
-        cmp     #4,d0
-        bgt.w   .done
-        lea     g2bench_cfg_buffer_v21+G2BENCH_CFG_BASE_LEN_V21(pc),a0
-        cmp.l   #G2BENCH_CFG_EXT_SIG_V21,(a0)+
-        bne.w   .done
-        move.l  (a0)+,g2bench_saved_modeid_v21
-        move    (a0)+,d0
-        beq.w   .save_off
-        move    #-1,g2bench_save_screenmode_v21
-        bra.w   .save_done
-.save_off
-        clr     g2bench_save_screenmode_v21
-.save_done
-        move    (a0)+,d0
-        beq.w   .low_off
-        move    #-1,g2bench_low_bandwidth_v21
-        bra.w   .done
-.low_off
-        clr     g2bench_low_bandwidth_v21
-.done
-        movem.l (a7)+,d0-d7/a0-a6
-        rts
-
-; Snapshot only the left Shift qualifier through input.device V36+.
-; Failure to open the device simply leaves the override disabled.
-g2bench_lshift_probe_v21
-        movem.l d0-d7/a0-a6,-(a7)
-        clr     g2bench_lshift_override_v21
-        clr.l   g2bench_input_port_v21
-        clr.l   g2bench_input_ioreq_ptr_v21
-        moveq   #0,d7                   ; device-open flag
-        move.l  4.w,a6
-        cmp.w   #36,20(a6)              ; V36 supplies CreateIORequest/PeekQualifier
-        bcs.w   .done
-        jsr     -666(a6)                ; CreateMsgPort
-        move.l  d0,g2bench_input_port_v21
-        beq.w   .done
-        move.l  d0,a0
-        moveq   #G2BENCH_INPUT_IOREQ_LEN_V21,d0
-        jsr     -654(a6)                ; CreateIORequest
-        move.l  d0,g2bench_input_ioreq_ptr_v21
-        beq.w   .delete_port
-        move.l  d0,a1
-        lea     g2bench_input_name_v21(pc),a0
-        moveq   #0,d0                   ; unit 0
-        moveq   #0,d1                   ; flags
-        jsr     -444(a6)                ; OpenDevice
-        tst.l   d0
-        bne.w   .delete_ioreq
-        moveq   #-1,d7
-        move.l  g2bench_input_ioreq_ptr_v21,a1
-        move.l  20(a1),d0               ; io_Device / InputBase
-        beq.w   .close
-        move.l  d0,a6
-        cmp.w   #36,20(a6)              ; Library.lib_Version
-        bcs.w   .close
-        jsr     G2BENCH_INPUT_LVO_PEEKQUALIFIER(a6)
-        and.w   #G2BENCH_IEQUALIFIER_LSHIFT,d0
-        beq.w   .close
-        move    #-1,g2bench_lshift_override_v21
-.close
-        tst     d7
-        beq.w   .delete_ioreq
-        move.l  4.w,a6
-        move.l  g2bench_input_ioreq_ptr_v21,a1
-        jsr     -450(a6)                ; CloseDevice
-.delete_ioreq
-        move.l  g2bench_input_ioreq_ptr_v21,d0
-        beq.w   .delete_port
-        move.l  d0,a0
-        move.l  4.w,a6
-        jsr     -660(a6)                ; DeleteIORequest
-        clr.l   g2bench_input_ioreq_ptr_v21
-.delete_port
-        move.l  g2bench_input_port_v21,d0
-        beq.w   .done
-        move.l  d0,a0
-        move.l  4.w,a6
-        jsr     -672(a6)                ; DeleteMsgPort
-        clr.l   g2bench_input_port_v21
-.done
-        movem.l (a7)+,d0-d7/a0-a6
-        rts
-
-; Validate the saved ID through the exact same host-aware P96MODEID contract,
-; while preserving the visible ToolType source/override state.
-g2bench_validate_saved_mode_v21
-        movem.l d1-d7/a0-a6,-(a7)
-        move    g2p96_modeid_override_valid,d4
-        move    g2p96_modeid_override_used,d5
-        move.l  g2p96_modeid_override_value,d6
-        move    #-1,g2p96_modeid_override_valid
-        clr     g2p96_modeid_override_used
-        move.l  g2bench_saved_modeid_v21,g2p96_modeid_override_value
-        jsr     g2p96_modeid_override_validate_host_c87b78s
-        move.l  d0,d7
-        move    d4,g2p96_modeid_override_valid
-        move    d5,g2p96_modeid_override_used
-        move.l  d6,g2p96_modeid_override_value
-        move.l  d7,d0
-        movem.l (a7)+,d1-d7/a0-a6
-        rts
-
-; Full RC3 requester flow plus the optional saved-ModeID fast path.
-g2bench_p96_mode_requester_probe_v21
-        movem.l d1-d7/a0-a6,-(a7)
-        jsr     g2bench_p96prefs_load_v21
-        jsr     g2bench_lshift_probe_v21
-        clr     g2bench_saved_mode_used_v21
-        clr     g2bench_requester_selected_v21
-        clr     g2bench_lowbw_phase_v21
-        clr     g2p96_req_abort_startup
-        clr.l   p96modeid
-        clr     p96modeid_depth
-        clr     p96modeid_state
-        move.l  #RGBFB_CLUT,p96modeid_rgbformat
-        cmp     #2,g2display_mode
-        beq.w   .is_p96
-        move    #2,p96modeid_state
-        bra.w   .done
-.is_p96
-        tst     p96present
-        bne.w   .have_library
-        jsr     g2p96_req_show_nolib
-        jsr     g2p96_req_fallback_aga
-        bra.w   .done
-.have_library
-        clr     g2p96_modeid_override_used
-        tst     g2p96_modeid_override_present
-        beq.w   .try_saved
-        jsr     g2p96_modeid_override_validate_host_c87b78s
-        tst.l   d0
-        bne.w   .accept
-        jsr     g2p96_req_show_bad_override
-        bra.w   .normal_requester
-.try_saved
-        tst     g2bench_lshift_override_v21
-        bne.w   .normal_requester
-        tst     g2bench_save_screenmode_v21
-        beq.w   .normal_requester
-        move.l  g2bench_saved_modeid_v21,d0
-        beq.w   .normal_requester
-        jsr     g2bench_validate_saved_mode_v21
-        tst.l   d0
-        beq.w   .normal_requester
-        move    #-1,g2bench_saved_mode_used_v21
-        bra.w   .accept
-.normal_requester
-        jsr     g2p96_req_build_candidates_host_c87b78s
-        tst     g2p96_req_available_count
-        bne.w   .choose
-        jsr     g2p96_req_show_nomodes_host_c87b78s
-        jsr     g2p96_req_fallback_aga
-        bra.w   .done
-.choose
-        move    #-1,g2bench_req_selected_row_v21
-        jsr     g2p96_req_show_resolution
-        tst.l   d0
-        bgt.w   .selected
-        bmi.w   .use_chipset
-        move    #-1,g2p96_req_abort_startup
-        jsr     g2p96_close
-        bra.w   .done
-.use_chipset
-        jsr     g2p96_req_fallback_aga
-        bra.w   .done
-.selected
-        subq    #1,d0
-        move    d0,g2p96_req_selected_index
-        jsr     g2p96_req_apply_candidate
-        jsr     g2p96_req_select_candidate_c87b80f
-        cmp.l   #P96_INVALID_ID,d0
-        beq.w   .choose
-        tst.l   d0
-        beq.w   .choose
-        jsr     g2p96_req_validate_current
-        tst.l   d0
-        bne.w   .selected_valid
-        jsr     g2p96_req_show_invalid
-        bra.w   .choose
-.selected_valid
-        move    #-1,g2bench_requester_selected_v21
-.accept
-        move.l  d0,d7
-        move.l  d7,p96modeid
-        move.l  p96base,a6
-        move.l  d7,d0
-        moveq   #G2P96_IDA_DEPTH,d1
-        jsr     -84(a6)
-        move    d0,p96modeid_depth
-        move.l  d7,d0
-        moveq   #P96IDA_RGBFORMAT,d1
-        jsr     -84(a6)
-        move.l  d0,p96modeid_rgbformat
-        move    #1,p96modeid_state
-        tst     g2bench_requester_selected_v21
-        beq.w   .done
-        jsr     g2bench_p96prefs_save_v21
-.done
-        movem.l (a7)+,d1-d7/a0-a6
-        moveq   #0,d0
-        rts
-
-; Preserve the user's existing binary config prefix, append/update only P961.
-g2bench_p96prefs_save_v21
-        movem.l d0-d7/a0-a6,-(a7)
-        move.l  dosbase,d0
-        beq.w   .done
-        lea     g2bench_cfg_buffer_v21(pc),a0
-        moveq   #0,d0
-        moveq   #11,d1
-.clear
-        move.l  d0,(a0)+
-        dbf     d1,.clear
-
-        move.l  dosbase,a6
-        lea     g2cfg_name,a0
-        move.l  a0,d1
-        move.l  #1005,d2
-        jsr     -30(a6)
-        move.l  d0,d7
-        beq.w   .build_default
-        move.l  d7,d1
-        lea     g2bench_cfg_buffer_v21(pc),a0
-        move.l  a0,d2
-        move.l  #G2BENCH_CFG_BASE_LEN_V21,d3
-        jsr     -42(a6)
-        move.l  d0,d6
-        move.l  d7,d1
-        jsr     -36(a6)
-        cmp.l   #g2cfg_len_old,d6
-        bcs.w   .build_default
-        lea     g2bench_cfg_buffer_v21(pc),a0
-        cmp.l   #'GLMC',(a0)+
-        bne.w   .build_default
-        cmp.b   #'F',(a0)+
-        bne.w   .build_default
-        cmp.b   #'G',(a0)+
-        bne.w   .build_default
-        move    (a0),d0
-        cmp     #1,d0
-        blt.w   .build_default
-        cmp     #4,d0
-        ble.w   .have_prefix
-.build_default
-        lea     g2bench_cfg_buffer_v21(pc),a0
-        move.l  #'GLMC',(a0)+
-        move.b  #'F',(a0)+
-        move.b  #'G',(a0)+
-        move    #4,(a0)+
-        move    #320,(a0)+
-        move    #240,(a0)+
-        move    #1,(a0)+               ; floor
-        move    #1,(a0)+               ; ceiling
-        move    #-1,(a0)+              ; blob shadows
-        move    #-1,(a0)+              ; reflections
-        clr     (a0)+                  ; invincible
-        clr     (a0)+                  ; bouncy
-        clr     (a0)+                  ; weapon
-        clr     (a0)+                  ; boost
-        clr     (a0)+                  ; one hit
-        move    #-1,(a0)+              ; visibility
-        clr     (a0)+                  ; resolution 1x1
-.have_prefix
-        lea     g2bench_cfg_buffer_v21+G2BENCH_CFG_BASE_LEN_V21(pc),a0
-        move.l  #G2BENCH_CFG_EXT_SIG_V21,(a0)+
-        tst     g2bench_save_screenmode_v21
-        beq.w   .no_saved_id
-        move.l  p96modeid,d0
-        bra.w   .store_id
-.no_saved_id
-        moveq   #0,d0
-.store_id
-        move.l  d0,(a0)+
-        move    g2bench_save_screenmode_v21,d0
-        beq.w   .store_save
-        moveq   #-1,d0
-.store_save
-        move    d0,(a0)+
-        move    g2bench_low_bandwidth_v21,d0
-        beq.w   .store_low
-        moveq   #-1,d0
-.store_low
-        move    d0,(a0)+
-
-        lea     g2cfg_name,a0
-        move.l  a0,d1
-        move.l  #1006,d2
-        move.l  dosbase,a6
-        jsr     -30(a6)
-        move.l  d0,d7
-        beq.w   .done
-        move.l  d7,d1
-        lea     g2bench_cfg_buffer_v21(pc),a0
-        move.l  a0,d2
-        move.l  #G2BENCH_CFG_TOTAL_LEN_V21,d3
-        jsr     -48(a6)
-        move.l  d7,d1
-        jsr     -36(a6)
-
-        tst     g2bench_save_screenmode_v21
-        beq.w   .clear_runtime_saved
-        move.l  p96modeid,g2bench_saved_modeid_v21
-        bra.w   .done
-.clear_runtime_saved
-        clr.l   g2bench_saved_modeid_v21
-.done
-        movem.l (a7)+,d0-d7/a0-a6
-        rts
-
-; Checkbox-aware replacement drawing for the established custom requester.
-g2bench_p96_req_custom_draw_v21
-        movem.l d0-d7/a0-a6,-(a7)
-        move.l  g2p96_req_custom_window,d0
-        beq.w   .done
-        move.l  d0,a0
-        move.l  50(a0),a1
-        move.l  g2p96_req_custom_grbase,a6
-        moveq   #G2P96_REQ_PEN_BG,d0
-        jsr     -348(a6)
-        moveq   #0,d0
-        jsr     -354(a6)
-
-        moveq   #0,d0
-        moveq   #0,d1
-        move    #G2P96_REQ_CONTENT_W-1,d2
-        move    #G2P96_REQ_CONTENT_H-1,d3
-        moveq   #G2P96_REQ_PEN_BG,d4
-        jsr     g2p96_req_custom_rect
-
-        moveq   #5,d0
-        moveq   #2,d1
-        move    #G2P96_REQ_CONTENT_W-6,d2
-        moveq   #25,d3
-        moveq   #G2P96_REQ_PEN_SHADOW,d4
-        jsr     g2p96_req_custom_rect
-        moveq   #6,d0
-        moveq   #3,d1
-        move    #G2P96_REQ_CONTENT_W-7,d2
-        moveq   #24,d3
-        moveq   #G2P96_REQ_PEN_HILITE,d4
-        jsr     g2p96_req_custom_rect
-        lea     g2p96_req_custom_warning1,a0
-        move    #g2p96_req_custom_warning1_len,d0
-        moveq   #0,d1
-        move    #G2P96_REQ_CONTENT_W,d2
-        moveq   #11,d3
-        moveq   #G2P96_REQ_PEN_TEXT,d4
-        jsr     g2p96_req_custom_text_center
-        lea     g2p96_req_custom_warning2,a0
-        move    #g2p96_req_custom_warning2_len,d0
-        moveq   #0,d1
-        move    #G2P96_REQ_CONTENT_W,d2
-        moveq   #21,d3
-        moveq   #G2P96_REQ_PEN_TEXT,d4
-        jsr     g2p96_req_custom_text_center
-        lea     g2p96_req_custom_select,a0
-        move    #g2p96_req_custom_select_len,d0
-        moveq   #0,d1
-        move    #G2P96_REQ_CONTENT_W,d2
-        move    #G2P96_REQ_SELECT_BASE,d3
-        moveq   #G2P96_REQ_PEN_TEXT,d4
-        jsr     g2p96_req_custom_text_center
-
-        ; Screenmode rows are selection buttons. The chosen row remains latched
-        ; in the title-bar accent colour until OK is pressed.
-        moveq   #0,d6
-        move    g2p96_req_display_count,d7
-        subq    #1,d7
-        bmi.w   .buttons_done
-.buttons_loop
-        moveq   #G2P96_REQ_MODE_X,d0
-        move    d6,d1
-        mulu    #G2P96_REQ_MODE_STEP,d1
-        add     #G2P96_REQ_MODE_Y,d1
-        lea     g2p96_req_map,a0
-        moveq   #0,d2
-        move.b  0(a0,d6.w),d2
-        lea     g2p96_req_custom_label_ptrs,a0
-        move.l  0(a0,d2*4),a1
-        lea     g2p96_req_custom_label_lens,a0
-        move    0(a0,d2*2),d2
-        move.l  a1,a0
-        cmp     g2bench_req_selected_row_v21,d6
-        bne.w   .normal_button
-        jsr     g2bench_p96_req_custom_button_selected_v21
-        bra.w   .button_done
-.normal_button
-        jsr     g2p96_req_custom_button
-.button_done
-        addq    #1,d6
-        dbf     d7,.buttons_loop
-.buttons_done
-
-        ; Save-screenmode checkbox.
-        lea     g2bench_checkbox_off_v21(pc),a0
-        tst     g2bench_save_screenmode_v21
-        beq.w   .save_box_ready
-        lea     g2bench_checkbox_on_v21(pc),a0
-.save_box_ready
-        moveq   #3,d0
-        move    #12,d1
-        move    #G2BENCH_REQ_SAVE_BASE_Y_V21,d2
-        moveq   #G2P96_REQ_PEN_TEXT,d3
-        jsr     g2p96_req_custom_text
-        lea     g2bench_save_label_v21(pc),a0
-        move    #g2bench_save_label_len_v21,d0
-        move    #44,d1
-        move    #G2BENCH_REQ_SAVE_BASE_Y_V21,d2
-        moveq   #G2P96_REQ_PEN_TEXT,d3
-        jsr     g2p96_req_custom_text
-        lea     g2bench_shift_note_v21(pc),a0
-        move    #g2bench_shift_note_len_v21,d0
-        move    #44,d1
-        move    #G2BENCH_REQ_SHIFT_BASE_Y_V21,d2
-        moveq   #G2P96_REQ_PEN_TEXT,d3
-        jsr     g2p96_req_custom_text
-
-        ; Low-bandwidth checkbox.
-        lea     g2bench_checkbox_off_v21(pc),a0
-        tst     g2bench_low_bandwidth_v21
-        beq.w   .low_box_ready
-        lea     g2bench_checkbox_on_v21(pc),a0
-.low_box_ready
-        moveq   #3,d0
-        move    #12,d1
-        move    #G2BENCH_REQ_LOWBW_BASE_Y_V21,d2
-        moveq   #G2P96_REQ_PEN_TEXT,d3
-        jsr     g2p96_req_custom_text
-        lea     g2bench_lowbw_label_v21(pc),a0
-        move    #g2bench_lowbw_label_len_v21,d0
-        move    #44,d1
-        move    #G2BENCH_REQ_LOWBW_BASE_Y_V21,d2
-        moveq   #G2P96_REQ_PEN_TEXT,d3
-        jsr     g2p96_req_custom_text
-
-        ; Final actions: OK confirms the latched row; AGA/ECS and CANCEL keep
-        ; their established immediate actions.
-        move    #G2BENCH_REQ_OK_X_V21,d0
-        move    #G2BENCH_REQ_ACTION_Y_V21,d1
-        lea     g2p96_req_ok,a0
-        move    #G2P96_REQ_OK_LEN,d2
-        jsr     g2bench_p96_req_custom_button_80_v21
-        move    #G2BENCH_REQ_AGA_X_V21,d0
-        move    #G2BENCH_REQ_ACTION_Y_V21,d1
-        lea     g2p96_req_aga,a0
-        move    #G2P96_REQ_AGA_LEN,d2
-        jsr     g2bench_p96_req_custom_button_80_v21
-        move    #G2BENCH_REQ_CANCEL_X_V21,d0
-        move    #G2BENCH_REQ_ACTION_Y_V21,d1
-        lea     g2p96_req_cancel,a0
-        move    #G2P96_REQ_CANCEL_LEN,d2
-        jsr     g2bench_p96_req_custom_button_80_v21
-.done
-        movem.l (a7)+,d0-d7/a0-a6
-        rts
-
-; Repair exposed SIMPLE_REFRESH damage without disturbing the current state.
-; BeginRefresh restricts the full redraw to Intuition's damaged region;
-; EndRefresh(TRUE) then completes and clears the refresh state.
-g2bench_p96_req_custom_refresh_v21
-        movem.l d0-d7/a0-a6,-(a7)
-        move.l  g2p96_req_custom_window,d0
-        beq.w   .done
-        move.l  d0,a0
-        move.l  g2p96_req_custom_intbase,a6
-        jsr     -354(a6)                ; BeginRefresh(window)
-        jsr     g2bench_p96_req_custom_draw_v21
-        move.l  g2p96_req_custom_window,a0
-        moveq   #-1,d0                  ; Complete=TRUE
-        move.l  g2p96_req_custom_intbase,a6
-        jsr     -366(a6)                ; EndRefresh(window,TRUE)
-.done
-        movem.l (a7)+,d0-d7/a0-a6
-        rts
-
-; Mouse/keyboard/refresh wait loop. UI changes redraw the same window.
-g2bench_p96_req_custom_wait_v21
-        movem.l d1-d7/a0-a6,-(a7)
-.wait
-        move.l  g2p96_req_custom_window,a0
-        move.l  86(a0),a0
-        move.l  4.w,a6
-        jsr     -384(a6)
-.drain
-        move.l  g2p96_req_custom_window,a0
-        move.l  86(a0),a0
-        move.l  4.w,a6
-        jsr     -372(a6)
-        tst.l   d0
-        beq.w   .wait
-        move.l  d0,a2
-        move.l  20(a2),d4
-        moveq   #0,d5
-        move    24(a2),d5
-        moveq   #0,d6
-        move    32(a2),d6
-        moveq   #0,d7
-        move    34(a2),d7
-        move.l  a2,a1
-        move.l  4.w,a6
-        jsr     -378(a6)
-        cmp.l   #$00000004,d4           ; IDCMP_REFRESHWINDOW
-        beq.w   .refresh
-        cmp.l   #$00000008,d4
-        beq.w   .mouse
-        cmp.l   #$00000400,d4
-        beq.w   .key
-        bra.w   .drain
-.refresh
-        jsr     g2bench_p96_req_custom_refresh_v21
-        bra.w   .drain
-.mouse
-        cmp     #$0068,d5
-        bne.w   .drain
-        move    d6,d0
-        move    d7,d1
-        jsr     g2bench_p96_req_custom_hit_v21
-        cmp     #G2BENCH_REQ_SAVE_HIT_V21,d0
-        beq.w   .toggle_save
-        cmp     #G2BENCH_REQ_LOWBW_HIT_V21,d0
-        beq.w   .toggle_low
-        cmp     #G2BENCH_REQ_OK_HIT_V21,d0
-        beq.w   .confirm
-        cmp     #-1,d0
-        beq.w   .drain
-        tst     d0
-        beq.w   .done                  ; CANCEL
-        move    g2p96_req_display_count,d1
-        addq    #1,d1
-        cmp     d1,d0
-        beq.w   .done                  ; AGA/ECS
-        cmp     g2p96_req_display_count,d0
-        bhi.w   .drain
-        subq    #1,d0
-        move    d0,g2bench_req_selected_row_v21
-        bra.w   .redraw
-.toggle_save
-        tst     g2bench_save_screenmode_v21
-        beq.w   .save_on
-        clr     g2bench_save_screenmode_v21
-        bra.w   .redraw
-.save_on
-        move    #-1,g2bench_save_screenmode_v21
-        bra.w   .redraw
-.toggle_low
-        tst     g2bench_low_bandwidth_v21
-        beq.w   .low_on
-        clr     g2bench_low_bandwidth_v21
-        bra.w   .redraw
-.low_on
-        move    #-1,g2bench_low_bandwidth_v21
-.redraw
-        jsr     g2bench_p96_req_custom_draw_v21
-        bra.w   .drain
-.confirm
-        move    g2bench_req_selected_row_v21,d0
-        bmi.w   .drain
-        addq    #1,d0
-        bra.w   .done
-.key
-        btst    #7,d5
-        bne.w   .drain
-        and     #$007f,d5
-        cmp     #$45,d5
-        beq.w   .cancel
-        cmp     #$33,d5
-        beq.w   .cancel
-        cmp     #$20,d5
-        beq.w   .use_chipset
-        cmp     #$44,d5               ; RETURN = OK
-        beq.w   .confirm
-        cmp     #$43,d5               ; numeric ENTER = OK
-        beq.w   .confirm
-        cmp     #1,d5
-        bcs.w   .drain
-        cmp     #6,d5
-        bhi.w   .drain
-        cmp     g2p96_req_display_count,d5
-        bhi.w   .drain
-        subq    #1,d5
-        move    d5,g2bench_req_selected_row_v21
-        bra.w   .redraw
-.use_chipset
-        moveq   #0,d0
-        move    g2p96_req_display_count,d0
-        addq    #1,d0
-        bra.w   .done
-.cancel
-        moveq   #0,d0
-.done
-        movem.l (a7)+,d1-d7/a0-a6
-        rts
-
-; Return mode/action values compatible with the original hit tester, plus
-; -2/-3 for the two checkbox rows.
-g2bench_p96_req_custom_hit_v21
-        movem.l d1-d5,-(a7)
-        move    d0,d2
-        move    d1,d3
-        sub     g2p96_req_custom_origin_x,d2
-        sub     g2p96_req_custom_origin_y,d3
-        moveq   #-1,d0
-
-        cmp     #G2BENCH_REQ_ACTION_Y_V21,d3
-        blt.w   .checkboxes
-        cmp     #G2BENCH_REQ_ACTION_Y_V21+22,d3
-        bge.w   .done
-        cmp     #G2BENCH_REQ_OK_X_V21,d2
-        blt.w   .done
-        cmp     #G2BENCH_REQ_OK_X_V21+G2BENCH_REQ_ACTION_W_V21,d2
-        blt.w   .ok
-        cmp     #G2BENCH_REQ_AGA_X_V21,d2
-        blt.w   .done
-        cmp     #G2BENCH_REQ_AGA_X_V21+G2BENCH_REQ_ACTION_W_V21,d2
-        blt.w   .use_chipset
-        cmp     #G2BENCH_REQ_CANCEL_X_V21,d2
-        blt.w   .done
-        cmp     #G2BENCH_REQ_CANCEL_X_V21+G2BENCH_REQ_ACTION_W_V21,d2
-        bge.w   .done
-        moveq   #0,d0
-        bra.w   .done
-.ok
-        moveq   #G2BENCH_REQ_OK_HIT_V21,d0
-        bra.w   .done
-.use_chipset
-        moveq   #0,d0
-        move    g2p96_req_display_count,d0
-        addq    #1,d0
-        bra.w   .done
-
-.checkboxes
-        cmp     #8,d2
-        blt.w   .mode_list
-        cmp     #292,d2
-        bge.w   .mode_list
-        cmp     #G2BENCH_REQ_SAVE_HIT_TOP_V21,d3
-        blt.w   .mode_list
-        cmp     #G2BENCH_REQ_SAVE_HIT_END_V21,d3
-        blt.w   .save_hit
-        cmp     #G2BENCH_REQ_LOWBW_HIT_TOP_V21,d3
-        blt.w   .mode_list
-        cmp     #G2BENCH_REQ_LOWBW_HIT_END_V21,d3
-        blt.w   .low_hit
-        bra.w   .mode_list
-.save_hit
-        moveq   #G2BENCH_REQ_SAVE_HIT_V21,d0
-        bra.w   .done
-.low_hit
-        moveq   #G2BENCH_REQ_LOWBW_HIT_V21,d0
-        bra.w   .done
-
-.mode_list
-        cmp     #G2P96_REQ_MODE_X,d2
-        blt.w   .done
-        cmp     #G2P96_REQ_MODE_X+G2P96_REQ_MODE_W,d2
-        bge.w   .done
-        cmp     #G2P96_REQ_MODE_Y,d3
-        blt.w   .done
-        move    d3,d4
-        sub     #G2P96_REQ_MODE_Y,d4
-        moveq   #0,d5
-.row_loop
-        cmp     #G2P96_REQ_MODE_H,d4
-        bcs.w   .row_hit
-        sub     #G2P96_REQ_MODE_STEP,d4
-        bmi.w   .done
-        addq    #1,d5
-        cmp     #6,d5
-        bcs.w   .row_loop
-        bra.w   .done
-.row_hit
-        cmp     g2p96_req_display_count,d5
-        bcc.w   .done
-        move    d5,d0
-        addq    #1,d0
-.done
-        movem.l (a7)+,d1-d5
-        rts
-
-; Selected full-width screenmode button. The accent fill uses the same
-; classic pen reserved for the requester/title-bar colour and the inverted
-; edge treatment makes the row look latched rather than momentarily clicked.
-g2bench_p96_req_custom_button_selected_v21
-        movem.l d0-d7/a0-a2,-(a7)
-        move    d0,d5
-        move    d1,d6
-        move.l  a0,a2
-        move    d2,d7
-        move    d5,d0
-        move    d6,d1
-        move    d5,d2
-        add     #G2P96_REQ_MODE_W-1,d2
-        move    d6,d3
-        add     #G2P96_REQ_MODE_H-1,d3
-        moveq   #G2P96_REQ_PEN_SHADOW,d4
-        jsr     g2p96_req_custom_rect
-        move    d5,d0
-        addq    #1,d0
-        move    d6,d1
-        addq    #1,d1
-        move    d5,d2
-        add     #G2P96_REQ_MODE_W-2,d2
-        move    d6,d3
-        add     #G2P96_REQ_MODE_H-2,d3
-        moveq   #G2P96_REQ_PEN_ACCENT,d4
-        jsr     g2p96_req_custom_rect
-        ; Bottom and right highlight complete the pressed/latched bevel.
-        move    d5,d0
-        addq    #1,d0
-        move    d6,d1
-        add     #G2P96_REQ_MODE_H-1,d1
-        move    d5,d2
-        add     #G2P96_REQ_MODE_W-1,d2
-        move    d6,d3
-        add     #G2P96_REQ_MODE_H-1,d3
-        moveq   #G2P96_REQ_PEN_HILITE,d4
-        jsr     g2p96_req_custom_rect
-        move    d5,d0
-        add     #G2P96_REQ_MODE_W-1,d0
-        move    d6,d1
-        addq    #1,d1
-        move    d5,d2
-        add     #G2P96_REQ_MODE_W-1,d2
-        move    d6,d3
-        add     #G2P96_REQ_MODE_H-1,d3
-        moveq   #G2P96_REQ_PEN_HILITE,d4
-        jsr     g2p96_req_custom_rect
-        move.l  a2,a0
-        move    d7,d0
-        move    d5,d1
-        add     #12,d1
-        move    d6,d2
-        add     #G2P96_REQ_MODE_TEXT_BASE,d2
-        moveq   #G2P96_REQ_PEN_HILITE,d3
-        jsr     g2p96_req_custom_text
-        movem.l (a7)+,d0-d7/a0-a2
-        rts
-
-; d0=x, d1=y, a0=label, d2=label length; 80x22 action button.
-g2bench_p96_req_custom_button_80_v21
-        movem.l d0-d7/a0-a2,-(a7)
-        move    d0,d5
-        move    d1,d6
-        move.l  a0,a2
-        move    d2,d7
-        move    d5,d0
-        move    d6,d1
-        move    d5,d2
-        add     #G2BENCH_REQ_ACTION_W_V21-1,d2
-        move    d6,d3
-        add     #21,d3
-        moveq   #G2P96_REQ_PEN_SHADOW,d4
-        jsr     g2p96_req_custom_rect
-        move    d5,d0
-        addq    #1,d0
-        move    d6,d1
-        addq    #1,d1
-        move    d5,d2
-        add     #G2BENCH_REQ_ACTION_W_V21-2,d2
-        move    d6,d3
-        add     #20,d3
-        moveq   #G2P96_REQ_PEN_BG,d4
-        jsr     g2p96_req_custom_rect
-        move    d5,d0
-        move    d6,d1
-        move    d5,d2
-        add     #G2BENCH_REQ_ACTION_W_V21-2,d2
-        move    d6,d3
-        moveq   #G2P96_REQ_PEN_HILITE,d4
-        jsr     g2p96_req_custom_rect
-        move    d5,d0
-        move    d6,d1
-        move    d5,d2
-        move    d6,d3
-        add     #20,d3
-        moveq   #G2P96_REQ_PEN_HILITE,d4
-        jsr     g2p96_req_custom_rect
-        move.l  a2,a0
-        move    d7,d0
-        move    d5,d1
-        move    #G2BENCH_REQ_ACTION_W_V21,d2
-        move    d6,d3
-        add     #G2P96_REQ_ACTION_TEXT_BASE,d3
-        moveq   #G2P96_REQ_PEN_TEXT,d4
-        jsr     g2p96_req_custom_text_center
-        movem.l (a7)+,d0-d7/a0-a2
-        rts
-
-; Render every frame into Fast RAM as before, but publish only alternating
-; completed frames to an already active P96 gameplay screen when enabled.
-g2bench_p96_present_dispatch_v21
-        cmp     #2,g2display_mode
-        bne.w   .normal_reset
-        tst     g2bench_low_bandwidth_v21
-        beq.w   .normal_reset
-        tst     p96gameplay_persist_active
-        beq.w   .normal_reset
-        tst     p96newgame_hold_black_c87b79c
-        bne.w   .normal_reset
-        cmp     #P96DSP_GAMEPLAY,p96display_state
-        bne.w   .normal_reset
-        tst     p96gameplay_linear_ready
-        beq.w   .normal_reset
-        tst     g2bench_lowbw_phase_v21
-        beq.w   .publish
-        clr     g2bench_lowbw_phase_v21
-        move    #-1,p96gameplay_skip_aga_present
-        rts
-.publish
-        move    #-1,g2bench_lowbw_phase_v21
-        jmp     g2p96_gameplay_present_probe
-.normal_reset
-        clr     g2bench_lowbw_phase_v21
-        jmp     g2p96_gameplay_present_probe
-
-; Keep the established result layout; OUTPUT identifies the active test mode.
 g2bench2_write_result_v21
         movem.l d0/a0-a1,-(a7)
         lea     g2bench_output_direct_v21(pc),a0
@@ -52861,21 +53630,91 @@ g2bench2_write_result_v21
         jmp     g2bench2_write_result
 
         even
-g2bench_checkbox_off_v21     dc.b '[ ] '
-g2bench_checkbox_on_v21      dc.b '[X] '
-g2bench_save_label_v21       dc.b 'Save Screenmode'
-g2bench_save_label_end_v21
-g2bench_save_label_len_v21   equ g2bench_save_label_end_v21-g2bench_save_label_v21
-g2bench_shift_note_v21       dc.b '(L-Shift at startup overrides)'
-g2bench_shift_note_end_v21
-g2bench_shift_note_len_v21   equ g2bench_shift_note_end_v21-g2bench_shift_note_v21
-g2bench_lowbw_label_v21      dc.b 'Low Bandwidth (eg. pVision)'
-g2bench_lowbw_label_end_v21
-g2bench_lowbw_label_len_v21  equ g2bench_lowbw_label_end_v21-g2bench_lowbw_label_v21
-g2bench_req_title_v22        dc.b 'Gloom Reforged (Picasso96 Mode)',0
-g2bench_output_direct_v21    dc.b 'CLUT8 DIRECT'
-g2bench_output_lowbw_v21     dc.b 'CLUT8 LOWBW '
-        even
+g2bench_output_direct_v21	dc.b	'CLUT8 DIRECT'
+g2bench_output_lowbw_v21	dc.b	'CLUT8 LOWBW '
+	even
 
-; End of GloomBench v2.1 TEST5 requester/refresh additions.
+; =============================================================================
+; Benchmark-only control integration. All callers run in the main task.
+; No disk writes, target search or map reload on live option changes.
+; =============================================================================
+	even
+g2bench22_restart
+	; Ignore title/startup and completed/aborted runs, including menu EXIT GAME.
+	tst	finished
+	bne.w	.done
+	cmp	#1,g2bench2_state
+	beq.w	.restart
+	cmp	#2,g2bench2_state
+	bne.w	.done
+.restart
+	move	#1,g2bench2_state
+	move	#16,g2bench2_warmup_left
+	clr	g2bench2_frames
+	clr	g2bench2_elapsed_vbl
+	clr	g2bench2_avg100
+	move.l	g2bench2_start_x,g2bench2_current_x
+	move.l	g2bench2_start_z,g2bench2_current_z
+	clr	g2bench_lowbw_phase_v21
+	jsr	g2fps_restart_window
+.done
+	rts
 
+; A hotkey notice is useful during warmup, but must not add transient text to
+; the measured path. Also make the low-bandwidth phase and FPS window repeatable.
+g2bench22_begin_measurement
+	movem.l	d0/a0,-(a7)
+	move.l	player1,d0
+	beq.w	.no_player
+	move.l	d0,a0
+	clr.w	ob_messtimer(a0)
+	clr.w	ob_messlen(a0)
+.no_player
+	clr	g2bench_lowbw_phase_v21
+	jsr	g2fps_restart_window
+	movem.l	(a7)+,d0/a0
+	rts
+
+; Copy the shared, final effective menu values (including STOCK/Bayer locks).
+; All seven fields are 27 bytes, beginning at byte 21 of their source row.
+g2bench22_result_options
+	movem.l	d0-d7/a0-a6,-(a7)
+	jsr	trainer_update_display_texts
+	lea	g2bench22_option_fields,a2
+	moveq	#6,d7
+.loop
+	move.l	(a2)+,a0
+	move.l	(a2)+,a1
+	lea	21(a0),a0
+	moveq	#26,d0
+	jsr	g2bench2_copy_fixed
+	dbf	d7,.loop
+	lea	g2bench22_result_fps,a1
+	move	g2fps_enabled,d0
+	bsr.w	.boolean
+	lea	g2bench22_result_stock,a1
+	move	g2stock_enabled,d0
+	bsr.w	.boolean
+	movem.l	(a7)+,d0-d7/a0-a6
+	rts
+.boolean
+	tst.w	d0
+	beq.w	.no
+	move.b	#'Y',(a1)+
+	move.b	#'E',(a1)+
+	move.b	#'S',(a1)
+	rts
+.no
+	move.b	#'N',(a1)+
+	move.b	#'O',(a1)+
+	move.b	#' ',(a1)
+	rts
+	even
+g2bench22_option_fields
+	dc.l	game_resolution,g2bench22_result_resolution
+	dc.l	game_bayer,g2bench22_result_bayer
+	dc.l	game_ceil,g2bench22_result_ceiling
+	dc.l	game_floor,g2bench22_result_floor
+	dc.l	game_blob,g2bench22_result_blob
+	dc.l	game_reflections,g2bench22_result_reflections
+	dc.l	game_visibility,g2bench22_result_visibility

@@ -758,8 +758,12 @@ finitmenu	;clean up menu operation
 	move	numopts(pc),d2
 	subq	#1,d2
 .loop	addq	#4,a5
-	move.l	(a5)+,a1
+	; Live-menu fix: MOVEA does not set Z. Test the actual strip pointer,
+	; never flags left by FreeMem/DBF from the preceding menu row.
+	move.l	(a5)+,d0
 	beq.s	.g2c87b79w_no_strip
+	move.l	d0,a1
+	clr.l	-4(a5)	; consumed slot: no stale pointer after teardown
 	freemem	menustrip
 .g2c87b79w_no_strip
 	dbf	d2,.loop
@@ -829,7 +833,8 @@ initdarktable	;
 	move	d3,(a1)+
 	;
 	dbf	d2,.loop
-	;
+	; Rebuild on every darktable initialization; no per-frame invalidation.
+	jsr	g2wall_bayer_build
 	rts
 
 initrawmap	lea	ascmap(pc),a0

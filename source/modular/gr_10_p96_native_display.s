@@ -234,6 +234,15 @@ finitdisplay	push
 	move.l	grbase(pc),a6
 	jsr	-$3cc(a6)	;free dbufinfo
 	;
+	; Close our synchronous covering window before its owning screen.
+	move.l	oswindow,d0
+	beq.s	.native_window_closed
+	move.l	d0,a0
+	move.l	int(pc),a6
+	jsr	-72(a6)	; CloseWindow; IDCMPFlags=0, no messages to drain
+	clr.l	oswindow
+	clr.l	newwindow_s
+.native_window_closed
 	move.l	screen(pc),a0
 	move.l	int(pc),a6
 	jsr	-66(a6)
@@ -297,8 +306,8 @@ newscreen_v	dc	0	;viewmode
 newwindow	dc	0,0	;x,y
 	dc	320,240	;w,h ;v17: keep compact 240-line window
 	dc.b	0,0	;pens
-	dc.l	$c0000	;idcmp flags! $40000=active,
-	dc.l	$11940	;flags! (RMB trap)
+	dc.l	0	; synchronous covering window: no undrained IDCMP messages
+	dc.l	$11840	;ACTIVATE|BORDERLESS|SIMPLE_REFRESH|RMBTRAP; no BACKDROP
 	dc.l	0	;gadgets
 	dc.l	0	;checkmark
 	dc.l	0	;title
@@ -377,6 +386,7 @@ g2v36_hide_pointer	;force invisible pointer for the game screen/window
 	move.l	chipzero,a1	;v37: pointer image must live in chip RAM
 	move.l	a1,d1
 	beq.s	.rts
+	lea	128(a1),a1	;Fix3b: private sprite area; never overwrite audio silence
 	move.l	d0,a0
 	moveq	#16,d0	;RC5: complete 16-row invisible Intuition pointer
 	moveq	#16,d1	;RC5: full 16-pixel sprite width
@@ -565,10 +575,33 @@ g2ecs3_bitmaps_ready
 	move.l	d0,a0
 	move.l	a0,screen
 	bne.s	.g2c86zdc_screen_ok
-	clr.w	os	;c86zdc: failed OS screen, avoid null-screen gray/pointer hang by falling back to custom display path
+	clr.w	os	; OpenScreen failed: use existing direct-display fallback
 	bra.w	.noos
 .g2c86zdc_screen_ok
-	jsr	g2v36_hide_pointer	;v39: hide OS mouse sprite immediately after custom screen opens
+	; Open the covering window synchronously. The legacy windowtask is
+	; not started anywhere in this source. Its flags alone had no effect.
+	; No IDCMP port: input remains owned by the existing hardware readers.
+	move.l	screen(pc),newwindow_s
+	move.l	int(pc),a6
+	lea	newwindow(pc),a0
+	jsr	-204(a6)	; OpenWindow
+	move.l	d0,oswindow
+	bne.s	.native_window_ok
+	; Do not continue with an uncovered screen after OpenWindow failure.
+	; Match the existing OpenScreen-failure custom-display fallback.
+	move.l	screen(pc),a0
+	move.l	int(pc),a6
+	jsr	-66(a6)	; CloseScreen (no window exists)
+	clr.l	screen
+	clr.l	newwindow_s
+	clr.w	os
+	bra.w	.noos
+.native_window_ok
+	jsr	g2v36_hide_pointer
+	move.l	screen(pc),a0
+	move.l	int(pc),a6
+	moveq	#0,d0
+	jsr	-282(a6)	; ShowTitle(FALSE), explicit screen-bar suppression
 	move.l	screen(pc),a0
 	lea	44(a0),a0
 	;

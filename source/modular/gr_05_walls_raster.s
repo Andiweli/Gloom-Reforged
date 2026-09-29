@@ -1066,79 +1066,21 @@ drawsolidstrip	macro
 	; shade band may now get its last-quarter darker Bayer lead-in.
 	cmp	#14,d5
 	bcc	.g2v190ej_wallblend_setup_done
-	movem.l	d1/d6/d7/a2,-(a7)
-	move.l	darktable(pc),a5
-	moveq	#15,d7
-	move	d6,d1
-	add	#24,d1
-	cmp	#maxz-1,d1
-	bls.s	.g2v190em_wallblend_24ok
-	move	#maxz-1,d1
-.g2v190em_wallblend_24ok
-	move	0(a5,d1*2),d1
-	cmp	d5,d1
-	bhi	.g2v190em_wallblend_set
-	moveq	#11,d7
-	move	d6,d1
-	add	#48,d1
-	cmp	#maxz-1,d1
-	bls.s	.g2v190em_wallblend_48ok
-	move	#maxz-1,d1
-.g2v190em_wallblend_48ok
-	move	0(a5,d1*2),d1
-	cmp	d5,d1
-	bhi	.g2v190em_wallblend_set
-	moveq	#7,d7
-	move	d6,d1
-	add	#72,d1
-	cmp	#maxz-1,d1
-	bls.s	.g2v190em_wallblend_72ok
-	move	#maxz-1,d1
-.g2v190em_wallblend_72ok
-	move	0(a5,d1*2),d1
-	cmp	d5,d1
-	bhi	.g2v190em_wallblend_set
-	; v190ep: softer sparse start before the normal wall shade lead-in.
-	moveq	#4,d7
-	move	d6,d1
-	add	#96,d1
-	cmp	#maxz-1,d1
-	bls.s	.g2v190em_wallblend_96ok
-	move	#maxz-1,d1
-.g2v190em_wallblend_96ok
-	move	0(a5,d1*2),d1
-	cmp	d5,d1
-	bhi	.g2v190em_wallblend_set
-	moveq	#2,d7
-	move	d6,d1
-	add	#112,d1
-	cmp	#maxz-1,d1
-	bls.s	.g2v190ep_wallblend_112ok
-	move	#maxz-1,d1
-.g2v190ep_wallblend_112ok
-	move	0(a5,d1*2),d1
-	cmp	d5,d1
-	bhi	.g2v190em_wallblend_set
-	moveq	#1,d7
-	move	d6,d1
-	add	#128,d1
-	cmp	#maxz-1,d1
-	bls.s	.g2v190ep_wallblend_128ok
-	move	#maxz-1,d1
-.g2v190ep_wallblend_128ok
-	move	0(a5,d1*2),d1
-	cmp	d5,d1
-	bls.s	.g2v190em_wallblend_restore
-.g2v190em_wallblend_set
-	move	d7,g2_bayer_thresh
+	; Bayer lookup: exact threshold for [current shade][scaled distance].
+	; Built immediately after initdarktable, including non-monotonic tables.
+	; d5<14 and 0<=d6<maxz are established by the unchanged guards above.
+	; Pointer rows avoid multiplying the shade or changing live d1/d7/a2.
+	lea	g2wall_bayer_rows,a5
+	move.l	0(a5,d5.w*4),a5
+	move.b	0(a5,d6.w),g2_bayer_thresh+1 ; low byte; word cleared above
+	tst	g2_bayer_thresh
+	beq.w	.g2v190ej_wallblend_setup_done
 	addq	#1,d5
 	cmp	#14,d5
 	bls.s	.g2v190em_wallblend_palok
 	moveq	#14,d5
 .g2v190em_wallblend_palok
 	move.l	0(a2,d5*4),a5
-.g2v190em_wallblend_restore
-	movem.l	(a7)+,d1/d6/d7/a2
 .g2v190ej_wallblend_setup_done
 	tst	g2_bayer_thresh
 	bne.w	.g2v190ej_wall_dither_setup
@@ -1185,6 +1127,13 @@ drawsolidstrip	macro
 	; 020/030 retain the exact original one-pixel loop below.
 	cmp.w	#g2kalms_cpu_040,g2kalms_cpu_mode
 	beq.w	.g2p10_wall_dither4
+	; Palette-period patch: amortize four palette choices over tall columns.
+	; Short columns retain the original loop; 040/060 retain their own path.
+	cmp.w	#16,d4
+	blo.s	.g2wall_period_short
+	jsr	g2wall_dither_period4
+	bra.w	.g2p10_wall_dither_done
+.g2wall_period_short
 	subq	#1,d4	; original DBF count for 020/030
 	sub	d3,d2
 	add.l	d3,d2	; set X flag immediately before the legacy loop
@@ -3162,3 +3111,95 @@ vwait	tst	os
 	movem.l	(a7)+,d0-d1/a0-a1/a6
 	rts
 
+; =============================================================================
+; Palette-period patch: 020/030 Bayer walls, dispatched for height >= 16.
+; Same inputs as the existing dither loop: a2 points at the first Bayer cell,
+; a3 texture column, a4 base palette, a5 darker palette; d7 threshold.
+; d2/d3 already SWAPped, d4 positive height, d0 destination row stride.
+; The Bayer pattern repeats after four rows even for a clipped start row.
+; Select four palette addresses once; no Bayer reads/comparisons in the loop.
+; Preserve a0 (strip), a4 (base palette) and a6 (column offset iterator).
+; Caller already saves/restores d1/d7/a2. a5 and d0/d3 remain unchanged.
+; =============================================================================
+g2wall_dither_period4
+	movem.l	a0/a4/a6,-(a7)
+	move.l	a4,a0
+	move.b	(a2),d6
+	cmp.b	d7,d6
+	bcc.s	.row0_ready
+	move.l	a5,a0
+.row0_ready
+	move.l	a4,a6
+	move.b	4(a2),d6
+	cmp.b	d7,d6
+	bcc.s	.row1_ready
+	move.l	a5,a6
+.row1_ready
+	; Read both remaining cells before repurposing the Bayer pointer a2.
+	move.b	8(a2),d6
+	move.b	12(a2),d1
+	move.l	a4,a2
+	cmp.b	d7,d6
+	bcc.s	.row2_ready
+	move.l	a5,a2
+.row2_ready
+	cmp.b	d7,d1
+	bcc.s	.row3_ready
+	move.l	a5,a4
+.row3_ready
+	move	d4,d1
+	and	#3,d1
+	lsr	#2,d4
+	subq	#1,d4
+	subq	#1,d1
+	; Clear the texture index once. Subsequent byte loads keep bits 8..31 zero.
+	moveq	#0,d5
+	; Keep the original fixed-point initialisation and uninterrupted X chain.
+	sub	d3,d2
+	add.l	d3,d2
+	tst	d4
+	bmi.w	.tail
+.group
+	move.b	0(a3,d2),d5
+	move.b	0(a0,d5),(a1)
+	addx.l	d3,d2
+	add.l	d0,a1
+	move.b	0(a3,d2),d5
+	move.b	0(a6,d5),(a1)
+	addx.l	d3,d2
+	add.l	d0,a1
+	move.b	0(a3,d2),d5
+	move.b	0(a2,d5),(a1)
+	addx.l	d3,d2
+	add.l	d0,a1
+	move.b	0(a3,d2),d5
+	move.b	0(a4,d5),(a1)
+	addx.l	d3,d2
+	add.l	d0,a1
+	dbf	d4,.group
+.tail
+	; Tail starts at the same Bayer phase after every complete group.
+	; DBF preserves X; do not replace it with SUBQ between texture advances.
+	tst	d1
+	bmi.s	.done
+	move.b	0(a3,d2),d5
+	move.b	0(a0,d5),(a1)
+	addx.l	d3,d2
+	add.l	d0,a1
+	dbf	d1,.tail1
+	bra.s	.done
+.tail1
+	move.b	0(a3,d2),d5
+	move.b	0(a6,d5),(a1)
+	addx.l	d3,d2
+	add.l	d0,a1
+	dbf	d1,.tail2
+	bra.s	.done
+.tail2
+	move.b	0(a3,d2),d5
+	move.b	0(a2,d5),(a1)
+	addx.l	d3,d2
+	add.l	d0,a1
+.done
+	movem.l	(a7)+,a0/a4/a6
+	rts

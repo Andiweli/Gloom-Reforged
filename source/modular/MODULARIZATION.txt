@@ -1,3 +1,17 @@
+CURRENT RELEASE: Gloom Reforged 2.2 (c87b80p)
+=============================================
+Build ../GloomReforged_Modular.s from the source directory with the existing
+assets. It includes modular/gr_00..gr_27 in order. Modules gr_25 and gr_26
+provide live hotkeys/startup safety; gr_27 builds the Bayer threshold lookup.
+SHA256SUMS.txt now describes the current entry point and modules; run
+sha256sum -c modular/SHA256SUMS.txt from source/.
+
+The text below records the ORIGINAL v2.0 split only. Its old byte counts,
+line ranges and hashes are historical, not claims about the current modules.
+See ../../RELEASE-NOTES-2.2.md for current changes and validation.
+
+---------------- HISTORICAL SPLIT RECORD ----------------
+
 Gloom Reforged v2.0 - conservative modular source test
 ======================================================
 

@@ -23,3 +23,6 @@
 	include	"modular/gr_22_p96_direct_indexed_modes.s"
 	include	"modular/gr_23_p96_late_release_layers.s"
 	include	"modular/gr_24_rc4_requester_preferences_lowbw.s"
+	include	"modular/gr_25_live_hotkeys.s"
+	include	"modular/gr_26_menu_startup_safety.s"
+	include	"modular/gr_27_wall_bayer_lookup.s"

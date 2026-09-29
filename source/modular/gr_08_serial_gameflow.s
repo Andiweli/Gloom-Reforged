@@ -416,7 +416,9 @@ initmain	;
 	allocmem	temppal
 	move.l	d0,temppal
 .osskipz	;
-	move.l	#128,d0	;v38: enough chip RAM for a full blank 16x16 Intuition pointer
+	; Fix3b: keep audio silence at +0 separate from writable sprite data.
+	; Bytes 0..127: audio zero buffer; bytes 128..255: blank pointer.
+	move.l	#256,d0	;MEMF_CLEAR below initializes both chip RAM regions
 	move.l	#$10002,d1
 	allocmem	chipzero
 	move.l	d0,chipzero
