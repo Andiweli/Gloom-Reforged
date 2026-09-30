@@ -32,6 +32,7 @@ wb	;
 	move.l	4.w,a6
 	jsr	-408(a6)
 	move.l	d0,dosbase
+	beq.w	nomem		;c87b80t: do not call a missing library
 	;
 	move.l	d0,a6
 	jsr	-60(a6)
@@ -44,6 +45,8 @@ wb	;
 	move.l	(a0),d1
 	move.l	dosbase,a6
 	jsr	-126(a6)
+	move.l	d0,g2exit_old_wb_dir
+	st	g2exit_wb_dir_set
 .nocd	;
 	jsr	g2chipset_detect	;c86zkm: cache ECS/AGA before display selection
 	jsr	g2displaymode_probe	;c86zkm: parse bare AGA/ECS/P96 plus P96 options
@@ -105,8 +108,6 @@ wb	;
 	;
 	cmp	#3,gametype
 	bcs.s	.play
-	move.l	medat,a1
-	jsr	12(a1)
 	bra	exittoos	;c87b26a: GenAm range-safe buildfix
 .play	;
 	jsr	g2p96_transition_clear_all_p96_if_open_c87b79c	;c87b79c: clear both P96 pages before new game setup
@@ -146,13 +147,23 @@ wb	;
 	bsr	g2v190ct_titlefont
 	bra	.intro
 	;
-exittoos	jsr	g2p96_display_shutdown	;c86zfq: central shutdown display-state close
+; c87b80t: remove the producer before stopping/freeing its consumers.
+; VBlank can restart queued SFX and call the MED player even while paused.
+exittoos	jsr	finitvbint
+	tst	g2exit_med_initialized
+	beq.s	.music_stopped
+	clr	g2exit_med_initialized
+	clr	fadevol
+	move.l	medat,a1
+	jsr	12(a1)		; remove the MED player's own timer/interrupt
+.music_stopped
+	jsr	g2v190ep_stop_all_sfx
+	jsr	g2p96_display_shutdown	;c86zfq: central shutdown display-state close
 	jsr	inputoff	; v34: restore ciaa/rawkey vectors before OS exit/closewindow
 	jsr	g2cfg_save	;v141: persist menu/options on clean exit
 	jsr	freeobjlist2
 	jsr	permit
 	jsr	finitdisplay
-	jsr	finitvbint
 	jsr	finitsfx
 	jsr	finitser
 	jsr	freememlist
@@ -160,16 +171,60 @@ exittoos	jsr	g2p96_display_shutdown	;c86zfq: central shutdown display-state clos
 	jsr	undir
 	endc
 	;
-nomem	move.l	wbmess,d0
-	beq.s	.bye
-	;
+; Shared final cleanup also covers launcher Cancel and pre-init failures.
+nomem	jsr	g2p96_close
+	tst.b	g2exit_windowptr_set
+	beq.s	.windowptr_done
+	clr.b	g2exit_windowptr_set
 	move.l	4.w,a6
+	move.l	276(a6),a0
+	move.l	g2exit_old_windowptr,184(a0)
+.windowptr_done
+	tst.b	g2exit_wb_dir_set
+	beq.s	.directory_done
+	clr.b	g2exit_wb_dir_set
+	move.l	g2exit_old_wb_dir,d1
+	move.l	dosbase,a6
+	jsr	-126(a6)	; restore even a NULL original lock; borrowed WB locks are not unlocked
+.directory_done
+	move.l	4.w,a6
+	move.l	int,d0
+	clr.l	int
+	tst.l	d0
+	beq.s	.int_done
 	move.l	d0,a1
-	jsr	-378(a6)
+	jsr	-414(a6)
+.int_done
+	move.l	grbase,d0
+	clr.l	grbase
+	; CLR changes Z: test the saved base, not the cleared slot.
+	tst.l	d0
+	beq.s	.graphics_done
+	move.l	d0,a1
+	jsr	-414(a6)
+.graphics_done
+	move.l	dosbase,d0
+	clr.l	dosbase
+	tst.l	d0
+	beq.s	.dos_done
+	move.l	d0,a1
+	jsr	-414(a6)
+.dos_done
+	move.l	wbmess,d0
+	beq.s	.bye
+	jsr	-132(a6)	; Exec Forbid, NOT the game's display wrapper
+	move.l	wbmess,a1
 	clr.l	wbmess
-	;
-.bye	; v190hy cleanup: logger call removed
+	jsr	-378(a6)	; ReplyMsg: no blocking calls or Permit after this point
+.bye	moveq	#0,d0
 	rts
+
+g2exit_old_wb_dir	dc.l	0
+g2exit_old_windowptr	dc.l	0
+g2exit_wb_dir_set	dc.b	0
+g2exit_windowptr_set	dc.b	0
+	even
+g2exit_med_initialized	dc.w	0
 
 ; ************* FAST SUBS ********************
 	
@@ -299,24 +354,40 @@ sfxintserver3	dc.l	0,0
 	dc.l	sfx3
 	dc.l	sfxint
 
+g2exit_audio_vectors	dc.l	0,0,0,0
+g2exit_audio_intena	dc.w	0
+g2exit_audio_owned	dc.w	0
+
 initsfx	push
+	tst	g2exit_audio_owned
+	bne.w	.done
 	move.l	4.w,a6
+	jsr	-120(a6)	; Disable: protect snapshot and vector exchange
+	move	$dff01c,d0	; INTENAR
+	and	#$0780,d0
+	move	d0,g2exit_audio_intena
+	move	#$0780,$dff09a
+	move	#$0780,$dff09c
 	;
 	moveq	#7,d0
 	lea	sfxintserver0,a1
 	jsr	-162(a6)	;setintvector
+	move.l	d0,g2exit_audio_vectors+0
 	;
 	moveq	#8,d0
 	lea	sfxintserver1,a1
 	jsr	-162(a6)
+	move.l	d0,g2exit_audio_vectors+4
 	;
 	moveq	#9,d0
 	lea	sfxintserver2,a1
 	jsr	-162(a6)
+	move.l	d0,g2exit_audio_vectors+8
 	;
 	moveq	#10,d0
 	lea	sfxintserver3,a1
 	jsr	-162(a6)
+	move.l	d0,g2exit_audio_vectors+12
 	;
 	lea	sfxs(pc),a1
 	move	#$80,d0
@@ -326,8 +397,9 @@ initsfx	push
 .loop	bsr	.init
 	lea	fx_size(a1),a1
 	dbf	d3,.loop
-	;
-	pull
+	move	#-1,g2exit_audio_owned
+	jsr	-126(a6)	; Enable; owned audio IRQs stay masked until playback
+.done	pull
 	rts
 	;
 .init	clr	fx_status(a1)
@@ -340,28 +412,30 @@ initsfx	push
 	rts
 
 finitsfx	push
+	tst	g2exit_audio_owned
+	beq.w	.done
 	move.l	4.w,a6
-	;
+	jsr	-120(a6)
+	jsr	g2v190ep_stop_all_sfx
 	moveq	#7,d0
-	sub.l	a1,a1
+	move.l	g2exit_audio_vectors+0,a1
 	jsr	-162(a6)
-	;
-	move.l	4.w,a6
 	moveq	#8,d0
-	sub.l	a1,a1
+	move.l	g2exit_audio_vectors+4,a1
 	jsr	-162(a6)
-	;
-	move.l	4.w,a6
 	moveq	#9,d0
-	sub.l	a1,a1
+	move.l	g2exit_audio_vectors+8,a1
 	jsr	-162(a6)
-	;
-	move.l	4.w,a6
 	moveq	#10,d0
-	sub.l	a1,a1
+	move.l	g2exit_audio_vectors+12,a1
 	jsr	-162(a6)
-	;
-	pull
+	clr	g2exit_audio_owned
+	move	#$0780,$dff09c
+	move	g2exit_audio_intena,d0
+	or	#$8000,d0
+	move	d0,$dff09a	; only restore the four owned enable bits
+	jsr	-126(a6)
+.done	pull
 	rts
 
 ; v190ep: exit safety for Paula SFX.  Some recent local-event sounds can still
@@ -369,7 +443,11 @@ finitsfx	push
 ; their interrupt bits before config save/freeing, so Paula cannot keep reading
 ; sample memory during shutdown.
 g2v190ep_stop_all_sfx
+	tst	g2exit_audio_owned
+	beq.s	.done
 	movem.l	d0-d2/a1-a2,-(a7)
+	move	#$0780,$dff09a	; mask before changing channel state
+	move	#$000f,$dff096
 	lea	sfxs(pc),a1
 	moveq	#3,d2
 .g2v190ep_stop_loop
@@ -381,7 +459,7 @@ g2v190ep_stop_all_sfx
 	move	#$0780,$dff09a	; clear AUD0..AUD3 interrupt enable
 	move	#$0780,$dff09c	; clear pending AUD0..AUD3 interrupt requests
 	movem.l	(a7)+,d0-d2/a1-a2
-	rts
+.done	rts
 
 waitquiet	jsr	vwait
 	lea	sfxs(pc),a0
@@ -481,4 +559,3 @@ sfxint	;interupt for sfx!
 .skip	move	fx_int(a1),$dff09c
 	moveq	#0,d0
 	rts
-

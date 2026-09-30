@@ -26,3 +26,5 @@
 	include	"modular/gr_25_live_hotkeys.s"
 	include	"modular/gr_26_menu_startup_safety.s"
 	include	"modular/gr_27_wall_bayer_lookup.s"
+	include "modular/gr_28_launcher_update.s"
+	include "modular/gr_29_automap.s"

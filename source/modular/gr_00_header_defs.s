@@ -1,4 +1,7 @@
-; v2.2 / c87b80p: consolidate hardware-tested renderer and native menu fixes.
+; c87b80w: checkered exit flag at event-24 trigger locations.
+; c87b80v: half-size map arrows, yellow moving walls, grid-based trigger exclusion.
+; c87b80u: paused TAB automap for ECS/AGA/P96.
+; v2.3 / c87b80t: ordered exit cleanup, saved interrupt vectors and Workbench handoff.
 ; Bayer lookup, low-resolution scaling, period palettes, native screen/audio
 ; separation, menu strip release and live-menu WaitBlit boundaries. No logging.
 ; c87b80o / RC5 GenAmFix1: GenAm 3.18 branch-range fix only.
@@ -955,8 +958,8 @@ exone	equ	1<<exshft
 exhalf	equ	exone>>1
 
 	jmp	entrypoint
-	; v2.2: public release marker; ECS/AGA/P96 remain official runtime paths.
-g2release_marker	dc.b	'Gloom Reforged v2.2 (c87b80p) by Andreas ',39,'Andiweli',39,' Stuermer',0
+	; v2.3: public release marker; ECS/AGA/P96 remain official runtime paths.
+g2release_marker	dc.b	'Gloom Reforged v2.3 (c87b80w) by Andreas ',39,'Andiweli',39,' Stuermer',0
 	even
 
 	rsreset

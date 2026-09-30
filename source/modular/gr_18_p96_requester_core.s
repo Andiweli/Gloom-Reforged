@@ -4,7 +4,7 @@
 ; Stage 1 is a compact Intuition requester containing only supported resolutions
 ; that actually exist as exact 8-bit CLUT P96 modes on the current system.
 ; Stage 2 is the official p96RequestModeIDTagList requester, constrained to the
-; selected exact width/height, 8-bit depth and RGBFB_CLUT. Gloom Reforged 2.2
+; selected exact width/height, 8-bit depth and RGBFB_CLUT. Gloom Reforged 2.3
 ; no longer exposes 16-bit modes in the native P96 mode contract.
 ;
 ; Supported output geometries:
@@ -31,7 +31,7 @@ G2P96_MA_FORMATSALLOWED	equ	G2P96_MA_DUMMY+$0008
 G2P96_MA_WINDOWTITLE		equ	G2P96_MA_DUMMY+$000a
 G2P96_MA_OKTEXT		equ	G2P96_MA_DUMMY+$000b
 G2P96_MA_CANCELTEXT		equ	G2P96_MA_DUMMY+$000c
-G2P96_RGBFF_SUPPORTED	equ	RGBFF_CLUT	;Gloom Reforged 2.2 exposes native 8-bit CLUT only
+G2P96_RGBFF_SUPPORTED	equ	RGBFF_CLUT	;Gloom Reforged 2.3 exposes native 8-bit CLUT only
 G2P96_IDA_DEPTH		equ	2
 G2P96_IDA_BYTESPERPIXEL	equ	3
 G2P96_IDA_BITSPERPIXEL	equ	4
@@ -452,7 +452,7 @@ g2p96_req_gadget_buffer	ds.b	64
 g2p96_req_intuition_name	dc.b	'intuition.library',0
 g2p96_req_title	dc.b	'Gloom Reforged P96',0
 g2p96_req_body_prefix
-	dc.b	'Gloom Reforged 2.2 uses native direct-indexed',10
+	dc.b	'Gloom Reforged 2.3 uses native direct-indexed',10
 	dc.b	'8-bit Picasso96 output',10,10
 	dc.b	'Select an available P96 output size',10,10,0
 g2p96_req_body_footer
@@ -507,7 +507,7 @@ g2p96_req_bad_override_body
 ; Canonical build identifier kept at EOF to preserve the established placement.
 ; The former verbose P96 palette-map diagnostic block was removed in c87b79m; c87b79n makes DISPLAY=P96 the sole planar-source owner.
 ; -----------------------------------------------------------------------------
-g2build_version_text	dc.b	'2.2 c87b80p'
+g2build_version_text	dc.b	'2.3 c87b80t'
 g2build_version_text_end
 g2build_version_text_len	equ	g2build_version_text_end-g2build_version_text
 
@@ -773,6 +773,7 @@ g2v190cx_build_g1_tables_impl
 g2p96_req_show_resolution_c87b70j
 	movem.l	d1-d7/a0-a6,-(a7)
 	jsr	g2p96_req_build_text
+	jsr	g2rc4_preselect_saved_mode
 	jsr	g2p96_req_custom_calc_layout
 	clr	g2p96_req_custom_result
 	clr.l	g2p96_req_custom_window
@@ -872,6 +873,7 @@ g2p96_req_show_resolution_c87b70j
 	tst.l	g2p96_req_custom_window
 	beq.w	.g2p96_req_custom_fallback_easy
 
+	jsr	g2update_init
 	jsr	g2rc4_p96_req_custom_draw_v21
 	jsr	g2rc4_p96_req_custom_wait_v21
 	move	d0,g2p96_req_custom_result
@@ -904,6 +906,7 @@ g2p96_req_show_resolution_c87b70j
 	clr	g2p96_req_custom_result
 
 .g2p96_req_custom_cleanup
+	jsr	g2update_release_pens
 	move.l	g2p96_req_custom_window,d0
 	beq.s	.g2p96_req_custom_no_window
 	move.l	d0,a0
@@ -1430,10 +1433,10 @@ G2P96_REQ_WIN_H	equ	256
 G2P96_REQ_CONTENT_W	equ	300
 G2P96_REQ_CONTENT_H	equ	224
 G2P96_REQ_MODE_X	equ	12
-G2P96_REQ_MODE_Y	equ	50
+G2P96_REQ_MODE_Y	equ	64
 G2P96_REQ_MODE_W	equ	276
-G2P96_REQ_MODE_H	equ	16
-G2P96_REQ_MODE_STEP	equ	18
+G2P96_REQ_MODE_H	equ	14
+G2P96_REQ_MODE_STEP	equ	15
 ; Topaz 8 body metrics. The window stays at the maximum six-mode height.
 ; The explanatory footer and AGA/CANCEL are anchored after six rows, so any
 ; unused-mode space remains above the footer. The third line contains the
@@ -1441,7 +1444,7 @@ G2P96_REQ_MODE_STEP	equ	18
 G2P96_REQ_FONT_H	equ	8
 G2P96_REQ_FONT_BASELINE	equ	6
 G2P96_REQ_LINE_GAP	equ	8
-G2P96_REQ_SELECT_BASE	equ	40
+G2P96_REQ_SELECT_BASE	equ	58
 G2P96_REQ_FOOTER_LINE_STEP	equ	10
 G2P96_REQ_MODE_TEXT_BASE	equ	10
 G2P96_REQ_ACTION_TEXT_BASE	equ	13
@@ -1470,7 +1473,7 @@ g2p96_req_custom_newwindow
 	dc.w	0,0			; LeftEdge,TopEdge patched before OpenWindow
 	dc.w	G2P96_REQ_WIN_W,G2P96_REQ_WIN_H
 	dc.b	0,1			; DetailPen,BlockPen
-	dc.l	$0000040c		; IDCMP_RAWKEY|IDCMP_MOUSEBUTTONS|IDCMP_REFRESHWINDOW
+	dc.l	$0040040c		; RAWKEY|MOUSEBUTTONS|REFRESHWINDOW|INTUITICKS
 	dc.l	$00011046		; ACTIVATE|RMBTRAP|SIMPLE_REFRESH|WINDOWDRAG|WINDOWDEPTH
 	dc.l	0			; FirstGadget
 	dc.l	0			; CheckMark
@@ -1494,7 +1497,7 @@ g2p96_req_custom_title	dc.b	'Gloom Reforged P96'
 g2p96_req_custom_title_end
 g2p96_req_custom_title_len	equ	g2p96_req_custom_title_end-g2p96_req_custom_title
 
-g2p96_req_custom_warning1	dc.b	'Gloom Reforged v2.2'
+g2p96_req_custom_warning1	dc.b	'Gloom Reforged v2.3'
 g2p96_req_custom_warning1_end
 g2p96_req_custom_warning1_len	equ	g2p96_req_custom_warning1_end-g2p96_req_custom_warning1
 	dcb.b	10,0			; preserve established binary spacing

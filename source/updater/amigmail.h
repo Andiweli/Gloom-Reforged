@@ -1,0 +1,59 @@
+#ifndef AMIGMAIL_H
+#define AMIGMAIL_H
+
+#include <stddef.h>
+#include <stdint.h>
+
+#define AMIMAIL_NAME "GloomUpdate"
+#define AMIMAIL_VERSION "2.3"
+/* Legacy internal names are kept as aliases while the codebase is gradually
+ * renamed; new AmiMail-specific code should use AMIMAIL_* directly. */
+#define AMIGMAIL_NAME AMIMAIL_NAME
+#define AMIGMAIL_VERSION AMIMAIL_VERSION
+#define AMIGMAIL_PAGE_SIZE 50U
+#define AMIGMAIL_MAX_LINE (256UL * 1024UL)
+/* Raw MIME includes base64/line wrapping and part headers. These are
+ * intentionally separate from the 20 MiB decoded attachment budget. */
+#define AMIMAIL_MAX_MIME_MESSAGE (32UL * 1024UL * 1024UL)
+#define AMIMAIL_MAX_TEXT_PART (2UL * 1024UL * 1024UL)
+#define AMIMAIL_MAX_PREVIEW_TEXT (512UL * 1024UL)
+#define AMIGMAIL_MAX_MESSAGE AMIMAIL_MAX_MIME_MESSAGE
+#define AMIGMAIL_MAX_LABELS 256U
+#define AMIGMAIL_MAX_HEADERS 2048U
+
+#if defined(__amigaos__) || defined(__AMIGA__)
+#define AMIGMAIL_AMIGA 1
+#else
+#define AMIGMAIL_AMIGA 0
+#endif
+
+typedef enum AmgResult {
+    AMG_OK = 0,
+    AMG_ERR_ARGUMENT = -1,
+    AMG_ERR_MEMORY = -2,
+    AMG_ERR_IO = -3,
+    AMG_ERR_PROTOCOL = -4,
+    AMG_ERR_TLS = -5,
+    AMG_ERR_AUTH = -6,
+    AMG_ERR_PARSE = -7,
+    AMG_ERR_LIMIT = -8,
+    AMG_ERR_UNSUPPORTED = -9,
+    AMG_ERR_CANCELLED = -10,
+    AMG_ERR_UNCERTAIN = -11
+} AmgResult;
+
+typedef enum AmgAuthMode {
+    AMG_AUTH_PASSWORD = 0,
+    AMG_AUTH_OAUTH2_GOOGLE = 1
+} AmgAuthMode;
+
+typedef struct AmgError {
+    int code;
+    char message[256];
+} AmgError;
+
+void amg_error_set(AmgError *error, int code, const char *message);
+void amg_secure_clear(void *data, size_t size);
+
+#endif
+

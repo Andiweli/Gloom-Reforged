@@ -2,7 +2,19 @@
 
 sblen	equ	128	;serial buffer length
 
+g2exit_serial_vector	dc.l	0
+g2exit_serial_intena	dc.w	0
+g2exit_serial_owned	dc.w	0
+
 initser	push
+	tst	g2exit_serial_owned
+	bne.w	.done
+	move.l	4.w,a6
+	jsr	-120(a6)
+	move	$dff01c,d0
+	and	#$0801,d0
+	move	d0,g2exit_serial_intena
+	move	#$0801,$dff09a
 	;
 	clr	rget
 	clr	rput
@@ -13,25 +25,32 @@ initser	push
 	moveq	#11,d0
 	lea	rbfintserver(pc),a1
 	jsr	-162(a6)
+	move.l	d0,g2exit_serial_vector
+	move	#-1,g2exit_serial_owned
 	;
 	move	#$0801,$dff09c
 	move	#$0001,$dff09a	;no tbe int.
 	move	#$8800,$dff09a	;rbf int only
-	;
-	pull
+	jsr	-126(a6)
+.done	pull
 	rts
 
 finitser	push
-	;
+	tst	g2exit_serial_owned
+	beq.s	.done
+	move.l	4.w,a6
+	jsr	-120(a6)
 	move	#$0801,$dff09a
 	move	#$0801,$dff09c
-	;
-	move.l	4.w,a6
 	moveq	#11,d0
-	sub.l	a1,a1
+	move.l	g2exit_serial_vector,a1
 	jsr	-162(a6)
-	;
-	pull
+	clr	g2exit_serial_owned
+	move	g2exit_serial_intena,d0
+	or	#$8000,d0
+	move	d0,$dff09a
+	jsr	-126(a6)
+.done	pull
 	rts
 
 serput	;send byte in d0
@@ -154,6 +173,7 @@ initmed	lea	medat,a0
 .noreloc	move.l	medat,a1
 	move.l	chipzero(pc),a0
 	jsr	(a1)
+	move	#-1,g2exit_med_initialized
 	;
 	move.l	titlemed(pc),d0	; v190cp: some compatible installs have no title MED
 	beq.s	.g2v190cp_no_titlemed
@@ -396,6 +416,8 @@ initmain	;
 	;
 	move.l	4.w,a6
 	move.l	276(a6),a0
+	move.l	184(a0),g2exit_old_windowptr
+	st	g2exit_windowptr_set
 	move.l	#-1,184(a0)	;requesters OFF for our task.
 	;
 	; c87w1: always start in the confirmed 320-column geometry. WIDE is armed
@@ -2181,6 +2203,7 @@ g2v10_player1_ok
 	;
 	clr	framecnt
 	jsr	g2hotkeys_seed	; do not inherit a held key from title/intermission
+	jsr	g2automap_seed
 	clr	paused
 	jsr	predrawall
 	jsr	g2fps_reset	;c87a6: reset actual presented-FPS interval after buffer-prime frames
@@ -2188,11 +2211,13 @@ g2v10_player1_ok
 	bsr	chaton
 	;
 mainloop	; Step 2: handle option keys at a main-task frame boundary
+	jsr	g2automap_poll	; c87b80u: paused TAB map, never from VBlank
 	jsr	g2hotkeys_poll
 	jsr	drawall
 	move	escape,d0
 	beq.s	.noesc
 	jsr	dogamemenu
+	jsr	g2automap_seed	; held menu TAB must not open the map on return
 	jsr	g2fps_restart_window	;c87a6: discard menu dwell before next FPS sample
 	clr	escape
 .noesc	; v190hy cleanup: log marker removed

@@ -24,14 +24,17 @@ G2RC4_INPUT_LVO_PEEKQUALIFIER equ -42
 G2RC4_REQ_SAVE_HIT_V21      equ -2
 G2RC4_REQ_LOWBW_HIT_V21     equ -3
 G2RC4_REQ_OK_HIT_V21        equ -4
-G2RC4_REQ_SAVE_BASE_Y_V21   equ 170
-G2RC4_REQ_SHIFT_BASE_Y_V21  equ 180
-G2RC4_REQ_LOWBW_BASE_Y_V21  equ 192
+G2LAUNCHER_ALWAYS_HIT       equ -6
+G2LAUNCHER_ALWAYS_BASE_Y    equ 192
+G2LAUNCHER_ALWAYS_HIT_TOP   equ 184
+G2LAUNCHER_ALWAYS_HIT_END   equ 200
+G2RC4_REQ_SAVE_BASE_Y_V21   equ 164
+G2RC4_REQ_LOWBW_BASE_Y_V21  equ 178
 G2RC4_REQ_ACTION_Y_V21      equ 200
-G2RC4_REQ_SAVE_HIT_TOP_V21  equ 161
-G2RC4_REQ_SAVE_HIT_END_V21  equ 183
-G2RC4_REQ_LOWBW_HIT_TOP_V21 equ 184
-G2RC4_REQ_LOWBW_HIT_END_V21 equ 200
+G2RC4_REQ_SAVE_HIT_TOP_V21  equ 156
+G2RC4_REQ_SAVE_HIT_END_V21  equ 170
+G2RC4_REQ_LOWBW_HIT_TOP_V21 equ 170
+G2RC4_REQ_LOWBW_HIT_END_V21 equ 184
 G2RC4_REQ_ACTION_W_V21      equ 80
 G2RC4_REQ_OK_X_V21          equ 16
 G2RC4_REQ_AGA_X_V21         equ 110
@@ -150,7 +153,7 @@ g2rc4_lshift_probe_v21
         cmp.w   #36,20(a6)              ; Library.lib_Version
         bcs.w   .close
         jsr     G2RC4_INPUT_LVO_PEEKQUALIFIER(a6)
-        and.w   #G2RC4_IEQUALIFIER_LSHIFT,d0
+        and.w   #$0003,d0                 ; left OR right Shift
         beq.w   .close
         move    #-1,g2rc4_lshift_override_v21
 .close
@@ -201,6 +204,11 @@ g2rc4_p96_mode_requester_probe_v21
         movem.l d1-d7/a0-a6,-(a7)
         jsr     g2rc4_p96prefs_load_v21
         jsr     g2rc4_lshift_probe_v21
+        jsr     g2launcher_pref_load
+        tst     g2launcher_always
+        beq.w   .launcher_pref_ready
+        move    #-1,g2rc4_lshift_override_v21 ; same chooser path as physical SHIFT
+.launcher_pref_ready
         clr     g2rc4_saved_mode_used_v21
         clr     g2rc4_requester_selected_v21
         clr     g2rc4_lowbw_phase_v21
@@ -212,15 +220,19 @@ g2rc4_p96_mode_requester_probe_v21
         cmp     #2,g2display_mode
         beq.w   .is_p96
         move    #2,p96modeid_state
+        jsr     g2update_native_launcher
         bra.w   .done
 .is_p96
         tst     p96present
         bne.w   .have_library
         jsr     g2p96_req_show_nolib
         jsr     g2p96_req_fallback_aga
+        jsr     g2update_native_launcher
         bra.w   .done
 .have_library
         clr     g2p96_modeid_override_used
+        tst     g2rc4_lshift_override_v21
+        bne.w   .normal_requester
         tst     g2p96_modeid_override_present
         beq.w   .try_saved
         jsr     g2p96_modeid_override_validate_host_c87b78s
@@ -246,6 +258,7 @@ g2rc4_p96_mode_requester_probe_v21
         bne.w   .choose
         jsr     g2p96_req_show_nomodes_host_c87b78s
         jsr     g2p96_req_fallback_aga
+        jsr     g2update_native_launcher
         bra.w   .done
 .choose
         move    #-1,g2rc4_req_selected_row_v21
@@ -257,6 +270,7 @@ g2rc4_p96_mode_requester_probe_v21
         jsr     g2p96_close
         bra.w   .done
 .use_chipset
+        jsr     g2launcher_pref_save
         jsr     g2p96_req_fallback_aga
         bra.w   .done
 .selected
@@ -291,6 +305,7 @@ g2rc4_p96_mode_requester_probe_v21
         tst     g2rc4_requester_selected_v21
         beq.w   .done
         jsr     g2rc4_p96prefs_save_v21
+        jsr     g2launcher_pref_save
 .done
         movem.l (a7)+,d1-d7/a0-a6
         moveq   #0,d0
@@ -450,13 +465,18 @@ g2rc4_p96_req_custom_draw_v21
         moveq   #11,d3
         moveq   #G2P96_REQ_PEN_TEXT,d4
         jsr     g2p96_req_custom_text_center
-        lea     g2p96_req_custom_warning2,a0
-        move    #g2p96_req_custom_warning2_len,d0
+        jsr     g2update_subtitle
         moveq   #0,d1
         move    #G2P96_REQ_CONTENT_W,d2
         moveq   #21,d3
         moveq   #G2P96_REQ_PEN_TEXT,d4
         jsr     g2p96_req_custom_text_center
+        jsr     g2update_draw
+        tst     g2update_native
+        beq.w   .p96_controls
+        jsr     g2update_draw_native
+        bra.w   .always_checkbox
+.p96_controls
         lea     g2p96_req_custom_select,a0
         move    #g2p96_req_custom_select_len,d0
         moveq   #0,d1
@@ -512,13 +532,6 @@ g2rc4_p96_req_custom_draw_v21
         move    #G2RC4_REQ_SAVE_BASE_Y_V21,d2
         moveq   #G2P96_REQ_PEN_TEXT,d3
         jsr     g2p96_req_custom_text
-        lea     g2rc4_shift_note_v21(pc),a0
-        move    #g2rc4_shift_note_len_v21,d0
-        move    #44,d1
-        move    #G2RC4_REQ_SHIFT_BASE_Y_V21,d2
-        moveq   #G2P96_REQ_PEN_TEXT,d3
-        jsr     g2p96_req_custom_text
-
         ; Low-bandwidth checkbox.
         lea     g2rc4_checkbox_off_v21(pc),a0
         tst     g2rc4_low_bandwidth_v21
@@ -537,18 +550,40 @@ g2rc4_p96_req_custom_draw_v21
         moveq   #G2P96_REQ_PEN_TEXT,d3
         jsr     g2p96_req_custom_text
 
+.always_checkbox
+        lea     g2rc4_checkbox_off_v21(pc),a0
+        tst     g2launcher_always
+        beq.w   .always_box_ready
+        lea     g2rc4_checkbox_on_v21(pc),a0
+.always_box_ready
+        moveq   #3,d0
+        move    #12,d1
+        move    #G2LAUNCHER_ALWAYS_BASE_Y,d2
+        moveq   #G2P96_REQ_PEN_TEXT,d3
+        jsr     g2p96_req_custom_text
+        lea     g2launcher_always_label,a0
+        moveq   #20,d0
+        move    #44,d1
+        move    #G2LAUNCHER_ALWAYS_BASE_Y,d2
+        moveq   #G2P96_REQ_PEN_TEXT,d3
+        jsr     g2p96_req_custom_text
+
         ; Final actions: OK confirms the latched row; AGA/ECS and CANCEL keep
         ; their established immediate actions.
+.actions
         move    #G2RC4_REQ_OK_X_V21,d0
         move    #G2RC4_REQ_ACTION_Y_V21,d1
         lea     g2p96_req_ok,a0
         move    #G2P96_REQ_OK_LEN,d2
         jsr     g2rc4_p96_req_custom_button_80_v21
+        tst     g2update_native
+        bne.w   .cancel_action
         move    #G2RC4_REQ_AGA_X_V21,d0
         move    #G2RC4_REQ_ACTION_Y_V21,d1
         lea     g2p96_req_aga,a0
         move    #G2P96_REQ_AGA_LEN,d2
         jsr     g2rc4_p96_req_custom_button_80_v21
+.cancel_action
         move    #G2RC4_REQ_CANCEL_X_V21,d0
         move    #G2RC4_REQ_ACTION_Y_V21,d1
         lea     g2p96_req_cancel,a0
@@ -603,12 +638,19 @@ g2rc4_p96_req_custom_wait_v21
         move.l  a2,a1
         move.l  4.w,a6
         jsr     -378(a6)
+        cmp.l   #$00400000,d4           ; IDCMP_INTUITICKS
+        beq.w   .update_tick
         cmp.l   #$00000004,d4           ; IDCMP_REFRESHWINDOW
         beq.w   .refresh
         cmp.l   #$00000008,d4
         beq.w   .mouse
         cmp.l   #$00000400,d4
         beq.w   .key
+        bra.w   .drain
+.update_tick
+        jsr     g2update_poll
+        tst.l   d0
+        bne.w   .redraw
         bra.w   .drain
 .refresh
         jsr     g2rc4_p96_req_custom_refresh_v21
@@ -619,6 +661,10 @@ g2rc4_p96_req_custom_wait_v21
         move    d6,d0
         move    d7,d1
         jsr     g2rc4_p96_req_custom_hit_v21
+        cmp     #G2LAUNCHER_ALWAYS_HIT,d0
+        beq.w   .toggle_always
+        cmp     #-5,d0
+        beq.w   .download
         cmp     #G2RC4_REQ_SAVE_HIT_V21,d0
         beq.w   .toggle_save
         cmp     #G2RC4_REQ_LOWBW_HIT_V21,d0
@@ -638,7 +684,15 @@ g2rc4_p96_req_custom_wait_v21
         subq    #1,d0
         move    d0,g2rc4_req_selected_row_v21
         bra.w   .redraw
+.toggle_always
+        not.w   g2launcher_always
+        bra.w   .redraw
+.download
+        jsr     g2update_download
+        bra.w   .redraw
 .toggle_save
+        tst     g2update_native
+        bne.w   .drain
         tst     g2rc4_save_screenmode_v21
         beq.w   .save_on
         clr     g2rc4_save_screenmode_v21
@@ -647,6 +701,8 @@ g2rc4_p96_req_custom_wait_v21
         move    #-1,g2rc4_save_screenmode_v21
         bra.w   .redraw
 .toggle_low
+        tst     g2update_native
+        bne.w   .drain
         tst     g2rc4_low_bandwidth_v21
         beq.w   .low_on
         clr     g2rc4_low_bandwidth_v21
@@ -657,6 +713,8 @@ g2rc4_p96_req_custom_wait_v21
         jsr     g2rc4_p96_req_custom_draw_v21
         bra.w   .drain
 .confirm
+        tst     g2update_native
+        bne.w   .use_chipset
         move    g2rc4_req_selected_row_v21,d0
         bmi.w   .drain
         addq    #1,d0
@@ -696,7 +754,7 @@ g2rc4_p96_req_custom_wait_v21
         rts
 
 ; Return mode/action values compatible with the original hit tester, plus
-; -2/-3 for the two checkbox rows.
+; -2/-3 for P96 preferences, -5 update, -6 Always show Launcher.
 g2rc4_p96_req_custom_hit_v21
         movem.l d1-d5,-(a7)
         move    d0,d2
@@ -704,7 +762,19 @@ g2rc4_p96_req_custom_hit_v21
         sub     g2p96_req_custom_origin_x,d2
         sub     g2p96_req_custom_origin_y,d3
         moveq   #-1,d0
-
+        cmp     #G2P96_REQ_MODE_X,d2
+        blt.w   .not_update
+        cmp     #G2P96_REQ_MODE_X+G2P96_REQ_MODE_W,d2
+        bge.w   .not_update
+        cmp     #29,d3
+        blt.w   .not_update
+        cmp     #29+G2P96_REQ_MODE_H,d3
+        bge.w   .not_update
+        cmp     #2,g2update_state
+        bne.w   .done                  ; disabled buttons never start a process
+        moveq   #-5,d0
+        bra.w   .done
+.not_update
         cmp     #G2RC4_REQ_ACTION_Y_V21,d3
         blt.w   .checkboxes
         cmp     #G2RC4_REQ_ACTION_Y_V21+22,d3
@@ -727,12 +797,27 @@ g2rc4_p96_req_custom_hit_v21
         moveq   #G2RC4_REQ_OK_HIT_V21,d0
         bra.w   .done
 .use_chipset
+        tst     g2update_native
+        bne.w   .done                  ; hidden native-mode middle button
         moveq   #0,d0
         move    g2p96_req_display_count,d0
         addq    #1,d0
         bra.w   .done
 
 .checkboxes
+        cmp     #8,d2
+        blt.w   .native_check
+        cmp     #292,d2
+        bge.w   .native_check
+        cmp     #G2LAUNCHER_ALWAYS_HIT_TOP,d3
+        blt.w   .native_check
+        cmp     #G2LAUNCHER_ALWAYS_HIT_END,d3
+        bge.w   .native_check
+        moveq   #G2LAUNCHER_ALWAYS_HIT,d0
+        bra.w   .done
+.native_check
+        tst     g2update_native
+        bne.w   .done
         cmp     #8,d2
         blt.w   .mode_list
         cmp     #292,d2
@@ -929,7 +1014,63 @@ g2rc4_shift_note_len_v21   equ g2rc4_shift_note_end_v21-g2rc4_shift_note_v21
 g2rc4_lowbw_label_v21      dc.b 'Low Bandwidth (eg. pVision)'
 g2rc4_lowbw_label_end_v21
 g2rc4_lowbw_label_len_v21  equ g2rc4_lowbw_label_end_v21-g2rc4_lowbw_label_v21
-g2rc4_req_title_v22        dc.b 'Gloom Reforged (Picasso96 Mode)',0
+g2rc4_req_title_v22        dc.b 'Gloom Reforged Launcher',0
         even
 
 ; End of Gloom Reforged v2.0 RC4 requester/preferences additions.
+
+; v2.3: select the displayed resolution corresponding to a valid saved ID.
+; Called after build_text has constructed the filtered row->candidate map.
+; Match width/height, not ID equality: a geometry may have several timings.
+; This does not skip the normal exact-mode chooser or persist anything.
+g2rc4_preselect_saved_mode
+        movem.l d0-d7/a0-a6,-(a7)
+        tst.w   g2update_native
+        bne.w   .done
+        tst.w   g2rc4_req_selected_row_v21
+        bpl.w   .done
+        tst.w   g2rc4_save_screenmode_v21
+        beq.w   .done
+        tst.l   g2rc4_saved_modeid_v21
+        beq.w   .done
+        tst.l   p96base
+        beq.w   .done
+        tst.w   g2p96_req_display_count
+        beq.w   .done
+        jsr     g2rc4_validate_saved_mode_v21
+        tst.l   d0
+        beq.w   .done
+        ; Validation derives the target geometry from the saved P96 mode.
+        move.w  p96target_width,d4
+        move.w  p96target_height,d5
+        moveq   #0,d6
+        move.l  p96base,a6
+.row
+        cmp.w   g2p96_req_display_count,d6
+        bcc.w   .done
+        lea     g2p96_req_map,a0
+        moveq   #0,d0
+        move.b  0(a0,d6.w),d0
+        cmp.w   #6,d0
+        bcc.w   .next
+        lea     g2p96_req_candidate_ids,a0
+        move.l  0(a0,d0*4),d7
+        beq.w   .next
+        move.l  d7,d0
+        moveq   #P96IDA_WIDTH,d1
+        jsr     -84(a6)
+        cmp.w   d4,d0
+        bne.w   .next
+        move.l  d7,d0
+        moveq   #P96IDA_HEIGHT,d1
+        jsr     -84(a6)
+        cmp.w   d5,d0
+        bne.w   .next
+        move.w  d6,g2rc4_req_selected_row_v21
+        bra.w   .done
+.next
+        addq.w  #1,d6
+        bra.w   .row
+.done
+        movem.l (a7)+,d0-d7/a0-a6
+        rts
