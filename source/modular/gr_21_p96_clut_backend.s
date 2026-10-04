@@ -1280,6 +1280,11 @@ g2p96_gameplay_copy_clut_stage_to_draw_target_c87b78m
 
 ; a2=destination BitMap. The indexed stage is complete before locking.
 g2p96_gameplay_copy_clut_stage_to_bitmap_a2_c87b78m
+	jsr g2diag_copy_begin
+	jsr g2p96_gameplay_copy_clut_stage_to_bitmap_a2_c87b78m_diag_body
+	jsr g2diag_copy_end
+	rts
+g2p96_gameplay_copy_clut_stage_to_bitmap_a2_c87b78m_diag_body
 	movem.l	d1-d7/a0-a6,-(a7)
 	moveq	#0,d7
 	move.l	a2,p96gameplay_target_bitmap

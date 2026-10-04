@@ -1,5 +1,7 @@
-; GloomBench v2.2 / c87b80p-bench1
-; Shared code: complete Gloom Reforged v2.2 modules gr_00..gr_27.
+; GloomBench v2.3.2 / c87b82-bench1
+; Renderer baseline: hardware-tested Gloom Reforged v2.2 renderer, unchanged.
+; P96 output: v2.3.1 reply synchronization + v2.3.2 IndiECS/csgfx policy.
+; P96SINGLE remains a manual override; automatic policy is per opened screen.
 ; Benchmark: supplied silent map1_1 harness and RAM: P96 diagnostics retained.
 ; F1..F7/F9/HELP use the shared edge-triggered hotkeys; F10/ESC opens the menu.
 ; Each accepted hotkey/menu return starts 16 warmup + 257 measured frames anew.
@@ -9,7 +11,8 @@
 ;       F9 FPS overlay, F10/ESC menu, HELP unlimited health.
 ;       Existing STOCK and Bayer/reflection restrictions still apply.
 ; Result: RAM:GloomBench_result.txt plus CLI output; final effective options
-;         are included. Do not compare runs with different FPS/LowBW settings.
+;         and actual P96_BUFFERING (SINGLE/DOUBLE/N/A) are included.
+;         Do not compare runs with different FPS/LowBW settings.
 ; Build: assemble this complete single source beside the original INCbin assets.
 ; Validation: vasm 2.0f, -m68020 -no-opt -Fhunkexe; no assembly errors.
 ;            Six existing label-name warnings (rts/data/offset/c2p/text/db).
@@ -977,8 +980,8 @@ exone	equ	1<<exshft
 exhalf	equ	exone>>1
 
 	jmp	entrypoint
-	; v2.2: public release marker; ECS/AGA/P96 remain official runtime paths.
-g2release_marker	dc.b	'GloomBench v2.2 (c87b80p-bench1) by Andreas ',39,'Andiweli',39,' Stuermer',0
+	; v2.3.2: public release marker; ECS/AGA/P96 remain official runtime paths.
+g2release_marker	dc.b	'GloomBench v2.3.2 (c87b82-bench1) by Andreas ',39,'Andiweli',39,' Stuermer',0
 	even
 
 	rsreset
@@ -22963,6 +22966,7 @@ SA_Draggable	equ	SA_Dummy+30
 g2displaymode_probe
 	push
 	clr	g2display_source
+	clr	g2p96_single_buffer
 	clr	g2p96_hires_mode
 	clr	g2p96_stretch_mode
 	clr	g2p96_wide_mode
@@ -36368,6 +36372,15 @@ g2p96_gameplay_dbuf_init
 	clr.l	p96gameplay_dbuf_safeport
 	clr.l	p96gameplay_dbuf_dispport
 	clr.l	p96gameplay_dbuf_rport_orig
+	; P96SINGLE, IndiECS or Warp/csgfx: no second bitmap/reply ports.
+	cmp	#2,g2display_mode
+	bne.s	.single_checked
+	tst	g2p96_single_buffer
+	bne.w	.done
+	jsr	g2p96_auto_single_board
+	tst.l	d0
+	bne.w	.done
+.single_checked
 	move.l	p96winprobe_screen_ptr,d0
 	beq.w	.fail
 	move.l	p96gameplay_intbase,d0
@@ -36432,11 +36445,11 @@ g2p96_gameplay_dbuf_init
 	rts
 
 g2p96_gameplay_dbuf_poll_port
-	movem.l	d1-d2/a0-a1/a6,-(a7)
-	move.l	a0,a1
+	movem.l	d1-d2/a0-a2/a6,-(a7)
+	move.l	a0,a2
 	moveq	#7,d2
 .poll
-	move.l	a1,a0
+	move.l	a2,a0
 	move.l	4.w,a6
 	jsr	-372(a6)	;GetMsg
 	tst.l	d0
@@ -36446,13 +36459,19 @@ g2p96_gameplay_dbuf_poll_port
 	move.l	d0,a6
 	jsr	-270(a6)	;WaitTOF
 	dbf	d2,.poll
+	; Check the reply delivered during the final WaitTOF as well.
+	move.l	a2,a0
+	move.l	4.w,a6
+	jsr	-372(a6)
+	tst.l	d0
+	bne	.got
 .fail
 	moveq	#0,d0
 	bra	.done
 .got
 	moveq	#-1,d0
 .done
-	movem.l	(a7)+,d1-d2/a0-a1/a6
+	movem.l	(a7)+,d1-d2/a0-a2/a6
 	rts
 
 g2p96_gameplay_dbuf_wait_safe
@@ -36667,6 +36686,10 @@ g2p96_gameplay_dbuf_resume
 	movem.l	d0/a0-a1,-(a7)
 	tst	p96gameplay_dbuf_active
 	beq.w	.done
+	; enter_gameplay is also called after every present. Only a real
+	; suspended->running transition may change draw ownership.
+	tst	p96gameplay_dbuf_suspended
+	beq.w	.done
 	jsr	g2p96_gameplay_dbuf_restore_rport_original
 	clr	p96gameplay_dbuf_suspended
 	; The frozen front buffer remains current.  Render the first resumed frame
@@ -36674,8 +36697,8 @@ g2p96_gameplay_dbuf_resume
 	move	p96gameplay_dbuf_current,d0
 	eor	#1,d0
 	move	d0,p96gameplay_dbuf_draw
-	clr	p96gameplay_dbuf_safe_pending
-	clr	p96gameplay_dbuf_disp_pending
+	; Pending replies remain owned by the next wait_safe/wait_disp,
+	; including a previously failed suspend. Do not fake acknowledgement.
 .done
 	movem.l	(a7)+,d0/a0-a1
 	rts
@@ -37961,6 +37984,16 @@ g2tok_measure
 	bra.s	g2tok_measure
 
 g2tok_compare
+	cmp #9,d6
+	bne.s .not_single
+	move.l a2,a3
+	lea g2tok_p96single,a4
+	jsr g2tok_equal
+	tst d0
+	beq.s .not_single
+	move.w #-1,g2p96_single_buffer
+	bra g2tok_next
+.not_single
 	; c87b70l: variable-length assignment token. The helper returns nonzero
 	; whenever the P96MODEID= prefix was consumed, valid or malformed.
 	jsr	g2tok_try_p96modeid
@@ -38186,6 +38219,82 @@ g2displaymode_validate
 	move	d7,d0
 	movem.l	(a7)+,d1-d7/a0-a6
 	rts
+
+; Optional P96 override; other boards remain double buffered by default.
+g2p96_single_buffer dc.w 0
+g2tok_p96single dc.b 'P96SINGLE'
+ even
+
+; c87b82: identify the board of the actual opened P96 screen.
+; Return d0=-1 for exact IndiECS or csgfx names (case-insensitive).
+; csgfx is the shared CS-Lab Warp RTG driver, not a ModeID or filename test.
+; Keep the explicit P96SINGLE preference separate: reevaluate on every open.
+; Unknown boards or missing attributes retain the normal double-buffer path.
+g2p96_auto_single_board
+ movem.l d1-d2/a0-a2/a6,-(a7)
+ cmp #2,g2display_mode
+ bne .no
+ tst.l p96base
+ beq .no
+ move.l p96gameplay_grbase,d0
+ beq .no
+ move.l d0,a6
+ move.l p96winprobe_screen_ptr,d0
+ beq .no
+ move.l d0,a0
+ lea 44(a0),a0
+ jsr -792(a6) ; GetVPModeID(Screen.ViewPort)
+ cmp.l #-1,d0
+ beq .no
+ move.l d0,d2
+ move.l p96base,a6
+ moveq #6,d1 ; P96IDA_ISP96
+ jsr -84(a6)
+ tst.l d0
+ beq .no
+ move.l d2,d0
+ moveq #9,d1 ; P96IDA_BOARDNAME
+ jsr -84(a6)
+ tst.l d0
+ beq .no
+ cmp.l #-1,d0
+ beq .no
+ move.l d0,a2 ; retain the board-name pointer for the second exact match
+ move.l a2,a0
+ lea g2p96_indiecs_name,a1
+ bsr.s .match_name
+ tst.l d0
+ bne.s .done
+ move.l a2,a0
+ lea g2p96_csgfx_name,a1
+ bsr.s .match_name
+ bra.s .done
+.no
+ moveq #0,d0
+.done
+ movem.l (a7)+,d1-d2/a0-a2/a6
+ rts
+
+; a0=driver name, a1=lowercase expected name. Never accept a partial name.
+.match_name
+ move.b (a1)+,d1
+ beq.s .name_end
+ move.b (a0)+,d0
+ or.b #$20,d0
+ cmp.b d1,d0
+ bne.s .name_no
+ bra.s .match_name
+.name_end
+ tst.b (a0) ; exact name, do not accept prefixes or suffixes
+ bne.s .name_no
+ moveq #-1,d0
+ rts
+.name_no
+ moveq #0,d0
+ rts
+g2p96_indiecs_name dc.b 'indiecs',0
+g2p96_csgfx_name dc.b 'csgfx',0
+ even
 
 ; -----------------------------------------------------------------------------
 ; c87a7 - optional true presented-FPS ToolType counter
@@ -42296,7 +42405,7 @@ g2resolution_apply_after_menu
 ; Stage 1 is a compact Intuition requester containing only supported resolutions
 ; that actually exist as exact 8-bit CLUT P96 modes on the current system.
 ; Stage 2 is the official p96RequestModeIDTagList requester, constrained to the
-; selected exact width/height, 8-bit depth and RGBFB_CLUT. Gloom Reforged 2.2
+; selected exact width/height, 8-bit depth and RGBFB_CLUT. GloomBench 2.3.2
 ; no longer exposes 16-bit modes in the native P96 mode contract.
 ;
 ; Supported output geometries:
@@ -42323,7 +42432,7 @@ G2P96_MA_FORMATSALLOWED	equ	G2P96_MA_DUMMY+$0008
 G2P96_MA_WINDOWTITLE		equ	G2P96_MA_DUMMY+$000a
 G2P96_MA_OKTEXT		equ	G2P96_MA_DUMMY+$000b
 G2P96_MA_CANCELTEXT		equ	G2P96_MA_DUMMY+$000c
-G2P96_RGBFF_SUPPORTED	equ	RGBFF_CLUT	;Gloom Reforged 2.2 exposes native 8-bit CLUT only
+G2P96_RGBFF_SUPPORTED	equ	RGBFF_CLUT	;GloomBench 2.3.2 exposes native 8-bit CLUT only
 G2P96_IDA_DEPTH		equ	2
 G2P96_IDA_BYTESPERPIXEL	equ	3
 G2P96_IDA_BITSPERPIXEL	equ	4
@@ -42744,7 +42853,7 @@ g2p96_req_gadget_buffer	ds.b	64
 g2p96_req_intuition_name	dc.b	'intuition.library',0
 g2p96_req_title	dc.b	'Gloom Reforged P96',0
 g2p96_req_body_prefix
-	dc.b	'GloomBench 2.2 uses native direct-indexed',10
+	dc.b	'GloomBench 2.3.2 uses native direct-indexed',10
 	dc.b	'8-bit Picasso96 output',10,10
 	dc.b	'Select an available P96 output size',10,10,0
 g2p96_req_body_footer
@@ -42799,7 +42908,7 @@ g2p96_req_bad_override_body
 ; Canonical build identifier kept at EOF to preserve the established placement.
 ; The former verbose P96 palette-map diagnostic block was removed in c87b79m; c87b79n makes DISPLAY=P96 the sole planar-source owner.
 ; -----------------------------------------------------------------------------
-g2build_version_text	dc.b	'2.2 c87b80p-bench1'
+g2build_version_text	dc.b	'2.3.2 c87b82-bench1'
 g2build_version_text_end
 g2build_version_text_len	equ	g2build_version_text_end-g2build_version_text
 
@@ -43786,7 +43895,7 @@ g2p96_req_custom_title	dc.b	'Gloom Reforged P96'
 g2p96_req_custom_title_end
 g2p96_req_custom_title_len	equ	g2p96_req_custom_title_end-g2p96_req_custom_title
 
-g2p96_req_custom_warning1	dc.b	'GloomBench v2.2'
+g2p96_req_custom_warning1	dc.b	'GloomBench v2.3.2'
 g2p96_req_custom_warning1_end
 g2p96_req_custom_warning1_len	equ	g2p96_req_custom_warning1_end-g2p96_req_custom_warning1
 	dcb.b	10,0			; preserve established binary spacing
@@ -52386,7 +52495,7 @@ g2wall_bayer_table
 
 	even
 g2bench2_release_marker
-	dc.b	'GloomBench Reforged v2.2 / c87b80p-bench1 standalone',0
+	dc.b	'GloomBench Reforged v2.3.2 / c87b82-bench1 standalone',0
 	even
 
 g2bench2_state		dc	0	;0 idle, 1 warmup, 2 measured, 3 finished
@@ -52425,14 +52534,16 @@ g2bench2_result_name
 
 ; Fixed-width result fields are filled immediately before output.
 g2bench2_result_buffer
-	dc.b	'GLOOMBENCH REFORGED 2.2',10
-	dc.b	'BUILD=c87b80p-bench1',10
+	dc.b	'GLOOMBENCH REFORGED 2.3.2',10
+	dc.b	'BUILD=c87b82-bench1',10
 	dc.b	'GAME='
 g2bench2_result_game	ds.b	16
 	dc.b	10,'DISPLAY='
 g2bench2_result_display	ds.b	3
 	dc.b	10,'OUTPUT='
 g2bench2_result_output	ds.b	12
+	dc.b	10,'P96_BUFFERING='
+g2bench232_result_buffering	ds.b	6
 	dc.b	10,'CPU=680'
 g2bench2_result_cpu_digit	ds.b	1
 	dc.b	'0',10,'REFRESH='
@@ -52496,6 +52607,9 @@ g2bench2_display_ecs	dc.b	'ECS'
 g2bench2_output_aga	dc.b	'8BPL C2P    '
 g2bench2_output_p96	dc.b	'CLUT8 DIRECT'
 g2bench2_output_ecs	dc.b	'6BPL C2P    '
+g2bench232_buffering_single	dc.b	'SINGLE'
+g2bench232_buffering_double	dc.b	'DOUBLE'
+g2bench232_buffering_na	dc.b	'N/A   '
 	even
 
 ; Replaces normal config loading. DISPLAY selection has already happened from
@@ -52881,6 +52995,22 @@ g2bench2_write_result
 	move.l	a2,a0
 	lea	g2bench2_result_output(pc),a1
 	moveq	#11,d0
+	jsr	g2bench2_copy_fixed
+
+	; Report effective output, not the requested switch or detected name.
+	; Filled once at result time; no per-frame diagnostics or extra file.
+	lea	g2bench232_buffering_na(pc),a0
+	cmp	#2,g2display_mode
+	bne.s	.g2b232_buffering_ready
+	tst	p96gameplay_persist_active
+	beq.s	.g2b232_buffering_ready
+	lea	g2bench232_buffering_single(pc),a0
+	tst	p96gameplay_dbuf_active
+	beq.s	.g2b232_buffering_ready
+	lea	g2bench232_buffering_double(pc),a0
+.g2b232_buffering_ready
+	lea	g2bench232_result_buffering(pc),a1
+	moveq	#5,d0
 	jsr	g2bench2_copy_fixed
 
 	; CPU capability marker: 020/030/040/060.
@@ -53455,7 +53585,7 @@ g2bench_p96diag_filename
         even
 
 g2bench_p96diag_header
-        dc.b    '*** GLOOMBENCH V2.2 P96 MODE DIAGNOSTICS ***',10
+        dc.b    '*** GLOOMBENCH V2.3.2 P96 MODE DIAGNOSTICS ***',10
         dc.b    'Diagnostic only: benchmark and renderer paths are unchanged.',10
         dc.b    'Reject bits: 01 invalid, 02 width, 04 height, 08 not-P96,',10
         dc.b    '10 not-CLUT, 20 depth, 40 bytes/pixel, 80 bits/pixel.',10,10,0

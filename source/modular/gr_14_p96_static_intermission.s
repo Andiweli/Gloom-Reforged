@@ -1133,6 +1133,15 @@ g2p96_gameplay_dbuf_init
 	clr.l	p96gameplay_dbuf_safeport
 	clr.l	p96gameplay_dbuf_dispport
 	clr.l	p96gameplay_dbuf_rport_orig
+	; P96SINGLE, IndiECS or Warp/csgfx: no second bitmap/reply ports.
+	cmp	#2,g2display_mode
+	bne.s	.single_checked
+	tst	g2p96_single_buffer
+	bne.w	.done
+	jsr	g2p96_auto_single_board
+	tst.l	d0
+	bne.w	.done
+.single_checked
 	move.l	p96winprobe_screen_ptr,d0
 	beq.w	.fail
 	move.l	p96gameplay_intbase,d0
@@ -1197,11 +1206,11 @@ g2p96_gameplay_dbuf_init
 	rts
 
 g2p96_gameplay_dbuf_poll_port
-	movem.l	d1-d2/a0-a1/a6,-(a7)
-	move.l	a0,a1
+	movem.l	d1-d2/a0-a2/a6,-(a7)
+	move.l	a0,a2
 	moveq	#7,d2
 .poll
-	move.l	a1,a0
+	move.l	a2,a0
 	move.l	4.w,a6
 	jsr	-372(a6)	;GetMsg
 	tst.l	d0
@@ -1211,13 +1220,19 @@ g2p96_gameplay_dbuf_poll_port
 	move.l	d0,a6
 	jsr	-270(a6)	;WaitTOF
 	dbf	d2,.poll
+	; Check the reply delivered during the final WaitTOF as well.
+	move.l	a2,a0
+	move.l	4.w,a6
+	jsr	-372(a6)
+	tst.l	d0
+	bne	.got
 .fail
 	moveq	#0,d0
 	bra	.done
 .got
 	moveq	#-1,d0
 .done
-	movem.l	(a7)+,d1-d2/a0-a1/a6
+	movem.l	(a7)+,d1-d2/a0-a2/a6
 	rts
 
 g2p96_gameplay_dbuf_wait_safe
@@ -1432,6 +1447,10 @@ g2p96_gameplay_dbuf_resume
 	movem.l	d0/a0-a1,-(a7)
 	tst	p96gameplay_dbuf_active
 	beq.w	.done
+	; v2.3.1: enter_gameplay is also called after every present.
+	; Only a real suspended->running transition may change draw ownership.
+	tst	p96gameplay_dbuf_suspended
+	beq.w	.done
 	jsr	g2p96_gameplay_dbuf_restore_rport_original
 	clr	p96gameplay_dbuf_suspended
 	; The frozen front buffer remains current.  Render the first resumed frame
@@ -1439,8 +1458,8 @@ g2p96_gameplay_dbuf_resume
 	move	p96gameplay_dbuf_current,d0
 	eor	#1,d0
 	move	d0,p96gameplay_dbuf_draw
-	clr	p96gameplay_dbuf_safe_pending
-	clr	p96gameplay_dbuf_disp_pending
+	; Never manufacture acknowledgement: pending replies belong to the
+	; next wait_safe/wait_disp, including a previously failed suspend.
 .done
 	movem.l	(a7)+,d0/a0-a1
 	rts
@@ -2726,6 +2745,16 @@ g2tok_measure
 	bra.s	g2tok_measure
 
 g2tok_compare
+	cmp #9,d6
+	bne.s .not_single
+	move.l a2,a3
+	lea g2tok_p96single,a4
+	jsr g2tok_equal
+	tst d0
+	beq.s .not_single
+	move.w #-1,g2p96_single_buffer
+	bra g2tok_next
+.not_single
 	; c87b70l: variable-length assignment token. The helper returns nonzero
 	; whenever the P96MODEID= prefix was consumed, valid or malformed.
 	jsr	g2tok_try_p96modeid
@@ -2952,3 +2981,79 @@ g2displaymode_validate
 	movem.l	(a7)+,d1-d7/a0-a6
 	rts
 
+
+; Optional P96 override; other boards remain double buffered by default.
+g2p96_single_buffer dc.w 0
+g2tok_p96single dc.b 'P96SINGLE'
+ even
+
+; c87b82: identify the board of the actual opened P96 screen.
+; Return d0=-1 for exact IndiECS or csgfx names (case-insensitive).
+; csgfx is the shared CS-Lab Warp RTG driver, not a ModeID or filename test.
+; Keep the explicit P96SINGLE preference separate: reevaluate on every open.
+; Unknown boards or missing attributes retain the normal double-buffer path.
+g2p96_auto_single_board
+ movem.l d1-d2/a0-a2/a6,-(a7)
+ cmp #2,g2display_mode
+ bne .no
+ tst.l p96base
+ beq .no
+ move.l p96gameplay_grbase,d0
+ beq .no
+ move.l d0,a6
+ move.l p96winprobe_screen_ptr,d0
+ beq .no
+ move.l d0,a0
+ lea 44(a0),a0
+ jsr -792(a6) ; GetVPModeID(Screen.ViewPort)
+ cmp.l #-1,d0
+ beq .no
+ move.l d0,d2
+ move.l p96base,a6
+ moveq #6,d1 ; P96IDA_ISP96
+ jsr -84(a6)
+ tst.l d0
+ beq .no
+ move.l d2,d0
+ moveq #9,d1 ; P96IDA_BOARDNAME
+ jsr -84(a6)
+ tst.l d0
+ beq .no
+ cmp.l #-1,d0
+ beq .no
+ move.l d0,a2 ; retain the board-name pointer for the second exact match
+ move.l a2,a0
+ lea g2p96_indiecs_name,a1
+ bsr.s .match_name
+ tst.l d0
+ bne.s .done
+ move.l a2,a0
+ lea g2p96_csgfx_name,a1
+ bsr.s .match_name
+ bra.s .done
+.no
+ moveq #0,d0
+.done
+ movem.l (a7)+,d1-d2/a0-a2/a6
+ rts
+
+; a0=driver name, a1=lowercase expected name. Never accept a partial name.
+.match_name
+ move.b (a1)+,d1
+ beq.s .name_end
+ move.b (a0)+,d0
+ or.b #$20,d0
+ cmp.b d1,d0
+ bne.s .name_no
+ bra.s .match_name
+.name_end
+ tst.b (a0) ; exact name, do not accept prefixes or suffixes
+ bne.s .name_no
+ moveq #-1,d0
+ rts
+.name_no
+ moveq #0,d0
+ rts
+g2p96_indiecs_name dc.b 'indiecs',0
+g2p96_csgfx_name dc.b 'csgfx',0
+ even
