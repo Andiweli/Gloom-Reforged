@@ -1277,7 +1277,7 @@ readjoys	;fill in appropriate 'joyxn' block...check escape
 
 lrnd	dc	0
 
-vbhandler	jsr g2diag_vblank_begin
+vbhandler	;
 	movem.l	d2-d7/a2-a6,-(a7)
 	;
 	subq	#1,(a1)+	;inc/dec frame counters
@@ -1452,7 +1452,7 @@ g2_onehit_damage	; in/out d0=damage, a0=attacker, a5=victim
 	;
 exit_vb	st	doneflag
 	;
-exit_vb2	jsr g2diag_vblank_end
+exit_vb2	;
 	st	showflag
 	;
 	movem.l	(a7)+,d2-d7/a2-a6

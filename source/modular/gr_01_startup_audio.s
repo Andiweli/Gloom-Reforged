@@ -73,7 +73,6 @@ wb	;
 	cmp.l	#$1a6548-$c000,d0 ;enough memory to run gloom?
 	bcs	nomem
 	;
-	jsr g2diag_init
 	jsr	initmain
 	tst	g2p96_fatal_open_error_c87b79o
 	bne.w	exittoos		;c87b79o: selected P96 failed, never open a native display behind it
@@ -151,6 +150,7 @@ wb	;
 ; c87b80t: remove the producer before stopping/freeing its consumers.
 ; VBlank can restart queued SFX and call the MED player even while paused.
 exittoos	jsr	finitvbint
+	jsr	g2automap_reset
 	tst	g2exit_med_initialized
 	beq.s	.music_stopped
 	clr	g2exit_med_initialized
@@ -173,8 +173,7 @@ exittoos	jsr	finitvbint
 	endc
 	;
 ; Shared final cleanup also covers launcher Cancel and pre-init failures.
-nomem	jsr g2diag_finish
-	jsr	g2p96_close
+nomem	jsr	g2p96_close
 	tst.b	g2exit_windowptr_set
 	beq.s	.windowptr_done
 	clr.b	g2exit_windowptr_set

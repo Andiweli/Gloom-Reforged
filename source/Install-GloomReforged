@@ -1,4 +1,4 @@
-; Gloom Reforged v2.3.2 - Installer 43.3 or newer
+; Gloom Reforged v2.4.0 - Installer 43.3 or newer
 ; Keep this script (and its project icon) next to the Setup drawer.
 ; No game data or binaries are embedded in this script.
 
@@ -20,7 +20,7 @@
 (set #source-root (pathonly (expandpath @icon)))
 (set #setup (tackon #source-root "Setup"))
 
-(welcome "Install Gloom Reforged v2.3.2 into an existing game drawer.")
+(welcome "Install Gloom Reforged v2.4.0 into an existing game drawer.")
 
 ; 1. Game (one selection).
 (set #game
@@ -35,18 +35,19 @@
     (select #game "Gloom" "Gloom Deluxe" "Gloom 3" "Zombie Massacre")
 )
 
-; 2. Chipset (askchoice, not a multi-selection askoptions).
-(set #chipset
+; 2. Datafiles (one selection). Display mode is configured by the user.
+(set #install-ecs-data
     (askchoice
-        (prompt "Which chipset does your Amiga use?")
-        (help "ECS installs the matching ECS-EHB assets. AGA or P96 leaves the game assets unchanged.")
-        (choices "ECS" "AGA or P96")
-        (default 1)
+        (prompt "Which datafiles would you like to install?")
+        (help "The additional ECS/EHB option also installs the matching datafiles for the selected game. Both options copy the original icon unchanged. Activate AGA/P96/ECS yourself in the icon settings.")
+        (choices "Install only for AGA/P96 use" "Install additional ECS/EHB datafiles")
+        (default 0)
     )
 )
 (set #assets (tackon (tackon #setup "ECS-EHB-Assets") #game-drawer))
 
 ; 3. Binaries. PowerPacked filenames are preserved, including the .pp icon.
+; Copy the selected original icon unchanged for either datafile selection.
 (set #binary-kind
     (askchoice
         (prompt "Do you want to use standard binaries or binaries compressed with PowerPacker?")
@@ -93,14 +94,14 @@
 (if (<> (exists (tackon #setup "GloomUpdate")) 1)
     (abort (cat "Missing updater: " (tackon #setup "GloomUpdate")))
 )
-(if (= #chipset 0)
+(if (= #install-ecs-data 1)
     (if (<> (exists #assets) 2)
         (abort (cat "Missing ECS-EHB asset drawer: " #assets))
     )
 )
 
 ; 5. Install. A copy error must abort, never report success.
-(if (= #chipset 0)
+(if (= #install-ecs-data 1)
     (copyfiles
         (prompt "Installing ECS-EHB assets...")
         (help @copyfiles-help)

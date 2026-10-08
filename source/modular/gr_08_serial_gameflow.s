@@ -1089,6 +1089,7 @@ combatnokmenu	dc.b	1
 	even
 
 initnewgame	;
+	jsr	g2automap_reset	; new game starts with local map off
 	ifeq	combatok
 	;
 	cmp	#2,gametype
@@ -2204,6 +2205,7 @@ g2v10_player1_ok
 	clr	framecnt
 	jsr	g2hotkeys_seed	; do not inherit a held key from title/intermission
 	jsr	g2automap_seed
+	jsr	g2automap_begin_level	; rebuild cache, retain session overlay choice
 	clr	paused
 	jsr	predrawall
 	jsr	g2fps_reset	;c87a6: reset actual presented-FPS interval after buffer-prime frames
@@ -2235,6 +2237,7 @@ mainloop	; Step 2: handle option keys at a main-task frame boundary
 	beq	mainloop
 	;
 mainexit	st	paused
+	jsr	g2automap_release_level	; drop old map data, retain overlay choice
 	jsr	g2p96_display_enter_intermission	;c86zfq: central gameplay->intermission handoff
 	bsr	chatoff
 	bsr	dispoff
@@ -2272,7 +2275,8 @@ combatover	move.l	combat,a1
 	freemem	combat
 	move.l	combatpal,a1
 	freemem	combatpal
-gameover	bsr	freeiff
+gameover	jsr	g2automap_reset	; return to title ends the map session
+	bsr	freeiff
 	bra	freetiles
 levelover	;
 	move.l	player1,a5

@@ -1068,6 +1068,15 @@ g2p96_gameplay_draw_direct_clut_c87b78m
 	add	d0,d0
 .present_rows_ready
 	move	d0,g2p96_present_rows
+	; Exact packed single-player pages can bypass the per-pixel rebuild.
+	; The helper preserves the fallback registers and validates live coloffs.
+	jsr	g2p96_try_fast_clut_stage_c87b83b
+	tst.l	d0
+	bne.w	.fps_overlay
+	; c87b84b: exact 2x expansion of validated linear source pages.
+	jsr	g2p96_try_fast_scaled_clut_stage_c87b84b
+	tst.l	d0
+	bne.w	.fps_overlay
 	moveq	#0,d6
 .rowloop
 	cmp	g2p96_present_rows,d6
@@ -1253,6 +1262,7 @@ g2p96_gameplay_draw_direct_clut_c87b78m
 	bra.w	.rowloop
 
 .fps_overlay
+	jsr	g2map_overlay_draw
 	move.l	a3,a0
 	move.l	d4,d0
 	jsr	g2fps_draw_p96_clut_target_c87b78m
@@ -1280,11 +1290,6 @@ g2p96_gameplay_copy_clut_stage_to_draw_target_c87b78m
 
 ; a2=destination BitMap. The indexed stage is complete before locking.
 g2p96_gameplay_copy_clut_stage_to_bitmap_a2_c87b78m
-	jsr g2diag_copy_begin
-	jsr g2p96_gameplay_copy_clut_stage_to_bitmap_a2_c87b78m_diag_body
-	jsr g2diag_copy_end
-	rts
-g2p96_gameplay_copy_clut_stage_to_bitmap_a2_c87b78m_diag_body
 	movem.l	d1-d7/a0-a6,-(a7)
 	moveq	#0,d7
 	move.l	a2,p96gameplay_target_bitmap
@@ -2263,4 +2268,233 @@ g2p96_publish_direct_clut_rect_c87b78p
 	movem.l	(a7)+,d1-d7/a0-a6
 	rts
 
+
+; =============================================================================
+; v2.3.3 / c87b83b: card-independent exact-size RAM staging.
+; CopyMemQuick is used only with aligned addresses/size; otherwise CopyMem.
+; Scaled, non-linear and split layouts retain the original pixel builder.
+; No VRAM lock, cache policy, buffer policy or diagnostic logging is added.
+; =============================================================================
+	even
+g2p96_try_fast_clut_stage_c87b83b
+	movem.l d1-d7/a0-a6,-(a7)
+	moveq #0,d0
+	tst twowins
+	bne.w .done
+	tst p96gameplay_linear_active
+	beq.w .done
+	tst p96target_mode
+	bne.w .done
+	moveq #0,d2
+	move p96target_width,d2
+	cmp #320,d2
+	beq.w .width_ok
+	cmp #428,d2
+	bne.w .done
+.width_ok
+	cmp g2render_width,d2
+	bne.w .done
+	cmp chunkymodw,d2
+	bne.w .done
+	moveq #0,d3
+	move p96target_height,d3
+	cmp hite,d3
+	bne.w .done
+	cmp g2p96_present_rows,d3
+	bne.w .done
+	tst d3
+	beq.w .done
+	move.l chunky,a0
+	move.l a0,d1
+	beq.w .done
+	move.l p96clut_stage_ptr,a1
+	move.l a1,d1
+	beq.w .done
+	; Validate the live table, including fallback after menu/layout changes.
+	lea coloffs,a2
+	moveq #0,d4
+.offsets
+	cmp.l (a2)+,d4
+	bne.w .done
+	addq #1,d4
+	cmp d2,d4
+	blo.w .offsets
+	mulu d2,d3
+	cmp.l p96clut_stage_size,d3
+	bhi.w .done
+	move.l a0,d1
+	move.l a1,d2
+	or.l d2,d1
+	or.l d3,d1
+	and.l #3,d1
+	move.l d3,d0
+	move.l 4.w,a6
+	tst.l d1
+	bne.w .unaligned
+	jsr -630(a6) ; CopyMemQuick, CPU/OS selects implementation
+	bra.w .copied
+.unaligned
+	jsr -624(a6) ; CopyMem supports unaligned allocations
+.copied
+	moveq #-1,d0
+.done
+	movem.l (a7)+,d1-d7/a0-a6
+	rts
+
+
+; =============================================================================
+; v2.4.0 / c87b84b: fast 640x480, 640x512 and 854x480 RAM staging.
+; No source-table indirection or per-pixel geometry branches in the hot loops.
+; Both destination rows receive the same aligned word; no per-row library call.
+; Standard: 320 source bytes -> 640 pens. WIDE: adjacent source pairs yield
+; [s0,s1], [s1,s2], ... [s426,s427], exactly 1 + 426*2 + 1 = 854 pens.
+; Complete guard validation precedes the first write. All other layouts fall
+; back to the original builder. No allocation, cache change, VRAM or logging.
+; =============================================================================
+	even
+g2p96_try_fast_scaled_clut_stage_c87b84b
+	movem.l	d1-d7/a0-a6,-(a7)
+	moveq	#0,d0
+	tst	twowins
+	bne.w	.done
+	tst	p96gameplay_linear_active
+	beq.w	.done
+	moveq	#0,d2
+	move	p96target_width,d2
+	moveq	#0,d7
+	cmp	#1,p96target_mode
+	beq.w	.standard_geometry
+	cmp	#2,p96target_mode
+	bne.w	.done
+	cmp	#854,d2
+	bne.w	.done
+	tst	g2p96_wide_mode
+	beq.w	.done
+	cmp	#428,g2render_width
+	bne.w	.done
+	cmp	#428,chunkymodw
+	bne.w	.done
+	cmp	#427,g2render_last_x
+	bne.w	.done
+	cmp	#240,hite
+	bne.w	.done
+	move	#428,d7
+	bra.w	.common_geometry
+.standard_geometry
+	cmp	#640,d2
+	bne.w	.done
+	tst	g2p96_wide_mode
+	bne.w	.done
+	cmp	#320,g2render_width
+	bne.w	.done
+	cmp	#320,chunkymodw
+	bne.w	.done
+	cmp	#319,g2render_last_x
+	bne.w	.done
+	cmp	#240,hite
+	beq.s	.standard_rows_ok
+	cmp	#256,hite
+	bne.w	.done
+.standard_rows_ok
+	move	#320,d7
+.common_geometry
+	moveq	#0,d3
+	move	hite,d3
+	cmp	g2p96_present_rows,d3
+	bne.w	.done
+	move.l	d3,d1
+	add	d1,d1
+	cmp	p96target_height,d1
+	bne.w	.done
+	mulu	d2,d1
+	cmp.l	p96clut_stage_size,d1
+	bhi.w	.done
+	move.l	chunky,a0
+	move.l	a0,d1
+	beq.w	.done
+	move.l	p96clut_stage_ptr,a1
+	move.l	a1,d1
+	beq.w	.done
+	btst	#0,d1	; every destination row and word must be even-aligned
+	bne.w	.done
+	lea	coloffs,a2
+	moveq	#0,d4
+.check_columns
+	cmp.l	(a2)+,d4
+	bne.w	.done
+	addq	#1,d4
+	cmp	d7,d4
+	blo.s	.check_columns
+	move.l	a1,a2
+	adda.w	d2,a2
+	subq	#1,d3	; source rows minus one for DBF
+	moveq	#0,d0
+	cmp	#428,d7
+	beq.w	.wide_row
+	lea	g2resolution_dupbyte_table,a4
+.standard_row
+	moveq	#79,d5	; 80 groups of four source pixels
+.standard_pixels
+	move.b	(a0)+,d0
+	move.w	0(a4,d0.w*2),d1
+	move.w	d1,(a1)+
+	move.w	d1,(a2)+
+	move.b	(a0)+,d0
+	move.w	0(a4,d0.w*2),d1
+	move.w	d1,(a1)+
+	move.w	d1,(a2)+
+	move.b	(a0)+,d0
+	move.w	0(a4,d0.w*2),d1
+	move.w	d1,(a1)+
+	move.w	d1,(a2)+
+	move.b	(a0)+,d0
+	move.w	0(a4,d0.w*2),d1
+	move.w	d1,(a1)+
+	move.w	d1,(a2)+
+	dbf	d5,.standard_pixels
+	adda.w	d2,a1
+	adda.w	d2,a2
+	dbf	d3,.standard_row
+	bra.w	.success
+.wide_row
+	move.b	(a0)+,d0	; preload first edge pixel, consume remaining 427 below
+	moveq	#60,d5	; 61 groups of seven adjacent source pairs
+.wide_pixels
+	lsl.w	#8,d0
+	move.b	(a0)+,d0
+	move.w	d0,(a1)+
+	move.w	d0,(a2)+
+	lsl.w	#8,d0
+	move.b	(a0)+,d0
+	move.w	d0,(a1)+
+	move.w	d0,(a2)+
+	lsl.w	#8,d0
+	move.b	(a0)+,d0
+	move.w	d0,(a1)+
+	move.w	d0,(a2)+
+	lsl.w	#8,d0
+	move.b	(a0)+,d0
+	move.w	d0,(a1)+
+	move.w	d0,(a2)+
+	lsl.w	#8,d0
+	move.b	(a0)+,d0
+	move.w	d0,(a1)+
+	move.w	d0,(a2)+
+	lsl.w	#8,d0
+	move.b	(a0)+,d0
+	move.w	d0,(a1)+
+	move.w	d0,(a2)+
+	lsl.w	#8,d0
+	move.b	(a0)+,d0
+	move.w	d0,(a1)+
+	move.w	d0,(a2)+
+	dbf	d5,.wide_pixels
+	adda.w	d2,a1
+	adda.w	d2,a2
+	dbf	d3,.wide_row
+.success
+	moveq	#-1,d0
+.done
+	movem.l	(a7)+,d1-d7/a0-a6
+	rts
 

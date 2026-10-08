@@ -539,77 +539,61 @@ g2p96_static_decode_gloombrush_direct_y_c87b79x
 
 
 ; =============================================================================
-; c87b80f / RC3 - robust P96 mode-list selection
+; c87b83a - Public display database mode selection
 ;
-; pVision with Picasso96API.library 2.455 exposes all valid modes through
-; p96AllocModeListTagList(), while p96BestModeIDTagList() returns INVALID_ID
-; even for exact geometries.  The released chooser therefore obtains each
-; candidate directly from the authoritative P96 mode list, then validates the
-; DisplayID against the unchanged direct CLUT8 renderer contract.
-;
-; The compact geometry chooser remains unchanged.  Selecting a geometry now
-; uses its already validated first ModeID directly.  P96MODEID remains available
-; when a particular card/timing must be forced on a multi-board setup.
+; c87b83a: Exact candidate IDs now come from graphics.library's public
+; database, filtered through the unchanged P96 direct CLUT8 contract.
+; No P96 ModeInfo list allocation, node dereference or list release occurs.
+; First valid ID in database order wins; P96MODEID remains the explicit
+; selector when a specific card/timing is required. This is startup only.
 ; =============================================================================
 
-G2P96_RC3_MODE_WIDTH       equ 62
-G2P96_RC3_MODE_HEIGHT      equ 64
-G2P96_RC3_MODE_DEPTH       equ 66
-G2P96_RC3_MODE_DISPLAYID   equ 68
-
-        even
-g2p96_req_modelist_tags_c87b80f
-        dc.l    TAG_DONE,0
-
-; Return the first exact, genuine 8-bit CLUT ModeID for p96target_width/height.
-; Output d0.l = validated ModeID, or zero.  The allocated P96 list is always
-; released before returning.
+; c87b83a: Enumerate public ModeIDs, not driver-allocated ModeInfo nodes.
+; NextDisplayInfo is V36, D0 input/output, graphics.library vector -732.
+; The caller still probes six geometries and retains scalar IDs only.
+; No P96 list allocation/free and no assumptions about list node layouts.
+; First database match passing the existing exact CLUT8 validator wins.
+; D0 = validated ID or zero; every other register is preserved.
 g2p96_req_best_current_c87b80f
         movem.l d1-d7/a0-a6,-(a7)
         moveq   #0,d7
-        move.l  p96base,d0
+        tst.l   p96base
         beq.w   .done
-        move.l  d0,a6
-        lea     g2p96_req_modelist_tags_c87b80f,a0
-        jsr     -72(a6)                 ; p96AllocModeListTagList
+        move.l  4.w,a6
+        lea     g2p96_req_graphics_name,a1
+        moveq   #36,d0
+        jsr     -552(a6)                ; OpenLibrary(graphics.library,36)
         move.l  d0,a4
+        tst.l   d0                      ; MOVEA does not set CCR
         beq.w   .done
-
-        move.l  (a4),a3                 ; List.lh_Head
+        moveq   #-1,d6                  ; INVALID_ID starts enumeration
+        move.l  #65535,d5               ; defensive finite bound: 65536 IDs
 .loop
-        move.l  a3,d0
-        beq.s   .free
-        move.l  (a3),d0                 ; tail sentinel: ln_Succ == 0
-        beq.s   .free
-
-        moveq   #0,d0
-        move    G2P96_RC3_MODE_WIDTH(a3),d0
-        cmp     p96target_width,d0
-        bne.s   .next
-        moveq   #0,d0
-        move    G2P96_RC3_MODE_HEIGHT(a3),d0
-        cmp     p96target_height,d0
-        bne.s   .next
-        moveq   #0,d0
-        move    G2P96_RC3_MODE_DEPTH(a3),d0
-        cmp     #8,d0
-        bne.s   .next
-
-        move.l  G2P96_RC3_MODE_DISPLAYID(a3),d0
+        move.l  a4,a6
+        move.l  d6,d0
+        jsr     -732(a6)                ; NextDisplayInfo(last_ID)
+        cmp.l   #-1,d0
+        beq.w   .close
+        cmp.l   d6,d0                   ; broken iterator must not spin forever
+        beq.w   .close
+        move.l  d0,d6
+        move.l  p96base,a6
+        moveq   #G2P96_IDA_ISP96,d1
+        jsr     -84(a6)                 ; exclude native modes before CLUT queries
+        tst.l   d0
+        beq.w   .next
+        move.l  d6,d0
         jsr     g2p96_req_validate_current_c87b78j
         tst.l   d0
-        beq.s   .next
+        beq.w   .next
         move.l  d0,d7
-        bra.s   .free
-
+        bra.w   .close
 .next
-        move.l  (a3),a3
-        bra.s   .loop
-
-.free
-        move.l  a4,a0
-        move.l  p96base,a6
-        jsr     -78(a6)                 ; p96FreeModeList
+        dbf     d5,.loop
+.close
+        move.l  a4,a1
+        move.l  4.w,a6
+        jsr     -414(a6)                ; CloseLibrary: own graphics reference only
 .done
         move.l  d7,d0
         movem.l (a7)+,d1-d7/a0-a6

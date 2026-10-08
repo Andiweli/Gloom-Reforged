@@ -30,7 +30,7 @@ drawall	;
 	bra	.wait
 .waitskip	clr	doneflag
 	;
-drawall_	jsr g2diag_render_begin
+drawall_	;
 	; c87a6: FPS is measured only at the actual AGA/P96 present point
 	tst	twowins		; c54/c86m: route 2P into split path, keep normal 1P untouched
 	bne	g2twop_drawall_split
@@ -53,7 +53,6 @@ drawall_	jsr g2diag_render_begin
 	jsr	blitscene
 	;
 g2drawall_show
-	jsr g2diag_render_end
 .wait2	tst	showflag
 	bne.s	.waitskip2
 	jsr	vwait

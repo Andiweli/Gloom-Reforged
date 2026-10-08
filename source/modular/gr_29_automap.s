@@ -1,5 +1,6 @@
-; v2.3 c87b80w: TAB automap, paused first stage on every display backend.
-; Main-task only. No per-frame geometry work, configuration or interrupt drawing.
+; v2.3.3 c87b83-map3: P96 TAB cycle: full map -> live local map -> off.
+; Native ECS/AGA retain their paused map toggle. Local drawing is main-task only.
+; Main-task only. Classifications are cached; local geometry follows live walls.
 ; The raw matrix uses Amiga key $42 (TAB). Serial games cannot pause locally.
 G2MAP_W equ 320
 G2MAP_H equ 240
@@ -38,27 +39,14 @@ g2automap_poll
 	bne .done
 	tst.l player1
 	beq .done
-	; Check the zone span before allocating or changing display/pause state.
-	move.l map_poly,d0
+	tst g2map_overlay_active
+	beq .open_full_map
+	jsr g2automap_reset
+	bra .done
+.open_full_map
+	bsr g2map_allocate
+	tst.l d0
 	beq .done
-	move.l map_ppnt,d1
-	sub.l d0,d1
-	ble .done
-	move.l d1,d0
-	and.l #zo_size-1,d0
-	bne .done
-	lsr.l #5,d1
-	move.l d1,g2map_zonecount
-	move.l d1,d0
-	add.l #G2MAP_BYTES,d0
-	move.l d0,g2map_allocbytes
-	move.l #$10001,d1	; MEMF_PUBLIC | MEMF_CLEAR; prefer FastRAM
-	move.l 4.w,a6
-	jsr -198(a6)		; AllocMem
-	move.l d0,g2map_buffer
-	beq .done
-	add.l #G2MAP_BYTES,d0
-	move.l d0,g2map_flags
 	; Match the existing menu's pause semantics, with an atomic time snapshot.
 	jsr -120(a6)		; Disable (only this short state transaction)
 	move paused,g2map_saved_pause
@@ -82,6 +70,10 @@ g2automap_poll
 	move.l rawtable,a0
 	btst #2,8(a0)
 	beq .wait
+	cmp #2,g2display_mode
+	bne .restore
+	move #-1,g2map_overlay_active
+	clr g2map_overlay_pens_ready
 .restore
 	cmp #2,g2display_mode
 	beq .p96restore
@@ -97,18 +89,55 @@ g2automap_poll
 	jsr g2hotkeys_seed
 	jsr g2automap_seed
 	jsr g2fps_restart_window
-	move.l g2map_buffer,a1
-	move.l g2map_allocbytes,d0
+	tst g2map_overlay_active
+	bne .retain_cache
+	jsr g2automap_reset
+.retain_cache
 	move.l 4.w,a6
-	jsr -210(a6)		; FreeMem
-	clr.l g2map_buffer
-	clr.l g2map_flags
 	jsr -120(a6)
 	move g2map_saved_frame,framecnt
 	move g2map_saved_pause,paused
 	jsr -126(a6)
 .done
 	movem.l (a7)+,d0-d7/a0-a6
+	rts
+
+; Allocate only at a main-task map/level boundary; caller preserves registers.
+g2map_allocate
+	; Check the zone span before allocating or changing display/pause state.
+	move.l map_poly,d0
+	beq .fail
+	move.l map_ppnt,d1
+	sub.l d0,d1
+	ble .fail
+	move.l d1,d0
+	and.l #zo_size-1,d0
+	bne .fail
+	lsr.l #5,d1
+	move.l d1,g2map_zonecount
+	move.l d1,d0
+	add.l #G2MAP_BYTES,d0
+	move.l d0,g2map_allocbytes
+	move.l #$10004,d1	; MEMF_FAST | MEMF_CLEAR
+	move.l 4.w,a6
+	jsr -198(a6)		; AllocMem
+	tst.l d0
+	bne .allocated
+	move.l g2map_allocbytes,d0
+	move.l #$10001,d1	; existing PUBLIC fallback
+	jsr -198(a6)
+.allocated
+	move.l d0,g2map_buffer
+	beq .fail
+	add.l #G2MAP_BYTES,d0
+	move.l d0,g2map_flags
+	rts
+.fail
+	clr.l g2map_buffer
+	clr.l g2map_flags
+	clr.l g2map_allocbytes
+	clr.l g2map_zonecount
+	moveq #0,d0
 	rts
 
 ; Classify once per opening, from the same grid and bytecode as the engine.
@@ -842,3 +871,544 @@ g2map_pal_ecs dc.w $000,$f00,$fff,$ff0
 g2map_pal_aga dc.w $000,$000,$f00,$f00,$fff,$fff,$ff0,$ff0
 g2map_pal32 dc.l $00040000,0,0,0,$ffffffff,0,0
 	dc.l $ffffffff,$ffffffff,$ffffffff,$ffffffff,$ffffffff,0,0
+
+; c87b83-map3: transparent rotating local map in the completed CLUT stage.
+; 64x64 logical pixels, 32 world units/pixel = +/-4 grid/wall units.
+; No background, rectangle fill, VRAM access, extra upload or palette writes.
+G2MAP_LOCAL_W equ 64
+G2MAP_LOCAL_H equ 64
+G2MAP_LOCAL_C equ G2MAP_LOCAL_W/2
+
+; Session reset: TAB off, title/new game and central exit.
+g2automap_reset
+	clr g2map_overlay_active
+	; Fall through: release level resources separately from the session choice.
+g2automap_release_level
+	movem.l d0-d1/a0-a1/a6,-(a7)
+	clr g2map_overlay_pens_ready
+	move.l g2map_buffer,d0
+	beq.w .done
+	move.l d0,a1
+	move.l g2map_allocbytes,d0
+	move.l 4.w,a6
+	jsr -210(a6)
+.done
+	clr.l g2map_buffer
+	clr.l g2map_flags
+	clr.l g2map_allocbytes
+	clr.l g2map_zonecount
+	clr.l g2map_mapend
+	movem.l (a7)+,d0-d1/a0-a1/a6
+	rts
+
+
+; Rebuild classifications while the newly loaded level is still paused.
+; No full-map screen or key wait. Failed allocation/classification skips this
+; level's overlay safely; the session choice remains enabled for later levels.
+g2automap_begin_level
+	movem.l d0-d7/a0-a6,-(a7)
+	jsr g2automap_release_level
+	tst g2map_overlay_active
+	beq .done
+	cmp #2,g2display_mode
+	bne .done
+	tst linked
+	bne .done
+	bsr g2map_allocate
+	tst.l d0
+	beq .done
+	bsr g2map_classify
+	tst.l d0
+	bne .done
+	jsr g2automap_release_level
+.done
+	movem.l (a7)+,d0-d7/a0-a6
+	rts
+
+g2map_overlay_draw
+	movem.l d0-d7/a0-a6,-(a7)
+	tst g2map_overlay_active
+	beq.w .done
+	cmp #2,g2display_mode
+	bne.w .done
+	cmp #P96DSP_GAMEPLAY,p96display_state
+	bne.w .done
+	tst paused
+	bne.w .done
+	tst game_menu_active
+	bne.w .done
+	tst g2teleport_blackout
+	bne.w .done
+	tst finished
+	bne.w .done
+	tst linked
+	bne.w .done
+	tst.l g2map_flags
+	beq.w .done
+	tst.l g2map_buffer
+	beq.w .done
+	tst.l p96clut_stage_ptr
+	beq.w .done
+	cmp #1,p96clut_active_role
+	bne.w .done
+	tst p96clut_palette_dirty
+	bne.w .done
+	; Recheck the live zone span before indexing the retained classifications.
+	move.l map_poly,d0
+	beq.w .done
+	move.l map_ppnt,d1
+	sub.l d0,d1
+	ble.w .done
+	move.l d1,d0
+	and.l #31,d0
+	bne.w .done
+	lsr.l #5,d1
+	cmp.l g2map_zonecount,d1
+	bne.w .done
+	moveq #0,d0
+	move p96target_width,d0
+	cmp #320,d0
+	blo.w .done
+	moveq #0,d1
+	move p96target_height,d1
+	cmp #240,d1
+	blo.w .done
+	mulu d0,d1
+	cmp.l p96clut_stage_size,d1
+	bhi.w .done
+	move #1,g2map_overlay_scale
+	cmp #640,p96target_width
+	blo.w .scale_ready
+	cmp #480,p96target_height
+	blo.w .scale_ready
+	move #2,g2map_overlay_scale
+.scale_ready
+	jsr g2map_overlay_find_pens
+	move p96target_height,g2map_overlay_view_bottom
+	tst twowins
+	beq.w .one_player
+	lsr g2map_overlay_view_bottom
+.one_player
+	move.l player1,a5
+	jsr g2map_overlay_player
+	tst twowins
+	beq.w .done
+	move p96target_height,g2map_overlay_view_bottom
+	move.l player2,a5
+	jsr g2map_overlay_player
+.done
+	movem.l (a7)+,d0-d7/a0-a6
+	rts
+
+; Snapshot a player's integer position/rotation together (brief IRQ transaction).
+; The camera vector uses the same Q15 table words as the existing full map.
+g2map_overlay_player
+	move.l a5,d0
+	beq.w .done
+	move.l 4.w,a6
+	jsr -120(a6)
+	move ob_x(a5),d0
+	move ob_z(a5),d1
+	move ob_rot(a5),d2
+	ext.l d0
+	ext.l d1
+	move.l d0,g2map_overlay_px
+	move.l d1,g2map_overlay_pz
+	and #255,d2
+	move.l camrots,a0
+	lea 0(a0,d2.w*8),a0
+	move 2(a0),g2map_overlay_sin
+	move 6(a0),g2map_overlay_cos
+	jsr -126(a6)
+	; Lower-left of the physical viewport, with an 8-logical-pixel margin.
+	moveq #0,d0
+	move g2map_overlay_scale,d0
+	mulu #G2MAP_LOCAL_H+8,d0
+	move g2map_overlay_view_bottom,d1
+	sub d0,d1
+	bmi.w .done
+	move d1,g2map_overlay_y
+	move g2map_overlay_scale,d0
+	lsl #3,d0
+	move d0,g2map_overlay_x
+	move.l map_poly,a4
+.zone
+	jsr g2map_zone_pen
+	beq.w .next
+	moveq #0,d6
+	move.b g2map_overlay_red,d6
+	cmp #3,d7
+	bne.w .pen_ready
+	move.b g2map_overlay_yellow,d6
+.pen_ready
+	move d6,d7
+	move zo_lx(a4),d0
+	move zo_lz(a4),d1
+	move zo_rx(a4),d2
+	move zo_rz(a4),d3
+	ext.l d0
+	ext.l d1
+	ext.l d2
+	ext.l d3
+	sub.l g2map_overlay_px,d0
+	sub.l g2map_overlay_pz,d1
+	sub.l g2map_overlay_px,d2
+	sub.l g2map_overlay_pz,d3
+	; Cheap conservative world AABB reject, before four multiplies per line.
+	; A rotated +/-1024 square fits inside +/-1449, rounded outward to 1536.
+	cmp.l #-1536,d0
+	bge.w .left_ok
+	cmp.l #-1536,d2
+	blt.w .next
+.left_ok
+	cmp.l #1536,d0
+	ble.w .right_ok
+	cmp.l #1536,d2
+	bgt.w .next
+.right_ok
+	cmp.l #-1536,d1
+	bge.w .bottom_ok
+	cmp.l #-1536,d3
+	blt.w .next
+.bottom_ok
+	cmp.l #1536,d1
+	ble.w .near
+	cmp.l #1536,d3
+	bgt.w .next
+.near
+	jsr g2map_overlay_project
+	exg d0,d2
+	exg d1,d3
+	jsr g2map_overlay_project
+	jsr g2map_overlay_line
+.next
+	lea zo_size(a4),a4
+	cmpa.l map_ppnt,a4
+	blo.w .zone
+	; Small fixed upward-pointing filled arrow, drawn last over the walls.
+	moveq #0,d7
+	move.b g2map_overlay_white,d7
+	moveq #G2MAP_LOCAL_C-2,d6
+.ray
+	move d6,d0
+	moveq #G2MAP_LOCAL_C+2,d1
+	moveq #G2MAP_LOCAL_C,d2
+	moveq #G2MAP_LOCAL_C-4,d3
+	jsr g2map_overlay_line
+	addq #1,d6
+	cmp #G2MAP_LOCAL_C+2,d6
+	ble.w .ray
+.done
+	rts
+
+; Signed LONG player-relative coordinates -> logical screen WORDS.
+; Halving before MULS avoids extreme-coordinate overflow. Combined >>19
+; gives 1px/32 world units; precision loss is under one pixel.
+; right=dx*cos+dz*sin; screen-down=dx*sin-dz*cos, matching game heading.
+g2map_overlay_project
+	movem.l d2-d6,-(a7)
+	asr.l #1,d0
+	asr.l #1,d1
+	move d0,d2
+	move d1,d3
+	muls g2map_overlay_cos,d0
+	muls g2map_overlay_sin,d1
+	add.l d1,d0
+	muls g2map_overlay_sin,d2
+	muls g2map_overlay_cos,d3
+	sub.l d3,d2
+	asr.l #8,d0
+	asr.l #8,d0
+	asr.l #3,d0
+	move.l d2,d1
+	asr.l #8,d1
+	asr.l #8,d1
+	asr.l #3,d1
+	add #G2MAP_LOCAL_C,d0
+	add #G2MAP_LOCAL_C,d1
+	movem.l (a7)+,d2-d6
+	rts
+
+; Cohen-Sutherland clip, then bounded Bresenham. Every accepted line is
+; inside 0..63, so no far-wall iteration and no writes outside the rectangle.
+g2map_overlay_line
+	movem.l d0-d7/a0,-(a7)
+	move.b d7,g2map_overlay_pen
+.clip
+	jsr g2map_overlay_outcode
+	move d4,d5
+	exg d0,d2
+	exg d1,d3
+	jsr g2map_overlay_outcode
+	exg d0,d2
+	exg d1,d3
+	move d4,d6
+	and d5,d4
+	bne.w .done
+	move d5,d4
+	or d6,d4
+	beq.w .raster
+	; Always intersect the first endpoint; swap if only the second is outside.
+	tst d5
+	bne.w .outside
+	exg d0,d2
+	exg d1,d3
+	move d6,d5
+.outside
+	move d2,d4
+	sub d0,d4
+	move d3,d6
+	sub d1,d6
+	btst #2,d5
+	bne.w .top
+	btst #3,d5
+	bne.w .bottom
+	moveq #0,d5
+	cmp #0,d0
+	blt.w .vertical
+	moveq #G2MAP_LOCAL_W-1,d5
+.vertical
+	sub d0,d5
+	muls d6,d5
+	tst d4
+	beq.w .done
+	divs d4,d5
+	add d5,d1
+	cmp #0,d0
+	blt.w .left
+	moveq #G2MAP_LOCAL_W-1,d0
+	bra.w .clip
+.left
+	moveq #0,d0
+	bra.w .clip
+.top
+	moveq #0,d5
+	bra.w .horizontal
+.bottom
+	moveq #G2MAP_LOCAL_W-1,d5
+.horizontal
+	sub d1,d5
+	muls d4,d5
+	tst d6
+	beq.w .done
+	divs d6,d5
+	add d5,d0
+	cmp #0,d1
+	blt.w .up
+	moveq #G2MAP_LOCAL_H-1,d1
+	bra.w .clip
+.up
+	moveq #0,d1
+	bra.w .clip
+.raster
+	moveq #1,d4
+	moveq #1,d5
+	sub d0,d2
+	bge.w .dx
+	neg d2
+	neg d4
+.dx
+	sub d1,d3
+	bge.w .dy
+	neg d3
+	neg d5
+.dy
+	move d2,d6
+	sub d3,d6
+	move d2,-(a7)
+	cmp d3,d2
+	bge.w .loop
+	move d3,(a7)
+.loop
+	jsr g2map_overlay_pixel
+	move d6,-(a7)
+	add d6,d6
+	neg d3
+	cmp d3,d6
+	ble.w .nox
+	add d4,d0
+.nox
+	neg d3
+	cmp d2,d6
+	bge.w .noy
+	add d5,d1
+	add d2,(a7)
+.noy
+	neg d3
+	cmp d3,d6
+	ble.w .noerr
+	add d3,(a7)
+.noerr
+	neg d3
+	move (a7)+,d6
+	subq #1,(a7)
+	bpl.w .loop
+	addq.l #2,a7
+.done
+	movem.l (a7)+,d0-d7/a0
+	rts
+
+; outcode bits: left, right, top, bottom. Leaves all but d4 unchanged.
+g2map_overlay_outcode
+	moveq #0,d4
+	tst d0
+	bpl.w .right
+	or #1,d4
+.right
+	cmp #G2MAP_LOCAL_W,d0
+	blt.w .top
+	or #2,d4
+.top
+	tst d1
+	bpl.w .bottom
+	or #4,d4
+.bottom
+	cmp #G2MAP_LOCAL_H,d1
+	blt.w .done
+	or #8,d4
+.done
+	rts
+
+; Transparent pixel writer: only the selected wall/arrow pixels are touched.
+; Scaled 2x2 at HiRes, same logical geometry in every supported P96 mode.
+g2map_overlay_pixel
+	cmp #G2MAP_LOCAL_W,d0
+	bhs.w .done
+	cmp #G2MAP_LOCAL_H,d1
+	bhs.w .done
+	movem.l d0-d3/a0,-(a7)
+	move g2map_overlay_scale,d2
+	mulu d2,d0
+	mulu d2,d1
+	add g2map_overlay_x,d0
+	add g2map_overlay_y,d1
+	mulu p96target_width,d1
+	and.l #$ffff,d0
+	add.l d0,d1
+	move.l p96clut_stage_ptr,a0
+	adda.l d1,a0
+	move.b g2map_overlay_pen,d3
+	move.b d3,(a0)
+	cmp #2,d2
+	bne.w .restore
+	move.b d3,1(a0)
+	moveq #0,d1
+	move p96target_width,d1
+	move.b d3,0(a0,d1.l)
+	move.b d3,1(a0,d1.l)
+.restore
+	movem.l (a7)+,d0-d3/a0
+.done
+	rts
+
+; Palette-aware nearest red/yellow/white, cached by the live LUT inputs.
+; Uses existing gameplay pens; it never steals colours from the 256-colour scene.
+; Exact RGB colours are used when present; otherwise nearest available shades.
+g2map_overlay_find_pens
+	tst g2map_overlay_pens_ready
+	beq.w .rebuild
+	move.l p96palette_generation,d0
+	cmp.l g2map_overlay_pal_generation,d0
+	bne.w .rebuild
+	move.l p96palette_remap_generation,d0
+	cmp.l g2map_overlay_remap_generation,d0
+	bne.w .rebuild
+	move.l p96gameplay_palette_ptr,d0
+	cmp.l g2map_overlay_palette_ptr,d0
+	bne.w .rebuild
+	move p96gameplay_palette_source,d0
+	cmp g2map_overlay_palette_source,d0
+	bne.w .rebuild
+	move p96gameplay_lut_aga,d0
+	cmp g2map_overlay_palette_aga,d0
+	beq.w .done
+.rebuild
+	lea g2map_overlay_red,a2
+	moveq #31,d4
+	moveq #0,d5
+	moveq #0,d6
+	jsr g2map_overlay_nearest
+	lea g2map_overlay_yellow,a2
+	moveq #31,d4
+	moveq #63,d5
+	moveq #0,d6
+	jsr g2map_overlay_nearest
+	lea g2map_overlay_white,a2
+	moveq #31,d4
+	moveq #63,d5
+	moveq #31,d6
+	jsr g2map_overlay_nearest
+	move.l p96palette_generation,g2map_overlay_pal_generation
+	move.l p96palette_remap_generation,g2map_overlay_remap_generation
+	move.l p96gameplay_palette_ptr,g2map_overlay_palette_ptr
+	move p96gameplay_palette_source,g2map_overlay_palette_source
+	move p96gameplay_lut_aga,g2map_overlay_palette_aga
+	move #-1,g2map_overlay_pens_ready
+.done
+	rts
+
+; d4/d5/d6 = R5/G6/B5 target, a2=output byte. Prefer first exact match.
+g2map_overlay_nearest
+	lea p96gameplay_rgb565_source_lut,a0
+	move #$7fff,d3
+	moveq #0,d7
+	clr.b (a2)
+.pen
+	move (a0)+,d0
+	ror #8,d0 ; RGBFB_R5G6B5PC storage -> RGB565 components
+	move d0,d1
+	lsr #8,d1
+	lsr #3,d1
+	and #31,d1
+	sub d4,d1
+	bpl.w .red
+	neg d1
+.red
+	move d1,d2
+	move d0,d1
+	lsr #5,d1
+	and #63,d1
+	sub d5,d1
+	bpl.w .green
+	neg d1
+.green
+	add d1,d2
+	and #31,d0
+	sub d6,d0
+	bpl.w .blue
+	neg d0
+.blue
+	add d0,d2
+	cmp d3,d2
+	bhs.w .next
+	move d2,d3
+	move.b d7,(a2)
+	tst d3
+	beq.w .done
+.next
+	addq #1,d7
+	cmp #256,d7
+	blo.w .pen
+.done
+	rts
+
+	even
+g2map_overlay_active dc.w 0
+g2map_overlay_pens_ready dc.w 0
+g2map_overlay_scale dc.w 1
+g2map_overlay_view_bottom dc.w 0
+g2map_overlay_x dc.w 0
+g2map_overlay_y dc.w 0
+g2map_overlay_px dc.l 0
+g2map_overlay_pz dc.l 0
+g2map_overlay_sin dc.w 0
+g2map_overlay_cos dc.w 0
+g2map_overlay_pal_generation dc.l 0
+g2map_overlay_remap_generation dc.l 0
+g2map_overlay_palette_ptr dc.l 0
+g2map_overlay_palette_source dc.w 0
+g2map_overlay_palette_aga dc.w 0
+g2map_overlay_red dc.b 0
+g2map_overlay_yellow dc.b 0
+g2map_overlay_white dc.b 0
+g2map_overlay_pen dc.b 0

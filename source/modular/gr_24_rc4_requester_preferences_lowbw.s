@@ -436,6 +436,8 @@ g2rc4_p96_req_custom_draw_v21
         move.l  g2p96_req_custom_grbase,a6
         moveq   #G2P96_REQ_PEN_BG,d0
         jsr     -348(a6)
+        move.l  g2p96_req_custom_window,a0
+        move.l  50(a0),a1        ; c87b83: A1 is scratch
         moveq   #0,d0
         jsr     -354(a6)
 

@@ -1,6 +1,18 @@
-; GloomBench v2.3.2 / c87b82-bench1
-; Renderer baseline: hardware-tested Gloom Reforged v2.2 renderer, unchanged.
-; P96 output: v2.3.1 reply synchronization + v2.3.2 IndiECS/csgfx policy.
+; GloomBench v2.4.0 / c87b84b-perf2 -- diagnostic A/B, not a game release.
+; Assemble with -DG2BENCH_STAGE_FAST=0 (BASE) or =1 (FAST).
+; FAST is the default: released 2.4.0 exact-size and scaled P96 RAM staging.
+; BASE=0 keeps the original per-pixel staging for controlled A/B comparisons.
+; Startup ModeIDs and diagnostics use the public graphics.library database.
+; Profiling uses timer.device ReadEClock; no file I/O in measured frames.
+; Counts/ticks exclude 16 warmup frames and reset on option/menu restarts.
+; All profiling wrappers preserve D0-D7/A0-A6 and CCR, including library results.
+; Nested intervals are documented in README; do not sum every counter.
+; timer.device failure disables timing without disabling the benchmark.
+	ifnd G2BENCH_STAGE_FAST
+G2BENCH_STAGE_FAST equ 1
+	endc
+; Scene renderer unchanged; P96 RAM staging matches Gloom Reforged 2.4.0.
+; P96 output: v2.3.1 reply synchronization + v2.3.3 IndiECS/csgfx policy.
 ; P96SINGLE remains a manual override; automatic policy is per opened screen.
 ; Benchmark: supplied silent map1_1 harness and RAM: P96 diagnostics retained.
 ; F1..F7/F9/HELP use the shared edge-triggered hotkeys; F10/ESC opens the menu.
@@ -10,13 +22,12 @@
 ;       F5 blob shadows, F6 reflections, F7 view distance, F8 unused,
 ;       F9 FPS overlay, F10/ESC menu, HELP unlimited health.
 ;       Existing STOCK and Bayer/reflection restrictions still apply.
-; Result: RAM:GloomBench_result.txt plus CLI output; final effective options
+; Result: RAM:GloomBench-Perf2-BASE/FAST-result.txt plus CLI; effective options
 ;         and actual P96_BUFFERING (SINGLE/DOUBLE/N/A) are included.
 ;         Do not compare runs with different FPS/LowBW settings.
 ; Build: assemble this complete single source beside the original INCbin assets.
-; Validation: vasm 2.0f, -m68020 -no-opt -Fhunkexe; no assembly errors.
-;            Six existing label-name warnings (rts/data/offset/c2p/text/db).
-;            Restart/camera instruction model: 257 restart positions checked.
+; Validation: both production staging bodies copied unchanged from c87b84b.
+;            Original timing hooks and the 16 + 257 frame lifecycle retained.
 ;            GenAm 3.18 and Amiga hardware validation still required.
 ; Smoke test: AGA/ECS/P96; tap each F-key, hold one key (one change only),
 ;             open F10 menu, change options repeatedly, return and use F1 again.
@@ -980,8 +991,8 @@ exone	equ	1<<exshft
 exhalf	equ	exone>>1
 
 	jmp	entrypoint
-	; v2.3.2: public release marker; ECS/AGA/P96 remain official runtime paths.
-g2release_marker	dc.b	'GloomBench v2.3.2 (c87b82-bench1) by Andreas ',39,'Andiweli',39,' Stuermer',0
+	; v2.3.3: public release marker; ECS/AGA/P96 remain official runtime paths.
+g2release_marker	dc.b	'GloomBench v2.4.0 (c87b84b-perf2) by Andreas ',39,'Andiweli',39,' Stuermer',0
 	even
 
 	rsreset
@@ -1625,6 +1636,7 @@ wb	;
 	tst	g2p96_fatal_open_error_c87b79o
 	bne.w	exittoos		;c87b79o: selected P96 failed, never open a native display behind it
 	jsr	g2bench2_configure	; benchmark defaults, independent of gameplay config
+	jsr	g2bp_init
 	jsr	g2stock_capture_cfg_options	;c87b67: preserve saved choices before STOCK overlay
 	jsr	g2stock_enforce_effects_off	;c87b67: runtime only; gloom.cfg remains unchanged
 	jsr	g2basic_log_reset	;c87b26: create RAM:gloom_basic.log + startup snapshot
@@ -1711,7 +1723,8 @@ exittoos	jsr	g2p96_display_shutdown	;c86zfq: central shutdown display-state clos
 	jsr	undir
 	endc
 	;
-nomem	move.l	wbmess,d0
+nomem	jsr	g2bp_close
+	move.l	wbmess,d0
 	beq.s	.bye
 	;
 	move.l	4.w,a6
@@ -3913,6 +3926,7 @@ predrawall	;draw up everything....
 	bra	drawall_
 
 drawall	;
+	jsr	g2bp_wait_done_start
 	; Keep the cheap hardware guard each frame, without repeating SetPointer.
 	; Intuition pointer setup remains at window/input/rebuild boundaries.
 	move	#$0020,$dff096
@@ -3921,8 +3935,10 @@ drawall	;
 	jsr	vwait
 	bra	.wait
 .waitskip	clr	doneflag
+	jsr	g2bp_wait_done_end
 	;
 drawall_	; c87a6: FPS is measured only at the actual AGA/P96 present point
+	jsr	g2bp_render_start
 	tst	twowins		; c54/c86m: route 2P into split path, keep normal 1P untouched
 	bne	g2twop_drawall_split
 	move.l	player1,player_	; Patch10 GenAm fix: absolute source
@@ -3944,11 +3960,14 @@ drawall_	; c87a6: FPS is measured only at the actual AGA/P96 present point
 	jsr	blitscene
 	;
 g2drawall_show
+	jsr	g2bp_render_end
+	jsr	g2bp_wait_show_start
 .wait2	tst	showflag
 	bne.s	.waitskip2
 	jsr	vwait
 	bra	.wait2
 .waitskip2	; c87a6: measure only the real presented-frame interval below
+	jsr	g2bp_wait_show_end
 	; c87b78b: native P96 gameplay owner/presenter. A successful P96 copy skips
 	; the planar doc2p/db present. The non-P96 and explicit failure rollback paths
 	; remain unchanged; no removed legacy ToolType is consulted here.
@@ -3961,8 +3980,10 @@ g2drawall_show
 .g2c86zfa_do_aga_present
 	jsr	g2fps_update_present	;c87a7: count actual AGA presents in one-second window
 	jsr	g2fps_draw_chunky	;c87a6: current two-digit white 5x7 FPS before AGA C2P
+	jsr	g2bp_native_present_start
 	jsr	doc2p
 	jsr	db
+	jsr	g2bp_native_present_end
 	jsr	g2twop_restore_after_c2p	;c54/c86m: restore user view globals after split C2P
 	clr	showflag
 	rts
@@ -33167,10 +33188,12 @@ g2p96_gameplay_persistent_update
 	beq	.fail_bitmap
 	clr	p96gameplay_direct_state
 	tst	p96gameplay_dbuf_active
-	beq.s	.draw
+	beq.w	.draw
 	tst	p96gameplay_dbuf_suspended
-	bne.s	.draw
+	bne.w	.draw
+	jsr	g2bp_safe_wait_start
 	jsr	g2p96_gameplay_dbuf_wait_safe
+	jsr	g2bp_safe_wait_end
 	tst	d0
 	beq	.fail_dbuf
 .draw
@@ -33179,10 +33202,12 @@ g2p96_gameplay_persistent_update
 	tst	p96gameplay_direct_state
 	beq	.fail_bitmap
 	tst	p96gameplay_dbuf_active
-	beq.s	.frame_ok
+	beq.w	.frame_ok
 	tst	p96gameplay_dbuf_suspended
-	bne.s	.frame_ok
+	bne.w	.frame_ok
+	jsr	g2bp_flip_start
 	jsr	g2p96_gameplay_dbuf_flip
+	jsr	g2bp_flip_end
 	tst	d0
 	beq	.fail_dbuf
 .frame_ok
@@ -33194,39 +33219,39 @@ g2p96_gameplay_persistent_update
 	bra.w	.done	;c87b79d: target exceeds short-branch range
 .fail_dbuf
 	move	#10,p96gameplay_state
-	bra.s	.fail_common
+	bra.w	.fail_common
 .fail_bitmap
 	move	#9,p96gameplay_state
 .fail_common
 	clr	p96gameplay_persist_active
 	clr	p96gameplay_persist_frames
 	tst	p96gameplay_linear_active
-	beq.s	.legacy_fail
+	beq.w	.legacy_fail
 	move	#-1,p96gameplay_skip_aga_present
 	jsr	g2p96_gameplay_restore_c2p_layout
-	bra.s	.done
+	bra.w	.done
 .legacy_fail
 	; c87b79c: a failed direct WIDE TWO PLAYER present leaves a 428-byte source
 	; page that cannot be passed to the 320-wide planar C2P. Suppress this one
 	; frame; the closed P96 owner makes the next frame rebuild the 320 layout.
 	tst	g2p96_wide_mode
-	beq.s	.check_oneone
+	beq.w	.check_oneone
 	tst	twowins
-	beq.s	.check_oneone
+	beq.w	.check_oneone
 	move	#-1,p96gameplay_skip_aga_present
-	bra.s	.done
+	bra.w	.done
 .check_oneone
 	; c87p3: a failed direct present may still leave the current TWO PLAYER
 	; source in 128+128 layout. Do not pass that one frame to 240-row AGA C2P;
 	; the next frame sees the closed P96 owner and returns to 120+120 safely.
 	tst	g2p96_oneone_mode
-	beq.s	.g2c87p3_legacy_show_aga
+	beq.w	.g2c87p3_legacy_show_aga
 	tst	twowins
-	beq.s	.g2c87p3_legacy_show_aga
+	beq.w	.g2c87p3_legacy_show_aga
 	cmp	#128,g2twop_half_height
-	bne.s	.g2c87p3_legacy_show_aga
+	bne.w	.g2c87p3_legacy_show_aga
 	move	#-1,p96gameplay_skip_aga_present
-	bra.s	.done
+	bra.w	.done
 .g2c87p3_legacy_show_aga
 	clr	p96gameplay_skip_aga_present
 .done
@@ -42405,7 +42430,7 @@ g2resolution_apply_after_menu
 ; Stage 1 is a compact Intuition requester containing only supported resolutions
 ; that actually exist as exact 8-bit CLUT P96 modes on the current system.
 ; Stage 2 is the official p96RequestModeIDTagList requester, constrained to the
-; selected exact width/height, 8-bit depth and RGBFB_CLUT. GloomBench 2.3.2
+; selected exact width/height, 8-bit depth and RGBFB_CLUT. GloomBench 2.4.0
 ; no longer exposes 16-bit modes in the native P96 mode contract.
 ;
 ; Supported output geometries:
@@ -42432,7 +42457,7 @@ G2P96_MA_FORMATSALLOWED	equ	G2P96_MA_DUMMY+$0008
 G2P96_MA_WINDOWTITLE		equ	G2P96_MA_DUMMY+$000a
 G2P96_MA_OKTEXT		equ	G2P96_MA_DUMMY+$000b
 G2P96_MA_CANCELTEXT		equ	G2P96_MA_DUMMY+$000c
-G2P96_RGBFF_SUPPORTED	equ	RGBFF_CLUT	;GloomBench 2.3.2 exposes native 8-bit CLUT only
+G2P96_RGBFF_SUPPORTED	equ	RGBFF_CLUT	;GloomBench 2.4.0 exposes native 8-bit CLUT only
 G2P96_IDA_DEPTH		equ	2
 G2P96_IDA_BYTESPERPIXEL	equ	3
 G2P96_IDA_BITSPERPIXEL	equ	4
@@ -42853,7 +42878,7 @@ g2p96_req_gadget_buffer	ds.b	64
 g2p96_req_intuition_name	dc.b	'intuition.library',0
 g2p96_req_title	dc.b	'Gloom Reforged P96',0
 g2p96_req_body_prefix
-	dc.b	'GloomBench 2.3.2 uses native direct-indexed',10
+	dc.b	'GloomBench 2.4.0 uses native direct-indexed',10
 	dc.b	'8-bit Picasso96 output',10,10
 	dc.b	'Select an available P96 output size',10,10,0
 g2p96_req_body_footer
@@ -42908,7 +42933,7 @@ g2p96_req_bad_override_body
 ; Canonical build identifier kept at EOF to preserve the established placement.
 ; The former verbose P96 palette-map diagnostic block was removed in c87b79m; c87b79n makes DISPLAY=P96 the sole planar-source owner.
 ; -----------------------------------------------------------------------------
-g2build_version_text	dc.b	'2.3.2 c87b82-bench1'
+g2build_version_text	dc.b	'2.4.0 c87b84b-perf2'
 g2build_version_text_end
 g2build_version_text_len	equ	g2build_version_text_end-g2build_version_text
 
@@ -43406,6 +43431,8 @@ g2p96_req_custom_draw
 	move.l	g2p96_req_custom_grbase,a6
 	moveq	#G2P96_REQ_PEN_BG,d0
 	jsr	-348(a6)			; SetBPen
+	move.l	g2p96_req_custom_window,a0
+	move.l	50(a0),a1			; A1 is scratch across library calls
 	moveq	#0,d0
 	jsr	-354(a6)			; SetDrMd(JAM1)
 
@@ -43783,6 +43810,8 @@ g2p96_req_custom_rect
 	move.l	g2p96_req_custom_grbase,a6
 	move	d4,d0
 	jsr	-342(a6)			; SetAPen (d2-d7 preserved)
+	move.l	g2p96_req_custom_window,a0
+	move.l	50(a0),a1			; c87b83: reload RastPort for RectFill
 	move	d5,d0
 	move	d6,d1
 	move	d7,d2
@@ -43805,6 +43834,8 @@ g2p96_req_custom_text
 	move.l	g2p96_req_custom_grbase,a6
 	move	d7,d0
 	jsr	-342(a6)			; SetAPen
+	move.l	g2p96_req_custom_window,a0
+	move.l	50(a0),a1			; c87b83: reload RastPort for Move
 	move	d5,d0
 	move	d6,d1
 	jsr	-240(a6)			; Move
@@ -43895,7 +43926,7 @@ g2p96_req_custom_title	dc.b	'Gloom Reforged P96'
 g2p96_req_custom_title_end
 g2p96_req_custom_title_len	equ	g2p96_req_custom_title_end-g2p96_req_custom_title
 
-g2p96_req_custom_warning1	dc.b	'GloomBench v2.3.2'
+g2p96_req_custom_warning1	dc.b	'GloomBench v2.4.0'
 g2p96_req_custom_warning1_end
 g2p96_req_custom_warning1_len	equ	g2p96_req_custom_warning1_end-g2p96_req_custom_warning1
 	dcb.b	10,0			; preserve established binary spacing
@@ -46741,6 +46772,7 @@ g2p96_gameplay_draw_dispatch_c87b78m
 ; while rendering/scaling and no RGB565 intermediate page is written.
 g2p96_gameplay_draw_direct_clut_c87b78m
 	movem.l	d0-d7/a0-a6,-(a7)
+	jsr	g2bp_stage_start
 	clr	p96gameplay_direct_state
 	cmp.l	#RGBFB_CLUT,p96modeid_rgbformat
 	bne.w	.done
@@ -46766,7 +46798,9 @@ g2p96_gameplay_draw_direct_clut_c87b78m
 	move	d4,p96gameplay_stage_bpr
 
 	; Generation-cached: installs exact pen i for renderer byte i when needed.
+	jsr	g2bp_palette_start
 	jsr	g2p96_gameplay_build_rgb565_source_lut
+	jsr	g2bp_palette_end
 	cmp	#1,p96clut_active_role
 	bne.w	.done
 	tst	p96clut_palette_dirty
@@ -46780,11 +46814,16 @@ g2p96_gameplay_draw_direct_clut_c87b78m
 	bmi.w	.fps_overlay
 	nop
 	tst	twowins
-	beq.s	.present_rows_ready
+	beq.w	.present_rows_ready
 	move	g2twop_half_height,d0
 	add	d0,d0
 .present_rows_ready
 	move	d0,g2p96_present_rows
+	ifne G2BENCH_STAGE_FAST
+	jsr	g2bp_try_fast_stage
+	tst.l	d0
+	bne.w	.fps_overlay
+	endc
 	moveq	#0,d6
 .rowloop
 	cmp	g2p96_present_rows,d6
@@ -46796,23 +46835,23 @@ g2p96_gameplay_draw_direct_clut_c87b78m
 	move	d6,d0
 	move	p96target_mode,d1
 	cmp	#1,d1
-	beq.s	.double_y
+	beq.w	.double_y
 	cmp	#2,d1
-	beq.s	.double_y
-	bra.s	.low_y
+	beq.w	.double_y
+	bra.w	.low_y
 .double_y
 	add	d0,d0
 .low_y
 	tst	g2p96_oneone_mode
-	beq.s	.y_ready
+	beq.w	.y_ready
 	cmp	#256,g2p96_present_rows
-	beq.s	.y_ready
+	beq.w	.y_ready
 	tst	p96gameplay_linear_active
-	bne.s	.y_ready
+	bne.w	.y_ready
 	tst	g2p96_hires_mode
-	beq.s	.y_low
+	beq.w	.y_low
 	add	#16,d0
-	bra.s	.y_ready
+	bra.w	.y_ready
 .y_low
 	addq	#8,d0
 .y_ready
@@ -46821,17 +46860,17 @@ g2p96_gameplay_draw_direct_clut_c87b78m
 	adda.l	d0,a1
 	move.l	a1,a0
 	cmp	#1,d1
-	beq.s	.add_row2
+	beq.w	.add_row2
 	cmp	#2,d1
-	beq.s	.add_row2
-	bra.s	.dispatch
+	beq.w	.add_row2
+	bra.w	.dispatch
 .add_row2
 	adda.l	d4,a0
 .dispatch
 	tst	g2p96_wide_mode
-	beq.s	.standard_dispatch
+	beq.w	.standard_dispatch
 	tst	p96gameplay_linear_active
-	beq.s	.standard_dispatch
+	beq.w	.standard_dispatch
 	cmp	#2,p96target_mode
 	beq	.copy_wide_2x
 	bra	.copy_wide_1x
@@ -46854,7 +46893,7 @@ g2p96_gameplay_draw_direct_clut_c87b78m
 	move.b	0(a2,d0.l),d1
 	move.b	d1,(a1)+
 	addq	#1,d7
-	bra.s	.wide1_loop
+	bra.w	.wide1_loop
 
 .copy_wide_2x
 	moveq	#0,d7
@@ -46868,17 +46907,17 @@ g2p96_gameplay_draw_direct_clut_c87b78m
 	move.b	d2,(a1)+
 	move.b	d2,(a0)+
 	cmp	#428,g2render_width
-	bne.s	.wide2_dup
+	bne.w	.wide2_dup
 	tst	d7
-	beq.s	.wide2_next
+	beq.w	.wide2_next
 	cmp	d3,d7
-	beq.s	.wide2_next
+	beq.w	.wide2_next
 .wide2_dup
 	move.b	d2,(a1)+
 	move.b	d2,(a0)+
 .wide2_next
 	addq	#1,d7
-	bra.s	.wide2_loop
+	bra.w	.wide2_loop
 
 .copy_1x
 	moveq	#0,d7
@@ -46890,7 +46929,7 @@ g2p96_gameplay_draw_direct_clut_c87b78m
 	move.b	0(a2,d0.l),d1
 	move.b	d1,(a1)+
 	addq	#1,d7
-	bra.s	.copy1_loop
+	bra.w	.copy1_loop
 
 .copy_2x
 	moveq	#0,d7
@@ -46905,7 +46944,7 @@ g2p96_gameplay_draw_direct_clut_c87b78m
 	move.b	d2,(a0)+
 	move.b	d2,(a0)+
 	addq	#1,d7
-	bra.s	.copy2_loop
+	bra.w	.copy2_loop
 
 .copy_scaled_480
 	moveq	#0,d7
@@ -46926,9 +46965,9 @@ g2p96_gameplay_draw_direct_clut_c87b78m
 	addq	#1,d2
 	sub	#320,d3
 	cmp	#320,d3
-	bhs.s	.scaled480_emit
+	bhs.w	.scaled480_emit
 	addq	#1,d7
-	bra.s	.scaled480_src_loop
+	bra.w	.scaled480_src_loop
 
 .copy_scaled_240
 	moveq	#0,d7
@@ -46948,9 +46987,9 @@ g2p96_gameplay_draw_direct_clut_c87b78m
 	addq	#1,d2
 	sub	#320,d3
 	cmp	#320,d3
-	bhs.s	.scaled240_emit
+	bhs.w	.scaled240_emit
 	addq	#1,d7
-	bra.s	.scaled240_src_loop
+	bra.w	.scaled240_src_loop
 
 .scaled240_hud_overlay
 	lea	-80(a1),a1
@@ -46963,7 +47002,7 @@ g2p96_gameplay_draw_direct_clut_c87b78m
 	move.b	0(a2,d0.l),d1
 	move.b	d1,(a1)+
 	addq	#1,d7
-	bra.s	.hud240_loop
+	bra.w	.hud240_loop
 
 .nextrow
 	addq	#1,d6
@@ -46973,11 +47012,13 @@ g2p96_gameplay_draw_direct_clut_c87b78m
 	move.l	a3,a0
 	move.l	d4,d0
 	jsr	g2fps_draw_p96_clut_target_c87b78m
+	jsr	g2bp_stage_end
 	jsr	g2p96_gameplay_copy_clut_stage_to_draw_target_c87b78m
 	tst.l	d0
 	beq.w	.done
 	move	#-1,p96gameplay_direct_state
 .done
+	jsr	g2bp_stage_end
 	movem.l	(a7)+,d0-d7/a0-a6
 	rts
 
@@ -47012,7 +47053,9 @@ g2p96_gameplay_copy_clut_stage_to_bitmap_a2_c87b78m
 	move.l	a2,a0
 	lea	p96gameplay_renderinfo,a1
 	moveq	#12,d0
+	jsr	g2bp_lock_start
 	jsr	-48(a6)
+	jsr	g2bp_lock_end
 	move.l	d0,p96gameplay_target_lock
 	beq.w	.done
 	move.l	p96gameplay_ri_memory,a5
@@ -47028,9 +47071,13 @@ g2p96_gameplay_copy_clut_stage_to_bitmap_a2_c87b78m
 	cmp.l	#RGBFB_CLUT,p96gameplay_ri_format
 	bne.w	.unlock
 	move.l	p96clut_stage_ptr,a4
+	move.l	a5,g2bp_target_memory
+	move.l	d3,g2bp_target_pitch
+	move.l	p96gameplay_ri_format,g2bp_target_format
+	jsr	g2bp_upload_start
 
 	cmp.l	d4,d3
-	bne.s	.row_copy
+	bne.w	.row_copy
 	moveq	#0,d0
 	move	p96target_height,d0
 	mulu	d4,d0
@@ -47041,23 +47088,23 @@ g2p96_gameplay_copy_clut_stage_to_bitmap_a2_c87b78m
 	or.l	d2,d1
 	or.l	d0,d1
 	and.l	#3,d1
-	bne.s	.flat_copy
+	bne.w	.flat_copy
 	move.l	a4,a0
 	move.l	a5,a1
 	move.l	4.w,a6
 	jsr	-630(a6)
-	bra.s	.copy_ok
+	bra.w	.copy_ok
 .flat_copy
 	move.l	a4,a0
 	move.l	a5,a1
 	move.l	4.w,a6
 	jsr	-624(a6)
-	bra.s	.copy_ok
+	bra.w	.copy_ok
 
 .row_copy
 	moveq	#0,d6
 	move	p96target_height,d6
-	beq.s	.unlock
+	beq.w	.unlock
 	subq	#1,d6
 .row_loop
 	move.l	a4,a0
@@ -47069,13 +47116,17 @@ g2p96_gameplay_copy_clut_stage_to_bitmap_a2_c87b78m
 	adda.l	d3,a5
 	dbf	d6,.row_loop
 .copy_ok
+	jsr	g2bp_upload_end
 	moveq	#-1,d7
 .unlock
+	jsr	g2bp_upload_end
 	move.l	p96gameplay_target_lock,d0
 	beq.w	.done
 	move.l	p96gameplay_target_bitmap,a0
 	move.l	p96base,a6
+	jsr	g2bp_unlock_start
 	jsr	-54(a6)
+	jsr	g2bp_unlock_end
 	clr.l	p96gameplay_target_lock
 .done
 	move.l	d7,d0
@@ -51017,77 +51068,61 @@ g2p96_static_decode_gloombrush_direct_y_c87b79x
 
 
 ; =============================================================================
-; c87b80f / RC3 - robust P96 mode-list selection
+; c87b83a - Public display database mode selection
 ;
-; pVision with Picasso96API.library 2.455 exposes all valid modes through
-; p96AllocModeListTagList(), while p96BestModeIDTagList() returns INVALID_ID
-; even for exact geometries.  The released chooser therefore obtains each
-; candidate directly from the authoritative P96 mode list, then validates the
-; DisplayID against the unchanged direct CLUT8 renderer contract.
-;
-; The compact geometry chooser remains unchanged.  Selecting a geometry now
-; uses its already validated first ModeID directly.  P96MODEID remains available
-; when a particular card/timing must be forced on a multi-board setup.
+; c87b83a: Exact candidate IDs now come from graphics.library's public
+; database, filtered through the unchanged P96 direct CLUT8 contract.
+; No P96 ModeInfo list allocation, node dereference or list release occurs.
+; First valid ID in database order wins; P96MODEID remains the explicit
+; selector when a specific card/timing is required. This is startup only.
 ; =============================================================================
 
-G2P96_RC3_MODE_WIDTH       equ 62
-G2P96_RC3_MODE_HEIGHT      equ 64
-G2P96_RC3_MODE_DEPTH       equ 66
-G2P96_RC3_MODE_DISPLAYID   equ 68
-
-        even
-g2p96_req_modelist_tags_c87b80f
-        dc.l    TAG_DONE,0
-
-; Return the first exact, genuine 8-bit CLUT ModeID for p96target_width/height.
-; Output d0.l = validated ModeID, or zero.  The allocated P96 list is always
-; released before returning.
+; c87b83a: Enumerate public ModeIDs, not driver-allocated ModeInfo nodes.
+; NextDisplayInfo is V36, D0 input/output, graphics.library vector -732.
+; The caller still probes six geometries and retains scalar IDs only.
+; No P96 list allocation/free and no assumptions about list node layouts.
+; First database match passing the existing exact CLUT8 validator wins.
+; D0 = validated ID or zero; every other register is preserved.
 g2p96_req_best_current_c87b80f
         movem.l d1-d7/a0-a6,-(a7)
         moveq   #0,d7
-        move.l  p96base,d0
+        tst.l   p96base
         beq.w   .done
-        move.l  d0,a6
-        lea     g2p96_req_modelist_tags_c87b80f,a0
-        jsr     -72(a6)                 ; p96AllocModeListTagList
+        move.l  4.w,a6
+        lea     g2p96_req_graphics_name,a1
+        moveq   #36,d0
+        jsr     -552(a6)                ; OpenLibrary(graphics.library,36)
         move.l  d0,a4
+        tst.l   d0                      ; MOVEA does not set CCR
         beq.w   .done
-
-        move.l  (a4),a3                 ; List.lh_Head
+        moveq   #-1,d6                  ; INVALID_ID starts enumeration
+        move.l  #65535,d5               ; defensive finite bound: 65536 IDs
 .loop
-        move.l  a3,d0
-        beq.s   .free
-        move.l  (a3),d0                 ; tail sentinel: ln_Succ == 0
-        beq.s   .free
-
-        moveq   #0,d0
-        move    G2P96_RC3_MODE_WIDTH(a3),d0
-        cmp     p96target_width,d0
-        bne.s   .next
-        moveq   #0,d0
-        move    G2P96_RC3_MODE_HEIGHT(a3),d0
-        cmp     p96target_height,d0
-        bne.s   .next
-        moveq   #0,d0
-        move    G2P96_RC3_MODE_DEPTH(a3),d0
-        cmp     #8,d0
-        bne.s   .next
-
-        move.l  G2P96_RC3_MODE_DISPLAYID(a3),d0
+        move.l  a4,a6
+        move.l  d6,d0
+        jsr     -732(a6)                ; NextDisplayInfo(last_ID)
+        cmp.l   #-1,d0
+        beq.w   .close
+        cmp.l   d6,d0                   ; broken iterator must not spin forever
+        beq.w   .close
+        move.l  d0,d6
+        move.l  p96base,a6
+        moveq   #G2P96_IDA_ISP96,d1
+        jsr     -84(a6)                 ; exclude native modes before CLUT queries
+        tst.l   d0
+        beq.w   .next
+        move.l  d6,d0
         jsr     g2p96_req_validate_current_c87b78j
         tst.l   d0
-        beq.s   .next
+        beq.w   .next
         move.l  d0,d7
-        bra.s   .free
-
+        bra.w   .close
 .next
-        move.l  (a3),a3
-        bra.s   .loop
-
-.free
-        move.l  a4,a0
-        move.l  p96base,a6
-        jsr     -78(a6)                 ; p96FreeModeList
+        dbf     d5,.loop
+.close
+        move.l  a4,a1
+        move.l  4.w,a6
+        jsr     -414(a6)                ; CloseLibrary: own graphics reference only
 .done
         move.l  d7,d0
         movem.l (a7)+,d1-d7/a0-a6
@@ -51536,6 +51571,8 @@ g2bench_p96_req_custom_draw_v21
         move.l  g2p96_req_custom_grbase,a6
         moveq   #G2P96_REQ_PEN_BG,d0
         jsr     -348(a6)
+        move.l  g2p96_req_custom_window,a0
+        move.l  50(a0),a1        ; c87b83: A1 is scratch
         moveq   #0,d0
         jsr     -354(a6)
 
@@ -52495,7 +52532,7 @@ g2wall_bayer_table
 
 	even
 g2bench2_release_marker
-	dc.b	'GloomBench Reforged v2.3.2 / c87b82-bench1 standalone',0
+	dc.b	'GloomBench Reforged v2.4.0 / c87b84b-perf2 standalone',0
 	even
 
 g2bench2_state		dc	0	;0 idle, 1 warmup, 2 measured, 3 finished
@@ -52529,13 +52566,17 @@ g2bench2_fallback_dist	dc.l	0
 g2bench2_map
 	dc.b	'maps/map1_1',0
 g2bench2_result_name
-	dc.b	'RAM:GloomBench_result.txt',0
+	ifne G2BENCH_STAGE_FAST
+	dc.b 'RAM:GloomBench-Perf2-FAST-result.txt',0
+	else
+	dc.b 'RAM:GloomBench-Perf2-BASE-result.txt',0
+	endc
 	even
 
 ; Fixed-width result fields are filled immediately before output.
 g2bench2_result_buffer
-	dc.b	'GLOOMBENCH REFORGED 2.3.2',10
-	dc.b	'BUILD=c87b82-bench1',10
+	dc.b	'GLOOMBENCH REFORGED 2.4.0',10
+	dc.b	'BUILD=c87b84b-perf2',10
 	dc.b	'GAME='
 g2bench2_result_game	ds.b	16
 	dc.b	10,'DISPLAY='
@@ -52694,7 +52735,9 @@ g2bench2_prepare_level_gate
 ; One-call wrapper around the confirmed RC2 drawall path.
 g2bench2_frame_gate
 	jsr	g2bench2_before_frame
+	jsr	g2bp_frame_start
 	jsr	drawall
+	jsr	g2bp_frame_end
 	jsr	g2bench2_after_frame
 	rts
 
@@ -52888,6 +52931,8 @@ g2bench2_after_frame
 	move.l	g2bench2_start_x,g2bench2_current_x
 	move.l	g2bench2_start_z,g2bench2_current_z
 	jsr	g2bench22_begin_measurement	; remove transient hotkey HUD text before timing
+	jsr	g2bp_reset
+	jsr	g2bp_calibrate
 	move	framecnt,g2bench2_start_vbl
 	bra.w	.g2b2af_restore
 .g2b2af_running
@@ -52920,6 +52965,7 @@ g2bench2_after_frame
 	move	d1,g2bench2_avg100
 	move	#3,g2bench2_state
 	jsr	g2bench2_write_result_v21
+	jsr	g2bp_write
 	move	#1,finished
 .g2b2af_restore
 	movem.l	(a7)+,d0-d7/a0-a6
@@ -53085,9 +53131,9 @@ g2bench2_write_result
 ; End of standalone GloomBench harness.
 
 ; =============================================================================
-; GloomBench v2.0 RC3 - P96 mode diagnostics
+; GloomBench v2.4.0 - public display database diagnostics
 ;
-; Diagnostic-only wrapper for the normal RC3 candidate builder.  The existing
+; Diagnostic-only wrapper for the normal public-database candidate builder. The
 ; public trampoline above keeps exactly the same six-byte JMP footprint, so all
 ; established engine addresses before this appended block remain unchanged.
 ;
@@ -53096,11 +53142,8 @@ g2bench2_write_result
 ;
 ; The file contains:
 ;   - Picasso96API.library/p96api.library version, revision and ID string
-;   - the complete p96AllocModeListTagList() list
-;   - for each supported GloomBench geometry:
-;       STRICT = CLUT format + depth 8
-;       ANY8   = any format + depth 8
-;       ANY    = any format/depth
+;   - genuine P96 ModeIDs from the public graphics.library database
+;   - the exact validated ModeID for each supported GloomBench geometry
 ;   - all p96GetModeIDAttr() fields relevant to the released CLUT8 contract
 ;   - a rejection bit mask for every returned ModeID
 ;
@@ -53122,12 +53165,6 @@ G2BENCH_P96DIAG_IDA_BOARDNUMBER       equ 7
 G2BENCH_P96DIAG_IDA_STDBYTESPERROW   equ 8
 G2BENCH_P96DIAG_IDA_BOARDNAME         equ 9
 G2BENCH_P96DIAG_IDA_COMPATIBLEFORMATS equ 10
-
-G2BENCH_P96DIAG_P96MODE_DESC          equ 14
-G2BENCH_P96DIAG_P96MODE_WIDTH         equ 62
-G2BENCH_P96DIAG_P96MODE_HEIGHT        equ 64
-G2BENCH_P96DIAG_P96MODE_DEPTH         equ 66
-G2BENCH_P96DIAG_P96MODE_DISPLAYID     equ 68
 
         even
 g2bench_p96diag_build_candidates_wrapper
@@ -53211,49 +53248,49 @@ g2bench_p96diag_write_library_id_done
         rts
 
 ; -----------------------------------------------------------------------------
-; Complete P96 mode list returned by p96AllocModeListTagList().
-; TP96Mode layout comes from the public Picasso96 API include:
-; Node(14), Description[48], Width.w, Height.w, Depth.w, DisplayID.l.
+; Enumerate public graphics.library ModeIDs and log genuine P96 entries.
+; Retain the same per-mode attribute report without accessing driver list nodes.
+; All file I/O stays in startup, outside the measured renderer frames.
 ; -----------------------------------------------------------------------------
 g2bench_p96diag_dump_modellist
         movem.l d0-d7/a0-a6,-(a7)
         lea     g2bench_p96diag_modellist_header(pc),a0
         jsr     g2bench_p96diag_write_z
-
-        move.l  p96base,a6
-        lea     g2bench_p96diag_allmode_tags(pc),a0
-        jsr     -72(a6)                 ; p96AllocModeListTagList
+        clr.l   g2bench_p96diag_modelist_count
+        move.l  4.w,a6
+        lea     g2p96_req_graphics_name,a1
+        moveq   #36,d0
+        jsr     -552(a6)                ; OpenLibrary(graphics.library,36)
         move.l  d0,a4
-        beq.s   g2bench_p96diag_modellist_fail
-
-        move.l  (a4),a3                 ; List.lh_Head
-        moveq   #0,d6
+        tst.l   d0                      ; MOVEA does not set CCR
+        beq.w   g2bench_p96diag_modellist_fail
+        moveq   #-1,d6
+        moveq   #0,d7
+        move.l  #65535,d5               ; same finite bound as the production chooser
 g2bench_p96diag_modellist_loop
-        move.l  a3,d0
-        beq.s   g2bench_p96diag_modellist_free
-        move.l  (a3),d0                 ; tail sentinel has ln_Succ == 0
-        beq.s   g2bench_p96diag_modellist_free
-
-        addq.l  #1,d6
-        lea     g2bench_p96diag_modellist_desc_prefix(pc),a0
-        jsr     g2bench_p96diag_write_z
-        lea     G2BENCH_P96DIAG_P96MODE_DESC(a3),a0
-        moveq   #48,d0
-        jsr     g2bench_p96diag_write_bounded
-        jsr     g2bench_p96diag_write_newline
-
-        move.l  G2BENCH_P96DIAG_P96MODE_DISPLAYID(a3),d0
-        jsr     g2bench_p96diag_log_mode
-
-        move.l  (a3),a3
-        bra.w   g2bench_p96diag_modellist_loop
-
-g2bench_p96diag_modellist_free
-        move.l  d6,g2bench_p96diag_modelist_count
-        move.l  a4,a0
+        move.l  a4,a6
+        move.l  d6,d0
+        jsr     -732(a6)                ; NextDisplayInfo(last_ID)
+        cmp.l   #-1,d0
+        beq.w   g2bench_p96diag_modellist_free
+        cmp.l   d6,d0
+        beq.w   g2bench_p96diag_modellist_free
+        move.l  d0,d6
         move.l  p96base,a6
-        jsr     -78(a6)                 ; p96FreeModeList
-
+        moveq   #G2P96_IDA_ISP96,d1
+        jsr     -84(a6)
+        tst.l   d0
+        beq.s   .next
+        addq.l  #1,d7
+        move.l  d6,d0
+        jsr     g2bench_p96diag_log_mode
+.next
+        dbf     d5,g2bench_p96diag_modellist_loop
+g2bench_p96diag_modellist_free
+        move.l  d7,g2bench_p96diag_modelist_count
+        move.l  a4,a1
+        move.l  4.w,a6
+        jsr     -414(a6)                ; CloseLibrary: own graphics reference only
         move.l  g2bench_p96diag_modelist_count,d0
         lea     g2bench_p96diag_modelist_count_hex(pc),a0
         jsr     g2p96_long_to_hex8
@@ -53262,12 +53299,10 @@ g2bench_p96diag_modellist_free
         jsr     g2bench_p96diag_write_raw
         jsr     g2bench_p96diag_write_newline
         bra.s   g2bench_p96diag_modellist_done
-
 g2bench_p96diag_modellist_fail
         lea     g2bench_p96diag_modellist_failed(pc),a0
         jsr     g2bench_p96diag_write_z
         jsr     g2bench_p96diag_write_newline
-
 g2bench_p96diag_modellist_done
         movem.l (a7)+,d0-d7/a0-a6
         rts
@@ -53585,7 +53620,7 @@ g2bench_p96diag_filename
         even
 
 g2bench_p96diag_header
-        dc.b    '*** GLOOMBENCH V2.3.2 P96 MODE DIAGNOSTICS ***',10
+        dc.b    '*** GLOOMBENCH V2.4.0 P96 MODE DIAGNOSTICS ***',10
         dc.b    'Diagnostic only: benchmark and renderer paths are unchanged.',10
         dc.b    'Reject bits: 01 invalid, 02 width, 04 height, 08 not-P96,',10
         dc.b    '10 not-CLUT, 20 depth, 40 bytes/pixel, 80 bits/pixel.',10,10,0
@@ -53606,17 +53641,12 @@ g2bench_p96diag_none                 dc.b '<none>',0
 g2bench_p96diag_newline              dc.b 10
 
         even
-g2bench_p96diag_allmode_tags
-        dc.l    TAG_DONE,0
-
 g2bench_p96diag_modellist_header
-        dc.b    '--- COMPLETE P96 MODE LIST ---',10,0
-g2bench_p96diag_modellist_desc_prefix
-        dc.b    'MODELIST DESC=',0
+        dc.b    '--- PUBLIC DISPLAY DATABASE: P96 MODEIDS ---',10,0
 g2bench_p96diag_modellist_failed
-        dc.b    'MODELIST=<allocation failed>',10,0
+        dc.b    'PUBLIC_DATABASE=<graphics.library unavailable>',10,0
 g2bench_p96diag_modelist_count_line
-        dc.b    'MODELIST_COUNT=$'
+        dc.b    'PUBLIC_P96_MODE_COUNT=$'
 g2bench_p96diag_modelist_count_hex   ds.b 8
         dc.b    10
 g2bench_p96diag_modelist_count_line_end
@@ -53708,8 +53738,8 @@ g2bench_p96diag_mode_line_len equ g2bench_p96diag_mode_line_end-g2bench_p96diag_
 
 
 	even
-; RC3 diagnostic summary: report the IDs selected by the same mode-list finder
-; now used by the actual chooser.  The complete raw modelist remains above.
+; Public-database diagnostic summary: report the exact IDs selected by
+; the production chooser. Genuine P96 database entries are logged above.
 g2bench_p96diag_dump_candidates_c87b80f
         movem.l d0-d7/a0-a4,-(a7)
         lea     g2bench_p96diag_candidate_section_c87b80f(pc),a0
@@ -53740,10 +53770,10 @@ g2bench_p96diag_dump_candidates_c87b80f
 
         even
 g2bench_p96diag_candidate_section_c87b80f
-        dc.b    '--- RC3 MODELIST-SELECTED TARGET GEOMETRIES ---',10
-        dc.b    'MODELIST is the exact selector used by the benchmark.',10,10,0
+        dc.b    '--- PUBLIC-DATABASE TARGET GEOMETRIES ---',10
+        dc.b    'PUBLIC_DATABASE is the exact selector used by the benchmark.',10,10,0
 g2bench_p96diag_modelist_prefix_c87b80f
-        dc.b    'MODELIST ',0
+        dc.b    'PUBLIC_DATABASE ',0
 
 
 g2bench2_write_result_v21
@@ -53848,3 +53878,935 @@ g2bench22_option_fields
 	dc.l	game_blob,g2bench22_result_blob
 	dc.l	game_reflections,g2bench22_result_reflections
 	dc.l	game_visibility,g2bench22_result_visibility
+
+
+; =============================================================================
+; c87b84b-perf2: released exact/scaled staging A/B and bounded profiling.
+; Timer has a separately owned 40-byte timerequest. No asynchronous I/O is sent.
+; MemHeader snapshot takes a short Forbid/Permit pair; no DOS call inside it.
+; =============================================================================
+	even
+; Both helpers preserve D1-D7/A0-A6 and return 0 or -1 in D0.
+; Count only measured frames, once after either production path succeeds.
+g2bp_try_fast_stage
+	jsr	g2p96_try_fast_clut_stage_c87b83b
+	tst.l	d0
+	bne.s	.copied
+	jsr	g2p96_try_fast_scaled_clut_stage_c87b84b
+	tst.l	d0
+	beq.s	.done
+.copied
+	cmp	#2,g2bench2_state
+	bne.s	.done
+	addq.l	#1,g2bp_fast_frames
+.done
+	rts
+
+; =============================================================================
+; v2.3.3 / c87b83b: card-independent exact-size RAM staging.
+; CopyMemQuick is used only with aligned addresses/size; otherwise CopyMem.
+; Scaled, non-linear and split layouts retain the original pixel builder.
+; No VRAM lock, cache policy, buffer policy or diagnostic logging is added.
+; =============================================================================
+	even
+g2p96_try_fast_clut_stage_c87b83b
+	movem.l d1-d7/a0-a6,-(a7)
+	moveq #0,d0
+	tst twowins
+	bne.w .done
+	tst p96gameplay_linear_active
+	beq.w .done
+	tst p96target_mode
+	bne.w .done
+	moveq #0,d2
+	move p96target_width,d2
+	cmp #320,d2
+	beq.w .width_ok
+	cmp #428,d2
+	bne.w .done
+.width_ok
+	cmp g2render_width,d2
+	bne.w .done
+	cmp chunkymodw,d2
+	bne.w .done
+	moveq #0,d3
+	move p96target_height,d3
+	cmp hite,d3
+	bne.w .done
+	cmp g2p96_present_rows,d3
+	bne.w .done
+	tst d3
+	beq.w .done
+	move.l chunky,a0
+	move.l a0,d1
+	beq.w .done
+	move.l p96clut_stage_ptr,a1
+	move.l a1,d1
+	beq.w .done
+	; Validate the live table, including fallback after menu/layout changes.
+	lea coloffs,a2
+	moveq #0,d4
+.offsets
+	cmp.l (a2)+,d4
+	bne.w .done
+	addq #1,d4
+	cmp d2,d4
+	blo.w .offsets
+	mulu d2,d3
+	cmp.l p96clut_stage_size,d3
+	bhi.w .done
+	move.l a0,d1
+	move.l a1,d2
+	or.l d2,d1
+	or.l d3,d1
+	and.l #3,d1
+	move.l d3,d0
+	move.l 4.w,a6
+	tst.l d1
+	bne.w .unaligned
+	jsr -630(a6) ; CopyMemQuick, CPU/OS selects implementation
+	bra.w .copied
+.unaligned
+	jsr -624(a6) ; CopyMem supports unaligned allocations
+.copied
+	moveq #-1,d0
+.done
+	movem.l (a7)+,d1-d7/a0-a6
+	rts
+
+
+; =============================================================================
+; v2.4.0 / c87b84b: fast 640x480, 640x512 and 854x480 RAM staging.
+; No source-table indirection or per-pixel geometry branches in the hot loops.
+; Both destination rows receive the same aligned word; no per-row library call.
+; Standard: 320 source bytes -> 640 pens. WIDE: adjacent source pairs yield
+; [s0,s1], [s1,s2], ... [s426,s427], exactly 1 + 426*2 + 1 = 854 pens.
+; Complete guard validation precedes the first write. All other layouts fall
+; back to the original builder. No allocation, cache change, VRAM or logging.
+; =============================================================================
+	even
+g2p96_try_fast_scaled_clut_stage_c87b84b
+	movem.l	d1-d7/a0-a6,-(a7)
+	moveq	#0,d0
+	tst	twowins
+	bne.w	.done
+	tst	p96gameplay_linear_active
+	beq.w	.done
+	moveq	#0,d2
+	move	p96target_width,d2
+	moveq	#0,d7
+	cmp	#1,p96target_mode
+	beq.w	.standard_geometry
+	cmp	#2,p96target_mode
+	bne.w	.done
+	cmp	#854,d2
+	bne.w	.done
+	tst	g2p96_wide_mode
+	beq.w	.done
+	cmp	#428,g2render_width
+	bne.w	.done
+	cmp	#428,chunkymodw
+	bne.w	.done
+	cmp	#427,g2render_last_x
+	bne.w	.done
+	cmp	#240,hite
+	bne.w	.done
+	move	#428,d7
+	bra.w	.common_geometry
+.standard_geometry
+	cmp	#640,d2
+	bne.w	.done
+	tst	g2p96_wide_mode
+	bne.w	.done
+	cmp	#320,g2render_width
+	bne.w	.done
+	cmp	#320,chunkymodw
+	bne.w	.done
+	cmp	#319,g2render_last_x
+	bne.w	.done
+	cmp	#240,hite
+	beq.s	.standard_rows_ok
+	cmp	#256,hite
+	bne.w	.done
+.standard_rows_ok
+	move	#320,d7
+.common_geometry
+	moveq	#0,d3
+	move	hite,d3
+	cmp	g2p96_present_rows,d3
+	bne.w	.done
+	move.l	d3,d1
+	add	d1,d1
+	cmp	p96target_height,d1
+	bne.w	.done
+	mulu	d2,d1
+	cmp.l	p96clut_stage_size,d1
+	bhi.w	.done
+	move.l	chunky,a0
+	move.l	a0,d1
+	beq.w	.done
+	move.l	p96clut_stage_ptr,a1
+	move.l	a1,d1
+	beq.w	.done
+	btst	#0,d1	; every destination row and word must be even-aligned
+	bne.w	.done
+	lea	coloffs,a2
+	moveq	#0,d4
+.check_columns
+	cmp.l	(a2)+,d4
+	bne.w	.done
+	addq	#1,d4
+	cmp	d7,d4
+	blo.s	.check_columns
+	move.l	a1,a2
+	adda.w	d2,a2
+	subq	#1,d3	; source rows minus one for DBF
+	moveq	#0,d0
+	cmp	#428,d7
+	beq.w	.wide_row
+	lea	g2resolution_dupbyte_table,a4
+.standard_row
+	moveq	#79,d5	; 80 groups of four source pixels
+.standard_pixels
+	move.b	(a0)+,d0
+	move.w	0(a4,d0.w*2),d1
+	move.w	d1,(a1)+
+	move.w	d1,(a2)+
+	move.b	(a0)+,d0
+	move.w	0(a4,d0.w*2),d1
+	move.w	d1,(a1)+
+	move.w	d1,(a2)+
+	move.b	(a0)+,d0
+	move.w	0(a4,d0.w*2),d1
+	move.w	d1,(a1)+
+	move.w	d1,(a2)+
+	move.b	(a0)+,d0
+	move.w	0(a4,d0.w*2),d1
+	move.w	d1,(a1)+
+	move.w	d1,(a2)+
+	dbf	d5,.standard_pixels
+	adda.w	d2,a1
+	adda.w	d2,a2
+	dbf	d3,.standard_row
+	bra.w	.success
+.wide_row
+	move.b	(a0)+,d0	; preload first edge pixel, consume remaining 427 below
+	moveq	#60,d5	; 61 groups of seven adjacent source pairs
+.wide_pixels
+	lsl.w	#8,d0
+	move.b	(a0)+,d0
+	move.w	d0,(a1)+
+	move.w	d0,(a2)+
+	lsl.w	#8,d0
+	move.b	(a0)+,d0
+	move.w	d0,(a1)+
+	move.w	d0,(a2)+
+	lsl.w	#8,d0
+	move.b	(a0)+,d0
+	move.w	d0,(a1)+
+	move.w	d0,(a2)+
+	lsl.w	#8,d0
+	move.b	(a0)+,d0
+	move.w	d0,(a1)+
+	move.w	d0,(a2)+
+	lsl.w	#8,d0
+	move.b	(a0)+,d0
+	move.w	d0,(a1)+
+	move.w	d0,(a2)+
+	lsl.w	#8,d0
+	move.b	(a0)+,d0
+	move.w	d0,(a1)+
+	move.w	d0,(a2)+
+	lsl.w	#8,d0
+	move.b	(a0)+,d0
+	move.w	d0,(a1)+
+	move.w	d0,(a2)+
+	dbf	d5,.wide_pixels
+	adda.w	d2,a1
+	adda.w	d2,a2
+	dbf	d3,.wide_row
+.success
+	moveq	#-1,d0
+.done
+	movem.l	(a7)+,d1-d7/a0-a6
+	rts
+
+
+g2bp_init
+	movem.l d0-d7/a0-a6,-(a7)
+	move.l 4.w,a6
+	cmp #36,20(a6)
+	blo.w .done
+	jsr -666(a6) ; CreateMsgPort
+	move.l d0,g2bp_port
+	beq.w .done
+	move.l d0,a0
+	moveq #40,d0
+	jsr -654(a6) ; CreateIORequest
+	move.l d0,g2bp_io
+	beq.w .done
+	move.l d0,a1
+	lea g2bp_timer_name,a0
+	moveq #0,d0 ; UNIT_MICROHZ
+	moveq #0,d1
+	jsr -444(a6) ; OpenDevice
+	tst.l d0
+	bne.w .done
+	move.l g2bp_io,a0
+	move.l 20(a0),g2bp_timer
+	move.l g2bp_timer,a6
+	lea g2bp_now,a0
+	jsr -60(a6) ; ReadEClock
+	move.l d0,g2bp_frequency
+.done
+	movem.l (a7)+,d0-d7/a0-a6
+	rts
+
+g2bp_close
+	movem.l d0-d1/a0-a1/a6,-(a7)
+	move.l 4.w,a6
+	tst.l g2bp_timer
+	beq.w .io
+	move.l g2bp_io,a1
+	jsr -450(a6) ; CloseDevice, no pending requests
+	clr.l g2bp_timer
+.io
+	move.l g2bp_io,a0
+	move.l a0,d0
+	beq.w .port
+	jsr -660(a6)
+	clr.l g2bp_io
+.port
+	move.l g2bp_port,a0
+	move.l a0,d0
+	beq.w .done
+	jsr -672(a6)
+	clr.l g2bp_port
+.done
+	movem.l (a7)+,d0-d1/a0-a1/a6
+	rts
+
+g2bp_reset
+	movem.l d0-d1/a0,-(a7)
+	lea g2bp_records,a0
+	move #G2BP_COUNT*24/4-1,d0
+.loop
+	clr.l (a0)+
+	dbf d0,.loop
+	clr.l g2bp_fast_frames
+	clr.l g2bp_target_memory
+	clr.l g2bp_target_pitch
+	clr.l g2bp_target_format
+	movem.l (a7)+,d0-d1/a0
+	rts
+
+; Record layout: start.low, active, count, sum.high, sum.low, max.low.
+; Differences use modulo-32 EClock ticks, valid for intervals < ~100 minutes.
+; Accumulation is 64-bit. No counts if timer unavailable or outside state 2.
+g2bp_start
+	cmp #2,g2bench2_state
+	bne.w .done
+	tst.l g2bp_frequency
+	beq.w .done
+	mulu #24,d0
+	lea g2bp_records,a2
+	adda.l d0,a2
+	move.l g2bp_timer,a6
+	lea g2bp_now,a0
+	jsr -60(a6)
+	move.l g2bp_now+4,(a2)
+	move.l #1,4(a2)
+.done
+	rts
+
+g2bp_end
+	mulu #24,d0
+	lea g2bp_records,a2
+	adda.l d0,a2
+	tst.l 4(a2)
+	beq.w .done
+	clr.l 4(a2)
+	move.l g2bp_timer,a6
+	lea g2bp_now,a0
+	jsr -60(a6)
+	move.l g2bp_now+4,d0
+	sub.l (a2),d0
+	addq.l #1,8(a2)
+	moveq #0,d1
+	add.l d0,16(a2)
+	move.l 12(a2),d2
+	addx.l d1,d2
+	move.l d2,12(a2)
+	cmp.l 20(a2),d0
+	bls.w .done
+	move.l d0,20(a2)
+.done
+	rts
+
+G2BP_COUNT equ 13
+
+g2bp_frame_start
+	movem.l d0-d7/a0-a6,-(a7)
+	move.w ccr,-(a7)
+	moveq #0,d0
+	jsr g2bp_start
+	move.w (a7)+,ccr
+	movem.l (a7)+,d0-d7/a0-a6
+	rts
+
+g2bp_frame_end
+	movem.l d0-d7/a0-a6,-(a7)
+	move.w ccr,-(a7)
+	moveq #0,d0
+	jsr g2bp_end
+	move.w (a7)+,ccr
+	movem.l (a7)+,d0-d7/a0-a6
+	rts
+
+g2bp_wait_done_start
+	movem.l d0-d7/a0-a6,-(a7)
+	move.w ccr,-(a7)
+	moveq #1,d0
+	jsr g2bp_start
+	move.w (a7)+,ccr
+	movem.l (a7)+,d0-d7/a0-a6
+	rts
+
+g2bp_wait_done_end
+	movem.l d0-d7/a0-a6,-(a7)
+	move.w ccr,-(a7)
+	moveq #1,d0
+	jsr g2bp_end
+	move.w (a7)+,ccr
+	movem.l (a7)+,d0-d7/a0-a6
+	rts
+
+g2bp_render_start
+	movem.l d0-d7/a0-a6,-(a7)
+	move.w ccr,-(a7)
+	moveq #2,d0
+	jsr g2bp_start
+	move.w (a7)+,ccr
+	movem.l (a7)+,d0-d7/a0-a6
+	rts
+
+g2bp_render_end
+	movem.l d0-d7/a0-a6,-(a7)
+	move.w ccr,-(a7)
+	moveq #2,d0
+	jsr g2bp_end
+	move.w (a7)+,ccr
+	movem.l (a7)+,d0-d7/a0-a6
+	rts
+
+g2bp_wait_show_start
+	movem.l d0-d7/a0-a6,-(a7)
+	move.w ccr,-(a7)
+	moveq #3,d0
+	jsr g2bp_start
+	move.w (a7)+,ccr
+	movem.l (a7)+,d0-d7/a0-a6
+	rts
+
+g2bp_wait_show_end
+	movem.l d0-d7/a0-a6,-(a7)
+	move.w ccr,-(a7)
+	moveq #3,d0
+	jsr g2bp_end
+	move.w (a7)+,ccr
+	movem.l (a7)+,d0-d7/a0-a6
+	rts
+
+g2bp_stage_start
+	movem.l d0-d7/a0-a6,-(a7)
+	move.w ccr,-(a7)
+	moveq #4,d0
+	jsr g2bp_start
+	move.w (a7)+,ccr
+	movem.l (a7)+,d0-d7/a0-a6
+	rts
+
+g2bp_stage_end
+	movem.l d0-d7/a0-a6,-(a7)
+	move.w ccr,-(a7)
+	moveq #4,d0
+	jsr g2bp_end
+	move.w (a7)+,ccr
+	movem.l (a7)+,d0-d7/a0-a6
+	rts
+
+g2bp_palette_start
+	movem.l d0-d7/a0-a6,-(a7)
+	move.w ccr,-(a7)
+	moveq #5,d0
+	jsr g2bp_start
+	move.w (a7)+,ccr
+	movem.l (a7)+,d0-d7/a0-a6
+	rts
+
+g2bp_palette_end
+	movem.l d0-d7/a0-a6,-(a7)
+	move.w ccr,-(a7)
+	moveq #5,d0
+	jsr g2bp_end
+	move.w (a7)+,ccr
+	movem.l (a7)+,d0-d7/a0-a6
+	rts
+
+g2bp_lock_start
+	movem.l d0-d7/a0-a6,-(a7)
+	move.w ccr,-(a7)
+	moveq #6,d0
+	jsr g2bp_start
+	move.w (a7)+,ccr
+	movem.l (a7)+,d0-d7/a0-a6
+	rts
+
+g2bp_lock_end
+	movem.l d0-d7/a0-a6,-(a7)
+	move.w ccr,-(a7)
+	moveq #6,d0
+	jsr g2bp_end
+	move.w (a7)+,ccr
+	movem.l (a7)+,d0-d7/a0-a6
+	rts
+
+g2bp_upload_start
+	movem.l d0-d7/a0-a6,-(a7)
+	move.w ccr,-(a7)
+	moveq #7,d0
+	jsr g2bp_start
+	move.w (a7)+,ccr
+	movem.l (a7)+,d0-d7/a0-a6
+	rts
+
+g2bp_upload_end
+	movem.l d0-d7/a0-a6,-(a7)
+	move.w ccr,-(a7)
+	moveq #7,d0
+	jsr g2bp_end
+	move.w (a7)+,ccr
+	movem.l (a7)+,d0-d7/a0-a6
+	rts
+
+g2bp_unlock_start
+	movem.l d0-d7/a0-a6,-(a7)
+	move.w ccr,-(a7)
+	moveq #8,d0
+	jsr g2bp_start
+	move.w (a7)+,ccr
+	movem.l (a7)+,d0-d7/a0-a6
+	rts
+
+g2bp_unlock_end
+	movem.l d0-d7/a0-a6,-(a7)
+	move.w ccr,-(a7)
+	moveq #8,d0
+	jsr g2bp_end
+	move.w (a7)+,ccr
+	movem.l (a7)+,d0-d7/a0-a6
+	rts
+
+g2bp_safe_wait_start
+	movem.l d0-d7/a0-a6,-(a7)
+	move.w ccr,-(a7)
+	moveq #9,d0
+	jsr g2bp_start
+	move.w (a7)+,ccr
+	movem.l (a7)+,d0-d7/a0-a6
+	rts
+
+g2bp_safe_wait_end
+	movem.l d0-d7/a0-a6,-(a7)
+	move.w ccr,-(a7)
+	moveq #9,d0
+	jsr g2bp_end
+	move.w (a7)+,ccr
+	movem.l (a7)+,d0-d7/a0-a6
+	rts
+
+g2bp_flip_start
+	movem.l d0-d7/a0-a6,-(a7)
+	move.w ccr,-(a7)
+	moveq #10,d0
+	jsr g2bp_start
+	move.w (a7)+,ccr
+	movem.l (a7)+,d0-d7/a0-a6
+	rts
+
+g2bp_flip_end
+	movem.l d0-d7/a0-a6,-(a7)
+	move.w ccr,-(a7)
+	moveq #10,d0
+	jsr g2bp_end
+	move.w (a7)+,ccr
+	movem.l (a7)+,d0-d7/a0-a6
+	rts
+
+g2bp_native_present_start
+	movem.l d0-d7/a0-a6,-(a7)
+	move.w ccr,-(a7)
+	moveq #11,d0
+	jsr g2bp_start
+	move.w (a7)+,ccr
+	movem.l (a7)+,d0-d7/a0-a6
+	rts
+
+g2bp_native_present_end
+	movem.l d0-d7/a0-a6,-(a7)
+	move.w ccr,-(a7)
+	moveq #11,d0
+	jsr g2bp_end
+	move.w (a7)+,ccr
+	movem.l (a7)+,d0-d7/a0-a6
+	rts
+
+g2bp_empty_pair_start
+	movem.l d0-d7/a0-a6,-(a7)
+	move.w ccr,-(a7)
+	moveq #12,d0
+	jsr g2bp_start
+	move.w (a7)+,ccr
+	movem.l (a7)+,d0-d7/a0-a6
+	rts
+
+g2bp_empty_pair_end
+	movem.l d0-d7/a0-a6,-(a7)
+	move.w ccr,-(a7)
+	moveq #12,d0
+	jsr g2bp_end
+	move.w (a7)+,ccr
+	movem.l (a7)+,d0-d7/a0-a6
+	rts
+
+g2bp_calibrate
+	movem.l d0-d7/a0-a6,-(a7)
+	moveq #31,d7
+.pair
+	jsr g2bp_empty_pair_start
+	jsr g2bp_empty_pair_end
+	dbf d7,.pair
+	movem.l (a7)+,d0-d7/a0-a6
+	rts
+
+g2bp_write
+	movem.l d0-d7/a0-a6,-(a7)
+	move.l dosbase,a6
+	move.l a6,d0
+	beq.w .done
+	lea g2bp_filename,a0
+	move.l a0,d1
+	move.l #1006,d2
+	jsr -30(a6)
+	move.l d0,g2bp_handle
+	beq.w .done
+	lea g2bp_header,a0
+	jsr g2bp_write_z
+	jsr g2bp_board
+	lea g2bp_scalar_table,a3
+	move #G2BP_SCALARS-1,d5
+.scalars
+	move.l (a3)+,a0
+	jsr g2bp_write_z
+	move.l (a3)+,a1
+	moveq #0,d0
+	move.l (a3)+,d1 ; 2=word, 4=long
+	cmp #2,d1
+	beq.w .word
+	move.l (a1),d0
+	bra.w .value
+.word
+	move (a1),d0
+.value
+	jsr g2bp_write_hex
+	dbf d5,.scalars
+	; CPU flags, task priority, nesting and cache enable bits (query only).
+	move.l 4.w,a6
+	moveq #0,d0
+	move 296(a6),d0
+	lea g2bp_cpu_key,a0
+	jsr g2bp_write_z
+	jsr g2bp_write_hex
+	move.l 276(a6),a1
+	moveq #0,d0
+	move.b 9(a1),d0
+	ext.w d0
+	ext.l d0
+	lea g2bp_priority_key,a0
+	jsr g2bp_write_z
+	jsr g2bp_write_hex
+	moveq #0,d0
+	move.b 295(a6),d0
+	ext.w d0
+	ext.l d0
+	lea g2bp_nest_key,a0
+	jsr g2bp_write_z
+	jsr g2bp_write_hex
+	cmp #36,20(a6)
+	blo.w .records
+	moveq #0,d0
+	moveq #0,d1
+	jsr -648(a6) ; CacheControl(0,0): query, no cache change
+	lea g2bp_cache_key,a0
+	jsr g2bp_write_z
+	jsr g2bp_write_hex
+.records
+	lea g2bp_records,a3
+	lea g2bp_key_table,a4
+	move #G2BP_COUNT-1,d5
+.record
+	move.l (a4)+,a0
+	jsr g2bp_write_z
+	lea 8(a3),a2
+	moveq #3,d6
+.field
+	move.l (a2)+,d0
+	jsr g2bp_write_hex
+	dbf d6,.field
+	adda #24,a3
+	dbf d5,.record
+	lea g2bp_chunky_key,a0
+	move.l chunky,d4
+	jsr g2bp_memory
+	lea g2bp_stage_key,a0
+	move.l p96clut_stage_ptr,d4
+	jsr g2bp_memory
+	lea g2bp_target_key,a0
+	move.l g2bp_target_memory,d4
+	jsr g2bp_memory
+	move.l dosbase,a6
+	move.l g2bp_handle,d1
+	jsr -36(a6)
+	clr.l g2bp_handle
+.done
+	movem.l (a7)+,d0-d7/a0-a6
+	rts
+
+; Actual opened screen mode, not just the requested ModeID. Bounded board name.
+g2bp_board
+	movem.l d0-d7/a0-a6,-(a7)
+	cmp #2,g2display_mode
+	bne.w .done
+	move.l p96winprobe_screen_ptr,d0
+	beq.w .done
+	move.l d0,a0
+	lea 44(a0),a0
+	move.l p96gameplay_grbase,a6
+	move.l a6,d0
+	beq.w .done
+	jsr -792(a6)
+	cmp.l #-1,d0
+	beq.w .done
+	move.l d0,d2
+	lea g2bp_actual_mode_key,a0
+	jsr g2bp_write_z
+	jsr g2bp_write_hex
+	move.l p96base,a6
+	move.l a6,d0
+	beq.w .done
+	move.l d2,d0
+	moveq #9,d1
+	jsr -84(a6)
+	tst.l d0
+	beq.w .done
+	cmp.l #-1,d0
+	beq.w .done
+	move.l d0,a1
+	lea g2bp_board_buffer,a0
+	moveq #126,d1
+.copy
+	move.b (a1)+,d0
+	beq.w .terminate
+	move.b d0,(a0)+
+	dbf d1,.copy
+.terminate
+	clr.b (a0)
+	lea g2bp_board_key,a0
+	jsr g2bp_write_z
+	lea g2bp_board_buffer,a0
+	jsr g2bp_write_z
+	lea g2bp_newline,a0
+	jsr g2bp_write_z
+.done
+	movem.l (a7)+,d0-d7/a0-a6
+	rts
+
+; a0=label, d4=address. Snapshot memory attributes/bounds/name without I/O
+; while task switching is forbidden. Unknown mappings are explicitly zero.
+g2bp_memory
+	jsr g2bp_write_z
+	move.l d4,d0
+	jsr g2bp_write_hex
+	move.l 4.w,a6
+	move.l d4,a1
+	jsr -534(a6) ; TypeOfMem
+	jsr g2bp_write_hex
+	lea g2bp_mem_snapshot,a0
+	moveq #0,d0
+	moveq #19,d1
+.clear
+	move.l d0,(a0)+
+	dbf d1,.clear
+	jsr -132(a6) ; Forbid, balanced even on the native ownership path
+	move.l 322(a6),a1 ; Exec MemList.lh_Head
+.find
+	move.l (a1),d0
+	beq.w .release
+	cmp.l 20(a1),d4 ; mh_Lower
+	blo.w .next
+	cmp.l 24(a1),d4 ; mh_Upper exclusive
+	bhs.w .next
+	move.l 20(a1),g2bp_mem_snapshot
+	move.l 24(a1),g2bp_mem_snapshot+4
+	moveq #0,d0
+	move.b 9(a1),d0
+	ext.w d0
+	ext.l d0
+	move.l d0,g2bp_mem_snapshot+8
+	move.l 10(a1),a0
+	move.l a0,d0
+	beq.w .release
+	lea g2bp_mem_snapshot+12,a2
+	moveq #62,d1
+.name
+	move.b (a0)+,d0
+	beq.w .release
+	move.b d0,(a2)+
+	dbf d1,.name
+	bra.w .release
+.next
+	move.l (a1),a1
+	bra.w .find
+.release
+	jsr -138(a6) ; Permit BEFORE any DOS call
+	move.l g2bp_mem_snapshot,d0
+	jsr g2bp_write_hex
+	move.l g2bp_mem_snapshot+4,d0
+	jsr g2bp_write_hex
+	move.l g2bp_mem_snapshot+8,d0
+	jsr g2bp_write_hex
+	lea g2bp_mem_snapshot+12,a0
+	jsr g2bp_write_z
+	lea g2bp_newline,a0
+	jsr g2bp_write_z
+	rts
+
+g2bp_write_hex
+	movem.l d0-d7/a0-a6,-(a7)
+	lea g2bp_hex,a0
+	jsr g2p96_long_to_hex8
+	lea g2bp_hex,a0
+	jsr g2bp_write_z
+	movem.l (a7)+,d0-d7/a0-a6
+	rts
+g2bp_write_z
+	movem.l d0-d7/a0-a6,-(a7)
+	move.l a0,d2
+	moveq #0,d3
+.length
+	tst.b (a0)+
+	beq.w .write
+	addq.l #1,d3
+	bra.w .length
+.write
+	move.l g2bp_handle,d1
+	move.l dosbase,a6
+	jsr -48(a6)
+	movem.l (a7)+,d0-d7/a0-a6
+	rts
+	even
+g2bp_port dc.l 0
+g2bp_io dc.l 0
+g2bp_timer dc.l 0
+g2bp_frequency dc.l 0
+g2bp_now dc.l 0,0
+g2bp_handle dc.l 0
+g2bp_fast_frames dc.l 0
+g2bp_target_memory dc.l 0
+g2bp_target_pitch dc.l 0
+g2bp_target_format dc.l 0
+g2bp_records ds.b G2BP_COUNT*24
+g2bp_mem_snapshot ds.b 80
+g2bp_board_buffer ds.b 128
+g2bp_timer_name dc.b 'timer.device',0
+g2bp_hex ds.b 8
+	dc.b 10,0
+g2bp_newline dc.b 10,0
+	ifne G2BENCH_STAGE_FAST
+g2bp_filename dc.b 'RAM:GloomBench-Perf2-FAST.log',0
+g2bp_header dc.b 'GloomBench v2.4.0 c87b84b-perf2 FAST',10,0
+	else
+g2bp_filename dc.b 'RAM:GloomBench-Perf2-BASE.log',0
+g2bp_header dc.b 'GloomBench v2.4.0 c87b84b-perf2 BASE',10,0
+	endc
+
+	even
+g2bp_scalar_table
+	dc.l g2bp_scalar_0,g2bp_frequency,4
+	dc.l g2bp_scalar_1,g2bench2_frames,2
+	dc.l g2bp_scalar_2,g2bench2_elapsed_vbl,2
+	dc.l g2bp_scalar_3,g2bench2_avg100,2
+	dc.l g2bp_scalar_4,g2display_mode,2
+	dc.l g2bp_scalar_5,p96modeid,4
+	dc.l g2bp_scalar_6,p96target_width,2
+	dc.l g2bp_scalar_7,p96target_height,2
+	dc.l g2bp_scalar_8,g2p96_single_buffer,2
+	dc.l g2bp_scalar_9,p96gameplay_dbuf_active,2
+	dc.l g2bp_scalar_10,g2bench_low_bandwidth_v21,2
+	dc.l g2bp_scalar_11,g2bp_target_memory,4
+	dc.l g2bp_scalar_12,g2bp_target_pitch,4
+	dc.l g2bp_scalar_13,g2bp_target_format,4
+	dc.l g2bp_scalar_14,g2bp_fast_frames,4
+G2BP_SCALARS equ 15
+g2bp_key_table
+	dc.l g2bp_key_frame
+	dc.l g2bp_key_wait_done
+	dc.l g2bp_key_render
+	dc.l g2bp_key_wait_show
+	dc.l g2bp_key_stage
+	dc.l g2bp_key_palette
+	dc.l g2bp_key_lock
+	dc.l g2bp_key_upload
+	dc.l g2bp_key_unlock
+	dc.l g2bp_key_safe_wait
+	dc.l g2bp_key_flip
+	dc.l g2bp_key_native_present
+	dc.l g2bp_key_empty_pair
+g2bp_scalar_0 dc.b 'eclock_hz=$',0
+g2bp_scalar_1 dc.b 'frames=$',0
+g2bp_scalar_2 dc.b 'elapsed_vbl=$',0
+g2bp_scalar_3 dc.b 'fps_x100=$',0
+g2bp_scalar_4 dc.b 'display=$',0
+g2bp_scalar_5 dc.b 'mode_id=$',0
+g2bp_scalar_6 dc.b 'width=$',0
+g2bp_scalar_7 dc.b 'height=$',0
+g2bp_scalar_8 dc.b 'single_requested=$',0
+g2bp_scalar_9 dc.b 'double_active=$',0
+g2bp_scalar_10 dc.b 'low_bandwidth=$',0
+g2bp_scalar_11 dc.b 'last_lock_memory=$',0
+g2bp_scalar_12 dc.b 'last_lock_pitch=$',0
+g2bp_scalar_13 dc.b 'last_lock_format=$',0
+g2bp_scalar_14 dc.b 'fast_stage_frames=$',0
+g2bp_key_frame dc.b 'TIMING frame: count,sum_hi,sum_lo,max (hex ticks)',10,0
+g2bp_key_wait_done dc.b 'TIMING wait_done: count,sum_hi,sum_lo,max (hex ticks)',10,0
+g2bp_key_render dc.b 'TIMING render: count,sum_hi,sum_lo,max (hex ticks)',10,0
+g2bp_key_wait_show dc.b 'TIMING wait_show: count,sum_hi,sum_lo,max (hex ticks)',10,0
+g2bp_key_stage dc.b 'TIMING stage: count,sum_hi,sum_lo,max (hex ticks)',10,0
+g2bp_key_palette dc.b 'TIMING palette: count,sum_hi,sum_lo,max (hex ticks)',10,0
+g2bp_key_lock dc.b 'TIMING lock: count,sum_hi,sum_lo,max (hex ticks)',10,0
+g2bp_key_upload dc.b 'TIMING upload: count,sum_hi,sum_lo,max (hex ticks)',10,0
+g2bp_key_unlock dc.b 'TIMING unlock: count,sum_hi,sum_lo,max (hex ticks)',10,0
+g2bp_key_safe_wait dc.b 'TIMING safe_wait: count,sum_hi,sum_lo,max (hex ticks)',10,0
+g2bp_key_flip dc.b 'TIMING flip: count,sum_hi,sum_lo,max (hex ticks)',10,0
+g2bp_key_native_present dc.b 'TIMING native_present: count,sum_hi,sum_lo,max (hex ticks)',10,0
+g2bp_key_empty_pair dc.b 'TIMING empty_pair: count,sum_hi,sum_lo,max (hex ticks)',10,0
+g2bp_actual_mode_key dc.b 'actual_mode_id=$',0
+g2bp_board_key dc.b 'board_name=',0
+g2bp_cpu_key dc.b 'cpu_attn_flags=$',0
+g2bp_priority_key dc.b 'task_priority_signed=$',0
+g2bp_nest_key dc.b 'task_nest_signed=$',0
+g2bp_cache_key dc.b 'cache_control_query=$',0
+g2bp_chunky_key dc.b 'MEM chunky: address,type,lower,upper,priority (hex),name',10,0
+g2bp_stage_key dc.b 'MEM stage: address,type,lower,upper,priority (hex),name',10,0
+g2bp_target_key dc.b 'MEM target: address,type,lower,upper,priority (hex),name',10,0
+	even

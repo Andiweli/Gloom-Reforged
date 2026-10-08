@@ -4,7 +4,7 @@
 ; Stage 1 is a compact Intuition requester containing only supported resolutions
 ; that actually exist as exact 8-bit CLUT P96 modes on the current system.
 ; Stage 2 is the official p96RequestModeIDTagList requester, constrained to the
-; selected exact width/height, 8-bit depth and RGBFB_CLUT. Gloom Reforged 2.3.2
+; selected exact width/height, 8-bit depth and RGBFB_CLUT. Gloom Reforged 2.4.0
 ; no longer exposes 16-bit modes in the native P96 mode contract.
 ;
 ; Supported output geometries:
@@ -31,7 +31,7 @@ G2P96_MA_FORMATSALLOWED	equ	G2P96_MA_DUMMY+$0008
 G2P96_MA_WINDOWTITLE		equ	G2P96_MA_DUMMY+$000a
 G2P96_MA_OKTEXT		equ	G2P96_MA_DUMMY+$000b
 G2P96_MA_CANCELTEXT		equ	G2P96_MA_DUMMY+$000c
-G2P96_RGBFF_SUPPORTED	equ	RGBFF_CLUT	;Gloom Reforged 2.3.2 exposes native 8-bit CLUT only
+G2P96_RGBFF_SUPPORTED	equ	RGBFF_CLUT	;Gloom Reforged 2.4.0 exposes native 8-bit CLUT only
 G2P96_IDA_DEPTH		equ	2
 G2P96_IDA_BYTESPERPIXEL	equ	3
 G2P96_IDA_BITSPERPIXEL	equ	4
@@ -452,7 +452,7 @@ g2p96_req_gadget_buffer	ds.b	64
 g2p96_req_intuition_name	dc.b	'intuition.library',0
 g2p96_req_title	dc.b	'Gloom Reforged P96',0
 g2p96_req_body_prefix
-	dc.b	'Gloom Reforged 2.3.2 uses native direct-indexed',10
+	dc.b	'Gloom Reforged 2.4.0 uses native direct-indexed',10
 	dc.b	'8-bit Picasso96 output',10,10
 	dc.b	'Select an available P96 output size',10,10,0
 g2p96_req_body_footer
@@ -507,7 +507,7 @@ g2p96_req_bad_override_body
 ; Canonical build identifier kept at EOF to preserve the established placement.
 ; The former verbose P96 palette-map diagnostic block was removed in c87b79m; c87b79n makes DISPLAY=P96 the sole planar-source owner.
 ; -----------------------------------------------------------------------------
-g2build_version_text	dc.b	'2.3.2 c87b82'
+g2build_version_text	dc.b	'2.4.0 c87b84b'
 g2build_version_text_end
 g2build_version_text_len	equ	g2build_version_text_end-g2build_version_text
 
@@ -872,7 +872,6 @@ g2p96_req_show_resolution_c87b70j
 	clr.l	g2p96_req_custom_screen
 	tst.l	g2p96_req_custom_window
 	beq.w	.g2p96_req_custom_fallback_easy
-
 	jsr	g2update_init
 	jsr	g2rc4_p96_req_custom_draw_v21
 	jsr	g2rc4_p96_req_custom_wait_v21
@@ -1008,6 +1007,8 @@ g2p96_req_custom_draw
 	move.l	g2p96_req_custom_grbase,a6
 	moveq	#G2P96_REQ_PEN_BG,d0
 	jsr	-348(a6)			; SetBPen
+	move.l	g2p96_req_custom_window,a0
+	move.l	50(a0),a1			; A1 is scratch across library calls
 	moveq	#0,d0
 	jsr	-354(a6)			; SetDrMd(JAM1)
 
@@ -1385,6 +1386,8 @@ g2p96_req_custom_rect
 	move.l	g2p96_req_custom_grbase,a6
 	move	d4,d0
 	jsr	-342(a6)			; SetAPen (d2-d7 preserved)
+	move.l	g2p96_req_custom_window,a0
+	move.l	50(a0),a1			; c87b83: reload RastPort for RectFill
 	move	d5,d0
 	move	d6,d1
 	move	d7,d2
@@ -1407,6 +1410,8 @@ g2p96_req_custom_text
 	move.l	g2p96_req_custom_grbase,a6
 	move	d7,d0
 	jsr	-342(a6)			; SetAPen
+	move.l	g2p96_req_custom_window,a0
+	move.l	50(a0),a1			; c87b83: reload RastPort for Move
 	move	d5,d0
 	move	d6,d1
 	jsr	-240(a6)			; Move
@@ -1497,7 +1502,7 @@ g2p96_req_custom_title	dc.b	'Gloom Reforged P96'
 g2p96_req_custom_title_end
 g2p96_req_custom_title_len	equ	g2p96_req_custom_title_end-g2p96_req_custom_title
 
-g2p96_req_custom_warning1	dc.b	'Gloom Reforged v2.3.2'
+g2p96_req_custom_warning1	dc.b	'Gloom Reforged v2.4.0'
 g2p96_req_custom_warning1_end
 g2p96_req_custom_warning1_len	equ	g2p96_req_custom_warning1_end-g2p96_req_custom_warning1
 	dcb.b	10,0			; preserve established binary spacing
@@ -1806,3 +1811,4 @@ g2basic_p96modeid_tooltype_hex	ds.b	8
 g2basic_p96modeid_tooltype_block_end
 g2basic_p96modeid_tooltype_block_len	equ	g2basic_p96modeid_tooltype_block_end-g2basic_p96modeid_tooltype_block
 	even
+

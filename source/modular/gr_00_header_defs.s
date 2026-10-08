@@ -1,3 +1,10 @@
+; v2.4.0 / c87b84b: guarded 640/854 P96 RAM staging expansion.
+; v2.4.0 / c87b84a: release version advanced; validated COPY staging retained.
+; v2.3.3 / c87b83b: guarded exact-size P96 RAM COPY staging.
+
+; v2.3.3 / c87b83a: OS database ModeID enumeration for the launcher.
+; Launcher diagnostics and isolation builds removed from production sources.
+; v2.3.3 / c87b83: launcher RastPort register reloads and mode-list NULL check.
 ; v2.3.2 / c87b82: automatic IndiECS and Warp/csgfx single buffering.
 ; P96 reply synchronization and optional P96SINGLE.
 ; Production build: no P96DIAG hooks, counters, timer acquisition or logs.
@@ -962,7 +969,7 @@ exhalf	equ	exone>>1
 
 	jmp	entrypoint
 	; v2.3: public release marker; ECS/AGA/P96 remain official runtime paths.
-g2release_marker	dc.b	'Gloom Reforged v2.3.2 (c87b82) by Andreas ',39,'Andiweli',39,' Stuermer',0
+g2release_marker	dc.b	'Gloom Reforged v2.4.0 (c87b84b) by Andreas ',39,'Andiweli',39,' Stuermer',0
 	even
 
 	rsreset
