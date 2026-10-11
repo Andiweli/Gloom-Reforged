@@ -2,7 +2,9 @@
 
 `updater_http_test.c` links the production `source/updater/http.c` against a
 fake TLS transport. Compile with a C11 compiler and run the resulting program.
-On MSVC: `cl /std:c11 /W4 /WX /Isource/updater tests/updater_http_test.c source/updater/http.c`.
+On MSVC: `cl /std:c11 /W4 /WX /D_CRT_SECURE_NO_WARNINGS /Isource/updater
+tests/updater_http_test.c source/updater/http.c source/updater/buffer.c
+source/updater/common.c` (keep object/executable output outside the repository).
 
 `asm_regression.py` executes the real assembled game and benchmark instructions
 using Musashi, with Amiga library calls explicitly stubbed. It requires Python 3,

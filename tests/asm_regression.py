@@ -72,7 +72,7 @@ class CPU:
                 assert self.dll.test_faults()==0, 'out of mapped memory'
                 return self.get(D0)
             if pc in self.hooks: self.hooks[pc](self)
-            elif pc==self.addr('decrm')+32:
+            elif pc==self.addr('decrm')+32 or pc==self.syms.get('g2crm_decode_checked'):
                 assert self.dll.test_until(self.r32(self.get(A7)),20000000), 'decrunch instruction limit'
             elif n in ['g2validate_map','g2validate_anim','g2validate_texture','g2validate_iff']:
                 assert self.dll.test_until(STOP,20000000), 'validator instruction limit'

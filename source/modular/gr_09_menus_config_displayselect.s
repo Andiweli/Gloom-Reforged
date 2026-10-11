@@ -1387,14 +1387,21 @@ loadfile_	; a0=name, d1=memtype; d0=usable pointer or 0
 	move.l	d0,a0
 	add.l	d6,d0
 	move.l	d0,a1
+	move.l	a4,d0
+	move.l	d4,d1
 	jsr	flushc
-	jsr	decrm+32	; payload codec bounds remain an explicit F004 open item
+	jsr	g2crm_decode_checked
+	tst.l	d0
+	bne.s	.crunch_failed
 	jsr	flushc
-	move.l	d0,a0
+	move.l	a1,a0
 	move.l	fileheader+6(pc),d0
 	jsr	g2asset_set_length
 	move.l	a0,d0
 	bra.s	.done
+.crunch_failed
+	freemem	loadfile_invalid_crm
+	bra.s	.err
 .raw
 	bsr.w	loadit
 	bra.s	.done

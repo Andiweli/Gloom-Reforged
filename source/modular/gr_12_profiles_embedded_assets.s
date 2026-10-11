@@ -992,7 +992,7 @@ g2zm_prepare_about_g3dc
 
 ; a0=start of embedded file, a1=end of embedded file, d1=memtype.
 ; Returns d0=usable pointer.  CrM2/CrM! files are decrunched through the same
-; decrm routine as loadfile; raw files are returned directly.
+; bounded CrM routine as loadfile; raw files are returned directly.
 ; v190gn: gun/title/gloombrush are now also passed through this path, because
 ; the correct Gloom Deluxe uploads are CrM2-compressed on disk.
 g2embed_decrunch_asset
@@ -1000,19 +1000,30 @@ g2embed_decrunch_asset
 	move.l	a0,a2		; embedded source start
 	move.l	a1,d5
 	sub.l	a2,d5		; source length
+	ble.w	.g2emb_invalid
+	cmp.l	#4,d5
+	bcs.w	.g2emb_raw
 	move.l	a2,a0
 	cmp.l	#'CrM2',(a0)
 	beq.s	.g2emb_crunched
 	cmp.l	#'CrM!',(a0)
 	beq.s	.g2emb_crunched
+.g2emb_raw
 	move.l	a2,d0
 	bra.w	.g2emb_return
 .g2emb_crunched
+	cmp.l	#14,d5
+	bcs.w	.g2emb_invalid
 	moveq	#0,d6
 	move.w	4(a2),d6
 	add.l	#14,d6
 	move.l	6(a2),d4	; decrunched length from CrM header
+	ble.w	.g2emb_invalid
 	move.l	d4,d0
+	cmp.l	d5,d0
+	bcc.s	.g2emb_capacity
+	move.l	d5,d0		; source copy also has to fit the allocation
+.g2emb_capacity
 	move.l	d1,d1
 	move.l	d6,d2
 	allocmem2	g2embed
@@ -1027,16 +1038,29 @@ g2embed_decrunch_asset
 	subq.l	#1,d7
 .g2emb_copy
 	move.b	(a0)+,(a1)+
-	dbf	d7,.g2emb_copy
+	subq.l	#1,d7
+	bpl.s	.g2emb_copy	; full long count, never wrap DBF at 64 KiB
 .g2emb_copied
 	move.l	a3,a0		; decrm source
 	move.l	a3,a1
 	add.l	d6,a1		; decrm destination
+	move.l	d5,d0
+	move.l	d4,d1
 	jsr	flushc
-	jsr	decrm+32
+	jsr	g2crm_decode_checked
+	tst.l	d0
+	bne.s	.g2emb_failed
 	jsr	flushc
+	move.l	a1,a0
+	move.l	d4,d0
+	jsr	g2asset_set_length
 	move.l	a3,d0
 	add.l	d6,d0		; return decrunched pointer
+	bra.s	.g2emb_return
+.g2emb_failed
+	freemem	g2embed_invalid_crm
+.g2emb_invalid
+	moveq	#0,d0
 .g2emb_return
 	movem.l	(a7)+,d1-d7/a0-a6
 	rts
