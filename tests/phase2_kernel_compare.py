@@ -1,5 +1,5 @@
-"""Compare assembled hot spans with Phase 1. Normalise absolute relocation
-fields only; PC-relative operands/opcodes/data must match byte for byte.
+"""Compare assembled hot spans with Phase 1. Normalise absolute relocations;
+when PC displacements change, verify opcodes/layout and symbol+offset targets.
 Usage: python tests/phase2_kernel_compare.py DLL old-game new-game old-bench new-bench
 """
 import struct,sys,hashlib,ctypes,re,bisect

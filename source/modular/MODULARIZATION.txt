@@ -4,15 +4,15 @@ Base: master c223cf5dce87dacbfb9591a6109e02bbee0df98c (unchanged).
 No new release/version or release archive has been produced by this branch.
 
 Build source/GloomReforged_Modular.s from source/ with the existing assets.
-It includes 32 active modules: gr_00..gr_29, then gr_31 and gr_32.
+It includes 37 active modules: gr_00..gr_29, then gr_31..gr_37.
 The two gr_30 diagnostic sources are inactive and are not production includes.
-GloomBench.s shares gr_31/gr_32 and contains synchronized copies of corrected
+GloomBench.s shares gr_31..gr_37 and contains synchronized copies of corrected
 common routines. Its measurement blocks and released render kernels are unchanged.
 
 SHA256SUMS.txt covers both entrypoints and every active module. Hashes describe
 Git source bytes (LF). In an LF checkout run sha256sum -c modular/SHA256SUMS.txt
 from source/. With Windows CRLF conversion, use tests/stability_invariants.py;
-that checker canonicalizes line endings, then verifies all 34 entries.
+that checker canonicalizes line endings, then verifies all 39 entries.
 
 Current module overview
 -----------------------
@@ -48,6 +48,16 @@ gr_28_launcher_update.s : launcher/update
 gr_29_automap.s : automap
 gr_31_resource_safety.s : cold resource bounds/texture validation
 gr_32_config_safe_write.s : checked configuration replacement
+gr_33_crm_bounds.s : bounded backwards CrM decoder
+gr_34_event_script_bounds.s : cold event/morph bodies and map program bounds
+gr_35_script_bounds.s : bounded level-script parser and text layout
+gr_36_palette_resource_bounds.s : typed palette/font/shape/audio validation
+gr_37_med_structure_bounds.s : MED framing/relocation bounds (playback incomplete)
+
+Cold entries in gr_03 retain their Phase 1 instruction footprint using JMP/NOP
+stubs. Eight static padding bytes before Kalm preserve its modulo-16 placement.
+Verified hot instruction spans retain opcodes/layout; absolute relocations and
+some PC-relative operands differ with the new layout, with destinations checked.
 
 Validation and remaining findings: ../../AUDIT-STABILIZATION-2.4.0.txt.
 Reproduction: ../../tests/README.md.
