@@ -29,3 +29,4 @@
 	include "modular/gr_28_launcher_update.s"
 	include "modular/gr_29_automap.s"
 	include "modular/gr_31_resource_safety.s"
+	include "modular/gr_32_config_safe_write.s"

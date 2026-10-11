@@ -104,6 +104,49 @@ class FileDOS:
     def free(self,c):self.frees+=1;assert c.get(A1)==0x300000;c.ret()
 
 
+class ConfigDOS:
+    def __init__(self,c,fault=None,old=True):
+        self.name='PROGDIR:test.cfg';self.old=b'old-complete-config';self.new=b'new-complete-config'
+        self.files={self.name:self.old} if old else {};self.fault=fault;self.error=205;self.renames=0;self.opens=[];self.closes=[];self.readpos=0
+        c.put(0x280000,self.name.encode()+b'\0');c.put(0x290000,self.new)
+        c.set(A0,0x280000);c.set(A1,0x290000);c.set(D0,len(self.new));c.w32(EXEC+276,0x270000)
+        for off,method in [(-30,self.open),(-42,self.read),(-48,self.write),(-36,self.close),(-78,self.rename),(-72,self.delete),(-84,self.lock),(-90,lambda c:c.ret(1)),(-132,lambda c:c.ret(self.error))]:c.hook(DOS+off,method)
+        suffix='.g200270000.'
+        if fault in ['existing_tmp','existing_bak']:self.files[self.name+suffix+('tmp' if fault.endswith('tmp') else 'bak')]=b'recoverable-file'
+    def string(self,c,address):return c.bytes(address,128).split(b'\0',1)[0].decode()
+    def lock(self,c):
+        name=self.string(c,c.get(D1))
+        if self.fault=='lock':self.error=202;c.ret(0)
+        elif name in self.files:c.ret(2)
+        else:self.error=205;c.ret(0)
+    def open(self,c):
+        name=self.string(c,c.get(D1));mode=c.get(D2)
+        if mode==1005:
+            self.readname=name;self.readpos=0;c.ret(2 if name in self.files else 0);return
+        self.opens.append(name);assert name.endswith('.tmp') and name!=self.name
+        if self.fault=='open':c.ret(0);return
+        assert name not in self.files, 'existing temp was truncated'
+        self.temp=name;self.files[name]=b'';c.ret(1)
+    def read(self,c):
+        chunk=self.files[self.readname][self.readpos:self.readpos+c.get(D3)];self.readpos+=len(chunk);c.put(c.get(D2),chunk);c.ret(len(chunk))
+    def write(self,c):
+        size=c.get(D3);chunk=c.bytes(c.get(D2),size)
+        if self.fault=='short':chunk=chunk[:-1]
+        if self.fault=='write_error':chunk=b''
+        self.files[self.temp]=chunk;c.ret(-1 if self.fault=='write_error' else len(chunk))
+    def close(self,c):self.closes.append(c.get(D1));c.ret(0 if self.fault=='close' and c.get(D1)==1 else 1)
+    def rename(self,c):
+        old=self.string(c,c.get(D1));new=self.string(c,c.get(D2));self.renames+=1
+        if self.fault=='rename'+str(self.renames) or (self.fault=='rollback' and self.renames>=2):self.error=202;c.ret(0);return
+        if old not in self.files:self.error=205;c.ret(0);return
+        if new in self.files:self.error=203;c.ret(0);return
+        self.files[new]=self.files.pop(old);c.ret(1)
+    def delete(self,c):
+        name=self.string(c,c.get(D1))
+        if self.fault=='delete_backup' and name.endswith('.bak'):c.ret(0);return
+        self.files.pop(name,None);c.ret(1)
+
+
 def tests(dll,path,cpu_type):
     count=0
     def new(): return CPU(dll,path,cpu_type)
@@ -180,7 +223,8 @@ def tests(dll,path,cpu_type):
         for off in [-228,-270]:c.hook(GRAPHICS+off,lambda c:c.ret())
         seen=[]
         def change(c):seen.append(c.get(A1));c.ret(int(len(seen)==3))
-        c.hook(INTUITION-780,change);c.run(routine)
+        c.hook(INTUITION-780,change);c.set(A2,0x2a0000);c.run(routine)
+        assert c.get(A2)==0x2a0000, 'suspend changed a callee-saved register'
         assert seen==[0x320000 if routine.endswith('flip') else 0x310000]*3,seen;count+=1
     c=new();events=[]
     def wait(kind):
@@ -213,6 +257,27 @@ def tests(dll,path,cpu_type):
     assert c.r32(c.addr('textures')+80)==0x300024
     assert c.bytes(c.addr('textures'),80)==bytes(80) and c.bytes(c.addr('textures')+84,640-84)==bytes(640-84);count+=1
     c.run('loadtxts');assert c.r32(c.addr('textures')+80)==0x300024;count+=1
+    for fault in [None,'lock','open','short','write_error','close','rename1','rename2','rollback','existing_tmp','existing_bak','delete_backup']:
+        c=new();io=ConfigDOS(c,fault);result=c.run('g2save_config_checked')
+        success=fault in [None,'delete_backup'];assert (result==0)==success,(fault,result)
+        if success:assert io.files[io.name]==io.new
+        elif fault=='rollback':assert io.old in io.files.values() and io.new in io.files.values()
+        else:assert io.files[io.name]==io.old,(fault,io.files)
+        assert io.closes.count(1)==(1 if io.opens and fault!='open' else 0)
+        count+=1
+    c=new();io=ConfigDOS(c,old=False);assert c.run('g2save_config_checked')==0 and io.files[io.name]==io.new;count+=1
+    if 'bench' not in Path(path).name:
+        for fault in [None,'short']:
+            c=new();io=ConfigDOS(c,fault);io.name='PROGDIR:gloom.launcher';io.files={io.name:io.old}
+            c.w16(c.addr('g2launcher_always'),0xffff);c.run('g2launcher_pref_save')
+            assert c.r16(c.addr('g2launcher_saved'))==(0xffff if fault is None else 0)
+            assert io.files[io.name]==(b'GLA1\xff\xff' if fault is None else io.old);count+=1
+    # Required allocation failure must abandon nested frames via the original
+    # task stack and report failure; no writes through the returned NULL.
+    c=new();c.w32(c.addr('g2menu_entry_sp'),STACK);c.hook('exittoos',lambda c:c.ret())
+    c.hook(EXEC-198,lambda c:c.ret(0));c.set(A2,0x290000);c.set(D0,10);c.set(D1,32)
+    assert c.run('k_alloclist')==20 and c.r16(c.addr('g2fatal_state'))!=0
+    assert c.bytes(0,4)==b'\x00\x80\x00\x00';count+=1
     print(Path(path).name, 'CPU',cpu_type,':',count,'instruction-level cases passed')
     return count
 

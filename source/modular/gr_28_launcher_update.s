@@ -439,23 +439,10 @@ g2launcher_pref_save
         move.l  #'GLA1',g2launcher_pref_data
         move.w  d0,g2launcher_pref_data+4
         lea     g2launcher_pref_name,a0
-        move.l  a0,d1
-        move.l  #1006,d2
-        move.l  dosbase,a6
-        jsr     -30(a6)
-        move.l  d0,d7
-        beq.w   .done
-        move.l  d7,d1
-        lea     g2launcher_pref_data,a0
-        move.l  a0,d2
-        moveq   #6,d3
-        jsr     -48(a6)
-        move.l  d0,d6
-        move.l  d7,d1
-        jsr     -36(a6)
+        lea     g2launcher_pref_data,a1
+        moveq   #6,d0
+        jsr     g2save_config_checked
         tst.l   d0
-        beq.w   .done
-        cmp.l   #6,d6
         bne.w   .done
         move.w  g2launcher_always,g2launcher_saved
 .done

@@ -22471,20 +22471,10 @@ g2cfg_save
 	move	g2stock_cfg_bayer,d0	; STOCK must not overwrite the saved normal choice
 .store_bayer
 	move	d0,(a0)+
-	move.l	dosbase,a6
 	lea	g2cfg_name(pc),a0
-	move.l	a0,d1
-	move.l	#1006,d2
-	jsr	-30(a6)
-	move.l	d0,d7
-	beq	.save_done
-	move.l	d7,d1
-	lea	g2cfg_buf(pc),a0
-	move.l	a0,d2
-	move.l	#g2cfg_len+18,d3
-	jsr	-48(a6)
-	move.l	d7,d1
-	jsr	-36(a6)
+	lea	g2cfg_buf(pc),a1
+	move.l	#g2cfg_len+18,d0
+	jsr	g2save_config_checked
 .save_done
 	movem.l	(a7)+,d0-d7/a0-a6
 	rts
@@ -51825,19 +51815,11 @@ g2bench_p96prefs_save_v21
         move    d0,(a0)+
 
         lea     g2cfg_name,a0
-        move.l  a0,d1
-        move.l  #1006,d2
-        move.l  dosbase,a6
-        jsr     -30(a6)
-        move.l  d0,d7
-        beq.w   .done
-        move.l  d7,d1
-        lea     g2bench_cfg_buffer_v21(pc),a0
-        move.l  a0,d2
-        move.l  #G2BENCH_CFG_TOTAL_LEN_V21+6,d3
-        jsr     -48(a6)
-        move.l  d7,d1
-        jsr     -36(a6)
+        lea     g2bench_cfg_buffer_v21(pc),a1
+        move.l  #G2BENCH_CFG_TOTAL_LEN_V21+6,d0
+        jsr     g2save_config_checked
+        tst.l   d0
+        bne.w   .done
 
         tst     g2bench_save_screenmode_v21
         beq.w   .clear_runtime_saved
@@ -55130,3 +55112,4 @@ g2bp_stage_key dc.b 'MEM stage: address,type,lower,upper,priority (hex),name',10
 g2bp_target_key dc.b 'MEM target: address,type,lower,upper,priority (hex),name',10,0
 	even
 	include "modular/gr_31_resource_safety.s"
+	include "modular/gr_32_config_safe_write.s"
