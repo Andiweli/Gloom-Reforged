@@ -5,6 +5,7 @@ sblen	equ	128	;serial buffer length
 g2exit_serial_vector	dc.l	0
 g2exit_serial_intena	dc.w	0
 g2exit_serial_owned	dc.w	0
+g2serial_overruns	dc.w	0
 
 initser	push
 	tst	g2exit_serial_owned
@@ -97,7 +98,7 @@ rbf	;receive buffer full interupt
 	movem.l	d0-d1/a0-a1,-(a7)
 	;
 	move	$dff018,d0	;ser byte
-	bmi	.fuck
+	bmi.w	.overrun
 	move	#$800,$dff09c
 	;
 	move	chatok(pc),d1
@@ -115,6 +116,8 @@ rbf	;receive buffer full interupt
 	bra.s	.bye
 	;
 .chskip	lea	rbuff(pc),a1
+	cmp.w	#sblen,rbfcnt
+	bhs.w	.overrun		; do not overwrite unread ring entries
 	move	rput(pc),d1
 	and	#sblen-1,d1
 	move.b	d0,0(a1,d1)
@@ -124,9 +127,10 @@ rbf	;receive buffer full interupt
 .bye	movem.l	(a7)+,d0-d1/a0-a1
 	rts
 	;
-.fuck	warn	#$f00	;ser overflow error!
-	warn	#$fff
-	bra.s	.fuck
+.overrun
+	move	#$0800,$dff09c	; clear RBF/OVRUN before returning to Exec
+	addq.w	#1,g2serial_overruns
+	bra.w	.bye			; no DOS calls or waits in the interrupt
 
 rbuff	ds.b	sblen
 rput	dc	0
@@ -715,8 +719,7 @@ g2_inline_c2p_init	;blackmagic_1-compatible initc2p table builder
 g2_after_inline_c2p_init
 	moveq	#8,d0
 	bsr	initmed
-	bsr	initser
-	bsr	calcbaud
+	; Link options are inactive in the release. Acquire serial only at doconnect.
 	bsr	initdarktable
 	moveq	#9,d0
 	;
@@ -3171,11 +3174,16 @@ phoneat	dc.l	phonenum
 nulllink	;
 	lea	connect(pc),a0
 doconnect	;
+	movem.l	d0-d1/a0-a1/a6,-(a7)
+	bsr	initser
+	bsr	calcbaud
+	movem.l	(a7)+,d0-d1/a0-a1/a6
 	bsr	sendstring
 	bsr	waitconnect
 	beq	.calcmaster
 	;
 	clr	linked
+	bsr	finitser
 	rts
 	;
 	;OK, randomly determine who is master and who is slave!

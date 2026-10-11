@@ -15814,16 +15814,24 @@ pokepal_ecs	move.l	coplist,a2
 
 pokepal_aga	move.l	coplist,a2
 	lea	palette_aga-copinit_aga(a2),a2
+	tst.w	d0
+	beq.w	.done
 	subq	#1,d0
-	move	d0,d2
+	move	d0,d2		; last bank may contain fewer than 32 colours
 	and	#31,d2
-.loop	move	d2,d1
+	lsr.w	#5,d0		; DBF counts banks, not colours
+.loop	moveq	#31,d1
+	tst.w	d0
+	bne.s	.full_bank
+	move	d2,d1
+.full_bank
 .loop2	move	(a1)+,6(a2)
 	move	(a1)+,132+6(a2)
 	addq	#4,a2
 	dbf	d1,.loop2
 	lea	264-128(a2),a2
 	dbf	d0,.loop
+.done
 	rts
 
 decodeiff	;
@@ -17084,7 +17092,20 @@ chatprintin	;d0.b=chr$() to print, d1=colour (1,2,3)
 
 sblen	equ	128	;serial buffer length
 
+g2exit_serial_vector	dc.l	0
+g2exit_serial_intena	dc.w	0
+g2exit_serial_owned	dc.w	0
+g2serial_overruns	dc.w	0
+
 initser	push
+	tst	g2exit_serial_owned
+	bne.w	.done
+	move.l	4.w,a6
+	jsr	-120(a6)
+	move	$dff01c,d0
+	and	#$0801,d0
+	move	d0,g2exit_serial_intena
+	move	#$0801,$dff09a
 	;
 	clr	rget
 	clr	rput
@@ -17095,25 +17116,32 @@ initser	push
 	moveq	#11,d0
 	lea	rbfintserver(pc),a1
 	jsr	-162(a6)
+	move.l	d0,g2exit_serial_vector
+	move	#-1,g2exit_serial_owned
 	;
 	move	#$0801,$dff09c
 	move	#$0001,$dff09a	;no tbe int.
 	move	#$8800,$dff09a	;rbf int only
-	;
-	pull
+	jsr	-126(a6)
+.done	pull
 	rts
 
 finitser	push
-	;
+	tst	g2exit_serial_owned
+	beq.s	.done
+	move.l	4.w,a6
+	jsr	-120(a6)
 	move	#$0801,$dff09a
 	move	#$0801,$dff09c
-	;
-	move.l	4.w,a6
 	moveq	#11,d0
-	sub.l	a1,a1
+	move.l	g2exit_serial_vector,a1
 	jsr	-162(a6)
-	;
-	pull
+	clr	g2exit_serial_owned
+	move	g2exit_serial_intena,d0
+	or	#$8000,d0
+	move	d0,$dff09a
+	jsr	-126(a6)
+.done	pull
 	rts
 
 serput	;send byte in d0
@@ -17160,7 +17188,7 @@ rbf	;receive buffer full interupt
 	movem.l	d0-d1/a0-a1,-(a7)
 	;
 	move	$dff018,d0	;ser byte
-	bmi	.fuck
+	bmi.w	.overrun
 	move	#$800,$dff09c
 	;
 	move	chatok(pc),d1
@@ -17178,6 +17206,8 @@ rbf	;receive buffer full interupt
 	bra.s	.bye
 	;
 .chskip	lea	rbuff(pc),a1
+	cmp.w	#sblen,rbfcnt
+	bhs.w	.overrun		; do not overwrite unread ring entries
 	move	rput(pc),d1
 	and	#sblen-1,d1
 	move.b	d0,0(a1,d1)
@@ -17187,9 +17217,10 @@ rbf	;receive buffer full interupt
 .bye	movem.l	(a7)+,d0-d1/a0-a1
 	rts
 	;
-.fuck	warn	#$f00	;ser overflow error!
-	warn	#$fff
-	bra.s	.fuck
+.overrun
+	move	#$0800,$dff09c	; clear RBF/OVRUN before returning to Exec
+	addq.w	#1,g2serial_overruns
+	bra.w	.bye			; no DOS calls or waits in the interrupt
 
 rbuff	ds.b	sblen
 rput	dc	0
@@ -17775,8 +17806,7 @@ g2_inline_c2p_init	;blackmagic_1-compatible initc2p table builder
 g2_after_inline_c2p_init
 	moveq	#8,d0
 	bsr	initmed
-	bsr	initser
-	bsr	calcbaud
+	; Link options are inactive in the release. Acquire serial only at doconnect.
 	bsr	initdarktable
 	moveq	#9,d0
 	;
@@ -20225,11 +20255,16 @@ phoneat	dc.l	phonenum
 nulllink	;
 	lea	connect(pc),a0
 doconnect	;
+	movem.l	d0-d1/a0-a1/a6,-(a7)
+	bsr	initser
+	bsr	calcbaud
+	movem.l	(a7)+,d0-d1/a0-a1/a6
 	bsr	sendstring
 	bsr	waitconnect
 	beq	.calcmaster
 	;
 	clr	linked
+	bsr	finitser
 	rts
 	;
 	;OK, randomly determine who is master and who is slave!
@@ -36562,8 +36597,10 @@ g2p96_gameplay_dbuf_flip
 .use0
 	move.l	p96gameplay_dbuf_sb0,a1
 .have_sb
+	move.l	a1,d2		; library calls may destroy a1, never d2
 	moveq	#3,d3
 .retry
+	move.l	d2,a1
 	move.l	p96winprobe_screen_ptr,a0
 	move.l	p96gameplay_intbase,a6
 	jsr	-780(a6)	;ChangeScreenBuffer
@@ -36676,8 +36713,10 @@ g2p96_gameplay_dbuf_suspend_primary
 	beq.w	.syncfail
 	jsr	g2p96_gameplay_clear_bitmap_a2
 	move.l	p96gameplay_dbuf_sb0,a1
+	move.l	a1,d2
 	moveq	#3,d3
 .retry
+	move.l	d2,a1
 	move.l	p96winprobe_screen_ptr,a0
 	move.l	p96gameplay_intbase,a6
 	jsr	-780(a6)
@@ -36730,8 +36769,19 @@ g2p96_gameplay_dbuf_resume
 
 g2p96_gameplay_dbuf_free
 	movem.l	d0/a0-a1/a6,-(a7)
+.wait_safe
 	jsr	g2p96_gameplay_dbuf_wait_safe
+	tst.l	d0
+	beq.w	.wait_safe	; timeout leaves ownership with the display
+.wait_disp
 	jsr	g2p96_gameplay_dbuf_wait_disp
+	tst.l	d0
+	beq.w	.wait_disp
+	move.l	p96gameplay_grbase,d0
+	beq.w	.blit_done
+	move.l	d0,a6
+	jsr	-228(a6)	; V39 FreeScreenBuffer does not wait for the blitter
+.blit_done
 	jsr	g2p96_gameplay_dbuf_free_partial
 	movem.l	(a7)+,d0/a0-a1/a6
 	rts
