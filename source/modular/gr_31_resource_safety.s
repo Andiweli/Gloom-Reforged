@@ -134,6 +134,15 @@ g2validate_anim	; a0=start; 0=valid, -1=invalid; all other registers preserved
 	beq.w	.bad
 	tst.w	d2
 	beq.w	.bad
+	cmp.w #32767,d2
+	bhi.w .bad
+	cmp.w #32767,d3
+	bhi.w .bad
+	move.l d2,d4
+	subq.w #1,d4
+	mulu d3,d4
+	cmp.l #32767,d4	; drawobj* uses signed word column-base indexing
+	bhi.w .bad
 	mulu	d3,d2
 	move.l	d6,d3
 	sub.l	d1,d3
@@ -210,7 +219,7 @@ g2clear_texture_slots
 	rts
 
 ; Map framing, grid/point indices and the eight texture names are checked here.
-; Full event-bytecode operands and polygon semantics remain F004 open work.
+; gr_34 validates event operands and map animation/texture programs.
 g2validate_map
 	movem.l	d1-d7/a0-a6,-(a7)
 	move.l	a0,a2
@@ -296,7 +305,9 @@ g2validate_map
 	bra.w	.bad
 .next_name
 	dbf	d6,.name
-	lea	20(a2),a3
+	move.l	a2,a3
+	add.l	(a2),a3
+	sub.l	#96,a3	; follows the runtime table, including extended headers
 	moveq	#23,d6
 .event
 	move.l	(a3)+,d1
@@ -309,7 +320,7 @@ g2validate_map
 	btst	#0,d1
 	bne.w	.bad
 	dbf	d6,.event
-	moveq	#0,d0
+	jsr	g2validate_map_programs
 	bra.s	.done
 .bad
 	moveq	#-1,d0

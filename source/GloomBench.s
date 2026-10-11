@@ -2050,9 +2050,12 @@ waitquiet	jsr	vwait
 
 playsfx	;sfx file in a0, vol in d0, priority in d1
 	;
+	move.l a0,d2
+	beq.s .no_sample	; optional missing SFX must not program DMA from address zero
 	;move	#$4000,$dff09a	;snd/vb ints off
 	;
-	jmp	g2bench2_audio_rts
+	lea	sfxs(pc),a1
+	moveq	#3,d2
 .loop	tst	fx_status(a1)
 	beq.s	makesfx
 	lea	fx_size(a1),a1
@@ -2070,6 +2073,7 @@ playsfx	;sfx file in a0, vol in d0, priority in d1
 	;no-can-do!
 	;
 	;move	#$c000,$dff09a
+.no_sample
 	rts
 	;
 queuesfx	;OK, turn off other and play US!
@@ -6574,67 +6578,9 @@ morph	tst	d0
 	;
 	bra	rotloop
 
-calcnormvec	;d0,d1 = vector...normalize!
-	;
-	;OK, find vector length!
-	;
-	move	d0,d2
-	muls	d2,d2
-	move	d1,d3
-	muls	d3,d3
-	add.l	d3,d2	
-	;
-	;OK, sqr of d2.l!
-	;
-	move.l	#$10000,d3
-	;
-.fitit	cmp.l	#16384,d2	;fits?
-	bcs.s	.ok
-	asr.l	#1,d2
-	mulu.l	#92681,d4:d3	;mult by sqr(2)
-	move	d4,d3
-	swap	d3
-	bra.s	.fitit
-	;
-.ok	;OK to look up, but multiply the result.w by d3.q
-	;
-	move.l	sqr(pc),a0
-	and	#$fffe,d2
-	movem	0(a0,d2),d2	;sqr.l!
-	mulu.l	d3,d2
-	swap	d2	;length.w
-	;
-	;length should be >= both abs(xvec) AND abs(zvec)
-	;
-	move	d0,d3
-	bpl.s	.xp
-	neg	d3
-.xp	move	d1,d4
-	bpl.s	.zp
-	neg	d4
-.zp	;
-	cmp	d4,d3
-	bcc.s	.bg
-	exg	d3,d4
-.bg	;
-	cmp	d3,d2
-	bcc.s	.lo
-	move	d3,d2
-.lo	;
-	ext.l	d2
-	;
-	swap	d0
-	clr	d0
-	divs.l	d2,d0
-	muls.l	#32766,d0
-	swap	d0
-	;
-	swap	d1
-	clr	d1
-	divs.l	d2,d1
-	muls.l	#32766,d1
-	swap	d1
-	rts
+calcnormvec	; retain d825e91 layout before time-critical PC-relative code/data
+	jmp g2cold_calcnormvec
+	dcb.w 59,$4e71
 
 rotter	movem	(a3)+,d0-d1	;this x,z
 	move	d0,d2
@@ -6706,13 +6652,10 @@ dodoors	lea	doors,a5
 
 doorsfxflag	dc	0
 
-execevent	;d0=event number to execute...1,2...
-	;
-	sf	doorsfxflag
-	move.l	map_map(pc),a6
-	move.l	map_events(pc),a0
-	add.l	0(a0,d0*4),a6
-	;
+execevent	; retain d825e91 layout before time-critical PC-relative code/data
+	jmp g2cold_execevent
+	dcb.w 6,$4e71
+
 exec_loop	move	(a6)+,d0
 	beq.s	.rts
 	subq	#1,d0
@@ -6754,54 +6697,13 @@ exec_changetxt	;
 	move.b	d0,zo_t(a1)
 	bra	exec_loop
 
-exec_opendoor	st	doorsfxflag
-	addlast	doors	;a0=new door
-	;
-	move	(a6)+,d0	;door #
-	move.l	map_poly(pc),a1
-	lsl	#5,d0
-	lea	0(a1,d0),a1	;polygon to open!
-	;
-	;calc lx add, lz add, rx add, rz add
-	;
-	move.l	a1,do_poly(a0)
-	move.l	zo_lx(a1),do_lx(a0)
-	move.l	zo_rx(a1),do_rx(a0)
-	clr	do_frac(a0)
-	move	#$100,do_fracadd(a0)
-	bra	exec_loop
+exec_opendoor	; retain d825e91 layout before time-critical PC-relative code/data
+	jmp g2cold_exec_opendoor
+	dcb.w 41,$4e71
 
-exec_teleport	move.l	eventobj(pc),a0
-	;
-	move	(a6)+,ob_telex(a0)
-	addq	#2,a6
-	move	(a6)+,ob_telez(a0)
-	move	(a6)+,ob_telerot(a0)
-	;
-	move	finished(pc),d0
-	or	finished2(pc),d0
-	bne	exec_loop
-	;
-	tst	-6(a6)	;teleport? or lock!
-	beq.s	.tele
-	;
-	;LOCK!
-	cmp.l	#playerlogic,ob_logic(a0)
-	bne	exec_loop
-	;
-	move	changedtxt(pc),d0
-	lea	textures(pc),a1
-	move.l	0(a1,d0*4),a1
-	lea	65<<6+1(a1),a2
-	lea	10*65+19(a1),a1
-	movem.l	a1-a2,deftxt
-	;
-	move.l	#locklogic,ob_logic(a0)
-	bra	exec_loop
-.tele	;
-	move	#2,ob_pixsizeadd(a0)
-	bsr	dotelesfx
-	bra	exec_loop
+exec_teleport	; retain d825e91 layout before time-critical PC-relative code/data
+	jmp g2cold_exec_teleport
+	dcb.w 48,$4e71
 
 dotelesfx	move.l	telesfx(pc),a0
 	moveq	#64,d0
@@ -6816,38 +6718,9 @@ exec_loadobjs	;
 .done	;
 	bra	exec_loop
 	
-loadanobj	;d0=object#...sys must be permitted
-	;
-	lea	objinfo,a2
-	mulu	#objinfof-objinfo,d0
-	move.l	_ob_shape-objinfo(a2,d0),a2
-	lea	8(a2),a3	;filename
-	;
-	tst.l	(a2)
-	bne.s	.skip
-	move.l	a3,a0
-	moveq	#1,d1
-	jsr	loadfile
-	requiremem		; main object shape cannot be rendered from NULL
-	move.l	d0,(a2)
-	move.l	d0,a0
-	jsr	remapanim
-.skip	;
-	tst.l	4(a2)
-	bne.s	.rts
-	move.l	a3,a0
-.loop	tst.b	(a3)+
-	bne.s	.loop
-	move.b	#'2',-(a3)
-	moveq	#1,d1
-	jsr	loadfile
-	clr.b	(a3)
-	move.l	d0,4(a2)
-	beq.s	.rts
-	move.l	d0,a0
-	jsr	remapanim
-	;
-.rts	rts
+loadanobj	; retain d825e91 layout before time-critical PC-relative code/data
+	jmp g2cold_loadanobj
+	dcb.w 44,$4e71
 
 exec_rotpolys	;
 	;could also be morphpolys depending on bit 0 of flags!
@@ -6924,59 +6797,9 @@ exec_rotpolys	;
 	;
 	bra	exec_loop
 
-exec_addobj	clr.l	dummy
-	move	(a6)+,d0	;monster type
-	lea	objinfo,a2
-	mulu	#objinfof-objinfo,d0
-	add.l	d0,a2
-	move.l	(a2)+,a3
-	tst.l	(a3)
-	beq.s	.ok
-.no	addq	#8,a6
-	bra	exec_loop
-.ok	cmp	#2,-2(a6)	;player?
-	bcc.s	.notp
-	addfirst	objects
-	bra.s	.bum
-.notp	addlast	objects
-.bum	beq.s	.no
-	move.l	a0,a5
-	;
-	move.l	a5,(a3)
-	;
-	move	(a6)+,ob_x(a5)
-	move	(a6)+,ob_y(a5)
-	move	(a6)+,ob_z(a5)
-	move	(a6)+,ob_rot(a5)
-	;
-	lea	ob_info(a5),a3
-	move	#(objinfof-objinfo-4)>>1-1,d0
-.loop	move	(a2)+,(a3)+
-	dbf	d0,.loop
-	;
-	tst	ob_blood(a5)	;hi bit of blood=1=invisible!
-	smi	d0
-	ext	d0
-	move	d0,ob_invisible(a5)
-	;
-	bsr	calcvecs
-	movem.l	d4-d5,ob_xvec(a5)
-	;
-	move.l	ob_shape(a5),a0
-	move.l	4(a0),ob_chunks(a5)
-	move.l	(a0),a0
-	move.l	a0,ob_shape(a5)
-	;
-	move	an_maxw(a0),d0
-	move	d0,ob_rad(a5)
-	mulu	d0,d0
-	move.l	d0,ob_radsq(a5)
-	;
-	clr.l	ob_washit(a5)
-	;
-	bsr	rnddelay
-	;
-	bra	exec_loop
+exec_addobj	; retain d825e91 layout before time-critical PC-relative code/data
+	jmp g2cold_exec_addobj
+	dcb.w 109,$4e71
 
 rnddelay	move	ob_range(a5),d0
 	bsr	rndn
@@ -17528,6 +17351,14 @@ loadfiles	;
 	move.l	a2,a0
 	bsr	loadfile
 	move.l	d0,(a3)
+	jsr g2validate_loaded_slot
+	cmp.l #script,a3
+	bne.s .not_script
+	tst.l d0
+	beq.s .not_script
+	move.l d0,a0
+	jsr g2require_script
+.not_script
 .z	tst.b	(a2)+
 	bne.s	.z
 	exg	a2,d0
@@ -17827,6 +17658,7 @@ initmain	;
 	jsr	g2loadgunfallback	;v61: optional misc/stuf gun.bin fallback
 	jsr	g2embed_apply_g1_fallbacks	;v190gl: gun fallback if no file exists
 	jsr	g2embed_apply_zm_title_overlay	;v190hu: embedded Zombie Massacre title overlay
+	jsr g2require_core_tables
 	moveq	#6,d0
 	;
 	; v41i diagnostic: progfiles/agafiles loaded OK.
@@ -17845,6 +17677,7 @@ initmain	;
 		moveq	#1,d1
 		bsr	loadfile
 		move.l	d0,planar_c2p
+		jsr g2require_external_c2p
 		;
 		move.l	planar_c2p(pc),a2
 		tst.l	a2
@@ -18434,7 +18267,7 @@ conttxts	ds.b	160
 	even
 
 execscript_med	;
-	jmp	execscript	; silent benchmark: no loading MED
+	jsr	waitquiet
 	;
 	move.l	loadingmed(pc),d0
 	beq.s	execscript
@@ -18445,42 +18278,7 @@ execscript_med	;
 execscript	cmp	#2,gametype
 	beq	scriptplay	;no script for combat game!
 	;
-	move.l	scriptat(pc),a0
-	;
-.loop	move.b	(a0)+,d0
-	cmp.b	#10,d0
-	beq.s	.loop
-	and	#31,d0
-	bne.s	.more
-.loop2	cmp.b	#10,(a0)+
-	bne.s	.loop2
-	bra.s	.loop
-.more	cmp	#27,d0
-	bcc.s	.loop2
-	add	#96,d0
-	;
-	;command! fetch the rest...
-	;
-	move.b	(a0)+,d1
-	and	#31,d1
-	add	#96,d1
-	lsl.l	#8,d0
-	or	d1,d0
-	;
-	move.b	(a0)+,d1
-	and	#31,d1
-	add	#96,d1
-	lsl.l	#8,d0
-	or	d1,d0
-	;
-	move.b	(a0)+,d1
-	and	#31,d1
-	add	#96,d1
-	lsl.l	#8,d0
-	or	d1,d0
-	;
-	addq	#1,a0	;skip '_'
-	move.l	a0,scriptat
+	jsr g2script_next_command
 	cmp.l	#'pict',d0
 	beq	scriptpict
 	cmp.l	#'draw',d0
@@ -18528,22 +18326,23 @@ sccont	dc.b	'cont_'
 scriptrest	;restart point marker
 	; c87b5: consume the rest_ line and continue, but never add an offset,
 	; allocate a continuation entry or write a gloomgame file.
-.leol	cmp.b	#10,(a0)+
-	bne.s	.leol
-	move.l	a0,scriptat
-	bra	execscript
+	move.l g2script_nextline,scriptat
+	bra execscript
 
-scriptloop	; v190hy cleanup: log marker removed
+scriptloop	; bound scripts must actually yield before repeating
+	tst.w g2script_yielded
+	beq.l g2fatal_abort
+	clr.w g2script_yielded
 	move.l	script,scriptat
 	bra	execscript
 
 scripthide	; v190hy cleanup: log marker removed
-	jmp	execscript	; benchmark: skip intermission command
+	jsr	g2p96_display_enter_intermission	;c86zfq: native P96 script/intermission owns display
 	bsr	dispoff
 	bra	execscript
 
 scriptshow	; v190hy cleanup: log marker removed
-	jmp	execscript	; benchmark: skip intermission command
+	jsr	g2p96_display_enter_intermission	;c86zfq: reveal AGA/intermission before dispon
 	tst.l	g2v190i_start_offset	; v190t: while skipping earlier levels, suppress old intermission screens
 	bgt	execscript
 	clr	pdelay
@@ -18551,7 +18350,7 @@ scriptshow	; v190hy cleanup: log marker removed
 	bra	execscript
 
 scriptdraw	; v190hy cleanup: log marker removed
-	jmp	execscript	; benchmark: skip intermission command
+	jsr	g2p96_display_enter_intermission	;c86zfq: native P96 intermission before drawing
 	tst.l	g2v190i_start_offset	; v190t: skip draw_ before earlier play_ entries
 	bgt	execscript
 	tst	g2v190t_reload_pic_after_level	; v190t: reload intermission IFF after gameplay, if needed
@@ -18629,15 +18428,7 @@ scriptdraw	; v190hy cleanup: log marker removed
 .g2v190hy2_draw_no_fontpal
 	bra	execscript
 
-fetchrest	move.l	scriptat,a0
-	moveq	#-1,d0
-.loop	addq	#1,d0
-	move.b	(a0)+,(a1)
-	cmp.b	#10,(a1)+
-	bne.s	.loop
-	clr.b	-(a1)
-	move.l	a0,scriptat
-	rts
+fetchrest	jmp g2script_fetchrest
 
 text	;
 picname	ds.b	64
@@ -18731,6 +18522,7 @@ freetiles	push
 
 floorname	dc.b	'txts/floor'
 floortag	ds.b	32
+g2floor_tag_end
 	even
 
 roofname	dc.b	'txts/roof'
@@ -18759,10 +18551,16 @@ loadtile	;
 	moveq	#1,d1
 	jsr	loadfile
 	move.l	d0,floor
+	requiremem
+	move.l d0,a0
+	jsr g2require_tile
 	lea	roofname(pc),a0
 	moveq	#1,d1
 	jsr	loadfile
 	move.l	d0,roof
+	requiremem
+	move.l d0,a0
+	jsr g2require_tile
 	bsr	forbid
 	;
 	move.l	map_rgbsfrom,map_rgbsat
@@ -18791,7 +18589,7 @@ ecspicpath	dc.b	'pics_ehb/',0
 	even
 
 scriptpict	;load an iff
-	jmp	g2bench2_skip_script_line	; benchmark: skip intermission command
+	jsr	g2p96_display_enter_intermission	;c86zfq: picture scripts use the native P96 intermission owner
 	bsr	freeiff
 	lea	agapicpath(pc),a0
 	lea	picname,a1
@@ -18845,6 +18643,7 @@ scriptpict	;load an iff
 	moveq	#1,d1
 	jsr	loadfile
 	move.l	d0,picpal
+	jsr g2require_picpal
 .nopic
 	addq	#4,a7
 	bsr	forbid
@@ -18884,11 +18683,12 @@ g2v190t_reload_current_pic
 	moveq	#1,d1
 	jsr	loadfile
 	move.l	d0,picpal
+	jsr g2require_picpal
 .close	bsr	forbid
 .rts	rts
 
 scriptdark	;
-	jmp	execscript	; benchmark: skip intermission command
+	jsr	g2p96_display_enter_intermission	;c86zfq: palette darken in the native P96 intermission owner
 	tst.l	g2v190i_start_offset	; v190t: suppress dark_ before skipped earlier levels
 	bgt	execscript
 	tst	os
@@ -18928,7 +18728,7 @@ scriptdark	;
 scripttext	;print text on iff
 	;a6=window, a4=message, d0=length of message, d6=Y
 	;
-	jmp	g2bench2_skip_script_line	; benchmark: skip intermission command
+	jsr	g2p96_display_enter_intermission	;c86zfq: text overlays in the native P96 intermission owner
 	tst.l	g2v190i_start_offset	; v190t: consume but do not show text_ for skipped earlier levels
 	ble.s	.g2v190t_show_text
 	lea	text,a1
@@ -19052,11 +18852,12 @@ g2v17_wst_done
 	rts
 
 scriptwait	;
-	jmp	g2bench2_skip_script_line	; benchmark: skip intermission command
+	tst.l	g2v190i_start_offset	; v190t: skip wait_ before skipped earlier levels
 	bgt	execscript
 	tst	pdelay
 	bmi	execscript
 	bsr	waitany
+	move.w #-1,g2script_yielded
 	bra	execscript
 
 checkany	movem.l	d0-d7/a0-a6,-(a7)
@@ -19142,6 +18943,7 @@ freeobjlist2	lea	objlist,a2
 
 mappath	dc.b	'maps/'
 mapname	ds.b	64
+g2map_name_end
 	even
 
 linkswap	tst	linked
@@ -19246,6 +19048,7 @@ scriptplay	;
 .g2v190s_noskip
 	bsr	fetchrest
 .gotname	;
+	move.w #-1,g2script_yielded
 	lea	mapname,a0
 	; v11 native safety check. c87b79p: P96 never executes doc2p and must
 	; not depend on an external/native C2P routine being present.
@@ -19296,6 +19099,7 @@ g2v10_map_loaded
 	;
 	bsr	initmap
 	bsr	loadtxts
+	jsr g2require_map_textures
 	move	#$a3f7,d0
 	jsr	seedrnd
 	moveq	#1,d0
@@ -21131,8 +20935,12 @@ g2v190i_try_script
 
 g2v190i_parse_script
 	movem.l	d0-d7/a0-a6,-(a7)
+	jsr g2asset_bounds
+	move.l a1,a3
 	move.l	a0,a6
 .loop
+	cmp.l a3,a6
+	bcc .done
 	move.b	(a6),d0
 	beq	.done
 	cmp.b	#13,d0
@@ -21145,6 +20953,10 @@ g2v190i_parse_script
 	beq	.advance
 	cmp.b	#';',d0
 	beq	.skipline
+	move.l a3,d1
+	sub.l a6,d1
+	cmp.l #5,d1
+	bcs .done
 	; v190hx4: command match is case-insensitive, like execscript itself.
 	; This keeps Classic scripts safe even if commands are PLAY_/DONE_.
 	moveq	#0,d1
@@ -21175,10 +20987,24 @@ g2v190i_parse_script
 	beq	.done
 	cmp.l	#'play',d1
 	bne	.skipline
+	lea 5(a6),a0
+	move.l a0,a4
+.g2scan_line_end
+	cmp.l a3,a4
+	bcc .done
+	move.b (a4)+,d2
+	beq.s .g2scan_line_ready
+	cmp.b #13,d2
+	beq.s .g2scan_line_ready
+	cmp.b #10,d2
+	bne.s .g2scan_line_end
+.g2scan_line_ready
 	move.l	a6,a5		; v190r: remember script command start for chain entry
 	lea	5(a6),a0
 	jsr	g2v190i_add_level
 .skipline
+	cmp.l a3,a6
+	bcc .done
 	move.b	(a6)+,d0
 	beq	.done
 	cmp.b	#13,d0		; v190hx3: Amiga/Classic scripts can be CR-only
@@ -24407,6 +24233,7 @@ remap	;a0=start of byte data, a1=end of byte data
 
 addpal	;add palette in a0 to end of map_rgb
 	;
+	jsr g2require_palette
 	push
 	;
 	move	(a0)+,d0
@@ -24438,6 +24265,10 @@ addpal	;add palette in a0 to end of map_rgb
 .no	;colour doesn't exist!
 	;may have to do a 'near match' routine if we run out of colours
 	;
+	move.l a2,d3
+	sub.l map_rgbs,d3
+	cmp.l #512,d3
+	bcc.l g2fatal_abort	; never append an unrepresentable palette index
 	move	d1,(a2)+
 	move.l	a2,a1
 	;
@@ -25323,6 +25154,7 @@ troll_	dc.l	dummy
 .ob_blood	dc	$f00	;color AND for blood
 .ob_ypad	dc	1
 
+g2objinfo_end
 abouttext	dc.b	16
 	dc.b	'GLOOM',0
 	dc.b	0
@@ -26106,6 +25938,8 @@ g2v13_doc2p_1X1X6
 ; d3.w	scroffsy [screen-pixels]
 ; d4.w	(rowlen) [bytes] -- offset between one row and the next in a bpl
 ; d5.l	(bplsize) [bytes] -- offset between one row in one bpl and the next bpl
+	; Phase 2 cold-loader growth: retain d825e91 C2P modulo-16 layout.
+	dcb.w 7,$4e71
 
 g2k_c2p1x1_8_c5_gen_init
 	movem.l	d2-d3,-(sp)
@@ -27525,7 +27359,8 @@ g2v190p_load_title_assets
 .load	jsr	loadfiles
 	jsr	g2ecs_fast_detect_assets
 	jsr	g2embed_apply_g1_fallbacks	;v190gl: title/brush/palette fallback after reload
-	jsr	g2embed_apply_zm_title_overlay	;v190hu: embedded Zombie Massacre title overlay after reload
+	jsr	g2embed_apply_zm_title_overlay	;v190hu: embedded Zombie Massacre title overlay
+	jsr g2require_core_tables after reload
 	jsr	forbid
 .done	movem.l	(a7)+,d0/a0
 	rts
@@ -55145,3 +54980,7 @@ g2bp_target_key dc.b 'MEM target: address,type,lower,upper,priority (hex),name',
 	include "modular/gr_31_resource_safety.s"
 	include "modular/gr_32_config_safe_write.s"
 	include "modular/gr_33_crm_bounds.s"
+	include "modular/gr_34_event_script_bounds.s"
+	include "modular/gr_35_script_bounds.s"
+	include "modular/gr_36_palette_resource_bounds.s"
+	include "modular/gr_37_med_structure_bounds.s"

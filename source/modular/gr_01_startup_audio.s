@@ -476,6 +476,8 @@ waitquiet	jsr	vwait
 
 playsfx	;sfx file in a0, vol in d0, priority in d1
 	;
+	move.l a0,d2
+	beq.s .no_sample	; optional missing SFX must not program DMA from address zero
 	;move	#$4000,$dff09a	;snd/vb ints off
 	;
 	lea	sfxs(pc),a1
@@ -497,6 +499,7 @@ playsfx	;sfx file in a0, vol in d0, priority in d1
 	;no-can-do!
 	;
 	;move	#$c000,$dff09a
+.no_sample
 	rts
 	;
 queuesfx	;OK, turn off other and play US!

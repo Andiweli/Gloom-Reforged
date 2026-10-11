@@ -35,3 +35,9 @@ API unsigned test_get(unsigned reg) { return m68k_get_reg(0,(m68k_register_t)reg
 API void test_set(unsigned reg,unsigned value) { m68k_set_reg((m68k_register_t)reg,value); }
 API void test_step(void) { m68k_execute(1); }
 API unsigned test_until(unsigned target,unsigned limit) { while(limit--) { if(faults)return 0;if(m68k_get_reg(0,M68K_REG_PC)==target)return 1;m68k_execute(1); } return 0; }
+unsigned m68k_read_disassembler_8(unsigned a) { return m68k_read_memory_8(a); }
+unsigned m68k_read_disassembler_16(unsigned a) { return m68k_read_memory_16(a); }
+unsigned m68k_read_disassembler_32(unsigned a) { return m68k_read_memory_32(a); }
+API unsigned test_disassemble(unsigned pc,char *output) {
+    return m68k_disassemble_raw(output,pc,memory+pc,memory+pc,M68K_CPU_TYPE_68040);
+}

@@ -1033,6 +1033,7 @@ remap	;a0=start of byte data, a1=end of byte data
 
 addpal	;add palette in a0 to end of map_rgb
 	;
+	jsr g2require_palette
 	push
 	;
 	move	(a0)+,d0
@@ -1064,6 +1065,10 @@ addpal	;add palette in a0 to end of map_rgb
 .no	;colour doesn't exist!
 	;may have to do a 'near match' routine if we run out of colours
 	;
+	move.l a2,d3
+	sub.l map_rgbs,d3
+	cmp.l #512,d3
+	bcc.l g2fatal_abort	; never append an unrepresentable palette index
 	move	d1,(a2)+
 	move.l	a2,a1
 	;
@@ -1949,6 +1954,7 @@ troll_	dc.l	dummy
 .ob_blood	dc	$f00	;color AND for blood
 .ob_ypad	dc	1
 
+g2objinfo_end
 abouttext	dc.b	16
 	dc.b	'GLOOM',0
 	dc.b	0

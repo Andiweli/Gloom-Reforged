@@ -66,7 +66,7 @@ def crm_tests(dll,baseline,path,cpu):
     zero_tail=b'CrM!'+struct.pack('>HII',0,1,6)+struct.pack('>IH',0x00830000,0)
     positives=[(fast_literal(b'ABC'),b'ABC'),(zero_tail,b'A'),(fast_reference(),b'AAAA'),(lzh_literal(),b'AAA'),(lzh_reference(),b'AAAA')]
     c=CPU(dll,baseline,cpu)
-    for name in ['g2embed_bigfont2_crm','g2embed_smallfont2_crm','g2embed_palette8_crm','g2embed_remap8_crm']:
+    for name in ['g2embed_bigfont2_crm','g2embed_smallfont2_crm','g2embed_palette8_crm','g2embed_remap8_crm','g2embed_gun']:
         blob=c.bytes(c.addr(name),c.addr(name+'_end')-c.addr(name));positives.append((blob,None))
     root=Path(__file__).resolve().parents[1]
     for folder in ['maps','txts','objs','misc','pics','pics_ehb','sfxs']:
@@ -97,6 +97,15 @@ def crm_tests(dll,baseline,path,cpu):
         rejected+=check(blob)==0xffffffff
     assert rejected>150
     print(Path(path).name,'CPU',cpu,':',cases,'bounded CrM cases,',rejected,'random structures rejected')
+    # Morph normalization uses the unchanged fixed-point arithmetic for valid
+    # vectors, but may not divide a collapsed edge or shift a negative square.
+    for x,z in [(1,0),(0,1),(1,1),(64,0),(2048,1),(-8191,8191),(32767,32767),(-32768,0)]:
+        original=CPU(dll,baseline,cpu);original.set(D0,x);original.set(D1,z);run_pure(original,'calcnormvec')
+        c=CPU(dll,path,cpu);c.set(D0,x);c.set(D1,z);run_pure(c,'calcnormvec')
+        assert [c.get(r) for r in [D0,D1]]==[original.get(r) for r in [D0,D1]];cases+=1
+    for x,z in [(0,0),(-32768,-32768)]:
+        c=CPU(dll,path,cpu);c.w32(c.addr('g2menu_entry_sp'),STACK);c.hook('exittoos',lambda c:c.ret())
+        c.set(D0,x);c.set(D1,z);assert c.run('calcnormvec')==20 and c.r16(c.addr('g2fatal_state'));cases+=1
     return cases
 
 if __name__=='__main__':
