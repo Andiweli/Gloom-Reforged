@@ -1268,8 +1268,9 @@ execscript_med	;
 	move.l	loadingmed(pc),d0
 	beq.s	execscript
 	move.l	d0,a0
-	move.l	medat,a1
-	jsr	8(a1)	;start loading music!
+	move.l	#g2med_start_checked,a1
+	jsr	(a1)	; cold wrapper; retain original four-byte call footprint
+	nop
 	;
 execscript	cmp	#2,gametype
 	beq	scriptplay	;no script for combat game!

@@ -1667,11 +1667,12 @@ wb	;
 	jsr	g2v190p_load_title_assets	; v190p: reload title art if gameplay freed it
 	; v190go: Classic Gloom now uses embedded Gloom2 title/menu assets too,
 	; so the old unsupported-profile title-music skip must not run anymore.
-	move.l	medat,a1
+	move.l	#g2med_start_checked,a1
 	move.l	titlemed,d0	; v190cr: compatible installs may not have title MED
 	beq.s	.g2v190cr_no_title_music
 	move.l	d0,a0
-	jsr	8(a1)	;start title music!
+	jsr	(a1)	; cold wrapper; retain original four-byte call footprint
+	nop
 .g2v190cr_no_title_music
 	;
 .intro2	jsr	g2v36_clear_title_buffers	;v36: clear both OS bitmaps before returning to title menu
@@ -18273,8 +18274,9 @@ execscript_med	;
 	move.l	loadingmed(pc),d0
 	beq.s	execscript
 	move.l	d0,a0
-	move.l	medat,a1
-	jsr	8(a1)	;start loading music!
+	move.l	#g2med_start_checked,a1
+	jsr	(a1)	; cold wrapper; retain original four-byte call footprint
+	nop
 	;
 execscript	cmp	#2,gametype
 	beq	scriptplay	;no script for combat game!

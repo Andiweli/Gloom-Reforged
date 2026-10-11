@@ -50,9 +50,16 @@ class Player:
    name=c.bytes(c.get(A1),16).split(b'\0',1)[0];res=0xc000 if name==b'ciaa.resource' else 0xd000
    c.ret(0 if missing&(1<<((res-0xc000)//0x1000)) else res)
   c.hook(EXEC-498,resource)
+  self.disable_depth=0;self.disabled_adds=[]
+  def disable(c):self.disable_depth+=1;c.ret()
+  def enable(c):
+   assert self.disable_depth>0,'unbalanced Enable'
+   self.disable_depth-=1;c.ret()
+  c.hook(EXEC-120,disable);c.hook(EXEC-126,enable)
   for res in [0xc000,0xd000]:
    def add(c,res=res):
     key=(res,c.get(D0));node=c.get(A1);self.adds.append(key)
+    self.disabled_adds.append(self.disable_depth)
     if key in self.owners:c.ret(self.owners[key])
     else:self.owners[key]=node;c.ret(0)
    def remove(c,res=res):
@@ -62,7 +69,14 @@ class Player:
   dll.test_hw_mode(1);c.w32(c.addr('chipzero'),0x1ff000)
   call(c,self.base,0x1ff000)
   if patched:c.run('g2med_install_stop')
- def api(self,offset,a0=None):return call(self.c,self.base+offset,a0)
+ def api(self,offset,a0=None):
+  if offset==8 and 'g2med_start_checked' in self.c.syms:
+   self.c.set(A1,self.base)
+   initial_depth=self.disable_depth
+   result=call(self.c,self.c.addr('g2med_start_checked'),a0)
+   assert self.disable_depth==initial_depth,'Start changed caller interrupt nesting'
+   return result
+  return call(self.c,self.base+offset,a0)
 
 def tests(dll,path,cpu):
  count=0
