@@ -1,0 +1,157 @@
+{
+  "baseline_commit": "f568087f4179c4ca2682aef4093e2415a8d1299a",
+  "validation_context": [
+    {
+      "binary": "game",
+      "file_bytes": 468564,
+      "normal_hunk_sha256": "c24fa849d46ec52ab7dfbd37821971ec3397dc4ba603de9c62648c563fcc2240",
+      "code_bss_bytes": 434952,
+      "baseline_code_bss_bytes": 433840,
+      "growth_bytes": 1112,
+      "debug_normal_code_equal": true,
+      "kalm_alignment_mod16": {
+        "g2k_c2p1x1_8_c5_gen_init": 12,
+        "g2k_c2p1x1_6_c5_gen_init": 6,
+        "g2k_c2p1x1_8_c5_040_init": 6,
+        "g2k_c2p1x1_6_c5_040_init": 4
+      },
+      "assembler": [
+        {
+          "log": "game-build.log",
+          "warnings": 6,
+          "code_bytes": 434950
+        },
+        {
+          "log": "game-normal-build.log",
+          "warnings": 6,
+          "code_bytes": 434950
+        }
+      ]
+    },
+    {
+      "binary": "bench",
+      "file_bytes": 471172,
+      "normal_hunk_sha256": "695970bcc2015d648bf019efa7eba625adc76761c3724428ed4232ae650927f9",
+      "code_bss_bytes": 437208,
+      "baseline_code_bss_bytes": 436092,
+      "growth_bytes": 1116,
+      "debug_normal_code_equal": true,
+      "kalm_alignment_mod16": {
+        "g2k_c2p1x1_8_c5_gen_init": 8,
+        "g2k_c2p1x1_6_c5_gen_init": 2,
+        "g2k_c2p1x1_8_c5_040_init": 2,
+        "g2k_c2p1x1_6_c5_040_init": 0
+      },
+      "assembler": [
+        {
+          "log": "bench-build.log",
+          "warnings": 6,
+          "code_bytes": 437206
+        },
+        {
+          "log": "bench-normal-build.log",
+          "warnings": 6,
+          "code_bytes": 437206
+        }
+      ]
+    }
+  ],
+  "music": [
+    {
+      "resource": "gloom/sfxs/med1",
+      "file_bytes": 96420,
+      "file_sha256": "408b65c2c092fbddcbbc9006e5fd05d41b0640b4888d60c1ec0010e3edd9e95c",
+      "decoded_bytes": 147392,
+      "decoded_sha256": "20b68f81b8b48b01ad6826772fcb0d7f9813f0b32620d5ffb47624d4ea5f3c9d",
+      "ticks": 30000,
+      "writes": 438522,
+      "dma_publications": 10512,
+      "max_sequence": 64,
+      "trace_sha256": "a7ba90ea125cf280c36de00c15fcb3e4461512bb32cdcc3b6ac4cd2909debc93"
+    },
+    {
+      "resource": "gloom/sfxs/med2",
+      "file_bytes": 57270,
+      "file_sha256": "f6f2a71491c9fe328f6d758adec58b9f2b962e284fdd58e00a33768a0e401da4",
+      "decoded_bytes": 72974,
+      "decoded_sha256": "3f392a0f6afbfe861c7f4e6e82c955a3078388fc1ac29bae27217909b0a7e3c9",
+      "ticks": 30000,
+      "writes": 394670,
+      "dma_publications": 4604,
+      "max_sequence": 4,
+      "trace_sha256": "8a80dc68fa2078368f0a32d8ea8d9fcbc7ebd5fb3347b6a6be71d921b586f860"
+    },
+    {
+      "resource": "deluxe/sfxs/med1",
+      "file_bytes": 96420,
+      "file_sha256": "408b65c2c092fbddcbbc9006e5fd05d41b0640b4888d60c1ec0010e3edd9e95c",
+      "decoded_bytes": 147392,
+      "decoded_sha256": "20b68f81b8b48b01ad6826772fcb0d7f9813f0b32620d5ffb47624d4ea5f3c9d",
+      "ticks": 30000,
+      "writes": 438522,
+      "dma_publications": 10512,
+      "max_sequence": 64,
+      "trace_sha256": "a7ba90ea125cf280c36de00c15fcb3e4461512bb32cdcc3b6ac4cd2909debc93"
+    },
+    {
+      "resource": "deluxe/sfxs/med2",
+      "file_bytes": 57270,
+      "file_sha256": "f6f2a71491c9fe328f6d758adec58b9f2b962e284fdd58e00a33768a0e401da4",
+      "decoded_bytes": 72974,
+      "decoded_sha256": "3f392a0f6afbfe861c7f4e6e82c955a3078388fc1ac29bae27217909b0a7e3c9",
+      "ticks": 30000,
+      "writes": 394670,
+      "dma_publications": 4604,
+      "max_sequence": 4,
+      "trace_sha256": "8a80dc68fa2078368f0a32d8ea8d9fcbc7ebd5fb3347b6a6be71d921b586f860"
+    },
+    {
+      "resource": "gloom3/sfxs/med1",
+      "file_bytes": 369884,
+      "file_sha256": "767e9187f06c6daf84e2484e269888b87fa2ac628bd09970aae4cf59cc772ee2",
+      "decoded_bytes": 369884,
+      "decoded_sha256": "767e9187f06c6daf84e2484e269888b87fa2ac628bd09970aae4cf59cc772ee2",
+      "ticks": 30000,
+      "writes": 79730,
+      "dma_publications": 88,
+      "max_sequence": 4,
+      "trace_sha256": "cbb5a6dcbacdd8a08428bfc38fcc8fda732ac0308c96ae0a7a66311b9dfc987e"
+    },
+    {
+      "resource": "gloom3/sfxs/med2",
+      "file_bytes": 142378,
+      "file_sha256": "2edc23f91b0de18f3e9a1d4d7ee9ec196016a63f1d3118c5a2374498f92c16c6",
+      "decoded_bytes": 142378,
+      "decoded_sha256": "2edc23f91b0de18f3e9a1d4d7ee9ec196016a63f1d3118c5a2374498f92c16c6",
+      "ticks": 30000,
+      "writes": 438740,
+      "dma_publications": 10676,
+      "max_sequence": 11,
+      "trace_sha256": "3d1721022e64cbcdd24c123280f099de69f2b0778a0889e7c063a93f4404845b"
+    },
+    {
+      "resource": "massacre/musi/medA",
+      "file_bytes": 444844,
+      "file_sha256": "d9e087228d3f0245a67789b3905855f0fdea422666d5a7411703e0f554deaca5",
+      "decoded_bytes": 444844,
+      "decoded_sha256": "d9e087228d3f0245a67789b3905855f0fdea422666d5a7411703e0f554deaca5",
+      "ticks": 30000,
+      "writes": 458405,
+      "dma_publications": 13074,
+      "max_sequence": 60,
+      "trace_sha256": "2452704196a9d0c4cc3f7e208f0220a54549b13f0a9140dc4682a6f370f85c36"
+    },
+    {
+      "resource": "massacre/musi/medB",
+      "file_bytes": 133888,
+      "file_sha256": "705a3fe93bdb2ef5c07ee2c4bcebfe249440bf9152e0af476698dcc580ca58a3",
+      "decoded_bytes": 133888,
+      "decoded_sha256": "705a3fe93bdb2ef5c07ee2c4bcebfe249440bf9152e0af476698dcc580ca58a3",
+      "ticks": 30000,
+      "writes": 442664,
+      "dma_publications": 10852,
+      "max_sequence": 2,
+      "trace_sha256": "638c07291d6f67091bc9bc19c41271065b03b10e5ce3c36153f24f1c6c279631"
+    }
+  ]
+}

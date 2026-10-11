@@ -74,8 +74,9 @@ yield, text wrapping and bounded destinations. Palette tests include alternate
 IFF profiles, font DMA spans/height/planes, fixed HUD/gun/actor frame consumers,
 signed animation column offsets, CLUT and SFX extents. Config tests simulate
 interruption at each replacement step and restart with a different task address.
-MED tests certify structural bounds only; effects, synth commands and playback
-DMA remain open. External executable C2P bytes are trusted code: only required
+MED fixtures now accept only the MMD1 raw-sample cases consumed by this binary;
+other old positive framing fixtures are rejected. They do not certify every
+playback state. External executable C2P bytes are trusted code: only required
 entrypoint extent is checked.
 
 Allocation tests use actual initmain and scriptplay loading instructions on a
@@ -99,3 +100,43 @@ CODE/BSS returned by `asm_regression.load_hunk`; symbols must not change code.
 Actual Phase 2 counts, tool versions, limitations and hardware work remaining
 are recorded in ../AUDIT-STABILIZATION-2.4.0.txt. Build/test outputs belong
 outside the repository; released executables are not replaced by this audit.
+
+Phase 3 continues from f568087, including all five Phase 2 commits. Export
+that commit to an external directory and assemble debug reference hunks with
+the same options. The CrM suite still uses d825e91 as its original decoder
+oracle; render and music comparisons use f568087. Rebuild the Musashi DLL from
+the current musashi_memory.c: its opt-in beam/MMIO model is needed by the MED
+tests. CPU models 4/6/9 mean 68020/030/040; no 68060 execution is claimed.
+
+```text
+python tests/phase3_med.py DLL game.hunk bench.hunk
+python tests/phase3_legacy_resources.py DLL game.hunk bench.hunk
+python tests/phase3_config.py DLL game.hunk bench.hunk
+python tests/phase3_player_compare.py DLL phase2-game.hunk game.hunk bench.hunk
+python tests/phase3_profiles.py DLL game.hunk bench.hunk DATA_ROOT profiles.json
+python tests/phase3_profile_music.py DLL phase2-game.hunk game.hunk bench.hunk DATA_ROOT music.json
+```
+
+DATA_ROOT contains the supplied gloom, deluxe, gloom3 and massacre directories.
+These suites only read them. No original assets are committed. The profile
+suite compares 650 resource records for both executables, records controlled
+rejections, and runs 16 actual initmain/free prefixes in modelled AGA/P96 modes.
+It does not simulate full campaigns or missing ECS/EHB artwork. The music suite
+runs eight supplied songs on three binaries for 30,000 ticks each. It compares
+MMIO write streams and checks each published Paula span against the owned
+module or chipzero in a numeric two-MiB Chip model. No DMA engine, actual audio,
+CIA latch timing or asynchronous OS interrupt dispatch is emulated. Reaching
+some sequence positions is bounded coverage, not proof of every state/effect.
+
+The config suite copies the DLL twice into a temporary directory so two CPUs
+have independent Musashi globals. It requires a writable system temp directory.
+The two tasks share a modelled DOS directory with fail-if-target-exists Rename.
+It checks interrupted/interleaved writers and corrupt-backup loading; it proves
+neither serialisability nor physical filesystem durability.
+
+phase3_evidence.json records actual build hashes and counts for this run.
+phase3_original_profiles.json and phase3_original_music.json contain original
+asset metadata and observed results, without game data. These are evidence
+snapshots, not substitutes for running the tests with the recorded inputs.
+The report explicitly retains the unresolved MED graph/aliasing, Gloom 3 actor,
+P96 reply and filesystem limits. F004 is not fully closed.

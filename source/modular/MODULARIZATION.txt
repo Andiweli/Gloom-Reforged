@@ -51,11 +51,12 @@ gr_32_config_safe_write.s : checked configuration replacement
 gr_33_crm_bounds.s : bounded backwards CrM decoder
 gr_34_event_script_bounds.s : cold event/morph bodies and map program bounds
 gr_35_script_bounds.s : bounded level-script parser and text layout
-gr_36_palette_resource_bounds.s : typed palette/font/shape/audio validation
-gr_37_med_structure_bounds.s : MED framing/relocation bounds (playback incomplete)
+gr_36_palette_resource_bounds.s : typed resources, bounded legacy image/gun preparation
+gr_37_med_structure_bounds.s : MED consumer bounds and cold CIA/Stop fixes (playback incomplete)
 
 Cold entries in gr_03 retain their Phase 1 instruction footprint using JMP/NOP
-stubs. Eight static padding bytes before Kalm preserve its modulo-16 placement.
+stubs. Two static padding bytes before Kalm, together with the six-byte MED
+entry call and sixteen-byte text-buffer growth, preserve its modulo-16 placement.
 Verified hot instruction spans retain opcodes/layout; absolute relocations and
 some PC-relative operands differ with the new layout, with destinations checked.
 

@@ -1,0 +1,155 @@
+{
+  "baseline_commit": "f568087f4179c4ca2682aef4093e2415a8d1299a",
+  "master_commit": "c223cf5dce87dacbfb9591a6109e02bbee0df98c",
+  "original_data_read_only": true,
+  "date_utc": "2026-10-11",
+  "builds": [
+    {
+      "binary": "game",
+      "file_bytes": 468564,
+      "normal_hunk_sha256": "c24fa849d46ec52ab7dfbd37821971ec3397dc4ba603de9c62648c563fcc2240",
+      "code_bss_bytes": 434952,
+      "baseline_code_bss_bytes": 433840,
+      "growth_bytes": 1112,
+      "debug_normal_code_equal": true,
+      "kalm_alignment_mod16": {
+        "g2k_c2p1x1_8_c5_gen_init": 12,
+        "g2k_c2p1x1_6_c5_gen_init": 6,
+        "g2k_c2p1x1_8_c5_040_init": 6,
+        "g2k_c2p1x1_6_c5_040_init": 4
+      },
+      "assembler": [
+        {
+          "log": "game-build.log",
+          "warnings": 6,
+          "code_bytes": 434950
+        },
+        {
+          "log": "game-normal-build.log",
+          "warnings": 6,
+          "code_bytes": 434950
+        }
+      ]
+    },
+    {
+      "binary": "bench",
+      "file_bytes": 471172,
+      "normal_hunk_sha256": "695970bcc2015d648bf019efa7eba625adc76761c3724428ed4232ae650927f9",
+      "code_bss_bytes": 437208,
+      "baseline_code_bss_bytes": 436092,
+      "growth_bytes": 1116,
+      "debug_normal_code_equal": true,
+      "kalm_alignment_mod16": {
+        "g2k_c2p1x1_8_c5_gen_init": 8,
+        "g2k_c2p1x1_6_c5_gen_init": 2,
+        "g2k_c2p1x1_8_c5_040_init": 2,
+        "g2k_c2p1x1_6_c5_040_init": 0
+      },
+      "assembler": [
+        {
+          "log": "bench-build.log",
+          "warnings": 6,
+          "code_bytes": 437206
+        },
+        {
+          "log": "bench-normal-build.log",
+          "warnings": 6,
+          "code_bytes": 437206
+        }
+      ]
+    }
+  ],
+  "hardware_tests": 0,
+  "passed_instruction_fixture_lifecycle_cases": {
+    "asm_regression": 782,
+    "phase2_resources": 1476,
+    "phase2_events_scripts": 714,
+    "phase2_palettes": 744,
+    "phase2_config_recovery": 66,
+    "phase2_med": 468,
+    "phase2_p96": 12,
+    "phase2_allocations": 448,
+    "phase3_med": 336,
+    "phase3_legacy_resources": 132,
+    "phase3_config": 200,
+    "phase3_profiles_startups": 16,
+    "phase3_profile_music_traces": 24
+  },
+  "passed_total": 5418,
+  "http_cases_passed": 45,
+  "profile_contracts": {
+    "records": 650,
+    "binary_observations": 1300,
+    "fully_accepted_observations": 1288,
+    "controlled_blocking_observations": 12,
+    "blocked": [
+      {
+        "resource": "gloom3/txts/test",
+        "kind": "texture",
+        "file_bytes": 82288,
+        "sha256": "1298eac57d79de95aa2fd48385b240ef5beff0470f167dbccbc86d4540cb8267",
+        "decoded_bytes": 82288,
+        "accepted": false,
+        "normalised": false,
+        "referenced_by_maps": false
+      },
+      {
+        "resource": "gloom3/objs/baldy",
+        "kind": "animation",
+        "file_bytes": 72098,
+        "sha256": "c81f94716e6cffd24a516cb0df4722c17f58c1779ad834a0cd747109d52bc670",
+        "decoded_bytes": 72098,
+        "accepted": true,
+        "normalised": false,
+        "fixed_actor_references_safe": false
+      },
+      {
+        "resource": "gloom3/objs/demon",
+        "kind": "animation",
+        "file_bytes": 92496,
+        "sha256": "0723135c985a8343c2fdc9dc5d00d45317c63c4e99c492d6525eca426b1067af",
+        "decoded_bytes": 92496,
+        "accepted": true,
+        "normalised": false,
+        "fixed_actor_references_safe": false
+      },
+      {
+        "resource": "gloom3/objs/lizard",
+        "kind": "animation",
+        "file_bytes": 67372,
+        "sha256": "bda927e220d9a3921aedcff7abe693f49e759f2bc13903cbdef8a7466f9eac3e",
+        "decoded_bytes": 67372,
+        "accepted": true,
+        "normalised": false,
+        "fixed_actor_references_safe": false
+      },
+      {
+        "resource": "gloom3/objs/troll",
+        "kind": "animation",
+        "file_bytes": 72508,
+        "sha256": "cbbc07c4a067004bf37a53dd73b8caff1dd80fac3abc0330280310bc72b824c5",
+        "decoded_bytes": 72508,
+        "accepted": true,
+        "normalised": false,
+        "fixed_actor_references_safe": false
+      },
+      {
+        "resource": "massacre/txts/test",
+        "kind": "texture",
+        "file_bytes": 82288,
+        "sha256": "1298eac57d79de95aa2fd48385b240ef5beff0470f167dbccbc86d4540cb8267",
+        "decoded_bytes": 82288,
+        "accepted": false,
+        "normalised": false,
+        "referenced_by_maps": false
+      }
+    ]
+  },
+  "music": {
+    "files": 8,
+    "ticks_per_trace": 30000,
+    "trace_cases": 24,
+    "total_ticks": 720000,
+    "dma_is_modelled": true
+  }
+}
