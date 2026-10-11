@@ -1,0 +1,155 @@
+{
+  "baseline_commit": "d14674c11542ede83b61a706251c3d9b45193f45",
+  "master_commit": "c223cf5dce87dacbfb9591a6109e02bbee0df98c",
+  "date_utc": "2026-10-11",
+  "original_data_read_only": true,
+  "source_sha256": {
+    "source/GloomBench.s": "0bf94b7601225bff8dc8332efbf1d414d9cc08e1f657a42a03ff81f1b9cc76ee",
+    "source/modular/gr_01_startup_audio.s": "059cf86dad66a0456acdd07f9a57a8e32d6d9005487571a4d812b11472a51842",
+    "source/modular/gr_08_serial_gameflow.s": "f122db16525b8ae79da61d7b77cf894fd7bac8a5824ea15412119362a8f9cf0f",
+    "source/modular/gr_37_med_structure_bounds.s": "32c232a544de03e3c7d855e5975d5362bbcfb6b9af662ebb63ce6961d675bd66",
+    "source/medplay": "87a9ea5aaadc46586a339fbeec869db95ede73420aaebdbe30875f117049b349"
+  },
+  "source_hash_line_endings": "Assembly normalized to LF; embedded medplay raw bytes",
+  "builds": [
+    {
+      "binary": "game",
+      "file_bytes": 470004,
+      "normal_hunk_sha256": "5584ee152aa9a05c30b7ac6a26f39a0dfa8771b32d2b4199bb4d182fd771ed42",
+      "code_bss_bytes": 436352,
+      "baseline_code_bss_bytes": 434952,
+      "growth_bytes": 1400,
+      "debug_normal_code_equal": true,
+      "kalm_addresses_identical": true,
+      "kalm_alignment_mod16": {
+        "g2k_c2p1x1_8_c5_gen_init": 12,
+        "g2k_c2p1x1_6_c5_gen_init": 6,
+        "g2k_c2p1x1_8_c5_040_init": 6,
+        "g2k_c2p1x1_6_c5_040_init": 4
+      },
+      "assembler": [
+        {
+          "log": "game-build.log",
+          "warnings": 6,
+          "code_bytes": 436352
+        },
+        {
+          "log": "game-normal-build.log",
+          "warnings": 6,
+          "code_bytes": 436352
+        }
+      ]
+    },
+    {
+      "binary": "bench",
+      "file_bytes": 472612,
+      "normal_hunk_sha256": "c9c28559426a2d9ad43dac9269ae68b8634cecf0d17dcf0f2ddebc5a9a1d72b1",
+      "code_bss_bytes": 438608,
+      "baseline_code_bss_bytes": 437208,
+      "growth_bytes": 1400,
+      "debug_normal_code_equal": true,
+      "kalm_addresses_identical": true,
+      "kalm_alignment_mod16": {
+        "g2k_c2p1x1_8_c5_gen_init": 8,
+        "g2k_c2p1x1_6_c5_gen_init": 2,
+        "g2k_c2p1x1_8_c5_040_init": 2,
+        "g2k_c2p1x1_6_c5_040_init": 0
+      },
+      "assembler": [
+        {
+          "log": "bench-build.log",
+          "warnings": 6,
+          "code_bytes": 438608
+        },
+        {
+          "log": "bench-normal-build.log",
+          "warnings": 6,
+          "code_bytes": 438608
+        }
+      ]
+    }
+  ],
+  "passed_instruction_fixture_lifecycle_cases": {
+    "asm_regression": 782,
+    "phase2_resources": 1476,
+    "phase2_events_scripts": 714,
+    "phase2_palettes": 744,
+    "phase2_config_recovery": 66,
+    "phase2_med": 468,
+    "phase2_p96": 12,
+    "phase2_allocations": 448,
+    "phase3_med": 336,
+    "phase3_legacy_resources": 132,
+    "phase4_med": 1614,
+    "phase4_resources": 252,
+    "phase3_config": 200,
+    "phase3_profiles_startups": 16,
+    "phase3_profile_music_traces": 24,
+    "phase4_song_pair_traces": 192
+  },
+  "passed_total": 7476,
+  "http_cases_passed": 45,
+  "separate_expected_baseline_cpu_fault_counterexamples": 6,
+  "separate_expected_baseline_active_start_leak_counterexamples": 1,
+  "profile_contracts": {
+    "records": 650,
+    "binary_observations": 1300,
+    "fully_accepted_observations": 1288,
+    "controlled_blocking_observations": 12,
+    "blocked_pathnames": 6,
+    "blocked_content_hashes": 5,
+    "by_kind": {
+      "map/events": 198,
+      "tile": 64,
+      "texture": 114,
+      "animation": 83,
+      "sound": 92,
+      "picture": 48,
+      "AGA palette": 47,
+      "script": 4
+    }
+  },
+  "music": {
+    "files": 8,
+    "single_song_traces": 24,
+    "single_song_ticks": 720000,
+    "ordered_song_pairs": 64,
+    "song_pair_traces": 192,
+    "song_pair_ticks": 384000,
+    "total_actual_player_ticks_with_modelled_hardware": 1104000,
+    "all_compared_mmio_sequences_equal": true
+  },
+  "render": {
+    "hot_spans_per_binary": 10,
+    "game_bytes": 33300,
+    "bench_bytes": 33336,
+    "all_relocation_normalized_spans_byte_equal": true,
+    "benchmark_measurement_blocks_identical": 71
+  },
+  "allocation_header_extra_bytes": 16,
+  "model_peak_header_extra_AGA": 1056,
+  "model_peak_header_extra_P96": 1040,
+  "added_static_alias_workspace_bytes": 40,
+  "hardware_tests": 0,
+  "f004_fully_closed": false,
+  "release_readiness": "Bedingt bereit - only controlled tests with the verified original dataset; no public release",
+  "regression_logs_sha256": {
+    "asm_regression.log": "2331338b4fe74f5efc17f144b5ce29fa021fb36a47a7266db966ae21e997d892",
+    "phase2_resources.log": "df345e0a950c3ba67d9711d1ad588b43c6b1a8128892e90b79fbe70d0f7f5b72",
+    "phase2_events_scripts.log": "f70110b649b2af791f97f4e1bb14ec4e65d66af0cf444552c59619850e1cbd76",
+    "phase2_palettes.log": "d2ccfd15cc2a6fd132a4f2bfc6cfb20c1edb02ff2e4468592d674d40748603e1",
+    "phase2_config_recovery.log": "cdbb0f7b5f39d3879e0df04c2d467222393c8bf3bab35ce6a241935ee39080d1",
+    "phase2_med.log": "93f4ec2a651cea957e6c3a0cfae018b1c4403b2e889583018899562795d43846",
+    "phase2_p96.log": "98bf23c8d10bc380c66a5e10b0e4aff853dd4faa829fa90bb7b9573423f6c24a",
+    "phase2_allocations.log": "01ad441379721c32be725bf705f8050f5d7842ceb44cb306b80bde826bf68beb",
+    "phase3_med.log": "91c7306df1d26656bfa5768fb1b6971f74965c6e5f423a447c5334f62f5a56a8",
+    "phase3_legacy_resources.log": "923c48b3d8bfcf2dc8f245eef1a0d1bfea0f23eb412c13ac08c9b3179e28b774",
+    "phase3_profiles.log": "00924d46546cc65fc5f65182ada5f910f2a89cfe1abd7e6728fba28531562faa",
+    "phase3_profile_music.log": "f8770bd7b53ea809dfc0e037576aa0fd6898b99af89594c77526efd1f35f91ef",
+    "phase3_player_compare.log": "bb2d065a88dac8b277700a527c9532513721ee62e3c8f7a9d6fa745937f04031",
+    "phase2_kernel_compare.log": "e495437ca25a831444318d857e2eb16c15284b24f5c1eb255e5200d7e564ed7a",
+    "phase4_med.log": "c4f32016f64fbd105b20643104961d8e025e5ec254cff862655226f99bf99de1",
+    "phase4_resources.log": "a5aafc294b3fad394a3ca11fa729c9660b6492e180b14afc2fdebdf4a4d5b851",
+    "stability_invariants.log": "f195a50e02d9f0dd7835834baf1272d44eee12293aa6f802c2d0197f092d31ea"
+  }
+}

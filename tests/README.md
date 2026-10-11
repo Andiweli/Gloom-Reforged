@@ -140,3 +140,52 @@ asset metadata and observed results, without game data. These are evidence
 snapshots, not substitutes for running the tests with the recorded inputs.
 The report explicitly retains the unresolved MED graph/aliasing, Gloom 3 actor,
 P96 reply and filesystem limits. F004 is not fully closed.
+
+Phase 4 continues from d14674c. Export and assemble that exact audit commit
+outside the checkout as the Phase 3 reference. Keep d825e91 for the CrM oracle
+and f568087 for the additional initialized-player comparison. Run every suite
+above again on the final game/benchmark hunks, including both config suites.
+The MED harness models Exec Disable/Enable nesting and uses the production
+cold Start wrapper when present. All previous assertions/cases remain.
+
+```text
+python tests/phase4_med.py DLL phase3-game.hunk game.hunk bench.hunk
+python tests/phase4_resources.py DLL game.hunk bench.hunk DATA_ROOT classification.json
+python tests/phase4_song_switch.py DLL phase3-game.hunk game.hunk bench.hunk DATA_ROOT switches.json
+python tests/phase2_kernel_compare.py DLL phase3-game.hunk game.hunk phase3-bench.hunk bench.hunk
+```
+
+phase4_med executes 269 cases per binary/CPU (1614 total). Six old accepted
+guarded CPU faults and one active-Start timer leak are separately reproduced
+on the reference; these expected counterexamples are not counted as passing
+stability cases. The new cases include register/input preservation, legitimate
+read-only sharing, exact jump ordering, all six multi-octave tables, observed
+DMA spans, first-note tuning, retained instruments, immediate retrigger,
+active restart, owned cleanup and preserved interrupt nesting. Asynchronous
+CIA dispatch and actual DMA remain hardware work.
+
+phase4_resources executes 252 cases and classifies 12 observations from six
+pathnames/five content hashes. Attack selectors and pointer-index instructions
+run unchanged, stopping before intentionally invalid shape dereferences.
+The first shape starts immediately after the declared Gloom 3 frame table.
+The two txts/test files have an animation-shaped 320x255 graphic, not a texture.
+No source exception or synthetic replacement frame is introduced.
+
+phase4_song_switch compares 64 ordered original song pairs on three binaries
+(192 lifecycle/trace cases, 384000 actual ticks). Each pair runs 1000 ticks
+before and after Stop/Start; both resident modules and chipzero are owned DMA
+regions. The reference uses Phase 3's installed Stop/CIA guards. Bytewise MMIO
+streams agree; actual interrupt timing, analogue audio and arbitrary effects
+are not certified. Together with the 720000 single-song ticks this is 1104000
+bounded ticks, not 1104000 independent tests.
+
+phase4_evidence.json records the final 7476 case results, 45 HTTP tests,
+build/source hashes and remaining limits. phase4_original_profiles.json,
+phase4_original_music.json, phase4_song_switch.json and
+phase4_resource_classification.json are read-only data metadata/observations,
+not embedded copyrighted game assets or substitutes for rerunning the tests.
+Assembly hashes normalize CRLF to LF; source/medplay uses its raw binary hash.
+F004 remains open for cross-header relocation aliases, later retained/effect
+states, delayed retriggers, pattern-loop interactions and dynamic DMA offsets.
+Conditional hardware-test readiness only applies to the verified dataset;
+it is not authorization to merge master, bump the version or publish a release.
