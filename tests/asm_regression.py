@@ -112,7 +112,7 @@ class ConfigDOS:
         c.set(A0,0x280000);c.set(A1,0x290000);c.set(D0,len(self.new));c.w32(EXEC+276,0x270000)
         for off,method in [(-30,self.open),(-42,self.read),(-48,self.write),(-36,self.close),(-78,self.rename),(-72,self.delete),(-84,self.lock),(-90,lambda c:c.ret(1)),(-132,lambda c:c.ret(self.error))]:c.hook(DOS+off,method)
         suffix='.g200270000.'
-        if fault in ['existing_tmp','existing_bak']:self.files[self.name+suffix+('tmp' if fault.endswith('tmp') else 'bak')]=b'recoverable-file'
+        if fault in ['existing_tmp','existing_bak']:self.files[self.name+(suffix+'tmp' if fault.endswith('tmp') else '.g2bak')]=b'recoverable-file'
     def string(self,c,address):return c.bytes(address,128).split(b'\0',1)[0].decode()
     def lock(self,c):
         name=self.string(c,c.get(D1))
@@ -143,7 +143,7 @@ class ConfigDOS:
         self.files[new]=self.files.pop(old);c.ret(1)
     def delete(self,c):
         name=self.string(c,c.get(D1))
-        if self.fault=='delete_backup' and name.endswith('.bak'):c.ret(0);return
+        if self.fault=='delete_backup' and name.endswith('.g2bak'):c.ret(0);return
         self.files.pop(name,None);c.ret(1)
 
 

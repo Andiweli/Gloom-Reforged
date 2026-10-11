@@ -22162,6 +22162,7 @@ g2cfg_load
 	clr	g2_bayer_disabled	; old configs default to Bayer YES
 	move.l	dosbase,a6
 	lea	g2cfg_name(pc),a0
+	jsr g2config_recover
 	move.l	a0,d1
 	move.l	#1005,d2
 	jsr	-30(a6)
@@ -25939,7 +25940,7 @@ g2v13_doc2p_1X1X6
 ; d4.w	(rowlen) [bytes] -- offset between one row and the next in a bpl
 ; d5.l	(bplsize) [bytes] -- offset between one row in one bpl and the next bpl
 	; Phase 2 cold-loader growth: retain d825e91 C2P modulo-16 layout.
-	dcb.w 7,$4e71
+	dcb.w 4,$4e71
 
 g2k_c2p1x1_8_c5_gen_init
 	movem.l	d2-d3,-(sp)
@@ -51362,6 +51363,7 @@ g2bench_p96prefs_load_v21
         beq.w   .done
         move.l  d0,a6
         lea     g2cfg_name,a0
+        jsr     g2config_recover
         move.l  a0,d1
         move.l  #1005,d2
         jsr     -30(a6)                 ; Open MODE_OLDFILE
@@ -51604,6 +51606,7 @@ g2bench_p96prefs_save_v21
 
         move.l  dosbase,a6
         lea     g2cfg_name,a0
+        jsr     g2config_recover
         move.l  a0,d1
         move.l  #1005,d2
         jsr     -30(a6)

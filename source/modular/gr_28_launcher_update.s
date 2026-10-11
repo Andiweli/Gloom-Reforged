@@ -405,6 +405,7 @@ g2launcher_pref_load
         clr.w   g2launcher_always
         clr.w   g2launcher_saved
         lea     g2launcher_pref_name,a0
+        jsr     g2config_recover
         move.l  a0,d1
         move.l  #1005,d2
         move.l  dosbase,a6

@@ -1016,6 +1016,7 @@ g2cfg_load
 	clr	g2_bayer_disabled	; old configs default to Bayer YES
 	move.l	dosbase,a6
 	lea	g2cfg_name(pc),a0
+	jsr g2config_recover
 	move.l	a0,d1
 	move.l	#1005,d2
 	jsr	-30(a6)

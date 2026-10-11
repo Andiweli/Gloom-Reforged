@@ -3,6 +3,7 @@
 ; Keep the old file until Write and Close succeed. Rename cannot overwrite an
 ; existing AmigaDOS file, so retain a recoverable backup during installation.
 ; Task-specific temporary names avoid collisions between game/bench processes.
+; The fixed .g2bak name can be discovered after a task is interrupted/restarted.
 ; A pre-existing temporary/backup file is never truncated or deleted.
 
 g2save_config_checked
@@ -41,11 +42,15 @@ g2save_config_checked
 	cmp.w	#15,d5	; fifteen-byte suffix must fit classic 30-character FFS names
 	bhi.w	.failed
 	move.b	#'.',(a0)+
-	move.b	#'.',(a1)+
 	move.b	#'g',(a0)+
-	move.b	#'g',(a1)+
 	move.b	#'2',(a0)+
-	move.b	#'2',(a1)+
+	move.b #'.',(a1)+
+	move.b #'g',(a1)+
+	move.b #'2',(a1)+
+	move.b #'b',(a1)+
+	move.b #'a',(a1)+
+	move.b #'k',(a1)+
+	clr.b (a1)
 	move.l	4.w,a4
 	move.l	276(a4),d2
 	moveq	#7,d3
@@ -59,18 +64,12 @@ g2save_config_checked
 	addq.w	#7,d0
 .digit
 	move.b	d0,(a0)+
-	move.b	d0,(a1)+
 	dbf	d3,.hex
 	move.b	#'.',(a0)+
 	move.b	#'t',(a0)+
 	move.b	#'m',(a0)+
 	move.b	#'p',(a0)+
 	clr.b	(a0)
-	move.b	#'.',(a1)+
-	move.b	#'b',(a1)+
-	move.b	#'a',(a1)+
-	move.b	#'k',(a1)+
-	clr.b	(a1)
 	lea	g2save_temp_name,a0
 	bsr.w	g2save_path_absent
 	tst.l	d0
@@ -164,6 +163,51 @@ g2save_path_absent	; a0=name; d0=0 absent, -1 existing or any other error
 	moveq	#-1,d0
 .done
 	movem.l	(a7)+,d1-d2/a0-a1
+	rts
+
+; Restore only an absent target. Never overwrite an existing file, never use an
+; unchecked temporary file, and never delete a backup left by another process.
+; Returns 0 if restored, -1 otherwise. Normal readers validate restored bytes.
+g2config_recover
+	movem.l d1-d7/a0-a6,-(a7)
+	move.l a0,a2
+	move.l dosbase,d0
+	beq.s .failed
+	move.l d0,a6
+	bsr.w g2save_path_absent
+	tst.l d0
+	bne.s .failed
+	lea g2save_backup_name,a1
+	move.l a2,a0
+	moveq #95,d1
+.name
+	move.b (a0)+,d0
+	beq.s .suffix
+	tst.w d1
+	beq.s .failed
+	move.b d0,(a1)+
+	subq.w #1,d1
+	bra.s .name
+.suffix
+	move.b #'.',(a1)+
+	move.b #'g',(a1)+
+	move.b #'2',(a1)+
+	move.b #'b',(a1)+
+	move.b #'a',(a1)+
+	move.b #'k',(a1)+
+	clr.b (a1)
+	lea g2save_backup_name,a0
+	move.l a0,d1
+	move.l a2,d2
+	jsr -78(a6)
+	tst.l d0
+	beq.s .failed
+	moveq #0,d0
+	bra.s .done
+.failed
+	moveq #-1,d0
+.done
+	movem.l (a7)+,d1-d7/a0-a6
 	rts
 
 	cnop	0,4

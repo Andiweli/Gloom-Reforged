@@ -71,6 +71,7 @@ g2rc4_p96prefs_load_v21
         beq.w   .done
         move.l  d0,a6
         lea     g2cfg_name,a0
+        jsr     g2config_recover
         move.l  a0,d1
         move.l  #1005,d2
         jsr     -30(a6)                 ; Open MODE_OLDFILE
@@ -325,6 +326,7 @@ g2rc4_p96prefs_save_v21
 
         move.l  dosbase,a6
         lea     g2cfg_name,a0
+        jsr     g2config_recover
         move.l  a0,d1
         move.l  #1005,d2
         jsr     -30(a6)
