@@ -1399,6 +1399,15 @@ alloclist	macro	;alloclist listname,maxitems,itemsize
 alskip\@	;
 	endm
 
+; Required allocations run in the main task, never in an interrupt.
+; Use an absolute error jump: the shared cleanup exceeds a word branch range.
+requiremem	macro
+	tst.l	d0
+	bne.s	.reqok\@
+	jmp	g2fatal_abort
+.reqok\@	;
+	endm
+
 k_alloclist	;a2=address of 'first' pointer
 	;d0=max items, d1=item size
 	;
@@ -1410,6 +1419,7 @@ k_alloclist	;a2=address of 'first' pointer
 	mulu	d1,d0
 	move.l	#$10001,d1
 	allocmem	alloclist
+	requiremem
 	move.l	d0,a0
 	lea	12(a2),a2
 	movem.l	(a7)+,d0-d1
@@ -1594,6 +1604,7 @@ wb	;
 	move.l	4.w,a6
 	jsr	-408(a6)
 	move.l	d0,dosbase
+	beq.w	nomem		;c87b80t: do not call a missing library
 	;
 	move.l	d0,a6
 	jsr	-60(a6)
@@ -1606,6 +1617,8 @@ wb	;
 	move.l	(a0),d1
 	move.l	dosbase,a6
 	jsr	-126(a6)
+	move.l	d0,g2exit_old_wb_dir
+	st	g2exit_wb_dir_set
 .nocd	;
 	jsr	g2chipset_detect	;c86zkm: cache ECS/AGA before display selection
 	jsr	g2displaymode_probe	;c86zkm: parse bare AGA/ECS/P96 plus P96 options
@@ -1709,13 +1722,25 @@ wb	;
 	bsr	g2v190ct_titlefont
 	bra	.intro
 	;
-exittoos	jsr	g2p96_display_shutdown	;c86zfq: central shutdown display-state close
+exittoos	jsr	finitvbint
+	jsr	g2bench2_noop	; benchmark has no automap state
+	tst	g2exit_med_initialized
+	beq.s	.music_stopped
+	clr	g2exit_med_initialized
+	clr	fadevol
+	move.l	medat,a1
+	jsr	12(a1)		; remove the MED player's own timer/interrupt
+.music_stopped
+	jsr	g2v190ep_stop_all_sfx
+	jsr	g2p96_display_shutdown	;c86zfq: central shutdown display-state close
 	jsr	inputoff	; v34: restore ciaa/rawkey vectors before OS exit/closewindow
-	jsr	g2bench2_noop	; benchmark options are session-only
+	tst.w	g2fatal_state
+	bne.s	.no_cfg_save	; never persist partial/default state after a failed start
+	jsr	g2bench2_noop	; benchmark options remain session-only
+.no_cfg_save
 	jsr	freeobjlist2
-	jsr	permit
+	jsr	g2release_task_ownership
 	jsr	finitdisplay
-	jsr	finitvbint
 	jsr	finitsfx
 	jsr	finitser
 	jsr	freememlist
@@ -1723,17 +1748,61 @@ exittoos	jsr	g2p96_display_shutdown	;c86zfq: central shutdown display-state clos
 	jsr	undir
 	endc
 	;
+; Shared final cleanup also covers launcher Cancel and pre-init failures.
 nomem	jsr	g2bp_close
+	jsr	g2p96_close
+	tst.b	g2exit_windowptr_set
+	beq.s	.windowptr_done
+	clr.b	g2exit_windowptr_set
+	move.l	4.w,a6
+	move.l	276(a6),a0
+	move.l	g2exit_old_windowptr,184(a0)
+.windowptr_done
+	tst.b	g2exit_wb_dir_set
+	beq.s	.directory_done
+	clr.b	g2exit_wb_dir_set
+	move.l	g2exit_old_wb_dir,d1
+	move.l	dosbase,a6
+	jsr	-126(a6)	; restore even a NULL original lock; borrowed WB locks are not unlocked
+.directory_done
+	move.l	4.w,a6
+	move.l	int,d0
+	clr.l	int
+	tst.l	d0
+	beq.s	.int_done
+	move.l	d0,a1
+	jsr	-414(a6)
+.int_done
+	move.l	grbase,d0
+	clr.l	grbase
+	; CLR changes Z: test the saved base, not the cleared slot.
+	tst.l	d0
+	beq.s	.graphics_done
+	move.l	d0,a1
+	jsr	-414(a6)
+.graphics_done
+	move.l	dosbase,d0
+	clr.l	dosbase
+	tst.l	d0
+	beq.s	.dos_done
+	move.l	d0,a1
+	jsr	-414(a6)
+.dos_done
 	move.l	wbmess,d0
 	beq.s	.bye
-	;
-	move.l	4.w,a6
-	move.l	d0,a1
-	jsr	-378(a6)
+	jsr	-132(a6)	; Exec Forbid, NOT the game's display wrapper
+	move.l	wbmess,a1
 	clr.l	wbmess
-	;
-.bye	; v190hy cleanup: logger call removed
+	jsr	-378(a6)	; ReplyMsg: no blocking calls or Permit after this point
+.bye	moveq	#0,d0
 	rts
+
+g2exit_old_wb_dir	dc.l	0
+g2exit_old_windowptr	dc.l	0
+g2exit_wb_dir_set	dc.b	0
+g2exit_windowptr_set	dc.b	0
+	even
+g2exit_med_initialized	dc.w	0
 
 ; ************* FAST SUBS ********************
 	
@@ -1863,24 +1932,40 @@ sfxintserver3	dc.l	0,0
 	dc.l	sfx3
 	dc.l	sfxint
 
+g2exit_audio_vectors	dc.l	0,0,0,0
+g2exit_audio_intena	dc.w	0
+g2exit_audio_owned	dc.w	0
+
 initsfx	push
+	tst	g2exit_audio_owned
+	bne.w	.done
 	move.l	4.w,a6
+	jsr	-120(a6)	; Disable: protect snapshot and vector exchange
+	move	$dff01c,d0	; INTENAR
+	and	#$0780,d0
+	move	d0,g2exit_audio_intena
+	move	#$0780,$dff09a
+	move	#$0780,$dff09c
 	;
 	moveq	#7,d0
 	lea	sfxintserver0,a1
 	jsr	-162(a6)	;setintvector
+	move.l	d0,g2exit_audio_vectors+0
 	;
 	moveq	#8,d0
 	lea	sfxintserver1,a1
 	jsr	-162(a6)
+	move.l	d0,g2exit_audio_vectors+4
 	;
 	moveq	#9,d0
 	lea	sfxintserver2,a1
 	jsr	-162(a6)
+	move.l	d0,g2exit_audio_vectors+8
 	;
 	moveq	#10,d0
 	lea	sfxintserver3,a1
 	jsr	-162(a6)
+	move.l	d0,g2exit_audio_vectors+12
 	;
 	lea	sfxs(pc),a1
 	move	#$80,d0
@@ -1890,8 +1975,9 @@ initsfx	push
 .loop	bsr	.init
 	lea	fx_size(a1),a1
 	dbf	d3,.loop
-	;
-	pull
+	move	#-1,g2exit_audio_owned
+	jsr	-126(a6)	; Enable; owned audio IRQs stay masked until playback
+.done	pull
 	rts
 	;
 .init	clr	fx_status(a1)
@@ -1904,28 +1990,30 @@ initsfx	push
 	rts
 
 finitsfx	push
+	tst	g2exit_audio_owned
+	beq.w	.done
 	move.l	4.w,a6
-	;
+	jsr	-120(a6)
+	jsr	g2v190ep_stop_all_sfx
 	moveq	#7,d0
-	sub.l	a1,a1
+	move.l	g2exit_audio_vectors+0,a1
 	jsr	-162(a6)
-	;
-	move.l	4.w,a6
 	moveq	#8,d0
-	sub.l	a1,a1
+	move.l	g2exit_audio_vectors+4,a1
 	jsr	-162(a6)
-	;
-	move.l	4.w,a6
 	moveq	#9,d0
-	sub.l	a1,a1
+	move.l	g2exit_audio_vectors+8,a1
 	jsr	-162(a6)
-	;
-	move.l	4.w,a6
 	moveq	#10,d0
-	sub.l	a1,a1
+	move.l	g2exit_audio_vectors+12,a1
 	jsr	-162(a6)
-	;
-	pull
+	clr	g2exit_audio_owned
+	move	#$0780,$dff09c
+	move	g2exit_audio_intena,d0
+	or	#$8000,d0
+	move	d0,$dff09a	; only restore the four owned enable bits
+	jsr	-126(a6)
+.done	pull
 	rts
 
 ; v190ep: exit safety for Paula SFX.  Some recent local-event sounds can still
@@ -1933,7 +2021,11 @@ finitsfx	push
 ; their interrupt bits before config save/freeing, so Paula cannot keep reading
 ; sample memory during shutdown.
 g2v190ep_stop_all_sfx
+	tst	g2exit_audio_owned
+	beq.s	.done
 	movem.l	d0-d2/a1-a2,-(a7)
+	move	#$0780,$dff09a	; mask before changing channel state
+	move	#$000f,$dff096
 	lea	sfxs(pc),a1
 	moveq	#3,d2
 .g2v190ep_stop_loop
@@ -1945,7 +2037,7 @@ g2v190ep_stop_all_sfx
 	move	#$0780,$dff09a	; clear AUD0..AUD3 interrupt enable
 	move	#$0780,$dff09c	; clear pending AUD0..AUD3 interrupt requests
 	movem.l	(a7)+,d0-d2/a1-a2
-	rts
+.done	rts
 
 waitquiet	jsr	vwait
 	lea	sfxs(pc),a0
@@ -17267,6 +17359,7 @@ initmed	lea	medat,a0
 .noreloc	move.l	medat,a1
 	move.l	chipzero(pc),a0
 	jsr	(a1)
+	move	#-1,g2exit_med_initialized
 	;
 	move.l	titlemed(pc),d0	; v190cp: some compatible installs have no title MED
 	beq.s	.g2v190cp_no_titlemed
@@ -17509,6 +17602,8 @@ initmain	;
 	;
 	move.l	4.w,a6
 	move.l	276(a6),a0
+	move.l	184(a0),g2exit_old_windowptr
+	st	g2exit_windowptr_set
 	move.l	#-1,184(a0)	;requesters OFF for our task.
 	;
 	; c87w1: always start in the confirmed 320-column geometry. WIDE is armed
@@ -17521,12 +17616,14 @@ initmain	;
 	lea	ciaaname,a1
 	jsr	-498(a6)
 	move.l	d0,ciaa
+	requiremem
 	;
 	tst	os
 	beq.s	.osskipz
 	move.l	#12*257,d0
 	moveq	#4,d1
 	allocmem	temppal
+	requiremem
 	move.l	d0,temppal
 .osskipz	;
 	; Fix3b: keep audio silence at +0 separate from writable sprite data.
@@ -17534,31 +17631,37 @@ initmain	;
 	move.l	#256,d0	;MEMF_CLEAR below initializes both chip RAM regions
 	move.l	#$10002,d1
 	allocmem	chipzero
+	requiremem
 	move.l	d0,chipzero
 	;
 	move.l	#256,d0
 	moveq	#4,d1
 	allocmem	maptable
+	requiremem
 	move.l	d0,maptable
 	;
 	move.l	#32768,d0
 	moveq	#4,d1
 	allocmem	memory
+	requiremem
 	move.l	d0,memory
 	;
 	move.l	#g2render_max_width*vd_size,d0
 	moveq	#4,d1
 	allocmem	vertdraws
+	requiremem
 	move.l	d0,vertdraws
 	;
 	move.l	#maxz*2,d0
 	moveq	#4,d1
 	allocmem	darktable
+	requiremem
 	move.l	d0,darktable
 	;
 	move.l	#g2render_max_width*g2render_height_const+15,d0
 	moveq	#4,d1
 	allocmem	chunky
+	requiremem
 	tst.l	d0
 	beq.s	.g2p11_chunky_alloc_done
 	add.l	#15,d0
@@ -17583,6 +17686,7 @@ initmain	;
 	move.l	d0,p96static_rgbbufsize
 	moveq	#4,d1
 	allocmem	p96staticrgb
+	requiremem
 	move.l	d0,p96static_rgbbufptr
 .g2c86zgv_no_staticbuf
 	;
@@ -17603,11 +17707,13 @@ initmain	;
 	move.l	d0,p96clut_stage_size
 	moveq	#4,d1
 	allocmem	p96clutstage
+	requiremem
 	move.l	d0,p96clut_stage_ptr
 	beq	.g2c87b78j_no_clut_buffers
 	move.l	#65536,d0
 	moveq	#4,d1
 	allocmem	p96clutreverse
+	requiremem
 	move.l	d0,p96clut_reverse_ptr
 	beq	.g2c87b78j_no_clut_buffers
 	jsr	g2p96_clut_clear_runtime_c87b78j
@@ -17618,6 +17724,7 @@ initmain	;
 	move.l	#256*16,d0
 	moveq	#4,d1
 	allocmem	palettes
+	requiremem
 	;
 	;16 shades...
 	lea	palettes(pc),a0
@@ -22735,6 +22842,7 @@ forbid	tst	os
 	bsr	ownblitter
 	move.l	4.w,a6
 	jsr	-132(a6)
+	addq.w	#1,g2exit_forbid_depth
 	move	#$8400,$dff096	;bltnasty!
 	pull
 	;
@@ -22744,18 +22852,26 @@ permit	tst	os
 	bne.s	.rts
 	;
 	push
+	tst.w	g2exit_forbid_depth
+	beq.s	.not_owned
+	subq.w	#1,g2exit_forbid_depth
 	move.l	4.w,a6
 	jsr	-138(a6)
 	jsr	disownblitter
+.not_owned
 	pull
 	;
 .rts	rts
 
 initvbint	push
+	tst.w	g2exit_vb_owned
+	bne.s	.done
 	move.l	4.w,a6
 	moveq	#5,d0
 	lea	vbintserver,a1
 	jsr	-168(a6)	;addintserver
+	st	g2exit_vb_owned
+.done
 	pull
 	rts
 
@@ -22777,10 +22893,14 @@ rbfintdata	dc.l	rbuff
 rbfintcode	dc.l	rbf
 
 finitvbint	push
+	tst.w	g2exit_vb_owned
+	beq.s	.done
+	clr.w	g2exit_vb_owned
 	move.l	4.w,a6
 	moveq	#5,d0
 	lea	vbintserver,a1
 	jsr	-174(a6)
+.done
 	pull
 	rts
 
@@ -23433,8 +23553,12 @@ finitdisplay	push
 	beq.w	.noos
 	;
 	move.l	dbufinfo(pc),a1
+	tst.l	a1
+	beq.s	.no_dbufinfo
 	move.l	grbase(pc),a6
 	jsr	-$3cc(a6)	;free dbufinfo
+	clr.l	dbufinfo
+.no_dbufinfo
 	;
 	; Close our synchronous covering window before its owning screen.
 	move.l	oswindow,d0
@@ -23445,14 +23569,22 @@ finitdisplay	push
 	clr.l	oswindow
 	clr.l	newwindow_s
 .native_window_closed
-	move.l	screen(pc),a0
+	move.l	screen(pc),d0
+	beq.s	.native_screen_closed
+	move.l	d0,a0
 	move.l	int(pc),a6
 	jsr	-66(a6)
+	clr.l	screen
+	clr.l	viewport
+.native_screen_closed
 	;
 	pull
 	rts
 	;
-.noos	move.l	grbase,a6
+.noos	tst.w	g2exit_native_view_owned
+	beq.s	.raw_not_owned
+	clr.w	g2exit_native_view_owned
+	move.l	grbase,a6
 	move.l	oldview,a1
 	jsr	-222(a6)	;load view
 	jsr	-270(a6)
@@ -23460,6 +23592,7 @@ finitdisplay	push
 	move.l	38(a6),$dff080
 	move	#$81a0,$dff096
 	move	#0,$dff088
+.raw_not_owned
 	;
 	pull
 	rts
@@ -23714,6 +23847,7 @@ initdisplay	;
 	move.l	4.w,a6
 	jsr	-408(a6)
 	move.l	d0,grbase
+	requiremem		; graphics.library is needed by all display paths
 	;
 	; c87b79x: native AGA/ECS keep the two compact planar pages. DISPLAY=P96
 	; owns only chunky/direct index and CLUT staging pages, so leave every
@@ -23732,6 +23866,7 @@ initdisplay	;
 	add.l	d0,d0	;2 for DB
 	moveq	#2,d1
 	allocmem	bitmaps
+	requiremem
 	move.l	d0,bitmaps
 	add.l	d2,d0
 	move.l	d0,bitmaps2
@@ -23755,6 +23890,7 @@ g2ecs3_bitmaps_ready
 	lea	intname(pc),a1
 	jsr	-408(a6)
 	move.l	d0,int
+	requiremem
 	;
 	cmp	#2,g2display_mode
 	beq	db		;c87b79x: no OS-format planar bitmap structures
@@ -23777,8 +23913,7 @@ g2ecs3_bitmaps_ready
 	move.l	d0,a0
 	move.l	a0,screen
 	bne.s	.g2c86zdc_screen_ok
-	clr.w	os	; OpenScreen failed: use existing direct-display fallback
-	bra.w	.noos
+	jmp	g2fatal_abort	; no mixed OS/copper backend after OpenScreen failure
 .g2c86zdc_screen_ok
 	; Open the covering window synchronously. The legacy windowtask is
 	; not started anywhere in this source. Its flags alone had no effect.
@@ -23789,15 +23924,7 @@ g2ecs3_bitmaps_ready
 	jsr	-204(a6)	; OpenWindow
 	move.l	d0,oswindow
 	bne.s	.native_window_ok
-	; Do not continue with an uncovered screen after OpenWindow failure.
-	; Match the existing OpenScreen-failure custom-display fallback.
-	move.l	screen(pc),a0
-	move.l	int(pc),a6
-	jsr	-66(a6)	; CloseScreen (no window exists)
-	clr.l	screen
-	clr.l	newwindow_s
-	clr.w	os
-	bra.w	.noos
+	jmp	g2fatal_abort	; cleanup closes the successfully opened screen
 .native_window_ok
 	jsr	g2v36_hide_pointer
 	move.l	screen(pc),a0
@@ -23810,6 +23937,7 @@ g2ecs3_bitmaps_ready
 	move.l	a0,viewport
 	move.l	grbase(pc),a6
 	jsr	-$3c6(a6)	;alocdbufinfo
+	requiremem
 	move.l	d0,dbufinfo
 	bra	db
 	;
@@ -23821,6 +23949,7 @@ g2ecs3_bitmaps_ready
 	move.l	34(a6),oldview
 	sub.l	a1,a1
 	jsr	-222(a6)	;loadview 0.
+	st	g2exit_native_view_owned
 	;
 	bsr	dispoff
 	lea	copinit_aga,a0
@@ -23835,6 +23964,7 @@ g2ecs3_bitmaps_ready
 	move.l	d0,d2
 	moveq	#2,d1
 	allocmem	coplist
+	requiremem
 	move.l	d0,coplist
 	move.l	d0,a2	;dest
 	movem.l	(a7)+,a0-a1
@@ -23910,9 +24040,16 @@ allocmem2_	;
 	;as below, but d2.l = extra mem at start to set aside
 	;
 	push
+	tst.l	d2
+	bmi.s	.invalid
 	moveq	#16,d3
 	add.l	d2,d3
+	bvs.s	.invalid
 	bra.s	amem_
+.invalid
+	pull
+	moveq	#0,d0
+	rts
 
 allocmem_	;
 	;d0=size, d1=requirements, a0=text field
@@ -23928,7 +24065,11 @@ allocmem_	;
 	moveq	#16,d3	;offset
 	;
 amem_	move.l	a0,d4
+	move.l	d1,d5		; d1 is volatile across AllocMem
 	add.l	d3,d0
+	bcs.w	.g2bench_p1_alloc_failed
+	tst.l	d0
+	bmi.w	.g2bench_p1_alloc_failed
 	;
 	move.l	d0,d2	;len
 	move.l	a0,d4	;text
@@ -23940,7 +24081,7 @@ amem_	move.l	a0,d4
 	; Gloombench2 Patch 1: MEMF_FAST is preferred for CPU-side data,
 	; but preserve compatibility by retrying the identical allocation as
 	; MEMF_PUBLIC before reporting failure. CHIP allocations never enter here.
-	cmp.l	#4,d1
+	cmp.l	#4,d5
 	bne.s	.g2bench_p1_alloc_failed
 	move.l	d2,d0		; restore total size including memlist header
 	moveq	#1,d1		; MEMF_PUBLIC fallback
@@ -52442,6 +52583,8 @@ g2safe_copy_map_parameter
 ; to memlist, and exittoos/freememlist frees the partial set exactly once.
 ; No finitmenu walk over an incomplete/stale menustrips array is performed.
 g2menu_allocation_failed
+g2fatal_abort
+	st	g2fatal_state
 	st	paused			; stop gameplay logic before tearing down its memory
 	move.l	g2menu_entry_sp,a7
 	jsr	exittoos		; display/input/audio/interrupts/objects/memlist/dir
@@ -52450,6 +52593,35 @@ g2menu_allocation_failed
 
 	even
 g2menu_entry_sp	dc.l	0
+g2fatal_state	dc.w	0
+g2exit_vb_owned	dc.w	0
+g2exit_native_view_owned	dc.w	0
+g2exit_forbid_depth	dc.w	0
+
+; The initialisation may fail before graphics/VBlank/blitter ownership exists.
+; Balance only task locks acquired by the game's raw-display wrapper, then
+; finish any remaining blitter work before memlist can release Chip RAM.
+g2release_task_ownership
+	movem.l	d0/a6,-(a7)
+.task_loop
+	tst.w	g2exit_forbid_depth
+	beq.s	.blit_check
+	jsr	permit
+	bra.s	.task_loop
+.blit_check
+	tst.w	blitnest
+	beq.s	.done
+	move.l	grbase,d0
+	beq.s	.done
+	move.l	d0,a6
+	jsr	-228(a6)
+.blit_loop
+	jsr	disownblitter
+	tst.w	blitnest
+	bgt.s	.blit_loop
+.done
+	movem.l	(a7)+,d0/a6
+	rts
 ; Gloom Reforged 2.1 - wall Bayer precomputation, performance trial 1.
 ; Appended at EOF: large storage must not extend existing PC-relative spans.
 ;

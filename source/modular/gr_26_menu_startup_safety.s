@@ -35,6 +35,8 @@ g2safe_copy_map_parameter
 ; to memlist, and exittoos/freememlist frees the partial set exactly once.
 ; No finitmenu walk over an incomplete/stale menustrips array is performed.
 g2menu_allocation_failed
+g2fatal_abort
+	st	g2fatal_state
 	st	paused			; stop gameplay logic before tearing down its memory
 	move.l	g2menu_entry_sp,a7
 	jsr	exittoos		; display/input/audio/interrupts/objects/memlist/dir
@@ -43,3 +45,32 @@ g2menu_allocation_failed
 
 	even
 g2menu_entry_sp	dc.l	0
+g2fatal_state	dc.w	0
+g2exit_vb_owned	dc.w	0
+g2exit_native_view_owned	dc.w	0
+g2exit_forbid_depth	dc.w	0
+
+; The initialisation may fail before graphics/VBlank/blitter ownership exists.
+; Balance only task locks acquired by the game's raw-display wrapper, then
+; finish any remaining blitter work before memlist can release Chip RAM.
+g2release_task_ownership
+	movem.l	d0/a6,-(a7)
+.task_loop
+	tst.w	g2exit_forbid_depth
+	beq.s	.blit_check
+	jsr	permit
+	bra.s	.task_loop
+.blit_check
+	tst.w	blitnest
+	beq.s	.done
+	move.l	grbase,d0
+	beq.s	.done
+	move.l	d0,a6
+	jsr	-228(a6)
+.blit_loop
+	jsr	disownblitter
+	tst.w	blitnest
+	bgt.s	.blit_loop
+.done
+	movem.l	(a7)+,d0/a6
+	rts

@@ -1524,6 +1524,7 @@ forbid	tst	os
 	bsr	ownblitter
 	move.l	4.w,a6
 	jsr	-132(a6)
+	addq.w	#1,g2exit_forbid_depth
 	move	#$8400,$dff096	;bltnasty!
 	pull
 	;
@@ -1533,18 +1534,26 @@ permit	tst	os
 	bne.s	.rts
 	;
 	push
+	tst.w	g2exit_forbid_depth
+	beq.s	.not_owned
+	subq.w	#1,g2exit_forbid_depth
 	move.l	4.w,a6
 	jsr	-138(a6)
 	jsr	disownblitter
+.not_owned
 	pull
 	;
 .rts	rts
 
 initvbint	push
+	tst.w	g2exit_vb_owned
+	bne.s	.done
 	move.l	4.w,a6
 	moveq	#5,d0
 	lea	vbintserver,a1
 	jsr	-168(a6)	;addintserver
+	st	g2exit_vb_owned
+.done
 	pull
 	rts
 
@@ -1566,10 +1575,14 @@ rbfintdata	dc.l	rbuff
 rbfintcode	dc.l	rbf
 
 finitvbint	push
+	tst.w	g2exit_vb_owned
+	beq.s	.done
+	clr.w	g2exit_vb_owned
 	move.l	4.w,a6
 	moveq	#5,d0
 	lea	vbintserver,a1
 	jsr	-174(a6)
+.done
 	pull
 	rts
 

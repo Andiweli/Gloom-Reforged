@@ -161,9 +161,12 @@ exittoos	jsr	finitvbint
 	jsr	g2v190ep_stop_all_sfx
 	jsr	g2p96_display_shutdown	;c86zfq: central shutdown display-state close
 	jsr	inputoff	; v34: restore ciaa/rawkey vectors before OS exit/closewindow
+	tst.w	g2fatal_state
+	bne.s	.no_cfg_save	; never persist partial/default state after a failed start
 	jsr	g2cfg_save	;v141: persist menu/options on clean exit
+.no_cfg_save
 	jsr	freeobjlist2
-	jsr	permit
+	jsr	g2release_task_ownership
 	jsr	finitdisplay
 	jsr	finitsfx
 	jsr	finitser

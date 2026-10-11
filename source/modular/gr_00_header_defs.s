@@ -1376,6 +1376,15 @@ alloclist	macro	;alloclist listname,maxitems,itemsize
 alskip\@	;
 	endm
 
+; Required allocations run in the main task, never in an interrupt.
+; Use an absolute error jump: the shared cleanup exceeds a word branch range.
+requiremem	macro
+	tst.l	d0
+	bne.s	.reqok\@
+	jmp	g2fatal_abort
+.reqok\@	;
+	endm
+
 k_alloclist	;a2=address of 'first' pointer
 	;d0=max items, d1=item size
 	;
@@ -1387,6 +1396,7 @@ k_alloclist	;a2=address of 'first' pointer
 	mulu	d1,d0
 	move.l	#$10001,d1
 	allocmem	alloclist
+	requiremem
 	move.l	d0,a0
 	lea	12(a2),a2
 	movem.l	(a7)+,d0-d1

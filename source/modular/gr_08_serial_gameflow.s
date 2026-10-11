@@ -434,12 +434,14 @@ initmain	;
 	lea	ciaaname,a1
 	jsr	-498(a6)
 	move.l	d0,ciaa
+	requiremem
 	;
 	tst	os
 	beq.s	.osskipz
 	move.l	#12*257,d0
 	moveq	#4,d1
 	allocmem	temppal
+	requiremem
 	move.l	d0,temppal
 .osskipz	;
 	; Fix3b: keep audio silence at +0 separate from writable sprite data.
@@ -447,31 +449,37 @@ initmain	;
 	move.l	#256,d0	;MEMF_CLEAR below initializes both chip RAM regions
 	move.l	#$10002,d1
 	allocmem	chipzero
+	requiremem
 	move.l	d0,chipzero
 	;
 	move.l	#256,d0
 	moveq	#4,d1
 	allocmem	maptable
+	requiremem
 	move.l	d0,maptable
 	;
 	move.l	#32768,d0
 	moveq	#4,d1
 	allocmem	memory
+	requiremem
 	move.l	d0,memory
 	;
 	move.l	#g2render_max_width*vd_size,d0
 	moveq	#4,d1
 	allocmem	vertdraws
+	requiremem
 	move.l	d0,vertdraws
 	;
 	move.l	#maxz*2,d0
 	moveq	#4,d1
 	allocmem	darktable
+	requiremem
 	move.l	d0,darktable
 	;
 	move.l	#g2render_max_width*g2render_height_const+15,d0
 	moveq	#4,d1
 	allocmem	chunky
+	requiremem
 	tst.l	d0
 	beq.s	.g2p11_chunky_alloc_done
 	add.l	#15,d0
@@ -496,6 +504,7 @@ initmain	;
 	move.l	d0,p96static_rgbbufsize
 	moveq	#4,d1
 	allocmem	p96staticrgb
+	requiremem
 	move.l	d0,p96static_rgbbufptr
 .g2c86zgv_no_staticbuf
 	;
@@ -516,11 +525,13 @@ initmain	;
 	move.l	d0,p96clut_stage_size
 	moveq	#4,d1
 	allocmem	p96clutstage
+	requiremem
 	move.l	d0,p96clut_stage_ptr
 	beq	.g2c87b78j_no_clut_buffers
 	move.l	#65536,d0
 	moveq	#4,d1
 	allocmem	p96clutreverse
+	requiremem
 	move.l	d0,p96clut_reverse_ptr
 	beq	.g2c87b78j_no_clut_buffers
 	jsr	g2p96_clut_clear_runtime_c87b78j
@@ -531,6 +542,7 @@ initmain	;
 	move.l	#256*16,d0
 	moveq	#4,d1
 	allocmem	palettes
+	requiremem
 	;
 	;16 shades...
 	lea	palettes(pc),a0
