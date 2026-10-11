@@ -1427,7 +1427,7 @@ scriptdraw	; v190hy cleanup: log marker removed
 fetchrest	jmp g2script_fetchrest
 
 text	;
-picname	ds.b	64
+picname	ds.b	80	; two bounded 40-character text rows, including separator/NUL
 pic_pal	dc.b	'.pal',0
 	even
 

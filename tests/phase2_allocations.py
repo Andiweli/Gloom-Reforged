@@ -9,13 +9,14 @@ root=Path(__file__).resolve().parents[1]
 from asm_regression import *
 dll=ctypes.CDLL(str(Path(sys.argv[1]).absolute()));dll.test_get.restype=ctypes.c_uint
 class Scenario:
- def __init__(self,c):
+ def __init__(self,c,data_root=None):
   self.c=c;self.handles={};self.next_handle=1;self.top=0x300000;self.blocks={};self.peak=0;self.total=0;self.available=[(0x300000,0x400000)];self.attempts=0;self.fail_at=0
+  self.data_root=Path(data_root) if data_root is not None else root/'source'
   for off,fn in [(-30,self.open),(-42,self.read),(-66,self.seek),(-36,self.close),(-84,lambda c:c.ret(0)),(-132,lambda c:c.ret(205))]:c.hook(DOS+off,fn)
   c.hook(EXEC-198,self.alloc);c.hook(EXEC-210,self.free)
  def open(self,c):
   n=c.bytes(c.get(D1),192).split(b'\0',1)[0].decode('latin1').replace('PROGDIR:','')
-  p=root/'source'/n
+  p=self.data_root/n
   if not p.is_file():c.ret(0);return
   h=self.next_handle;self.next_handle+=1;self.handles[h]=[p.read_bytes(),0,n];c.ret(h)
  def read(self,c):
@@ -46,7 +47,7 @@ class Scenario:
   print(label,{'active_private_blocks':n,'chip_requests':chip,'fast_or_public_requests':n-chip,'extra_header_bytes':16*n,'requested_bytes':sum(x[0] for x in self.blocks.values()),'peak_blocks':self.peak,'successful_allocations':self.total})
 def run(c,name,limit=3000000,until=None):
  c.set(A7,STACK);c.w32(STACK,STOP);c.set(PC,c.addr(name))
- pure=['g2crm_decode_checked','remapanim','remap','initdarktable','g2v36_clear_title_buffers','g2gun_prepare','initmap','g2require_actor_shape','g2validate_loaded_slot','g2require_core_tables','g2require_map_textures']
+ pure=['g2crm_decode_checked','remapanim','remap','initdarktable','g2v36_clear_title_buffers','g2gun_prepare','initmap','g2require_actor_shape','g2require_map_textures','g2validate_med','g2validate_anim','g2validate_iff','g2normalize_legacy_iff']
  for i in range(limit):
   pc=c.get(PC)
   if until and pc==c.addr(until):return
@@ -60,8 +61,8 @@ def run(c,name,limit=3000000,until=None):
    ret=c.r32(c.get(A7));assert BASE<=pc<BASE+len(c.code),(hex(pc),hex(ret),max(((v,k) for k,v in c.syms.items() if v<=ret)));dll.test_step()
  raise AssertionError(('instruction limit',name,hex(c.get(PC))))
 
-def setup(path,mode):
- c=CPU(dll,path);io=Scenario(c)
+def setup(path,mode,data_root=None):
+ c=CPU(dll,path);io=Scenario(c,data_root)
  c.w16(c.addr('aga'),65535);c.w16(c.addr('os'),0);c.w16(c.addr('g2display_mode'),2 if mode=='P96' else 1)
  c.w32(EXEC+276,0x220000);c.w16(c.addr('p96target_width'),320);c.w16(c.addr('p96target_height'),240)
  c.w32(c.addr('p96modeid_rgbformat'),1)
@@ -108,6 +109,7 @@ def oom(path):
  print(Path(path).name,attempts,'initmain AllocMem failure positions: no residual private blocks/handles')
  return attempts
 
-total=sum(scenario(p,m) for p in sys.argv[2:] for m in ['AGA','P96'])
-total+=sum(oom(p) for p in sys.argv[2:])
-print(total,'lifecycle/OOM scenarios passed (68020; OS modelled)')
+if __name__=='__main__':
+ total=sum(scenario(p,m) for p in sys.argv[2:] for m in ['AGA','P96'])
+ total+=sum(oom(p) for p in sys.argv[2:])
+ print(total,'lifecycle/OOM scenarios passed (68020; OS modelled)')

@@ -138,6 +138,18 @@ g2validate_loaded_slot	; d0=loaded pointer, a3=compile-time destination slot
 	moveq #48,d7	; showstats selects health cells 45..47 and weapon cells 39..43
 	bra.s .animation
 .gun
+	cmp.w #3,g2_game_profile
+	bne.s .full_gun
+	move.l a1,a0
+	jsr g2require_anim
+	tst.w an_rotshft(a0)
+	bne.s .full_gun
+	cmp.w #2,an_frames(a0)
+	bne.s .full_gun
+	jsr g2prepare_legacy_gun
+	move.l d0,(a7)	; return replacement to the loader; slot is updated by helper
+	bra.w .done
+.full_gun
 	moveq #5,d7	; g2drawgun_muzzle selects entries 0..4
 .animation
 	move.l a1,a0
@@ -165,6 +177,19 @@ g2validate_loaded_slot	; d0=loaded pointer, a3=compile-time destination slot
 	bra.w .done
 .iff
 	move.l a1,a0
+	jsr g2validate_iff
+	tst.l d0
+	beq.s .done
+	; Original Gloom3/ZM artwork can end a ByteRun1 row one byte late.
+	; Canonicalise that legacy stream in owned loader memory before use.
+	cmp.w #2,g2_game_profile
+	beq.s .legacy_iff
+	cmp.w #3,g2_game_profile
+	bne.s .bad
+.legacy_iff
+	jsr g2normalize_legacy_iff
+	tst.l d0
+	bne.s .bad
 	jsr g2validate_iff
 	tst.l d0
 	bne.s .bad
@@ -377,3 +402,179 @@ g2require_external_c2p
 .done
 	movem.l (a7)+,a0/d1
 	rts
+
+; Original Gloom3/ZM trimmed pictures use rows of width/8 or width/8+1.
+; The legacy native decoder wrote the extra byte over the following row/plane.
+; Two cold passes: prove complete source/run bounds first, then remove only
+; that last extra byte. Literal payload is fully consumed; no new allocation.
+; Output never overtakes input, header/visible row bytes stay unchanged, and
+; normal strict validation remains the contract of every display decoder.
+; a0=registered owned picture; d0=0/-1; other registers preserved.
+g2normalize_legacy_iff
+ movem.l d1-d7/a0-a6,-(a7)
+ move.l a0,a2
+ jsr g2asset_bounds
+ cmp.l #12,d0
+ bcs.w .bad
+ move.l a1,a3
+ moveq #0,d6
+ move.w (a2),d6
+ beq.w .bad
+ cmp.w #320,d6
+ bhi.w .bad
+ move.l d6,d0
+ and.w #7,d0
+ bne.w .bad
+ lsr.w #3,d6
+ moveq #0,d7
+.pass
+ lea 12(a2),a4
+ move.l a4,a5
+ moveq #0,d5
+ move.w 2(a2),d5
+ beq.w .bad
+ moveq #0,d0
+ move.w 4(a2),d0
+ beq.w .bad
+ cmp.w #8,d0
+ bhi.w .bad
+ mulu.w d0,d5
+.row
+ move.l d6,d4
+.run
+ cmp.l a3,a4
+ bcc.w .bad
+ moveq #0,d2
+ move.b (a4)+,d2
+ ext.w d2
+ cmp.w #-128,d2
+ beq.s .run
+ moveq #0,d3
+ move.w d2,d3
+ bpl.s .literal_count
+ neg.w d3
+.literal_count
+ addq.w #1,d3
+ move.l d4,d0
+ addq.w #1,d0
+ cmp.w d0,d3
+ bhi.w .bad
+ move.l d3,d1
+ tst.w d2
+ bpl.s .payload
+ moveq #1,d1
+.payload
+ move.l a3,d0
+ sub.l a4,d0
+ cmp.l d0,d1
+ bhi.w .bad
+ move.l d3,d0
+ cmp.w d4,d0
+ bls.s .count_ok
+ move.l d4,d0
+.count_ok
+ tst.w d7
+ beq.s .skip_payload
+ move.l d0,d1
+ subq.w #1,d1
+ tst.w d2
+ bpl.s .copy_literal
+ neg.b d1
+ move.b d1,(a5)+
+ move.b (a4)+,(a5)+
+ bra.s .advance
+.copy_literal
+ move.b d1,(a5)+
+ move.l d0,d1
+.copy
+ move.b (a4)+,(a5)+
+ subq.w #1,d1
+ bne.s .copy
+ cmp.w d0,d3
+ beq.s .advance
+ addq.l #1,a4
+ bra.s .advance
+.skip_payload
+ adda.l d1,a4
+.advance
+ sub.w d0,d4
+ bne.w .run
+ subq.l #1,d5
+ bne.w .row
+ tst.w d7
+ bne.s .good
+ moveq #1,d7
+ bra.w .pass
+.good
+ moveq #0,d0
+ bra.s .done
+.bad
+ moveq #-1,d0
+.done
+ movem.l (a7)+,d1-d7/a0-a6
+ rts
+
+; Gloom3's original gun has exactly normal/recoil frames and no muzzle art.
+; Add three NULL consumer slots in a private copy, retaining an_frames=2 so
+; remapanim processes only the two original shapes. The unchanged muzzle
+; renderer already skips NULL slots. All original pixels/palette are copied.
+; Called only after full animation validation, before any gun consumer.
+; a0=owned animation; d0=replacement; all other registers preserved.
+g2prepare_legacy_gun
+ movem.l d1-d7/a0-a6,-(a7)
+ move.l a0,a2
+ jsr g2asset_bounds
+ move.l d0,d6
+ cmp.l #32,d6
+ bcs.s .copy_needed
+ cmp.l #32,12(a2)
+ bcs.s .copy_needed
+ cmp.l #32,16(a2)
+ bcs.s .copy_needed
+ tst.l 20(a2)
+ bne.s .copy_needed
+ tst.l 24(a2)
+ bne.s .copy_needed
+ tst.l 28(a2)
+ bne.s .copy_needed
+ move.l a2,d0
+ bra.w .done
+.copy_needed
+ move.l d6,d0
+ add.l #12,d0
+ bcs.w .bad
+ moveq #4,d1
+ lea g2legacy_gun_label(pc),a0
+ jsr allocmem_
+ tst.l d0
+ beq.w .bad
+ move.l d0,a3
+ move.l a2,a0
+ move.l a3,a1
+ moveq #19,d1
+.header
+ move.b (a0)+,(a1)+
+ dbf d1,.header
+ clr.l (a1)+
+ clr.l (a1)+
+ clr.l (a1)+
+ move.l d6,d1
+ sub.l #20,d1
+.body
+ move.b (a0)+,(a1)+
+ subq.l #1,d1
+ bne.s .body
+ add.l #12,an_pal(a3)
+ add.l #12,12(a3)
+ add.l #12,16(a3)
+ move.l a3,gunpic
+ move.l a2,a1
+ jsr freemem_
+ move.l a3,d0
+.done
+ movem.l (a7)+,d1-d7/a0-a6
+ rts
+.bad
+ jmp g2fatal_abort
+g2legacy_gun_label dc.b 'Gloom3 gun',0
+	even

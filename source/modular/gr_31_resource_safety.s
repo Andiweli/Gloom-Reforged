@@ -131,7 +131,20 @@ g2validate_anim	; a0=start; 0=valid, -1=invalid; all other registers preserved
 	moveq	#0,d3
 	move.w	4(a0),d2
 	move.w	6(a0),d3
-	beq.w	.bad
+	bne.s	.height_ready
+	; Original Gloom3 player frame 35 is an empty 1x0 placeholder, handles
+	; (0,-1). remapanim/remap process zero bytes; drawshapes skips zero screen
+	; height before divisions by that height, pixels, shadows or reflections.
+	; Preserve this exact empty form, including its zero height.
+	cmp.w #3,g2_game_profile
+	bne.w .bad
+	cmp.w #1,d2
+	bne.w .bad
+	tst.w (a0)
+	bne.w .bad
+	cmp.w #-1,2(a0)
+	bne.w .bad
+.height_ready
 	tst.w	d2
 	beq.w	.bad
 	cmp.w #32767,d2

@@ -38,7 +38,7 @@ def tests(dll,path,cpu):
     # Every repository map is checked on every emulated CPU, with an EOF guard.
     for file in sorted((Path(__file__).parents[1]/'source/maps').iterdir()):
         check('g2validate_map',file.read_bytes(),True)
-    scripts=[(b'done_',True),(b'; comment without EOL',False),(b'play_map\ndone_\n',True),(b'PLAY_map\r\nTEXT_hello\r\nDONE_\r\n',True),(b'play_map\rdone_\r',True),(b'wait_\nloop_\n',True),(b'loop_\n',False),(b'rest_marker\nloop_\n',False),(b'xxxx_\ndone_\n',False),(b'play map\ndone_\n',False),(b'play_\ndone_\n',False),(b'pict_'+b'a'*51+b'\ndone_\n',False),(b'tile_'+b'a'*32+b'\ndone_\n',False),(b'text_'+b'a'*64+b'\ndone_\n',False),(b'play_'+b'a'*64+b'\ndone_\n',False),(b'draw_parameter\ndone_\n',False),(b'play_map',False)]
+    scripts=[(b'done_',True),(b'; comment without EOL',False),(b'play_map\ndone_\n',True),(b'PLAY_map\r\nTEXT_hello\r\nDONE_\r\n',True),(b'play_map\rdone_\r',True),(b'wait_\nloop_\n',True),(b'loop_\n',False),(b'rest_marker\ndone_',True),(b'rest_marker\nloop_\n',False),(b'xxxx_\ndone_\n',False),(b'play map\ndone_\n',False),(b'play_\ndone_\n',False),(b'pict_'+b'a'*67+b'\ndone_\n',False),(b'tile_'+b'a'*32+b'\ndone_\n',False),(b'text_'+b'a'*80+b'\ndone_\n',False),(b'play_'+b'a'*64+b'\ndone_\n',False),(b'draw_parameter\ndone_\n',False),(b'play_map',False)]
     for n in range(5):scripts.append((b'play_'[:n],False))
     for b,valid in scripts:check('g2validate_script',b,valid)
     for text,valid in [(b'a'*63,True),(b'a'*8+b' '+b'a'*54,False),(b'a'*23+b' '+b'a'*23,True),(b'a'*41+b'\\b',False),(b'\\'*20+b'a',True),(b'\\'*21+b'a',False),(b'a'*40+b'\\b',True)]:
