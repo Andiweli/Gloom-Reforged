@@ -753,8 +753,10 @@ Audit Phase 4 - Ressourcenkompatibilität und MED-Stabilisierung
 11. Oktober 2026. Geprüfter Ausgangspunkt: Remote audit und lokaler HEAD
 d14674c11542ede83b61a706251c3d9b45193f45. Vor Beginn frisch gefetcht, keine
 zusätzlichen Remote-Commits. Vollständiger Bericht und bestehende Korrekturen
-übernommen. Ausschließlich audit; origin/master weiterhin
-c223cf5dce87dacbfb9591a6109e02bbee0df98c. Keine lokale master-Branch angelegt.
+übernommen. Ausschließlich audit; gespeicherte master-Quellreferenz
+c223cf5dce87dacbfb9591a6109e02bbee0df98c. Der direkte abschließende Remote-
+Vergleich zeigt eine externe README-Änderung (siehe Veröffentlichungsnachtrag).
+Keine lokale master-Branch angelegt.
 Version 2.4.0, Release-Binaries, INCBIN-Dateien und Originaldaten unverändert.
 Kein PR, Merge oder Release. Datenquelle G:\ZGloom wurde ausschließlich gelesen.
 
@@ -1046,7 +1048,7 @@ Phase-4-Commits / GitHub
 b5d194be56352b1b9e7ef929c37964fc0e27e682 Einzelklassifizierung/Originalverbraucher.
 Der folgende Bericht-/Nachweiscommit enthält diese aktualisierte Bewertung,
 frisch erzeugte Metadaten und Reproduktionshinweise. Vor/nach Publikation werden
-nur origin/audit und der unveränderte master-HEAD direkt geprüft; die tatsächlich
+origin/audit und der aktuelle master-HEAD direkt geprüft; die tatsächlich
 bestätigten Remote-IDs folgen im Veröffentlichungsnachtrag und Abschlussbericht.
 
 Erneut geprüfte Primärverträge (11. Oktober 2026)
@@ -1057,3 +1059,37 @@ https://developer.amigaos3.net/autodocs/dos.library/Rename.html
 https://d0.se/autodocs/cia.resource/AddICRVector
 Strukturformat weiterhin Kinnunens MMD Revision6 (siehe Phase3); Effektziele,
 Typ-/Oktavtabellen und Zugriffsspannen stammen aus dem tatsächlichen medplay.
+
+Veröffentlichten Phase-4-Stand direkt bestätigt / externe master-Abweichung
+-------------------------------------------------------------------------
+Bericht-/Nachweiscommit:
+fcb40ef6994cb027464bf2db28b71ff63b7b8c50.
+Fast-forward-Push ausschließlich audit (keine Tags): d14674c -> fcb40ef.
+Am 11. Oktober 2026, 16:44 UTC mit git ls-remote auf GitHub direkt bestätigt:
+  audit  = fcb40ef6994cb027464bf2db28b71ff63b7b8c50
+  master = 7d178c9ad62f1484578464920e21b5c5997c3f83
+Lokaler audit-HEAD und origin/audit identisch, Arbeitskopie zu diesem Zeitpunkt
+sauber. Alle Phase-1-bis-3-Commits bleiben Vorfahren des veröffentlichten Standes.
+
+master ist NICHT global unverändert: Ein separater, von Andiweli über GitHub
+erstellter Commit vom 11. Oktober, 18:38:49 MESZ (16:38:49 UTC), "Update README.md",
+ändert ausschließlich README.md (6 Zeilen hinzu,1 entfernt). Expliziter Fetch
+refs/heads/master:refs/remotes/origin/master und vollständiger Diff zu c223cf5
+bestätigen: keine Produktionsquelle, Version oder Binärdatei geändert.
+Das ist keine Änderung dieses Auditauftrags; dessen einzige Push-Ref war audit.
+Die externe README-Änderung wird nicht zurückgesetzt oder in audit integriert.
+
+Die frühere master-Aussage stützte sich auf den gespeicherten Tracking-Ref:
+remote.origin.fetch ist nur auf audit konfiguriert. Ein "git fetch origin audit
+master" lädt master zwar in FETCH_HEAD, aktualisiert dabei origin/master nicht.
+Diese Tracking-Abweichung wurde beim direkten Remotevergleich entdeckt und
+hier sowie in tests/phase4_evidence.json ausdrücklich korrigiert.
+Das Kriterium "master insgesamt unverändert geblieben" ist deshalb nicht
+erfüllt; die strengere zutreffende Aussage ist: vom Auditauftrag nicht angefasst,
+seine Referenz-Produktionsquellen unverändert, externe README-Änderung dokumentiert.
+
+Dieser anschließende Nachtragscommit enthält nur Bericht/Publikationsmetadaten.
+Seine eigene ID ergibt sich aus dem finalen GitHub-Commitlog und Abschlussbericht;
+der finale audit-HEAD wird nach seinem Push nochmals direkt abgefragt. Tests und
+Builds betreffen exakt die unveränderten Produktionsquellen von 6e1bc1d.
+Keine öffentliche Freigabe, keine Versionsänderung und kein master-Push.
