@@ -402,10 +402,14 @@ Logische Phase-2-Commits / Veröffentlichungsstand
 693f3ff CrM-Eingabe-/Bit-/Huffman-/Ausgabegrenzen für beide Loader.
 88890b6 Events/Scripts/Paletten/Animationen/MED-Struktur und neue Regressionen.
 436d17a Neustart-Wiederherstellung unterbrochener Konfigurationsersetzung.
-Dokumentationsabschluss: Commit, der diesen Phase-2-Bericht und die aktuellen
-Reproduktionshinweise enthält; seine eigene ID ergibt sich aus Git-HEAD.
-Veröffentlichungsziel ausschließlich origin/audit, Fast-forward ab d825e91.
+19985d5 Phase-2-Bericht, Modulübersicht und Reproduktionshinweise.
+Veröffentlicht ausschließlich auf origin/audit, Fast-forward ab d825e91.
 Der veröffentlichte Bericht ist über den aktuellen audit-HEAD erreichbar:
 https://github.com/Andiweli/Gloom-Reforged/blob/audit/AUDIT-STABILIZATION-2.4.0.txt
-Die tatsächliche Synchronisation/letzte Commit-ID wird nach Push im Abschluss-
-ergebnis kontrolliert; master muss weiterhin exakt c223cf5 bleiben.
+Am 11. Oktober 2026 um 13:20 UTC nach erfolgreichem Push direkt per ls-remote
+verifiziert: origin/audit = 19985d5e619570f63ddd87f1c10199facef60a88,
+origin/master = c223cf5dce87dacbfb9591a6109e02bbee0df98c. Lokaler audit-HEAD
+und origin/audit stimmten überein; Arbeitskopie sauber, nur Quellcode/Tests/
+Dokumentation geändert. Dieser anschließende reine Berichtsnachtrag erfasst
+die tatsächlich bestätigte Veröffentlichung. Seine eigene Commit-ID ist der
+finale Git-HEAD des Berichts; finale Remote-Gleichheit wird erneut kontrolliert.
