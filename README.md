@@ -7,11 +7,16 @@
 
 This project aims to build an enhanced Amiga version of Gloom, based on the original, unmodified source code published at [earok/GloomAmiga](https://github.com/earok/GloomAmiga). Gloom Reforged is compatible with ECS and AGA Amigas as well as with Picasso96 graphicscards.  
 
-[Watch](https://vimeo.com/1213335312?share=copy&fl=sv&fe=ci) Gloom Reforged v1.10.0 on Vimeo.
+> [!IMPORTANT]
+> Starting with version 3.0, Gloom Reforged will be available [exclusively on itch.io](https://andiweli.itch.io/gloom-reforged) as a paid product.  
+> A great deal of time and effort has gone into this project, and in return, you get a highly polished product.  
+> The game will remain available on Aminet, but only in the current version (2.4.0) for casual gamers. Future updates - such as true 640x480 or 854x480 rendering (not just upscaled) and additional features - will be available only on itch.io. However, if you would like to support my work and future development, you can purchase this paid version here on [itch.io](https://andiweli.itch.io/gloom-reforged) where you will receive updates.
 
 > [!WARNING]
 > This game needs more CPU power than the original Gloom.  
 > **A PISTORM OR AT LEAST 060@100MHz IS HIGHLY RECOMMENDED TO ACHIEVE STABLE FRAME RATES OF THE MAXIMUM 20-25 FPS!**  
+
+[Watch](https://vimeo.com/1213335312?share=copy&fl=sv&fe=ci) Gloom Reforged v1.10.0 on Vimeo.
 
 The goal is *not* to turn Gloom into a completely different engine, but to modernize it where it makes sense, while preserving the look, feel, atmosphere, and gameplay identity of the classic release.
 
