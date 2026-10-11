@@ -17,6 +17,8 @@ AmgTlsConnection *amg_tls_connect(const char *host, unsigned short port,
                                   unsigned long timeout_seconds, AmgError *error);
 AmgTlsConnection *amg_tls_connect_tls12(const char *host, unsigned short port,
                                         unsigned long timeout_seconds, AmgError *error);
+/* Positive byte count, zero for orderly EOF, negative for a transport error.
+ * TLS EOF requires close_notify; an unclean TLS shutdown remains an error. */
 long amg_tls_read(AmgTlsConnection *connection, void *data, size_t length, AmgError *error);
 long amg_tls_write(AmgTlsConnection *connection, const void *data, size_t length, AmgError *error);
 int amg_tls_write_all(AmgTlsConnection *connection, const void *data, size_t length, AmgError *error);

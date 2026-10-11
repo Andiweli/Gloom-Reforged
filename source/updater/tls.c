@@ -640,10 +640,11 @@ long amg_tls_read(AmgTlsConnection *connection, void *data, size_t length,
         result = recv(connection->socket_fd, data,
                       length > 0x7fffffffU ? 0x7fffffff : (int)length, 0);
         if (result > 0) return result;
-        if (result == 0)
-            amg_error_set(error, AMG_ERR_IO,
-                          T(MSG_THE_SERVER_CLOSED_THE_TCP_CONNECTION, "The server closed the TCP connection."));
-        else if (socket_errno_is_timeout(errno))
+        if (result == 0) {
+            amg_error_set(error, AMG_OK, "");
+            return 0;
+        }
+        if (socket_errno_is_timeout(errno))
             amg_error_set(error, AMG_ERR_IO,
                           T(MSG_TIMED_OUT_WHILE_READING_FROM_THE_MAIL_SERVER, "Timed out while reading from the mail server."));
         else {
@@ -675,11 +676,11 @@ long amg_tls_read(AmgTlsConnection *connection, void *data, size_t length,
                 return AMG_ERR_IO;
             continue;
         }
-        if (ssl_result == SSL_ERROR_ZERO_RETURN)
-            amg_error_set(error, AMG_ERR_IO,
-                          T(MSG_THE_SERVER_CLOSED_THE_TLS_CONNECTION, "The server closed the TLS connection."));
-        else
-            ssl_operation_error(error, AMG_ERR_IO,
+        if (ssl_result == SSL_ERROR_ZERO_RETURN) {
+            amg_error_set(error, AMG_OK, "");
+            return 0;
+        }
+        ssl_operation_error(error, AMG_ERR_IO,
                                 T(MSG_TLS_READ_ERROR, "TLS read error"),
                                 connection->ssl, result, ssl_result,
                                 socket_error);

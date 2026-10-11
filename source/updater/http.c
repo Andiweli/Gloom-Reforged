@@ -186,7 +186,7 @@ static int https_get_once(const char *url, size_t max_body,
     const unsigned char *body_start;
     size_t header_length, raw_body_length;
     long count;
-    int result = AMG_OK;
+    int result = AMG_OK, transport_failed = 0;
 
     if (!parse_https_url(url, host, sizeof(host), path, sizeof(path))) {
         amg_error_set(error, AMG_ERR_ARGUMENT,
@@ -220,7 +220,9 @@ static int https_get_once(const char *url, size_t max_body,
 
     while (response.length <= max_body + 65536U) {
         count = amg_tls_read(connection, block, sizeof(block), error);
-        if (count < 0) { result = AMG_ERR_IO; goto done; }
+        /* A framed message may already be complete when the peer fails to
+         * send close_notify. Never accept an unframed body after this error. */
+        if (count < 0) { transport_failed = 1; break; }
         if (count == 0) break;
         result = amg_buffer_append(&response, block, (size_t)count);
         if (result != AMG_OK) {
@@ -279,13 +281,18 @@ static int https_get_once(const char *url, size_t max_body,
         result = decode_chunked_body(body_start, raw_body_length, body);
     } else if (content_length_text[0]) {
         char *endptr = NULL;
-        unsigned long expected = strtoul(content_length_text, &endptr, 10);
-        if (endptr == content_length_text || *endptr ||
+        unsigned long expected;
+        errno = 0;
+        expected = strtoul(content_length_text, &endptr, 10);
+        if (!isdigit((unsigned char)content_length_text[0]) || errno ||
+            endptr == content_length_text || *endptr ||
             expected > (unsigned long)raw_body_length) {
             result = AMG_ERR_PROTOCOL;
         } else {
             result = amg_buffer_append(body, body_start, (size_t)expected);
         }
+    } else if (transport_failed) {
+        result = AMG_ERR_IO;
     } else {
         result = amg_buffer_append(body, body_start, raw_body_length);
     }
