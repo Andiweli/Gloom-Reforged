@@ -2275,6 +2275,7 @@ g2p96_static_decode_gloombrush_best
 ; out: d0=-1 success.  Source width is the same 8-pixel multiple expected by
 ; the original decodeiff routine; height is clipped to the remaining 240 rows.
 g2p96_static_decode_iff_dual_common
+	jsr	g2require_iff	; same bounds contract as the native decoder
 	movem.l	d1-d7/a0-a6,-(a7)
 	move	d6,p96static_direct_dest_y
 	move.l	a0,a5		; source header/data

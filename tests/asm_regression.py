@@ -72,6 +72,10 @@ class CPU:
                 assert self.dll.test_faults()==0, 'out of mapped memory'
                 return self.get(D0)
             if pc in self.hooks: self.hooks[pc](self)
+            elif pc==self.addr('decrm')+32:
+                assert self.dll.test_until(self.r32(self.get(A7)),20000000), 'decrunch instruction limit'
+            elif n in ['g2validate_map','g2validate_anim','g2validate_texture','g2validate_iff']:
+                assert self.dll.test_until(STOP,20000000), 'validator instruction limit'
             else:
                 assert BASE<=pc<BASE+len(self.code), f'unstubbed PC {pc:#x}'
                 self.dll.test_step()
@@ -103,15 +107,15 @@ class FileDOS:
 def tests(dll,path,cpu_type):
     count=0
     def new(): return CPU(dll,path,cpu_type)
-    for size,flags,answers,expected in [(64,4,[0,0x300000],0x300010),(64,2,[0],0),(0x7fffffff,4,[],0),(0xffffffff,4,[],0)]:
+    for size,flags,answers,expected in [(64,4,[0,0x300000],0x300020),(64,2,[0],0),(0x7fffffff,4,[],0),(0xffffffff,4,[],0)]:
         c=new();calls=[]
         def alloc(c):
             calls.append((c.get(D0),c.get(D1)));c.ret(answers[len(calls)-1])
         c.hook(EXEC-198,alloc);c.set(D0,size);c.set(D1,flags)
         assert c.run('allocmem_')==expected
         if expected:
-            assert calls==[(80,4),(80,1)], calls
-            assert c.r32(c.addr('memlist'))==0x300000 and c.r32(0x300004)==80
+            assert calls==[(96,4),(96,1)], calls
+            assert c.r32(c.addr('memlist'))==0x300000 and c.r32(0x300004)==96
         else: assert c.r32(c.addr('memlist'))==0
         count+=1
     for extra in [0x7fffffff,0xffffffff]:
@@ -148,7 +152,7 @@ def tests(dll,path,cpu_type):
             c=new();io=FileDOS(c,data,fault);result=c.run('loadfile')
             assert bool(result)==(fault is None),(fault,result)
             assert io.closes==(0 if fault=='open' else 1),(fault,io.closes)
-            if result:assert result==0x300010 and c.bytes(result,len(data))==data
+            if result:assert result==0x300020 and c.bytes(result,len(data))==data
             else:assert c.r32(c.addr('memlist'))==0,(fault,'failed allocation still linked')
             if fault in ['read2','read_error2','close']:assert io.frees==1
             count+=1
@@ -185,11 +189,50 @@ def tests(dll,path,cpu_type):
     c.hook('g2p96_gameplay_dbuf_wait_safe',wait('safe'));c.hook('g2p96_gameplay_dbuf_wait_disp',wait('disp'))
     c.hook('g2p96_gameplay_dbuf_free_partial',lambda c:(events.append('free'),c.ret()))
     c.run('g2p96_gameplay_dbuf_free');assert events==['safe']*3+['disp']*3+['free'],events;count+=1
+    def payload(data):
+        c=new();io=FileDOS(c,data);ptr=c.run('loadfile');assert ptr
+        c.set(A0,ptr);return c,ptr
+    valid_iff=struct.pack('>HHHHI',320,1,1,0,0)+b'\xd9\x01'
+    for data,valid in [(valid_iff,True),(valid_iff[:-1],False),(valid_iff[:12]+b'\xd8\x01',False),(valid_iff[:12]+b'\x28'+bytes(41),False),(valid_iff[:12]+b'\x80',False),(struct.pack('>HHHHI',0,1,1,0,0),False),(struct.pack('>HHHHI',320,1,9,0,0),False)]:
+        c,ptr=payload(data);assert (c.run('g2validate_iff')==0)==valid;count+=1
+    anim=struct.pack('>HHHHIIhhhhBHH',0,1,1,1,25,16,0,0,1,1,1,1,0x123)
+    for pos,replacement in [(None,None),(0,b'\x00\x10'),(2,b'\0\0'),(8,b'\xff'*4),(12,b'\xff'*4),(20,b'\0\0'),(25,b'\0\0')]:
+        data=anim if pos is None else anim[:pos]+replacement+anim[pos+len(replacement):]
+        c,ptr=payload(data);assert (c.run('g2validate_anim')==0)==(pos is None),(pos,'anim');count+=1
+    texture=struct.pack('>I',4164)+bytes(4160)+struct.pack('>HH',1,0x123)
+    for data,valid in [(texture,True),(texture[:-1],False),(struct.pack('>I',4163)+texture[4:],False),(struct.pack('>I',0xffffffff)+texture[4:],False)]:
+        c,ptr=payload(data);assert (c.run('g2validate_texture')==0)==valid;count+=1
+    c=new();c.put(c.addr('textures'),bytes([0x55])*640);c.run('g2clear_texture_slots');assert c.bytes(c.addr('textures'),640)==bytes(640);count+=1
+    # Empty first screen must leave the second in texture slot 20, and compact
+    # screens publish only real columns. Exercise the actual mapping routine.
+    c=new();c.put(0x280000,b'\0one\0'+bytes(6));c.w32(c.addr('map_txts'),0x280000)
+    c.put(0x300020,texture);c.w32(c.addr('memlist'),0x300000)
+    for off,v in [(4,len(texture)+32),(8,32),(16,len(texture))]:c.w32(0x300000+off,v)
+    c.hook('loadfile',lambda c:c.ret(0x300020));c.hook('addpal',lambda c:c.ret(clobber=False));c.hook('remap',lambda c:c.ret(clobber=False))
+    c.run('loadtxts')
+    assert c.r32(c.addr('textures')+80)==0x300024
+    assert c.bytes(c.addr('textures'),80)==bytes(80) and c.bytes(c.addr('textures')+84,640-84)==bytes(640-84);count+=1
+    c.run('loadtxts');assert c.r32(c.addr('textures')+80)==0x300024;count+=1
     print(Path(path).name, 'CPU',cpu_type,':',count,'instruction-level cases passed')
     return count
+
+def asset_tests(dll,path):
+    root=Path(__file__).resolve().parents[1];counts={}
+    for folder,fn in [('maps','g2validate_map'),('txts','g2validate_texture'),('objs','g2validate_anim'),('pics','g2validate_iff'),('pics_ehb','g2validate_iff')]:
+        for file in sorted((root/'source'/folder).iterdir()):
+            if file.name.endswith('.pal') or file.name.startswith(('floor','roof')):continue
+            c=CPU(dll,path);io=FileDOS(c,file.read_bytes());ptr=c.run('loadfile');assert ptr,file
+            c.set(A0,ptr);assert c.run(fn)==0,(file,fn)
+            assert io.pos==len(file.read_bytes()) and io.closes==1
+            counts[folder]=counts.get(folder,0)+1
+    for n in ['bullet'+str(x) for x in range(1,6)]+['sparks'+str(x) for x in range(1,6)]:
+        c=CPU(dll,path);c.set(A0,c.addr(n));assert c.run('g2validate_anim')==0,n
+    print(Path(path).name,'retail/compiled resource fixtures:',counts,'plus 10 builtins')
+    return sum(counts.values())+10
 
 if __name__=='__main__':
     dll=ctypes.CDLL(str(Path(sys.argv[1]).resolve()));total=0
     for path in sys.argv[2:]:
         for cpu in [4,6,9]:total+=tests(dll,path,cpu)
+        total+=asset_tests(dll,path)
     print(total,'cases passed; AmigaOS calls were stubbed')

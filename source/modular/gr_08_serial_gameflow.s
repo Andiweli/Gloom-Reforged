@@ -758,6 +758,7 @@ g2_after_inline_c2p_init
 	move.l	gunpic(pc),d0	;v61: gun.bin has its own palette
 	beq.s	g2v61_no_gun_remap
 	move.l	d0,a0
+	jsr	g2require_anim	; g2gun_prepare also consumes frame/palette offsets
 	jsr	g2gun_prepare
 	move.l	gunpic(pc),a0
 	jsr	remapanim

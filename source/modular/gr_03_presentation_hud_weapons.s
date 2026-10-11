@@ -2824,8 +2824,8 @@ loadanobj	;d0=object#...sys must be permitted
 	move.l	a3,a0
 	moveq	#1,d1
 	jsr	loadfile
+	requiremem		; main object shape cannot be rendered from NULL
 	move.l	d0,(a2)
-	beq.s	.skip
 	move.l	d0,a0
 	jsr	remapanim
 .skip	;

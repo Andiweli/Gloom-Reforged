@@ -21,3 +21,4 @@ API void test_reset(unsigned cpu) { memset(memory,0,sizeof memory);faults=0;m68k
 API unsigned test_get(unsigned reg) { return m68k_get_reg(0,(m68k_register_t)reg); }
 API void test_set(unsigned reg,unsigned value) { m68k_set_reg((m68k_register_t)reg,value); }
 API void test_step(void) { m68k_execute(1); }
+API unsigned test_until(unsigned target,unsigned limit) { while(limit--) { if(m68k_get_reg(0,M68K_REG_PC)==target)return 1;m68k_execute(1); } return 0; }

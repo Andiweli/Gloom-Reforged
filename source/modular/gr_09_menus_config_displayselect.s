@@ -1321,6 +1321,7 @@ loadfile	clr.l	loadmem
 	clr.l	g2load_abs_capacity
 loadfile_	; a0=name, d1=memtype; d0=usable pointer or 0
 	push
+	move.l	a0,a2		; resource name survives DOS calls
 	moveq	#0,d6		; no uninitialised extra offset for short/raw files
 	move.l	d1,d5
 	cmp.l	#1,d5
@@ -1399,6 +1400,10 @@ loadfile_	; a0=name, d1=memtype; d0=usable pointer or 0
 	jsr	flushc
 	jsr	decrm+32	; payload codec bounds remain an explicit F004 open item
 	jsr	flushc
+	move.l	d0,a0
+	move.l	fileheader+6(pc),d0
+	jsr	g2asset_set_length
+	move.l	a0,d0
 	bra.s	.done
 .raw
 	bsr.w	loadit

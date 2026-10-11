@@ -149,6 +149,7 @@ pokepal_aga	move.l	coplist,a2
 	rts
 
 decodeiff	;
+	jsr	g2require_iff	; validated once per loaded picture
 	;a0=trimmed IFF file
 	;a1=dest bitmap
 	;

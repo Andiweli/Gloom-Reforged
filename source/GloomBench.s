@@ -6828,8 +6828,8 @@ loadanobj	;d0=object#...sys must be permitted
 	move.l	a3,a0
 	moveq	#1,d1
 	jsr	loadfile
+	requiremem		; main object shape cannot be rendered from NULL
 	move.l	d0,(a2)
-	beq.s	.skip
 	move.l	d0,a0
 	jsr	remapanim
 .skip	;
@@ -15927,6 +15927,7 @@ pokepal_aga	move.l	coplist,a2
 	rts
 
 decodeiff	;
+	jsr	g2require_iff	; validated once per loaded picture
 	;a0=trimmed IFF file
 	;a1=dest bitmap
 	;
@@ -17940,6 +17941,7 @@ g2_after_inline_c2p_init
 	move.l	gunpic(pc),d0	;v61: gun.bin has its own palette
 	beq.s	g2v61_no_gun_remap
 	move.l	d0,a0
+	jsr	g2require_anim	; g2gun_prepare also consumes frame/palette offsets
 	jsr	g2gun_prepare
 	move.l	gunpic(pc),a0
 	jsr	remapanim
@@ -22640,6 +22642,7 @@ loadfile	clr.l	loadmem
 	clr.l	g2load_abs_capacity
 loadfile_	; a0=name, d1=memtype; d0=usable pointer or 0
 	push
+	move.l	a0,a2		; resource name survives DOS calls
 	moveq	#0,d6		; no uninitialised extra offset for short/raw files
 	move.l	d1,d5
 	cmp.l	#1,d5
@@ -22718,6 +22721,10 @@ loadfile_	; a0=name, d1=memtype; d0=usable pointer or 0
 	jsr	flushc
 	jsr	decrm+32	; payload codec bounds remain an explicit F004 open item
 	jsr	flushc
+	move.l	d0,a0
+	move.l	fileheader+6(pc),d0
+	jsr	g2asset_set_length
+	move.l	a0,d0
 	bra.s	.done
 .raw
 	bsr.w	loadit
@@ -24090,7 +24097,7 @@ allocmem2_	;
 	push
 	tst.l	d2
 	bmi.s	.invalid
-	moveq	#16,d3
+	moveq	#32,d3
 	add.l	d2,d3
 	bvs.s	.invalid
 	bra.s	amem_
@@ -24106,13 +24113,16 @@ allocmem_	;
 	;
 	;00.l : next
 	;04.l : real size
-	;08.l : offset to user mem (normally 16, but CM fucks things up)
+	;08.l : offset to user memory (32 plus an optional CrM prefix)
 	;12.l : pointer to text field for debugging
+	;16.l : logical user payload length, independent of allocation capacity
+	;20.l : validated resource flags; 24..31 reserved (alignment retained)
 	;
 	push
-	moveq	#16,d3	;offset
+	moveq	#32,d3	;offset
 	;
 amem_	move.l	a0,d4
+	move.l	d0,d6		; logical payload length
 	move.l	d1,d5		; d1 is volatile across AllocMem
 	add.l	d3,d0
 	bcs.w	.g2bench_p1_alloc_failed
@@ -24147,6 +24157,8 @@ amem_	move.l	a0,d4
 	move.l	memlist,(a0)	;next
 	move.l	a0,memlist
 	movem.l	d2-d4,4(a0)
+	move.l	d6,16(a0)
+	clr.l	20(a0)
 	add.l	d3,a0
 	move.l	a0,d0
 	;
@@ -24227,6 +24239,7 @@ freemem_	;
 freememerr	dc.l	0
 
 initmap	;map address in map_map...
+	jsr	g2require_map
 	;load in textures, do colour mapping etc.
 	;
 	push
@@ -24263,7 +24276,8 @@ initmap	;map address in map_map...
 	pull
 	rts
 
-freetxts	lea	textscrns,a6
+freetxts	jsr	g2clear_texture_slots
+	lea	textscrns,a6
 	moveq	#7,d7
 .loop	move.l	(a6)+,d0
 	beq.s	.skip
@@ -24274,6 +24288,7 @@ freetxts	lea	textscrns,a6
 	rts
 
 loadtxts	push
+	jsr	g2clear_texture_slots
 	;
 	lea	textures,a4
 	move.l	map_txts,a5	;texture names
@@ -24282,21 +24297,36 @@ loadtxts	push
 	;
 .ltl	lea	.temp(pc),a0
 	;
-.ltl2	move.b	(a5)+,(a0)+
-	bne.s	.ltl2
+	moveq	#63,d2
+.ltl2
+	move.b	(a5)+,d0	; initmap validated all eight names inside map bounds
+	beq.s	.name_end
+	tst.w	d2
+	bne.s	.name_room
+	jmp	g2fatal_abort
+.name_room
+	move.b	d0,(a0)+
+	subq.w	#1,d2
+	bra.s	.ltl2
+.name_end
+	clr.b	(a0)+
 	moveq	#0,d0
 	cmp.l	#.temp+1,a0
 	beq.s	.notext
 	lea	.temp2(pc),a0
 	moveq	#1,d1
 	jsr	loadfile
+	requiremem		; a named texture screen is mandatory for this map
+	move.l	d0,a0
+	jsr	g2require_texture
 	;
 .notext	move.l	d0,(a6)+	;texture!
-	beq.s	.skip
+	beq.s	.empty_slot
 	;
 	;do colour mapping stuff!
 	;
 	move.l	d0,-(a7)
+	lea	20*4(a4),a3	; next fixed screen slot
 	;
 	move.l	d0,a0
 	add.l	(a0),a0
@@ -24309,13 +24339,20 @@ loadtxts	push
 	bsr	remap
 	;
 	move.l	(a7)+,a0
+	move.l	(a0),d0
+	subq.l	#4,d0
+	divu	#64*65,d0	; compact retail screens contain fewer than 20 columns
+	subq.w	#1,d0
 	addq	#4,a0
-	moveq	#19,d0
 	move.l	#64*65,d1
 	;
 .mtxt	move.l	a0,(a4)+
 	add.l	d1,a0
 	dbf	d0,.mtxt
+	move.l	a3,a4		; unfilled column slots remain NULL
+	bra.s	.skip
+.empty_slot
+	lea	20*4(a4),a4	; fixed twenty-pointer slot, even for empty names
 .skip	;
 	dbf	d7,.ltl
 	;
@@ -24327,6 +24364,7 @@ loadtxts	push
 	even
 
 remapanim	;a0=anim to remap...
+	jsr	g2require_anim	; once at palette remapping, never in drawshape
 	;
 	push
 	;
@@ -25344,16 +25382,26 @@ weapon4	dc.l	bullet4,sparks4
 weapon5	dc.l	bullet5,sparks5
 
 bullet1	incbin	bullet1.bin
+bullet1_end
 bullet2	incbin	bullet2.bin
+bullet2_end
 bullet3	incbin	bullet3.bin
+bullet3_end
 bullet4	incbin	bullet4.bin
+bullet4_end
 bullet5	incbin	bullet5.bin
+bullet5_end
 
 sparks1	incbin	sparks1.bin
+sparks1_end
 sparks2	incbin	sparks2.bin
+sparks2_end
 sparks3	incbin	sparks3.bin
+sparks3_end
 sparks4	incbin	sparks4.bin
+sparks4_end
 sparks5	incbin	sparks5.bin
+sparks5_end
 
 medplayer	incbin	medplay
 decrm	incbin	decrm
@@ -37763,6 +37811,7 @@ g2p96_static_decode_gloombrush_best
 ; out: d0=-1 success.  Source width is the same 8-pixel multiple expected by
 ; the original decodeiff routine; height is clipped to the remaining 240 rows.
 g2p96_static_decode_iff_dual_common
+	jsr	g2require_iff	; same bounds contract as the native decoder
 	movem.l	d1-d7/a0-a6,-(a7)
 	move	d6,p96static_direct_dest_y
 	move.l	a0,a5		; source header/data
@@ -55080,3 +55129,4 @@ g2bp_chunky_key dc.b 'MEM chunky: address,type,lower,upper,priority (hex),name',
 g2bp_stage_key dc.b 'MEM stage: address,type,lower,upper,priority (hex),name',10,0
 g2bp_target_key dc.b 'MEM target: address,type,lower,upper,priority (hex),name',10,0
 	even
+	include "modular/gr_31_resource_safety.s"
