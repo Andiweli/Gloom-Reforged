@@ -77,6 +77,29 @@ class CPU:
                 self.dll.test_step()
         raise AssertionError(f'instruction limit at {self.get(PC):#x}')
 
+class FileDOS:
+    def __init__(self,c,data,fault=None,capacity=None):
+        self.data=data;self.pos=0;self.seeks=0;self.reads=0;self.allocs=0;self.frees=0;self.closes=0;self.fault=fault
+        c.put(0x280000,b'test.bin\0');c.set(A0,0x280000);c.set(D1,1)
+        if capacity is not None:c.set(A1,0x350000);c.set(D2,capacity)
+        for off,method in [(-30,self.open),(-66,self.seek),(-42,self.read),(-36,self.close)]:c.hook(DOS+off,method)
+        c.hook(EXEC-198,self.alloc);c.hook(EXEC-210,self.free)
+        c.hook('flushc',lambda c:c.ret(c.get(D0),clobber=False))
+    def open(self,c):c.ret(0 if self.fault=='open' else 1)
+    def seek(self,c):
+        self.seeks+=1
+        if self.fault=='seek'+str(self.seeks):c.ret(-1);return
+        old=self.pos;self.pos=len(self.data) if c.get(D3)==1 else 0;c.ret(old)
+    def read(self,c):
+        self.reads+=1;n=c.get(D3);chunk=self.data[self.pos:self.pos+n]
+        if self.fault=='read'+str(self.reads):chunk=chunk[:-1]
+        if self.fault=='read_error'+str(self.reads):c.ret(-1);return
+        c.put(c.get(D2),chunk);self.pos+=len(chunk);c.ret(len(chunk))
+    def close(self,c):self.closes+=1;c.ret(0 if self.fault=='close' else 1)
+    def alloc(self,c):self.allocs+=1;c.ret(0 if self.fault=='alloc' else 0x300000)
+    def free(self,c):self.frees+=1;assert c.get(A1)==0x300000;c.ret()
+
+
 def tests(dll,path,cpu_type):
     count=0
     def new(): return CPU(dll,path,cpu_type)
@@ -120,6 +143,48 @@ def tests(dll,path,cpu_type):
         c=new();c.w16(0xdff018,0x8000 if state=='hardware' else 0x1234);c.w16(c.addr('rbfcnt'),128 if state=='ring_full' else 0)
         c.run('rbf',limit=100)
         assert c.r16(0xdff09c)==0x0800 and c.r16(c.addr('g2serial_overruns'))==1;count+=1
+    for data in [b'abcde',bytes(range(256))*2]:
+        for fault in [None,'open','seek1','seek2','seek3','read1','read_error1','alloc','read2','read_error2','close']:
+            c=new();io=FileDOS(c,data,fault);result=c.run('loadfile')
+            assert bool(result)==(fault is None),(fault,result)
+            assert io.closes==(0 if fault=='open' else 1),(fault,io.closes)
+            if result:assert result==0x300010 and c.bytes(result,len(data))==data
+            else:assert c.r32(c.addr('memlist'))==0,(fault,'failed allocation still linked')
+            if fault in ['read2','read_error2','close']:assert io.frees==1
+            count+=1
+    for capacity in [4,5,128]:
+        c=new();io=FileDOS(c,b'abcde',capacity=capacity)
+        result=c.run('loadfileabs');assert bool(result)==(capacity>=5)
+        assert io.allocs==0 and io.closes==1
+        if result:assert result==0x350000 and c.bytes(result,5)==b'abcde'
+        count+=1
+    c=new();start=c.addr('g2embed_bigfont2_crm');packed=c.bytes(start,c.addr('g2embed_bigfont2_crm_end')-start)
+    for data in [b'CrM2',b'CrM!'+bytes(10),b'CrM2'+struct.pack('>HII',0,64,0xfffffff0)+bytes(6)]:
+        c=new();io=FileDOS(c,data);assert c.run('loadfile')==0 and io.closes==1 and io.allocs==0;count+=1
+    c=new();io=FileDOS(c,packed,capacity=8192);assert c.run('loadfileabs')==0 and io.allocs==0;count+=1
+    c=new();c.hook(EXEC-198,lambda c:c.ret(0x300000));c.hook('flushc',lambda c:c.ret(c.get(D0),clobber=False))
+    c.set(A0,c.addr('g2embed_bigfont2_crm'));c.set(A1,c.addr('g2embed_bigfont2_crm_end'));c.set(D1,4)
+    result=c.run('g2embed_decrunch_asset');expected=c.bytes(result,struct.unpack_from('>I',packed,6)[0])
+    c=new();io=FileDOS(c,packed);result=c.run('loadfile')
+    assert result and c.bytes(result,len(expected))==expected and io.closes==1
+    assert io.reads==2 and io.pos==len(packed);count+=1
+    for routine in ['g2p96_gameplay_dbuf_flip','g2p96_gameplay_dbuf_suspend_primary']:
+        c=new();c.w16(c.addr('p96gameplay_dbuf_active'),0xffff);c.w16(c.addr('p96gameplay_dbuf_current'),1)
+        for n,v in [('p96gameplay_grbase',GRAPHICS),('p96gameplay_intbase',INTUITION),('p96winprobe_screen_ptr',0x330000),('p96gameplay_dbuf_sb0',0x310000),('p96gameplay_dbuf_sb1',0x320000)]:c.w32(c.addr(n),v)
+        c.w32(0x310000,0x340000);c.w16(c.addr('p96gameplay_dbuf_draw'),1)
+        for fn in ['g2p96_gameplay_dbuf_wait_safe','g2p96_gameplay_dbuf_wait_disp','g2p96_force_hide_screen_title','g2p96_gameplay_clear_bitmap_a2','g2p96_gameplay_dbuf_restore_rport_original']:c.hook(fn,lambda c:c.ret(-1))
+        for off in [-228,-270]:c.hook(GRAPHICS+off,lambda c:c.ret())
+        seen=[]
+        def change(c):seen.append(c.get(A1));c.ret(int(len(seen)==3))
+        c.hook(INTUITION-780,change);c.run(routine)
+        assert seen==[0x320000 if routine.endswith('flip') else 0x310000]*3,seen;count+=1
+    c=new();events=[]
+    def wait(kind):
+        def cb(c):events.append(kind);c.ret(-1 if events.count(kind)==3 else 0)
+        return cb
+    c.hook('g2p96_gameplay_dbuf_wait_safe',wait('safe'));c.hook('g2p96_gameplay_dbuf_wait_disp',wait('disp'))
+    c.hook('g2p96_gameplay_dbuf_free_partial',lambda c:(events.append('free'),c.ret()))
+    c.run('g2p96_gameplay_dbuf_free');assert events==['safe']*3+['disp']*3+['free'],events;count+=1
     print(Path(path).name, 'CPU',cpu_type,':',count,'instruction-level cases passed')
     return count
 

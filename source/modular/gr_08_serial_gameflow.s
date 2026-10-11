@@ -1505,6 +1505,7 @@ g2ecs_load_g3zm_intermission_palette_abs
 	lea	g2ecs_inter_palette_name,a0
 	lea	g2ecs_inter_palette_cache,a1
 	moveq	#1,d1
+	move.l	#128,d2	; fixed palette cache capacity
 	jsr	loadfileabs
 	tst.l	d0
 	beq.s	.done
