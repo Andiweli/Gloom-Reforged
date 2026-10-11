@@ -36922,7 +36922,7 @@ g2p96_gameplay_dbuf_suspend_visible
 	rts
 
 g2p96_gameplay_dbuf_suspend_primary
-	movem.l	d0-d3/a0-a1/a6,-(a7)
+	movem.l	d0-d3/a0-a2/a6,-(a7)
 	jsr	g2p96_gameplay_dbuf_restore_rport_original	;c86zjf: FreeScreenBuffer/close uses original bitmap
 	tst	p96gameplay_dbuf_active
 	beq.w	.done
@@ -36980,7 +36980,7 @@ g2p96_gameplay_dbuf_suspend_primary
 .syncfail
 	move	#-1,p96gameplay_dbuf_suspended
 .done
-	movem.l	(a7)+,d0-d3/a0-a1/a6
+	movem.l	(a7)+,d0-d3/a0-a2/a6
 	rts
 
 g2p96_gameplay_dbuf_resume
