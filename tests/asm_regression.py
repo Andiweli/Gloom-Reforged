@@ -185,7 +185,13 @@ def tests(dll,path,cpu_type):
         palette=struct.pack('>'+str(colors*2)+'H',*range(colors*2));c.put(0x310000,palette)
         c.set(D0,colors);c.set(A1,0x310000);c.run('pokepal_aga')
         assert c.get(A1)==0x310000+colors*4, (colors,c.get(A1))
-        assert c.bytes(0x302000,32)==bytes(32);count+=1
+        expected=bytearray([0x55])*8192
+        offset=c.addr('palette_aga')-c.addr('copinit_aga')
+        for i in range(colors):
+            pos=offset+(i//32)*264+(i%32)*4+6
+            struct.pack_into('>H',expected,pos,i*2);struct.pack_into('>H',expected,pos+132,i*2+1)
+        assert c.bytes(0x300000,8192)==expected, (colors,'copper palette canary')
+        count+=1
     for state in ['hardware','ring_full']:
         c=new();c.w16(0xdff018,0x8000 if state=='hardware' else 0x1234);c.w16(c.addr('rbfcnt'),128 if state=='ring_full' else 0)
         c.run('rbf',limit=100)
@@ -278,6 +284,35 @@ def tests(dll,path,cpu_type):
     c.hook(EXEC-198,lambda c:c.ret(0));c.set(A2,0x290000);c.set(D0,10);c.set(D1,32)
     assert c.run('k_alloclist')==20 and c.r16(c.addr('g2fatal_state'))!=0
     assert c.bytes(0,4)==b'\x00\x80\x00\x00';count+=1
+    for failure in ['graphics','intuition','screen','window','dbi']:
+        c=new();c.w32(c.addr('g2menu_entry_sp'),STACK);c.w16(c.addr('os'),0xffff);c.w16(c.addr('aga'),0xffff);c.w16(c.addr('bitplanes'),8)
+        opened=[];exits=[]
+        def library(c):
+            name=c.bytes(c.get(A1),24).split(b'\0',1)[0].decode();kind='graphics' if name.startswith('graphics') else 'intuition'
+            opened.append(kind);c.ret(0 if failure==kind else (GRAPHICS if kind=='graphics' else INTUITION))
+        c.hook(EXEC-408,library);c.hook(EXEC-198,lambda c:c.ret(0x300000))
+        c.hook(INTUITION-198,lambda c:c.ret(0 if failure=='screen' else 0x350000))
+        c.hook(INTUITION-204,lambda c:c.ret(0 if failure=='window' else 0x360000))
+        c.hook('g2v36_hide_pointer',lambda c:c.ret())
+        c.hook(INTUITION-282,lambda c:c.ret());c.hook(GRAPHICS-0x3c6,lambda c:c.ret(0))
+        c.hook('exittoos',lambda c:(exits.append('abort'),c.ret()))
+        assert c.run('initdisplay')==20 and exits==['abort'],failure
+        assert c.r16(c.addr('os'))==0xffff,'failed native open changed backend dispatch'
+        count+=1
+    c=new();c.w16(c.addr('p96gameplay_dbuf_active'),0xffff)
+    for n in ['p96gameplay_dbuf_safe_pending','p96gameplay_dbuf_disp_pending']:c.w16(c.addr(n),0xffff)
+    for n,v in [('p96gameplay_dbuf_safeport',0x310000),('p96gameplay_dbuf_dispport',0x320000),('p96gameplay_intbase',INTUITION),('p96gameplay_grbase',GRAPHICS),('p96gameplay_dbuf_sb0',0x340000),('p96gameplay_dbuf_sb1',0x350000)]:c.w32(c.addr(n),v)
+    polls={0x310000:0,0x320000:0};freed=[]
+    def getmsg(c):
+        port=c.get(A0);assert port in polls;polls[port]+=1;c.ret(0x330000 if polls[port]>=10 else 0)
+    def release(c):
+        assert min(polls.values())>=10, 'released before real replies arrived'
+        freed.append(c.get(A1));c.ret()
+    c.hook(EXEC-372,getmsg);c.hook(GRAPHICS-270,lambda c:c.ret());c.hook(GRAPHICS-228,lambda c:c.ret())
+    c.hook(INTUITION-774,release);c.hook(EXEC-672,lambda c:c.ret())
+    c.run('g2p96_gameplay_dbuf_free');assert freed==[0x350000,0x340000] and c.r16(c.addr('p96gameplay_dbuf_active'))==0;count+=1
+    c=new();io=ConfigDOS(c);c.put(0x280000,b'PROGDIR:abcdefghijklmnop\0')
+    assert c.run('g2save_config_checked')==0xffffffff and not io.opens;count+=1
     print(Path(path).name, 'CPU',cpu_type,':',count,'instruction-level cases passed')
     return count
 

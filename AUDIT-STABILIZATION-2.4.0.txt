@@ -1,0 +1,163 @@
+Gloom Reforged 2.4.0 - Stabilisierung auf Branch audit
+Stand: 11. Oktober 2026
+
+Ausgangspunkt
+-------------
+origin/master und der auditierte Commit sind identisch:
+c223cf5dce87dacbfb9591a6109e02bbee0df98c. master bleibt unverändert.
+Die Versionsnummer bleibt 2.4.0. Kein PR, kein Merge und keine neue Veröffentlichung.
+Änderungen betreffen Quellcode; bestehende Binärdateien und Release-ZIPs wurden
+nicht neu erstellt. Der Updater muss für die Zielplattform neu gebaut werden.
+
+Geschlossene Auditbefunde
+------------------------
+F001: Pflichtallokationen von Startup, Objektpools, Bildschirm und Menüs werden
+geprüft. Fast-RAM-Fallback bewahrt die ursprünglichen Flags über AllocMem.
+Größen-/Offsetüberläufe liefern NULL. Haupt-Objektdateien dürfen nicht mit NULL
+fortgesetzt werden. Fehler verlassen verschachtelte Frames über den gesicherten
+Task-Stack und räumen nur tatsächlich besessene Ressourcen auf. VBlank, Audio,
+View, Forbid/Blitter und Libraries berücksichtigen Teilinitialisierung.
+
+F002: OpenScreen-/OpenWindow-/AllocDBufInfo-Fehler führen zum kontrollierten
+Abbruch. Es wird kein gemischter OS-/Copper-Fallbackzustand weiterverwendet.
+Native Fenster/Screen/DBufInfo werden nur bei vorhandenem Besitz geschlossen.
+
+F003: Seek, Header-Read, Allokation, Body-Read und Close werden geprüft. Leere,
+negative und unvollständige Dateien werden verworfen. Disk-Länge und Entpack-
+Kapazität bleiben getrennt; gelesen werden genau die ermittelten Dateibytes.
+Fehler schließen den Handle einmal und entfernen die fehlgeschlagene Allokation.
+loadfileabs verlangt jetzt eine explizite Kapazität; sein einziger interner
+Legacy-Aufrufer übergibt 128. Komprimierte Dateien dürfen keinen festen Puffer
+überschreiben. CrM-Headergrenzen werden vor dem vorhandenen Codec geprüft.
+Die interne Codec-Sicherheit ist ausdrücklich Teil des offenen F004.
+
+F005: Alle 160 Texture-Pointer werden initialisiert und vor Freigabe gelöscht.
+Jeder der acht Screens behält seine zwanzig Slots, auch bei leerem Namen.
+Kompakte Screens mit 1..20 Spalten veröffentlichen nur echte Spalten; weitere
+Slots bleiben NULL. Ein benannter, fehlender Screen führt zum Abbruch.
+
+F006: Fehlende Safe-/Display-Replies bleiben ausstehend. Wiederholte Poll-
+Timeouts erlauben keine Freigabe. Erst nach beiden Bestätigungen und WaitBlit
+werden ScreenBuffer und Ports freigegeben. Ein dauerhaft defekter Treiber ohne
+Replies kann den Exit blockieren; das ist keine erfolgreiche Synchronisation.
+FreeScreenBuffer darf laut Intuition-Vertrag auch den aktuellen Buffer abbauen.
+
+F007: Hardware- und Ringbuffer-Overruns werden quittiert und gezählt; der ISR
+kehrt ohne Warnschleife zurück. Serial wird erst beim tatsächlichen Link-Aufruf
+initialisiert und nach fehlgeschlagenem Verbindungsversuch wieder freigegeben.
+
+F008: Plain/TLS liefern bei ordentlichem EOF 0/AMG_OK, bei Fehlern negativ.
+Der HTTP-Client akzeptiert vollständig eingerahmte Antworten auch nach einem
+Transportabbruch, verwirft aber unvollständige Content-Length-/Chunked-Bodies
+und ungerahmte Antworten mit Transportfehler. Content-Length wird strikt geprüft.
+
+F009: ChangeScreenBuffer und WaitTOF dürfen A1 zerstören; jeder Versuch lädt
+seinen ScreenBuffer erneut. suspend_primary bewahrt außerdem das verwendete A2.
+
+F010: AGA-Copper-Paletten zählen Banken von 32 Einträgen korrekt, einschließlich
+kleiner letzter Bank und Null-Einträgen. Der OS-Palettenpublisher ist unverändert.
+
+F011: Spiel-/P96-/Launcher-Präferenzen schreiben über dieselbe geprüfte Routine.
+Sie erzeugt erst eine task-spezifische Datei <Name>.g2XXXXXXXX.tmp, prüft Write
+und Close, sichert die alte Datei als .bak und installiert dann die neue Datei.
+Beide Namen liegen im selben Verzeichnis; die Dateikomponente bleibt innerhalb
+der klassischen 30-Zeichen-Grenze. Existierende temporäre/Backup-Dateien werden
+nicht überschrieben. Installationsfehler stellen die alte Datei zurück. Scheitert
+auch die Rückstellung, bleiben alte .bak und vollständige .tmp erhalten.
+Gespeichert-Markierungen werden erst nach erfolgreicher Installation aktualisiert.
+
+F012: Aktuelle Modulübersicht, aktive Include-Liste und 34 SHA-256-Einträge
+wurden aktualisiert. Historische Split-/Release-Daten bleiben als solche markiert.
+
+Offen: F004 - teilweise abgesichert, nicht vollständig geschlossen
+-----------------------------------------------------------------
+Neu geprüft werden logische Nutzdatenlängen, Map-Header/Offsets, Grid-/Polygon-
+Point-Indizes, acht Texture-Namen, Texture-Spalten/Palette, Animations-Header,
+Frame-Tabellen/Pixelspannen sowie IFF-Abmessungen und ByteRun1-Ein-/Ausgabegrenzen.
+Prüfungen liegen in Lade-/Remap-/Bildvorbereitungspfaden. Geladene IFF-Dateien
+speichern eine erfolgreiche Prüfung; die Pixel-Renderloops erhalten keine Checks.
+Der private Allokationsheader ist nun 32 statt 16 Byte groß, mit separater
+Nutzdatenlänge und Prüfmarkierung; Eigentum/Freigabe bleiben über memlist erhalten.
+
+Noch nicht vollständig abgesichert sind:
+- Rückwärtsleser, Dictionary-Referenzen und Ausgabegrenzen innerhalb des alten
+  CrM!/CrM2-Codecs. Ein plausibler Header ist kein Beweis für sicheren Payload.
+- Vollständige Event-/Map-Animationsprogramme, Operandbereiche und alle daraus
+  folgenden Polygon-/Texture-Zugriffe während der Laufzeit.
+- Script-Dateinamen/Textzeilen und weitere Script-Parserpfade.
+- Sämtliche Bild-/Palette-Paare und die aggregierte Palette bei addpal.
+
+Diese offenen Pfade sind nicht durch Platzhalter oder angeblich vollständige
+Validierung geschlossen worden. Unvertrauenswürdige Originaldaten sind weiterhin
+kein vollständig abgesicherter Eingabekanal. Der Arbeitsbranch ist kein fertig
+validierter Release-Kandidat für alle Datenprofile.
+
+Erfolgreiche Prüfung
+--------------------
+- Vollständige Spiel- und GloomBench-68020-Amiga-Hunks mit vasm 2.0f assembliert;
+  keine Assemblerfehler, keine Optimierungen/Übersetzungen. Je sechs bestehende
+  Warnungen: Bezeichner rts/data/offset/c2p/text sowie automatische joyxs-Ausrichtung.
+  Die getesteten Instruktionen stimmen bytegenau mit den normalen Hunks ohne
+  Debug-Symbole überein.
+- 782 Tests an den tatsächlichen Hunk-Instruktionen mit Musashi 313ebf1:
+  je 100 Spiel-/98 Bench-Fehlerpfadfälle auf 68020/030/040 plus je 94 echte
+  Repository-/kompilierte Ressourcenfixtures. Library-Aufrufe werden simuliert.
+  Enthalten sind volatile Register, NULL, Seek/Read/Close, ByteRun1, Animationen,
+  kompakte/fehlende Slots, Paletten-Canaries, verzögerte P96-Replies, Native-Open-
+  Fehler und DOS-Write-/Close-/Rename-/Rollback-/Dateikollisionsfehler.
+- 45 HTTP-Fälle mit dem produktiven http.c und einem TLS-Transportstub, mit
+  Lesehäppchen 1/7/4096 Byte; Host-Build C11 /W4 /WX mit MSVC.
+- 19 vollständige Render-/Gameplay-Module sowie restlicher Präsentationscode
+  unverändert; C2P, MOVE16, ADDX/Carry, Bayer/Wände, Physics, Auflösungen,
+  Qualitätsstufen, Low-Bandwidth, Automap und Cache-Kerne bleiben erhalten.
+- Alle 71 g2bench2-Messblöcke sind unverändert; acht korrigierte gemeinsame
+  Routineblöcke stimmen zwischen Spiel und Bench überein. Neue gr_31/gr_32
+  werden von beiden Programmen direkt eingebunden.
+- Vollständiger Git-Diff und Prüfsummenprüfung; Details zur Reproduktion in
+  tests/README.md und tests/stability_invariants.py.
+
+Ausstehende Zielplattform-/Hardwaretests
+---------------------------------------
+Keine echte Amiga-Hardware, kein vollständiges AmigaOS und keine P96-Treiber
+wurden ausgeführt. Original-GenAm-/Release-Packaging und Amiga-C/AmiSSL-Build
+sowie echte HTTP/TLS-Verbindungen des Updaters stehen aus.
+Erforderlich sind 68020/030/040/060, AGA, ECS/EHB, alle sechs P96-Auflösungen,
+Single/Double Buffer, Low-Bandwidth, sämtliche Qualitäts-/Skalierungsstufen,
+alle vier Datenprofile, knapper/fragmentierter Chip-/Fast-RAM, viele Levelwechsel,
+Window-Fokus/Abbruch/Exit und Fehler bei DOS-Datenträgern. Die MOVE16-Routinen
+sind unverändert, wurden hier aber nicht auf einer 68060 ausgeführt.
+
+Erkennbare Grenzen/Risiken
+-------------------------
+F004 bleibt offen. Ein ausgefallener P96-Reply kann den Exit dauerhaft blockieren.
+Private Speicherheader benötigen zusätzlich 16 Byte pro Allokation. Echte
+FPS-/GloomBench-Messungen stehen aus; unveränderter Renderquellcode ist kein
+Hardware-Performancebeweis. Die neuen Formatprüfungen müssen insbesondere mit
+externen Gloom-3-/Zombie-Massacre-/Classic-Datensätzen verifiziert werden.
+
+Konfigurations-Renames bilden keine stromausfallsichere atomare Transaktion:
+zwischen zwei Renames kann der Hauptname fehlen, während .bak die alte Datei
+enthält. Bei fehlgeschlagener Rückstellung oder Neustart nach diesem Schritt
+muss die vollständige .bak bei beendetem Spiel unter dem ursprünglichen Namen
+wiederhergestellt werden. Eine nach erfolgreicher Installation übriggebliebene
+.bak oder .tmp kann weitere Saves desselben Tasks blockieren. Erst nach Prüfung
+und Sicherung der alten Datei bereinigen; der Code löscht keine fremden Altdateien.
+
+API-Verträge (Primärdokumentation)
+---------------------------------
+https://developer.amigaos3.net/autodocs/dos.library/Close.html
+https://developer.amigaos3.net/autodocs/dos.library/Rename.html
+https://developer.amigaos3.net/autodocs/intuition.library/FreeScreenBuffer.html
+https://developer.amigaos3.net/autodocs/intuition.library/ChangeScreenBuffer.html
+
+Logische Commits
+---------------
+4d76dae HTTP/TLS-EOF und vollständige Antworten
+06618b2 P96-Besitz, serielle Overruns, Register und AGA-Palette
+2dd373f Teilinitialisierung/Pflichtallokationen und kontrollierter Abbruch
+e3900c9 geprüfter gemeinsamer Dateilader
+3482a91 Ressourcenrahmen/kompakte feste Texture-Slots (F004 teilweise)
+0885f79 A2-Erhalt beim P96-Suspend
+0b0fe42 geprüfte Konfigurationsersetzung
+Abschlusscommit: aktuelle Dokumentation/Prüfsummen und erweiterte Regressionen.
+Veröffentlichung ausschließlich auf origin/audit; master bleibt c223cf5.

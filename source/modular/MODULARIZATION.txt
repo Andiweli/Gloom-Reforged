@@ -1,14 +1,61 @@
-CURRENT RELEASE: Gloom Reforged 2.2 (c87b80p)
-=============================================
-Build ../GloomReforged_Modular.s from the source directory with the existing
-assets. It includes modular/gr_00..gr_27 in order. Modules gr_25 and gr_26
-provide live hotkeys/startup safety; gr_27 builds the Bayer threshold lookup.
-SHA256SUMS.txt now describes the current entry point and modules; run
-sha256sum -c modular/SHA256SUMS.txt from source/.
+CURRENT WORKING VERSION: Gloom Reforged 2.4.0 (audit stabilization)
+==============================================================
+Base: master c223cf5dce87dacbfb9591a6109e02bbee0df98c (unchanged).
+No new release/version or release archive has been produced by this branch.
 
-The text below records the ORIGINAL v2.0 split only. Its old byte counts,
-line ranges and hashes are historical, not claims about the current modules.
-See ../../RELEASE-NOTES-2.2.md for current changes and validation.
+Build source/GloomReforged_Modular.s from source/ with the existing assets.
+It includes 32 active modules: gr_00..gr_29, then gr_31 and gr_32.
+The two gr_30 diagnostic sources are inactive and are not production includes.
+GloomBench.s shares gr_31/gr_32 and contains synchronized copies of corrected
+common routines. Its measurement blocks and released render kernels are unchanged.
+
+SHA256SUMS.txt covers both entrypoints and every active module. Hashes describe
+Git source bytes (LF). In an LF checkout run sha256sum -c modular/SHA256SUMS.txt
+from source/. With Windows CRLF conversion, use tests/stability_invariants.py;
+that checker canonicalizes line endings, then verifies all 34 entries.
+
+Current module overview
+-----------------------
+gr_00_header_defs.s : definitions/macros
+gr_01_startup_audio.s : startup/audio ownership
+gr_02_menu_trainer.s : menus/trainer
+gr_03_presentation_hud_weapons.s : presentation/HUD/weapons/events
+gr_04_scene_objects.s : scene/objects/physics
+gr_05_walls_raster.s : wall rasterizer
+gr_06_data_core.s : core data
+gr_07_slow_subs_assets.s : palettes/assets
+gr_08_serial_gameflow.s : serial/game flow
+gr_09_menus_config_displayselect.s : menus/config/display selection
+gr_10_p96_native_display.s : P96/native display/allocation
+gr_11_kalm_c2p_grey_menu.s : Kalm C2P
+gr_12_profiles_embedded_assets.s : profiles/embedded assets
+gr_13_p96_menu_native.s : P96 menu/native
+gr_14_p96_static_intermission.s : static pictures/intermission/buffers
+gr_15_fps_wide_menu.s : FPS/wide menu
+gr_16_ecs_title_palettes.s : ECS title palettes
+gr_17_resolution_quality.s : resolution/quality
+gr_18_p96_requester_core.s : P96 requester
+gr_19_renderer_optimizations_effects.s : renderer effects/optimizations
+gr_20_p96_menu_rect_publisher.s : menu rectangle publishing
+gr_21_p96_clut_backend.s : P96 CLUT
+gr_22_p96_direct_indexed_modes.s : direct indexed modes
+gr_23_p96_late_release_layers.s : P96 release layers
+gr_24_rc4_requester_preferences_lowbw.s : requester preferences/low bandwidth
+gr_25_live_hotkeys.s : live hotkeys
+gr_26_menu_startup_safety.s : startup failure cleanup
+gr_27_wall_bayer_lookup.s : wall Bayer lookup
+gr_28_launcher_update.s : launcher/update
+gr_29_automap.s : automap
+gr_31_resource_safety.s : cold resource bounds/texture validation
+gr_32_config_safe_write.s : checked configuration replacement
+
+Validation and remaining findings: ../../AUDIT-STABILIZATION-2.4.0.txt.
+Reproduction: ../../tests/README.md.
+
+The record below documents the ORIGINAL v2.0 source split only. Its byte counts,
+line ranges and hashes are historical; they are not current module checksums.
+New code changes layout, so binary identity with the historical monolith is
+not asserted. The active include list above is authoritative.
 
 ---------------- HISTORICAL SPLIT RECORD ----------------
 
