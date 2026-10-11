@@ -31,13 +31,15 @@ def tests(dll,path,cpu):
         c=CPU(dll,path,cpu);register(c,b);assert run_pure(c,'g2validate_med')==0xffffffff;count+=1
     for size in [0,1,51,52]:
         c=CPU(dll,path,cpu);register(c,bytes(size));assert run_pure(c,'g2validate_med')==0xffffffff;count+=1
-    # Exercise both block encodings, optional structures and relative synth
-    # wave pointers. No synthesis program or Paula DMA is executed here.
+    # Phase 3 established that this binary has no MMD0/synth playback consumer.
+    # Retain these framing fixtures as rejection regressions; they were not
+    # valid playback proofs in Phase 2. Give the raw MMD1 fixture a real tempo.
     for version in [0,1]:
         for kind in [0,-1,-2]:
             b=bytearray(1300);b[:4]=b'MMD'+str(version).encode()
             struct.pack_into('>III',b,4,len(b),52,0);struct.pack_into('>I',b,16,840);struct.pack_into('>I',b,24,868)
             struct.pack_into('>HH',b,52+504,1,1);b[52+787]=1
+            struct.pack_into('>H',b,52+764,125)
             struct.pack_into('>I',b,840,844)
             if version:struct.pack_into('>HH',b,844,4,0)
             else:b[844:846]=b'\4\0'
@@ -47,7 +49,7 @@ def tests(dll,path,cpu):
                 struct.pack_into('>I',b,872+278,282)
                 if kind==-1:struct.pack_into('>H',b,872+282,1)
                 else:struct.pack_into('>Ih',b,872+282,4,0)
-            c=CPU(dll,path,cpu);register(c,b);assert run_pure(c,'g2validate_med')==0;count+=1
+            c=CPU(dll,path,cpu);register(c,b);assert (run_pure(c,'g2validate_med')==0)==(version==1 and kind==0);count+=1
             if kind<0:
                 for off,value in [(872+14,129),(872+16,129),(872+20,0),(872+20,65),(872+278,0xffffffff)]:
                     bad=bytearray(b);struct.pack_into('>I' if off==872+278 else '>H',bad,off,value)

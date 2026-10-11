@@ -1,6 +1,7 @@
-; Cold structural bounds for the embedded MMD0/MMD1 player. Its relocation
+; Cold bounds for the embedded player. Its relocation
 ; reads are reconstructed from source/medplay, file offsets from Kinnunen's
-; MMD format revision 6. This does NOT certify synth command execution/DMA.
+; MMD format revision 6. Consumer checks below cover concrete playback hazards;
+; this is not a proof of every reachable effect/alias state (see audit report).
 ; a0=unrelocated registered module; d0=0/-1; all other registers preserved.
 g2validate_med
 	movem.l d1-d7/a0-a6,-(a7)
@@ -27,15 +28,13 @@ g2validate_med
 	bsr.w g2med_check_span
 	move.l a0,a2
 	move.l (a2),d0
-	cmp.l #$4d4d4430,d0
-	beq.s .song
 	cmp.l #$4d4d4431,d0
 	beq.s .song
-	cmp.l #$4d434e30,d0	; subsequent multi-module headers
-	beq.s .song
 	cmp.l #$4d434e31,d0
-	bne.w g2med_check_bad	; player only distinguishes MMD1 from MMD0
+	bne.w g2med_check_bad	; this binary's tick only consumes four-byte MMD1 cells
 .song
+	tst.b 42(a2)	; Start writes only pblock's low byte; high byte is read later
+	bne.w g2med_check_bad
 	move.l 8(a2),d0
 	move.l #788,d1
 	bsr.w g2med_check_required
@@ -145,7 +144,9 @@ g2validate_med
 	bsr.w g2med_check_span
 	move.l a0,a5
 	move.w 4(a5),d0
-	bmi.s .synth
+	bmi.w g2med_check_bad	; no synth/hybrid branch in this binary's PlayNote
+	cmp.w #6,d0
+	bhi.w g2med_check_bad	; no 16-bit/stereo decoder; only raw/multi-octave types
 	move.l (a5),d1
 	tst.l d1
 	bmi.w g2med_check_bad
@@ -159,6 +160,9 @@ g2validate_med
 	move.l a5,d0
 	sub.l a6,d0
 	bsr.w g2med_check_span
+	tst.w 4(a5)
+	bne.w .next_sample
+	bsr.w g2med_check_raw_dma
 	bra.w .next_sample
 .synth
 	cmp.w #-2,d0
@@ -217,6 +221,7 @@ g2validate_med
 	subq.w #1,d4
 	bne.w .sample
 .expansion
+	bsr.w g2med_check_consumers
 	move.l 32(a2),d0
 	beq.w .valid
 	moveq #56,d1	; last field read by this embedded player's relocator
@@ -237,6 +242,20 @@ g2validate_med
 	bhi.w g2med_check_bad	; ADDA.W signed entry stride
 	mulu.l d2,d1
 	bsr.w g2med_check_span
+	moveq #0,d2
+	move.w 10(a5),d2
+	cmp.w #3,d2
+	bls.s .next_module
+	moveq #0,d1
+	move.w 8(a5),d1
+.finetune
+	move.b 3(a0),d0
+	addq.b #8,d0
+	cmp.b #15,d0
+	bhi.w g2med_check_bad	; signed -8..7 indexes sixteen period-table pointers
+	adda.w d2,a0
+	subq.w #1,d1
+	bne.s .finetune
 .next_module
 	; All optional pointers touched by relocation must at least belong to input.
 	lea g2med_exp_pointer_offsets,a4
@@ -298,6 +317,193 @@ g2med_check_span	; d0=even relative offset, d1=bytes; a0=result
 g2med_check_return
 	rts
 	even
+
+; The handler at medplay file $40e reads MMD1 rows with WORD row*4,
+; masks instruments to six bits and effects to five bits. Check the actual
+; consumer indices before relocation, without work in the audio interrupt.
+g2med_check_consumers
+	movem.l d0-d5/a0-a5,-(a7)
+	moveq #0,d0
+	move.w 764(a3),d0
+	beq.w g2med_check_bad	; tempo zero indexes before the timer table/divides by zero
+	btst #5,768(a3)
+	beq.s .tempo_ok
+	moveq #0,d1
+	move.b 768(a3),d1
+	and.w #31,d1
+	addq.w #1,d1
+	mulu.w d1,d0
+	tst.w d0	; the player's BPM DIVU divisor is the low WORD of this product
+	beq.w g2med_check_bad
+.tempo_ok
+	moveq #0,d3
+	move.b 787(a3),d3
+	moveq #0,d4
+	move.w 504(a3),d4
+	move.l 16(a2),a4
+	adda.l a6,a4
+.block
+	move.l (a4)+,a5
+	adda.l a6,a5
+	moveq #0,d5
+	move.w 2(a5),d5
+	cmp.w #16383,d5
+	bhi.w g2med_check_bad
+	addq.l #1,d5
+	moveq #0,d0
+	move.w (a5),d0
+	mulu.l d0,d5
+	lea 8(a5),a1
+.cell
+	moveq #0,d0
+	move.b 1(a1),d0
+	and.w #63,d0
+	beq.s .effect
+	cmp.w d3,d0
+	bhi.w g2med_check_bad
+	subq.w #1,d0
+	lsl.l #2,d0
+	move.l 24(a2),d1
+	beq.w g2med_check_bad
+	move.l a6,a0
+	adda.l d1,a0
+	tst.l (a0,d0.l)
+	beq.w g2med_check_bad
+.effect
+	move.b 2(a1),d0
+	and.b #31,d0
+	cmp.b #11,d0
+	bne.s .finetune_effect
+	moveq #0,d1
+	move.b 3(a1),d1
+	cmp.w 506(a3),d1
+	bcc.w g2med_check_bad	; Bxx may only enter the validated play-sequence prefix
+.finetune_effect
+	cmp.b #21,d0
+	bne.s .next
+	move.b 3(a1),d0
+	addq.b #8,d0
+	cmp.b #15,d0
+	bhi.w g2med_check_bad
+.next
+	addq.l #4,a1
+	subq.l #1,d5
+	bne.s .cell
+	subq.w #1,d4
+	bne.w .block
+	movem.l (a7)+,d0-d5/a0-a5
+	rts
+
+; Raw-sample initial/loop DMA spans, as published at medplay file $3b6..$3e2.
+; Paula ignores the address low bit and AUDLEN=0 means 65536 WORDS. Validate
+; against the complete owned module, not an invented per-sample fence: the
+; original Zombie Massacre medA has an odd-length sample with a loop ending
+; one byte beyond that sample, still within the module. Effect-driven offsets
+; and multi-octave state need separate analysis (see remaining F004 limits).
+g2med_check_raw_dma
+	movem.l d0-d5/a0-a1,-(a7)
+	move.l a4,d0
+	sub.l a6,d0
+	sub.l 24(a2),d0
+	subq.l #4,d0
+	add.l d0,d0	; sample array index *8 = song's instrument record offset
+	move.l a3,a1
+	adda.l d0,a1
+	move.l a5,d4
+	sub.l a6,d4
+	addq.l #6,d4	; even sample start relative to module
+	moveq #0,d5
+	move.w 2(a1),d5
+	cmp.w #1,d5
+	bls.s .no_loop
+	add.l d5,d5
+	moveq #0,d0
+	move.w (a1),d0
+	add.l d0,d0
+	add.l d4,d0	; loop start
+	add.l d0,d5	; loop end
+	cmp.l d6,d5
+	bhi.w g2med_check_bad
+	move.l d5,d1
+	sub.l d4,d1
+	bra.s .length
+.no_loop
+	move.l (a5),d1
+.length
+	lsr.l #1,d1
+	and.l #$ffff,d1
+	beq.w g2med_check_bad
+	add.l d1,d1
+	add.l d4,d1
+	cmp.l d6,d1
+	bhi.w g2med_check_bad
+	movem.l (a7)+,d0-d5/a0-a1
+	rts
+
+; Public Stop($0c) enters code+$50. The embedded FreeTimer leaves its
+; ownership byte set after RemICRVector. Redirect Stop and the cold CIA open;
+; keep
+; all tick/DMA/effect instructions and every benchmark measurement unchanged.
+; Fixed offsets/signatures are tied to the unchanged source/medplay INCBIN.
+g2med_install_stop
+	movem.l d0-d7/a0-a6,-(a7)
+	move.l medat,a0
+	cmp.w #$4ef9,$50(a0)
+	bne.s .original
+	cmp.l #g2med_stop_checked,$52(a0)
+	beq.s .timer_open
+	bra.s .bad
+.original
+	cmp.l #$48e73f3e,$50(a0)
+	bne.s .bad
+	cmp.w #$4279,$54(a0)
+	bne.s .bad
+	move.w #$4ef9,$50(a0)
+	move.l #g2med_stop_checked,$52(a0)
+.timer_open
+	; AllocTimer retries ciab after setting A6 to ciaa.resource. Its second
+	; OpenResource must use Exec, never the CIA base left by AddICRVector.
+	cmp.w #$4ef9,$e98(a0)
+	bne.s .original_open
+	cmp.l #g2med_open_cia_checked,$e9a(a0)
+	bne.s .bad
+	bra.s .done
+.original_open
+	cmp.l #$4eaefe0e,$e98(a0)
+	bne.s .bad
+	cmp.w #$23c0,$e9c(a0)
+	bne.s .bad
+	move.l a0,d0
+	add.l #$f5e,d0
+	cmp.l $e9e(a0),d0
+	bne.s .bad
+	move.w #$4ef9,$e98(a0)
+	move.l #g2med_open_cia_checked,$e9a(a0)
+	move.l #$4e714e71,$e9e(a0)
+.done
+	jsr flushc	; publish instruction writes on 020/030/040/060, including re-entry
+	movem.l (a7)+,d0-d7/a0-a6
+	rts
+.bad
+	jmp g2fatal_abort
+
+g2med_open_cia_checked
+	move.l 4.w,a6
+	jsr -498(a6)
+	move.l medat,a0
+	move.l d0,$f5e(a0)	; original result store and its condition codes
+	jmp $ea2(a0)
+
+g2med_stop_checked
+	movem.l d2-d7/a2-a6,-(a7)
+	move.l medat,a2
+	clr.w $1c72(a2)	; original public Stop's state change
+	move.l a2,-(a7)
+	jsr $90(a2)	; original internal stop: disable owned timer, stop DMA, remove IRQ
+	move.l (a7)+,a2
+	clr.b $f92(a2)	; ownership ends only after RemICRVector has returned
+	movem.l (a7)+,d2-d7/a2-a6
+	rts
 g2med_check_sp dc.l 0
 g2med_chain_checkpoint dc.l 0
 g2med_chain_power dc.l 0

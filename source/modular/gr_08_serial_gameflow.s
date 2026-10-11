@@ -174,7 +174,8 @@ initmed	lea	medat,a0
 	move.l	#medplayer,(a0)
 	bsr	relocate
 	;
-.noreloc	move.l	medat,a1
+.noreloc	jsr	g2med_install_stop
+	move.l	medat,a1
 	move.l	chipzero(pc),a0
 	jsr	(a1)
 	move	#-1,g2exit_med_initialized

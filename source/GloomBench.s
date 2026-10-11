@@ -17180,7 +17180,8 @@ initmed	lea	medat,a0
 	move.l	#medplayer,(a0)
 	bsr	relocate
 	;
-.noreloc	move.l	medat,a1
+.noreloc	jsr	g2med_install_stop
+	move.l	medat,a1
 	move.l	chipzero(pc),a0
 	jsr	(a1)
 	move	#-1,g2exit_med_initialized
@@ -25939,8 +25940,8 @@ g2v13_doc2p_1X1X6
 ; d3.w	scroffsy [screen-pixels]
 ; d4.w	(rowlen) [bytes] -- offset between one row and the next in a bpl
 ; d5.l	(bplsize) [bytes] -- offset between one row in one bpl and the next bpl
-	; Phase 2 cold-loader growth: retain d825e91 C2P modulo-16 layout.
-	dcb.w 4,$4e71
+	; Audit cold-loader growth: retain d825e91 C2P modulo-16 layout.
+	dcb.w 1,$4e71
 
 g2k_c2p1x1_8_c5_gen_init
 	movem.l	d2-d3,-(sp)
