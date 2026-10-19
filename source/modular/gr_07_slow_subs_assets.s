@@ -128,19 +128,28 @@ pokepal_ecs	move.l	coplist,a2
 
 pokepal_aga	move.l	coplist,a2
 	lea	palette_aga-copinit_aga(a2),a2
+	tst.w	d0
+	beq.w	.done
 	subq	#1,d0
-	move	d0,d2
+	move	d0,d2		; last bank may contain fewer than 32 colours
 	and	#31,d2
-.loop	move	d2,d1
+	lsr.w	#5,d0		; DBF counts banks, not colours
+.loop	moveq	#31,d1
+	tst.w	d0
+	bne.s	.full_bank
+	move	d2,d1
+.full_bank
 .loop2	move	(a1)+,6(a2)
 	move	(a1)+,132+6(a2)
 	addq	#4,a2
 	dbf	d1,.loop2
 	lea	264-128(a2),a2
 	dbf	d0,.loop
+.done
 	rts
 
 decodeiff	;
+	jsr	g2require_iff	; validated once per loaded picture
 	;a0=trimmed IFF file
 	;a1=dest bitmap
 	;

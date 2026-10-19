@@ -2570,67 +2570,9 @@ morph	tst	d0
 	;
 	bra	rotloop
 
-calcnormvec	;d0,d1 = vector...normalize!
-	;
-	;OK, find vector length!
-	;
-	move	d0,d2
-	muls	d2,d2
-	move	d1,d3
-	muls	d3,d3
-	add.l	d3,d2	
-	;
-	;OK, sqr of d2.l!
-	;
-	move.l	#$10000,d3
-	;
-.fitit	cmp.l	#16384,d2	;fits?
-	bcs.s	.ok
-	asr.l	#1,d2
-	mulu.l	#92681,d4:d3	;mult by sqr(2)
-	move	d4,d3
-	swap	d3
-	bra.s	.fitit
-	;
-.ok	;OK to look up, but multiply the result.w by d3.q
-	;
-	move.l	sqr(pc),a0
-	and	#$fffe,d2
-	movem	0(a0,d2),d2	;sqr.l!
-	mulu.l	d3,d2
-	swap	d2	;length.w
-	;
-	;length should be >= both abs(xvec) AND abs(zvec)
-	;
-	move	d0,d3
-	bpl.s	.xp
-	neg	d3
-.xp	move	d1,d4
-	bpl.s	.zp
-	neg	d4
-.zp	;
-	cmp	d4,d3
-	bcc.s	.bg
-	exg	d3,d4
-.bg	;
-	cmp	d3,d2
-	bcc.s	.lo
-	move	d3,d2
-.lo	;
-	ext.l	d2
-	;
-	swap	d0
-	clr	d0
-	divs.l	d2,d0
-	muls.l	#32766,d0
-	swap	d0
-	;
-	swap	d1
-	clr	d1
-	divs.l	d2,d1
-	muls.l	#32766,d1
-	swap	d1
-	rts
+calcnormvec	; retain d825e91 layout before time-critical PC-relative code/data
+	jmp g2cold_calcnormvec
+	dcb.w 59,$4e71
 
 rotter	movem	(a3)+,d0-d1	;this x,z
 	move	d0,d2
@@ -2702,13 +2644,10 @@ dodoors	lea	doors,a5
 
 doorsfxflag	dc	0
 
-execevent	;d0=event number to execute...1,2...
-	;
-	sf	doorsfxflag
-	move.l	map_map(pc),a6
-	move.l	map_events(pc),a0
-	add.l	0(a0,d0*4),a6
-	;
+execevent	; retain d825e91 layout before time-critical PC-relative code/data
+	jmp g2cold_execevent
+	dcb.w 6,$4e71
+
 exec_loop	move	(a6)+,d0
 	beq.s	.rts
 	subq	#1,d0
@@ -2750,54 +2689,13 @@ exec_changetxt	;
 	move.b	d0,zo_t(a1)
 	bra	exec_loop
 
-exec_opendoor	st	doorsfxflag
-	addlast	doors	;a0=new door
-	;
-	move	(a6)+,d0	;door #
-	move.l	map_poly(pc),a1
-	lsl	#5,d0
-	lea	0(a1,d0),a1	;polygon to open!
-	;
-	;calc lx add, lz add, rx add, rz add
-	;
-	move.l	a1,do_poly(a0)
-	move.l	zo_lx(a1),do_lx(a0)
-	move.l	zo_rx(a1),do_rx(a0)
-	clr	do_frac(a0)
-	move	#$100,do_fracadd(a0)
-	bra	exec_loop
+exec_opendoor	; retain d825e91 layout before time-critical PC-relative code/data
+	jmp g2cold_exec_opendoor
+	dcb.w 41,$4e71
 
-exec_teleport	move.l	eventobj(pc),a0
-	;
-	move	(a6)+,ob_telex(a0)
-	addq	#2,a6
-	move	(a6)+,ob_telez(a0)
-	move	(a6)+,ob_telerot(a0)
-	;
-	move	finished(pc),d0
-	or	finished2(pc),d0
-	bne	exec_loop
-	;
-	tst	-6(a6)	;teleport? or lock!
-	beq.s	.tele
-	;
-	;LOCK!
-	cmp.l	#playerlogic,ob_logic(a0)
-	bne	exec_loop
-	;
-	move	changedtxt(pc),d0
-	lea	textures(pc),a1
-	move.l	0(a1,d0*4),a1
-	lea	65<<6+1(a1),a2
-	lea	10*65+19(a1),a1
-	movem.l	a1-a2,deftxt
-	;
-	move.l	#locklogic,ob_logic(a0)
-	bra	exec_loop
-.tele	;
-	move	#2,ob_pixsizeadd(a0)
-	bsr	dotelesfx
-	bra	exec_loop
+exec_teleport	; retain d825e91 layout before time-critical PC-relative code/data
+	jmp g2cold_exec_teleport
+	dcb.w 48,$4e71
 
 dotelesfx	move.l	telesfx(pc),a0
 	moveq	#64,d0
@@ -2812,38 +2710,9 @@ exec_loadobjs	;
 .done	;
 	bra	exec_loop
 	
-loadanobj	;d0=object#...sys must be permitted
-	;
-	lea	objinfo,a2
-	mulu	#objinfof-objinfo,d0
-	move.l	_ob_shape-objinfo(a2,d0),a2
-	lea	8(a2),a3	;filename
-	;
-	tst.l	(a2)
-	bne.s	.skip
-	move.l	a3,a0
-	moveq	#1,d1
-	jsr	loadfile
-	move.l	d0,(a2)
-	beq.s	.skip
-	move.l	d0,a0
-	jsr	remapanim
-.skip	;
-	tst.l	4(a2)
-	bne.s	.rts
-	move.l	a3,a0
-.loop	tst.b	(a3)+
-	bne.s	.loop
-	move.b	#'2',-(a3)
-	moveq	#1,d1
-	jsr	loadfile
-	clr.b	(a3)
-	move.l	d0,4(a2)
-	beq.s	.rts
-	move.l	d0,a0
-	jsr	remapanim
-	;
-.rts	rts
+loadanobj	; retain d825e91 layout before time-critical PC-relative code/data
+	jmp g2cold_loadanobj
+	dcb.w 44,$4e71
 
 exec_rotpolys	;
 	;could also be morphpolys depending on bit 0 of flags!
@@ -2920,59 +2789,9 @@ exec_rotpolys	;
 	;
 	bra	exec_loop
 
-exec_addobj	clr.l	dummy
-	move	(a6)+,d0	;monster type
-	lea	objinfo,a2
-	mulu	#objinfof-objinfo,d0
-	add.l	d0,a2
-	move.l	(a2)+,a3
-	tst.l	(a3)
-	beq.s	.ok
-.no	addq	#8,a6
-	bra	exec_loop
-.ok	cmp	#2,-2(a6)	;player?
-	bcc.s	.notp
-	addfirst	objects
-	bra.s	.bum
-.notp	addlast	objects
-.bum	beq.s	.no
-	move.l	a0,a5
-	;
-	move.l	a5,(a3)
-	;
-	move	(a6)+,ob_x(a5)
-	move	(a6)+,ob_y(a5)
-	move	(a6)+,ob_z(a5)
-	move	(a6)+,ob_rot(a5)
-	;
-	lea	ob_info(a5),a3
-	move	#(objinfof-objinfo-4)>>1-1,d0
-.loop	move	(a2)+,(a3)+
-	dbf	d0,.loop
-	;
-	tst	ob_blood(a5)	;hi bit of blood=1=invisible!
-	smi	d0
-	ext	d0
-	move	d0,ob_invisible(a5)
-	;
-	bsr	calcvecs
-	movem.l	d4-d5,ob_xvec(a5)
-	;
-	move.l	ob_shape(a5),a0
-	move.l	4(a0),ob_chunks(a5)
-	move.l	(a0),a0
-	move.l	a0,ob_shape(a5)
-	;
-	move	an_maxw(a0),d0
-	move	d0,ob_rad(a5)
-	mulu	d0,d0
-	move.l	d0,ob_radsq(a5)
-	;
-	clr.l	ob_washit(a5)
-	;
-	bsr	rnddelay
-	;
-	bra	exec_loop
+exec_addobj	; retain d825e91 layout before time-critical PC-relative code/data
+	jmp g2cold_exec_addobj
+	dcb.w 109,$4e71
 
 rnddelay	move	ob_range(a5),d0
 	bsr	rndn

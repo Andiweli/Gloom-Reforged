@@ -1,0 +1,514 @@
+[
+  {
+    "first": "gloom/sfxs/med1",
+    "second": "gloom/sfxs/med1",
+    "ticks": 2000,
+    "writes": 27640,
+    "dma_publications": 468,
+    "trace_sha256": "44be03d3acb4ce8527b0935bdd26920554c2898fdd6e45c09c2e7aea05a610be"
+  },
+  {
+    "first": "gloom/sfxs/med1",
+    "second": "gloom/sfxs/med2",
+    "ticks": 2000,
+    "writes": 27536,
+    "dma_publications": 460,
+    "trace_sha256": "a6f0ceca22f292599a0d6bbf73379462d6c31bc595300cf4caf4b123911ba926"
+  },
+  {
+    "first": "gloom/sfxs/med1",
+    "second": "deluxe/sfxs/med1",
+    "ticks": 2000,
+    "writes": 27640,
+    "dma_publications": 468,
+    "trace_sha256": "44be03d3acb4ce8527b0935bdd26920554c2898fdd6e45c09c2e7aea05a610be"
+  },
+  {
+    "first": "gloom/sfxs/med1",
+    "second": "deluxe/sfxs/med2",
+    "ticks": 2000,
+    "writes": 27536,
+    "dma_publications": 460,
+    "trace_sha256": "a6f0ceca22f292599a0d6bbf73379462d6c31bc595300cf4caf4b123911ba926"
+  },
+  {
+    "first": "gloom/sfxs/med1",
+    "second": "gloom3/sfxs/med1",
+    "ticks": 2000,
+    "writes": 16836,
+    "dma_publications": 236,
+    "trace_sha256": "29897a2cfbf30996ca60864ed099e61757e27d72d775b9039ac79ed95574ac4a"
+  },
+  {
+    "first": "gloom/sfxs/med1",
+    "second": "gloom3/sfxs/med2",
+    "ticks": 2000,
+    "writes": 27270,
+    "dma_publications": 424,
+    "trace_sha256": "7cf6efd0dc6f1bcc5c88921498a78ece1cad9599bc3b54f9942b99fea6065a4e"
+  },
+  {
+    "first": "gloom/sfxs/med1",
+    "second": "massacre/musi/medA",
+    "ticks": 2000,
+    "writes": 26228,
+    "dma_publications": 286,
+    "trace_sha256": "2fed8a9aa050889692a17f5473ef0f31c5e2ef101b3ca6f02a82e61c60854f93"
+  },
+  {
+    "first": "gloom/sfxs/med1",
+    "second": "massacre/musi/medB",
+    "ticks": 2000,
+    "writes": 28540,
+    "dma_publications": 588,
+    "trace_sha256": "ed5174bc01d92899777ab26bbdcaf6e0c1898e01ae608afbe673822fbd695468"
+  },
+  {
+    "first": "gloom/sfxs/med2",
+    "second": "gloom/sfxs/med1",
+    "ticks": 2000,
+    "writes": 27098,
+    "dma_publications": 460,
+    "trace_sha256": "173f5e42bc98f246c090ca489d1efe2a0ebf0d7610bd64914ae55bed0c85f5cf"
+  },
+  {
+    "first": "gloom/sfxs/med2",
+    "second": "gloom/sfxs/med2",
+    "ticks": 2000,
+    "writes": 26994,
+    "dma_publications": 452,
+    "trace_sha256": "9ff758a85ce457022c6df981ba094533c3f1113ae82ae17b1338fe4bac1ce93c"
+  },
+  {
+    "first": "gloom/sfxs/med2",
+    "second": "deluxe/sfxs/med1",
+    "ticks": 2000,
+    "writes": 27098,
+    "dma_publications": 460,
+    "trace_sha256": "173f5e42bc98f246c090ca489d1efe2a0ebf0d7610bd64914ae55bed0c85f5cf"
+  },
+  {
+    "first": "gloom/sfxs/med2",
+    "second": "deluxe/sfxs/med2",
+    "ticks": 2000,
+    "writes": 26994,
+    "dma_publications": 452,
+    "trace_sha256": "9ff758a85ce457022c6df981ba094533c3f1113ae82ae17b1338fe4bac1ce93c"
+  },
+  {
+    "first": "gloom/sfxs/med2",
+    "second": "gloom3/sfxs/med1",
+    "ticks": 2000,
+    "writes": 16294,
+    "dma_publications": 228,
+    "trace_sha256": "7114f50386cf47ade48b6315de743bf8c4fde5f3becaf5c4b859fdca9ec22fa1"
+  },
+  {
+    "first": "gloom/sfxs/med2",
+    "second": "gloom3/sfxs/med2",
+    "ticks": 2000,
+    "writes": 26728,
+    "dma_publications": 416,
+    "trace_sha256": "abb502eb01e91c2cea7b0605d2f3c4723920deb5ca7d0b17d38d66effc062af0"
+  },
+  {
+    "first": "gloom/sfxs/med2",
+    "second": "massacre/musi/medA",
+    "ticks": 2000,
+    "writes": 25686,
+    "dma_publications": 278,
+    "trace_sha256": "3d25ffc886b02a88240a2fe0d46a4fb07dafc6fca285b5e90dbcd8203a532b84"
+  },
+  {
+    "first": "gloom/sfxs/med2",
+    "second": "massacre/musi/medB",
+    "ticks": 2000,
+    "writes": 27998,
+    "dma_publications": 580,
+    "trace_sha256": "4af67dc05e3c794c101849f7493a21d3c2bae5c94faa7bbb5aeb8019cc97edf3"
+  },
+  {
+    "first": "deluxe/sfxs/med1",
+    "second": "gloom/sfxs/med1",
+    "ticks": 2000,
+    "writes": 27640,
+    "dma_publications": 468,
+    "trace_sha256": "44be03d3acb4ce8527b0935bdd26920554c2898fdd6e45c09c2e7aea05a610be"
+  },
+  {
+    "first": "deluxe/sfxs/med1",
+    "second": "gloom/sfxs/med2",
+    "ticks": 2000,
+    "writes": 27536,
+    "dma_publications": 460,
+    "trace_sha256": "a6f0ceca22f292599a0d6bbf73379462d6c31bc595300cf4caf4b123911ba926"
+  },
+  {
+    "first": "deluxe/sfxs/med1",
+    "second": "deluxe/sfxs/med1",
+    "ticks": 2000,
+    "writes": 27640,
+    "dma_publications": 468,
+    "trace_sha256": "44be03d3acb4ce8527b0935bdd26920554c2898fdd6e45c09c2e7aea05a610be"
+  },
+  {
+    "first": "deluxe/sfxs/med1",
+    "second": "deluxe/sfxs/med2",
+    "ticks": 2000,
+    "writes": 27536,
+    "dma_publications": 460,
+    "trace_sha256": "a6f0ceca22f292599a0d6bbf73379462d6c31bc595300cf4caf4b123911ba926"
+  },
+  {
+    "first": "deluxe/sfxs/med1",
+    "second": "gloom3/sfxs/med1",
+    "ticks": 2000,
+    "writes": 16836,
+    "dma_publications": 236,
+    "trace_sha256": "29897a2cfbf30996ca60864ed099e61757e27d72d775b9039ac79ed95574ac4a"
+  },
+  {
+    "first": "deluxe/sfxs/med1",
+    "second": "gloom3/sfxs/med2",
+    "ticks": 2000,
+    "writes": 27270,
+    "dma_publications": 424,
+    "trace_sha256": "7cf6efd0dc6f1bcc5c88921498a78ece1cad9599bc3b54f9942b99fea6065a4e"
+  },
+  {
+    "first": "deluxe/sfxs/med1",
+    "second": "massacre/musi/medA",
+    "ticks": 2000,
+    "writes": 26228,
+    "dma_publications": 286,
+    "trace_sha256": "2fed8a9aa050889692a17f5473ef0f31c5e2ef101b3ca6f02a82e61c60854f93"
+  },
+  {
+    "first": "deluxe/sfxs/med1",
+    "second": "massacre/musi/medB",
+    "ticks": 2000,
+    "writes": 28540,
+    "dma_publications": 588,
+    "trace_sha256": "ed5174bc01d92899777ab26bbdcaf6e0c1898e01ae608afbe673822fbd695468"
+  },
+  {
+    "first": "deluxe/sfxs/med2",
+    "second": "gloom/sfxs/med1",
+    "ticks": 2000,
+    "writes": 27098,
+    "dma_publications": 460,
+    "trace_sha256": "173f5e42bc98f246c090ca489d1efe2a0ebf0d7610bd64914ae55bed0c85f5cf"
+  },
+  {
+    "first": "deluxe/sfxs/med2",
+    "second": "gloom/sfxs/med2",
+    "ticks": 2000,
+    "writes": 26994,
+    "dma_publications": 452,
+    "trace_sha256": "9ff758a85ce457022c6df981ba094533c3f1113ae82ae17b1338fe4bac1ce93c"
+  },
+  {
+    "first": "deluxe/sfxs/med2",
+    "second": "deluxe/sfxs/med1",
+    "ticks": 2000,
+    "writes": 27098,
+    "dma_publications": 460,
+    "trace_sha256": "173f5e42bc98f246c090ca489d1efe2a0ebf0d7610bd64914ae55bed0c85f5cf"
+  },
+  {
+    "first": "deluxe/sfxs/med2",
+    "second": "deluxe/sfxs/med2",
+    "ticks": 2000,
+    "writes": 26994,
+    "dma_publications": 452,
+    "trace_sha256": "9ff758a85ce457022c6df981ba094533c3f1113ae82ae17b1338fe4bac1ce93c"
+  },
+  {
+    "first": "deluxe/sfxs/med2",
+    "second": "gloom3/sfxs/med1",
+    "ticks": 2000,
+    "writes": 16294,
+    "dma_publications": 228,
+    "trace_sha256": "7114f50386cf47ade48b6315de743bf8c4fde5f3becaf5c4b859fdca9ec22fa1"
+  },
+  {
+    "first": "deluxe/sfxs/med2",
+    "second": "gloom3/sfxs/med2",
+    "ticks": 2000,
+    "writes": 26728,
+    "dma_publications": 416,
+    "trace_sha256": "abb502eb01e91c2cea7b0605d2f3c4723920deb5ca7d0b17d38d66effc062af0"
+  },
+  {
+    "first": "deluxe/sfxs/med2",
+    "second": "massacre/musi/medA",
+    "ticks": 2000,
+    "writes": 25686,
+    "dma_publications": 278,
+    "trace_sha256": "3d25ffc886b02a88240a2fe0d46a4fb07dafc6fca285b5e90dbcd8203a532b84"
+  },
+  {
+    "first": "deluxe/sfxs/med2",
+    "second": "massacre/musi/medB",
+    "ticks": 2000,
+    "writes": 27998,
+    "dma_publications": 580,
+    "trace_sha256": "4af67dc05e3c794c101849f7493a21d3c2bae5c94faa7bbb5aeb8019cc97edf3"
+  },
+  {
+    "first": "gloom3/sfxs/med1",
+    "second": "gloom/sfxs/med1",
+    "ticks": 2000,
+    "writes": 16092,
+    "dma_publications": 236,
+    "trace_sha256": "c4c2d17b65fc5d314d163a433ee8e8c030d686f1826b9488ab2498cd4b758895"
+  },
+  {
+    "first": "gloom3/sfxs/med1",
+    "second": "gloom/sfxs/med2",
+    "ticks": 2000,
+    "writes": 15988,
+    "dma_publications": 228,
+    "trace_sha256": "ba0c181612aee0203027140051336d22f2d8ea3484e6fa404cb55a246c0d7e9f"
+  },
+  {
+    "first": "gloom3/sfxs/med1",
+    "second": "deluxe/sfxs/med1",
+    "ticks": 2000,
+    "writes": 16092,
+    "dma_publications": 236,
+    "trace_sha256": "c4c2d17b65fc5d314d163a433ee8e8c030d686f1826b9488ab2498cd4b758895"
+  },
+  {
+    "first": "gloom3/sfxs/med1",
+    "second": "deluxe/sfxs/med2",
+    "ticks": 2000,
+    "writes": 15988,
+    "dma_publications": 228,
+    "trace_sha256": "ba0c181612aee0203027140051336d22f2d8ea3484e6fa404cb55a246c0d7e9f"
+  },
+  {
+    "first": "gloom3/sfxs/med1",
+    "second": "gloom3/sfxs/med1",
+    "ticks": 2000,
+    "writes": 4538,
+    "dma_publications": 4,
+    "trace_sha256": "84bd97d8ccee6f34df3db443526a897f0a95864c2d6966675ce94438c85af271"
+  },
+  {
+    "first": "gloom3/sfxs/med1",
+    "second": "gloom3/sfxs/med2",
+    "ticks": 2000,
+    "writes": 14786,
+    "dma_publications": 192,
+    "trace_sha256": "f7706392c75bbec56dc2c85b4e29fea2a67abc4cf1e21890f7b98acb66a15e2e"
+  },
+  {
+    "first": "gloom3/sfxs/med1",
+    "second": "massacre/musi/medA",
+    "ticks": 2000,
+    "writes": 14229,
+    "dma_publications": 54,
+    "trace_sha256": "4bac88239b119a5b317a5fadb27630f3655773a5c73e28738ececb5a7251554a"
+  },
+  {
+    "first": "gloom3/sfxs/med1",
+    "second": "massacre/musi/medB",
+    "ticks": 2000,
+    "writes": 16860,
+    "dma_publications": 356,
+    "trace_sha256": "f5c1f095f645a75ba41ef047b9ffa26f25925b34c344eff5989a1d9cc4ee8c0d"
+  },
+  {
+    "first": "gloom3/sfxs/med2",
+    "second": "gloom/sfxs/med1",
+    "ticks": 2000,
+    "writes": 26054,
+    "dma_publications": 424,
+    "trace_sha256": "9e048684865ce13eea652c1a064d10fa8e14f678d3a5f2bc4fb78eb6ad8a144a"
+  },
+  {
+    "first": "gloom3/sfxs/med2",
+    "second": "gloom/sfxs/med2",
+    "ticks": 2000,
+    "writes": 25950,
+    "dma_publications": 416,
+    "trace_sha256": "53cafa8f2ec847ac0955bc4dddb55185b89b1536aa7a2f74968c5f78785d8d87"
+  },
+  {
+    "first": "gloom3/sfxs/med2",
+    "second": "deluxe/sfxs/med1",
+    "ticks": 2000,
+    "writes": 26054,
+    "dma_publications": 424,
+    "trace_sha256": "9e048684865ce13eea652c1a064d10fa8e14f678d3a5f2bc4fb78eb6ad8a144a"
+  },
+  {
+    "first": "gloom3/sfxs/med2",
+    "second": "deluxe/sfxs/med2",
+    "ticks": 2000,
+    "writes": 25950,
+    "dma_publications": 416,
+    "trace_sha256": "53cafa8f2ec847ac0955bc4dddb55185b89b1536aa7a2f74968c5f78785d8d87"
+  },
+  {
+    "first": "gloom3/sfxs/med2",
+    "second": "gloom3/sfxs/med1",
+    "ticks": 2000,
+    "writes": 15250,
+    "dma_publications": 192,
+    "trace_sha256": "1039503598f6c07da8c74cb2a9dfd2eca8afd70506a61426f20729d6eb096bb0"
+  },
+  {
+    "first": "gloom3/sfxs/med2",
+    "second": "gloom3/sfxs/med2",
+    "ticks": 2000,
+    "writes": 25684,
+    "dma_publications": 380,
+    "trace_sha256": "848301c8329805bee6afd05e1a6f77a75e69d55c829d164d12e8cbf8b207c5d6"
+  },
+  {
+    "first": "gloom3/sfxs/med2",
+    "second": "massacre/musi/medA",
+    "ticks": 2000,
+    "writes": 24642,
+    "dma_publications": 242,
+    "trace_sha256": "56d45f52282c0ff6145c7317ddd6a253098398f542079ba23727e87c85a4949a"
+  },
+  {
+    "first": "gloom3/sfxs/med2",
+    "second": "massacre/musi/medB",
+    "ticks": 2000,
+    "writes": 26954,
+    "dma_publications": 544,
+    "trace_sha256": "9fcc7b8af456283176e32100c84d1e52f97982afd6ae206f62378fa324c6d3c7"
+  },
+  {
+    "first": "massacre/musi/medA",
+    "second": "gloom/sfxs/med1",
+    "ticks": 2000,
+    "writes": 25781,
+    "dma_publications": 286,
+    "trace_sha256": "099ca7408bf39c735eba2cf059798f46e3b2c2109d3a13de4c766dd28936ea29"
+  },
+  {
+    "first": "massacre/musi/medA",
+    "second": "gloom/sfxs/med2",
+    "ticks": 2000,
+    "writes": 25677,
+    "dma_publications": 278,
+    "trace_sha256": "c10bd29aa83cde7547549477a509bc1f4305cd20459bb127b5f38fffe2f6d227"
+  },
+  {
+    "first": "massacre/musi/medA",
+    "second": "deluxe/sfxs/med1",
+    "ticks": 2000,
+    "writes": 25781,
+    "dma_publications": 286,
+    "trace_sha256": "099ca7408bf39c735eba2cf059798f46e3b2c2109d3a13de4c766dd28936ea29"
+  },
+  {
+    "first": "massacre/musi/medA",
+    "second": "deluxe/sfxs/med2",
+    "ticks": 2000,
+    "writes": 25677,
+    "dma_publications": 278,
+    "trace_sha256": "c10bd29aa83cde7547549477a509bc1f4305cd20459bb127b5f38fffe2f6d227"
+  },
+  {
+    "first": "massacre/musi/medA",
+    "second": "gloom3/sfxs/med1",
+    "ticks": 2000,
+    "writes": 14977,
+    "dma_publications": 54,
+    "trace_sha256": "056771647a1f2b50100d6f1fa7e78e8fb43d898a3347a1b869ae1b27fcd47dec"
+  },
+  {
+    "first": "massacre/musi/medA",
+    "second": "gloom3/sfxs/med2",
+    "ticks": 2000,
+    "writes": 25411,
+    "dma_publications": 242,
+    "trace_sha256": "445e74d1820c32fa3aed68c030c7759cc6d54e832b52415ee4cd9b03dc54f02d"
+  },
+  {
+    "first": "massacre/musi/medA",
+    "second": "massacre/musi/medA",
+    "ticks": 2000,
+    "writes": 24369,
+    "dma_publications": 104,
+    "trace_sha256": "97c938d971f83ef17f6bb7ae8ccbe6dacf6cef1e22ec5e9d8c9584566b5a9bce"
+  },
+  {
+    "first": "massacre/musi/medA",
+    "second": "massacre/musi/medB",
+    "ticks": 2000,
+    "writes": 26681,
+    "dma_publications": 406,
+    "trace_sha256": "8ff7d5546cab223f8ff4de311fe970e71063d22ed69eab3053cc14347242ba6c"
+  },
+  {
+    "first": "massacre/musi/medB",
+    "second": "gloom/sfxs/med1",
+    "ticks": 2000,
+    "writes": 27976,
+    "dma_publications": 588,
+    "trace_sha256": "290b4022bffb64e9ffb1e798a54c67016de0ac1b9739e273d4c8825870376b55"
+  },
+  {
+    "first": "massacre/musi/medB",
+    "second": "gloom/sfxs/med2",
+    "ticks": 2000,
+    "writes": 27872,
+    "dma_publications": 580,
+    "trace_sha256": "7d9f8c9255125c60c10a434862fc929fadbcf427afdf8a06f4e5e3f08a89d0e6"
+  },
+  {
+    "first": "massacre/musi/medB",
+    "second": "deluxe/sfxs/med1",
+    "ticks": 2000,
+    "writes": 27976,
+    "dma_publications": 588,
+    "trace_sha256": "290b4022bffb64e9ffb1e798a54c67016de0ac1b9739e273d4c8825870376b55"
+  },
+  {
+    "first": "massacre/musi/medB",
+    "second": "deluxe/sfxs/med2",
+    "ticks": 2000,
+    "writes": 27872,
+    "dma_publications": 580,
+    "trace_sha256": "7d9f8c9255125c60c10a434862fc929fadbcf427afdf8a06f4e5e3f08a89d0e6"
+  },
+  {
+    "first": "massacre/musi/medB",
+    "second": "gloom3/sfxs/med1",
+    "ticks": 2000,
+    "writes": 17172,
+    "dma_publications": 356,
+    "trace_sha256": "06ac27a1b0f9636628fcf66dcc12ba441b8516828425e056fcfef9fd9c6fd128"
+  },
+  {
+    "first": "massacre/musi/medB",
+    "second": "gloom3/sfxs/med2",
+    "ticks": 2000,
+    "writes": 27606,
+    "dma_publications": 544,
+    "trace_sha256": "5646d5ffd4a4ea16acc715a804c930cbf9721ff271f72aea5edbbc980e154339"
+  },
+  {
+    "first": "massacre/musi/medB",
+    "second": "massacre/musi/medA",
+    "ticks": 2000,
+    "writes": 26564,
+    "dma_publications": 406,
+    "trace_sha256": "557f544e2eda4b51fc766b0b9b03e6163f8fea481920ca9949465c74ca5b4f01"
+  },
+  {
+    "first": "massacre/musi/medB",
+    "second": "massacre/musi/medB",
+    "ticks": 2000,
+    "writes": 28876,
+    "dma_publications": 708,
+    "trace_sha256": "898866f3219154592aa2ac9adee0a0319f05ccab84cc8a73a2729617acfb6e4d"
+  }
+]

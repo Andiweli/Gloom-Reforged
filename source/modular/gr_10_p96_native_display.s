@@ -231,8 +231,12 @@ finitdisplay	push
 	beq.w	.noos
 	;
 	move.l	dbufinfo(pc),a1
+	tst.l	a1
+	beq.s	.no_dbufinfo
 	move.l	grbase(pc),a6
 	jsr	-$3cc(a6)	;free dbufinfo
+	clr.l	dbufinfo
+.no_dbufinfo
 	;
 	; Close our synchronous covering window before its owning screen.
 	move.l	oswindow,d0
@@ -243,14 +247,22 @@ finitdisplay	push
 	clr.l	oswindow
 	clr.l	newwindow_s
 .native_window_closed
-	move.l	screen(pc),a0
+	move.l	screen(pc),d0
+	beq.s	.native_screen_closed
+	move.l	d0,a0
 	move.l	int(pc),a6
 	jsr	-66(a6)
+	clr.l	screen
+	clr.l	viewport
+.native_screen_closed
 	;
 	pull
 	rts
 	;
-.noos	move.l	grbase,a6
+.noos	tst.w	g2exit_native_view_owned
+	beq.s	.raw_not_owned
+	clr.w	g2exit_native_view_owned
+	move.l	grbase,a6
 	move.l	oldview,a1
 	jsr	-222(a6)	;load view
 	jsr	-270(a6)
@@ -258,6 +270,7 @@ finitdisplay	push
 	move.l	38(a6),$dff080
 	move	#$81a0,$dff096
 	move	#0,$dff088
+.raw_not_owned
 	;
 	pull
 	rts
@@ -512,6 +525,7 @@ initdisplay	;
 	move.l	4.w,a6
 	jsr	-408(a6)
 	move.l	d0,grbase
+	requiremem		; graphics.library is needed by all display paths
 	;
 	; c87b79x: native AGA/ECS keep the two compact planar pages. DISPLAY=P96
 	; owns only chunky/direct index and CLUT staging pages, so leave every
@@ -530,6 +544,7 @@ initdisplay	;
 	add.l	d0,d0	;2 for DB
 	moveq	#2,d1
 	allocmem	bitmaps
+	requiremem
 	move.l	d0,bitmaps
 	add.l	d2,d0
 	move.l	d0,bitmaps2
@@ -553,6 +568,7 @@ g2ecs3_bitmaps_ready
 	lea	intname(pc),a1
 	jsr	-408(a6)
 	move.l	d0,int
+	requiremem
 	;
 	cmp	#2,g2display_mode
 	beq	db		;c87b79x: no OS-format planar bitmap structures
@@ -575,8 +591,7 @@ g2ecs3_bitmaps_ready
 	move.l	d0,a0
 	move.l	a0,screen
 	bne.s	.g2c86zdc_screen_ok
-	clr.w	os	; OpenScreen failed: use existing direct-display fallback
-	bra.w	.noos
+	jmp	g2fatal_abort	; no mixed OS/copper backend after OpenScreen failure
 .g2c86zdc_screen_ok
 	; Open the covering window synchronously. The legacy windowtask is
 	; not started anywhere in this source. Its flags alone had no effect.
@@ -587,15 +602,7 @@ g2ecs3_bitmaps_ready
 	jsr	-204(a6)	; OpenWindow
 	move.l	d0,oswindow
 	bne.s	.native_window_ok
-	; Do not continue with an uncovered screen after OpenWindow failure.
-	; Match the existing OpenScreen-failure custom-display fallback.
-	move.l	screen(pc),a0
-	move.l	int(pc),a6
-	jsr	-66(a6)	; CloseScreen (no window exists)
-	clr.l	screen
-	clr.l	newwindow_s
-	clr.w	os
-	bra.w	.noos
+	jmp	g2fatal_abort	; cleanup closes the successfully opened screen
 .native_window_ok
 	jsr	g2v36_hide_pointer
 	move.l	screen(pc),a0
@@ -608,6 +615,7 @@ g2ecs3_bitmaps_ready
 	move.l	a0,viewport
 	move.l	grbase(pc),a6
 	jsr	-$3c6(a6)	;alocdbufinfo
+	requiremem
 	move.l	d0,dbufinfo
 	bra	db
 	;
@@ -619,6 +627,7 @@ g2ecs3_bitmaps_ready
 	move.l	34(a6),oldview
 	sub.l	a1,a1
 	jsr	-222(a6)	;loadview 0.
+	st	g2exit_native_view_owned
 	;
 	bsr	dispoff
 	lea	copinit_aga,a0
@@ -633,6 +642,7 @@ g2ecs3_bitmaps_ready
 	move.l	d0,d2
 	moveq	#2,d1
 	allocmem	coplist
+	requiremem
 	move.l	d0,coplist
 	move.l	d0,a2	;dest
 	movem.l	(a7)+,a0-a1
@@ -708,9 +718,16 @@ allocmem2_	;
 	;as below, but d2.l = extra mem at start to set aside
 	;
 	push
-	moveq	#16,d3
+	tst.l	d2
+	bmi.s	.invalid
+	moveq	#32,d3
 	add.l	d2,d3
+	bvs.s	.invalid
 	bra.s	amem_
+.invalid
+	pull
+	moveq	#0,d0
+	rts
 
 allocmem_	;
 	;d0=size, d1=requirements, a0=text field
@@ -719,14 +736,21 @@ allocmem_	;
 	;
 	;00.l : next
 	;04.l : real size
-	;08.l : offset to user mem (normally 16, but CM fucks things up)
+	;08.l : offset to user memory (32 plus an optional CrM prefix)
 	;12.l : pointer to text field for debugging
+	;16.l : logical user payload length, independent of allocation capacity
+	;20.l : validated resource flags; 24..31 reserved (alignment retained)
 	;
 	push
-	moveq	#16,d3	;offset
+	moveq	#32,d3	;offset
 	;
 amem_	move.l	a0,d4
+	move.l	d0,d6		; logical payload length
+	move.l	d1,d5		; d1 is volatile across AllocMem
 	add.l	d3,d0
+	bcs.w	.g2bench_p1_alloc_failed
+	tst.l	d0
+	bmi.w	.g2bench_p1_alloc_failed
 	;
 	move.l	d0,d2	;len
 	move.l	a0,d4	;text
@@ -738,7 +762,7 @@ amem_	move.l	a0,d4
 	; Gloombench2 Patch 1: MEMF_FAST is preferred for CPU-side data,
 	; but preserve compatibility by retrying the identical allocation as
 	; MEMF_PUBLIC before reporting failure. CHIP allocations never enter here.
-	cmp.l	#4,d1
+	cmp.l	#4,d5
 	bne.s	.g2bench_p1_alloc_failed
 	move.l	d2,d0		; restore total size including memlist header
 	moveq	#1,d1		; MEMF_PUBLIC fallback
@@ -756,6 +780,8 @@ amem_	move.l	a0,d4
 	move.l	memlist,(a0)	;next
 	move.l	a0,memlist
 	movem.l	d2-d4,4(a0)
+	move.l	d6,16(a0)
+	clr.l	20(a0)
 	add.l	d3,a0
 	move.l	a0,d0
 	;
@@ -836,6 +862,7 @@ freemem_	;
 freememerr	dc.l	0
 
 initmap	;map address in map_map...
+	jsr	g2require_map
 	;load in textures, do colour mapping etc.
 	;
 	push
@@ -872,7 +899,8 @@ initmap	;map address in map_map...
 	pull
 	rts
 
-freetxts	lea	textscrns,a6
+freetxts	jsr	g2clear_texture_slots
+	lea	textscrns,a6
 	moveq	#7,d7
 .loop	move.l	(a6)+,d0
 	beq.s	.skip
@@ -883,6 +911,7 @@ freetxts	lea	textscrns,a6
 	rts
 
 loadtxts	push
+	jsr	g2clear_texture_slots
 	;
 	lea	textures,a4
 	move.l	map_txts,a5	;texture names
@@ -891,21 +920,36 @@ loadtxts	push
 	;
 .ltl	lea	.temp(pc),a0
 	;
-.ltl2	move.b	(a5)+,(a0)+
-	bne.s	.ltl2
+	moveq	#63,d2
+.ltl2
+	move.b	(a5)+,d0	; initmap validated all eight names inside map bounds
+	beq.s	.name_end
+	tst.w	d2
+	bne.s	.name_room
+	jmp	g2fatal_abort
+.name_room
+	move.b	d0,(a0)+
+	subq.w	#1,d2
+	bra.s	.ltl2
+.name_end
+	clr.b	(a0)+
 	moveq	#0,d0
 	cmp.l	#.temp+1,a0
 	beq.s	.notext
 	lea	.temp2(pc),a0
 	moveq	#1,d1
 	jsr	loadfile
+	requiremem		; a named texture screen is mandatory for this map
+	move.l	d0,a0
+	jsr	g2require_texture
 	;
 .notext	move.l	d0,(a6)+	;texture!
-	beq.s	.skip
+	beq.s	.empty_slot
 	;
 	;do colour mapping stuff!
 	;
 	move.l	d0,-(a7)
+	lea	20*4(a4),a3	; next fixed screen slot
 	;
 	move.l	d0,a0
 	add.l	(a0),a0
@@ -918,13 +962,20 @@ loadtxts	push
 	bsr	remap
 	;
 	move.l	(a7)+,a0
+	move.l	(a0),d0
+	subq.l	#4,d0
+	divu	#64*65,d0	; compact retail screens contain fewer than 20 columns
+	subq.w	#1,d0
 	addq	#4,a0
-	moveq	#19,d0
 	move.l	#64*65,d1
 	;
 .mtxt	move.l	a0,(a4)+
 	add.l	d1,a0
 	dbf	d0,.mtxt
+	move.l	a3,a4		; unfilled column slots remain NULL
+	bra.s	.skip
+.empty_slot
+	lea	20*4(a4),a4	; fixed twenty-pointer slot, even for empty names
 .skip	;
 	dbf	d7,.ltl
 	;
@@ -936,6 +987,7 @@ loadtxts	push
 	even
 
 remapanim	;a0=anim to remap...
+	jsr	g2require_anim	; once at palette remapping, never in drawshape
 	;
 	push
 	;
@@ -981,6 +1033,7 @@ remap	;a0=start of byte data, a1=end of byte data
 
 addpal	;add palette in a0 to end of map_rgb
 	;
+	jsr g2require_palette
 	push
 	;
 	move	(a0)+,d0
@@ -1012,6 +1065,10 @@ addpal	;add palette in a0 to end of map_rgb
 .no	;colour doesn't exist!
 	;may have to do a 'near match' routine if we run out of colours
 	;
+	move.l a2,d3
+	sub.l map_rgbs,d3
+	cmp.l #512,d3
+	bcc.l g2fatal_abort	; never append an unrepresentable palette index
 	move	d1,(a2)+
 	move.l	a2,a1
 	;
@@ -1897,6 +1954,7 @@ troll_	dc.l	dummy
 .ob_blood	dc	$f00	;color AND for blood
 .ob_ypad	dc	1
 
+g2objinfo_end
 abouttext	dc.b	16
 	dc.b	'GLOOM',0
 	dc.b	0
@@ -1953,16 +2011,26 @@ weapon4	dc.l	bullet4,sparks4
 weapon5	dc.l	bullet5,sparks5
 
 bullet1	incbin	bullet1.bin
+bullet1_end
 bullet2	incbin	bullet2.bin
+bullet2_end
 bullet3	incbin	bullet3.bin
+bullet3_end
 bullet4	incbin	bullet4.bin
+bullet4_end
 bullet5	incbin	bullet5.bin
+bullet5_end
 
 sparks1	incbin	sparks1.bin
+sparks1_end
 sparks2	incbin	sparks2.bin
+sparks2_end
 sparks3	incbin	sparks3.bin
+sparks3_end
 sparks4	incbin	sparks4.bin
+sparks4_end
 sparks5	incbin	sparks5.bin
+sparks5_end
 
 medplayer	incbin	medplay
 decrm	incbin	decrm

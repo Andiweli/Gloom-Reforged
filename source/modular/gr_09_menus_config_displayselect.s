@@ -1016,6 +1016,7 @@ g2cfg_load
 	clr	g2_bayer_disabled	; old configs default to Bayer YES
 	move.l	dosbase,a6
 	lea	g2cfg_name(pc),a0
+	jsr g2config_recover
 	move.l	a0,d1
 	move.l	#1005,d2
 	jsr	-30(a6)
@@ -1150,20 +1151,10 @@ g2cfg_save
 	move	g2stock_cfg_bayer,d0	; STOCK must not overwrite the saved normal choice
 .store_bayer
 	move	d0,(a0)+
-	move.l	dosbase,a6
 	lea	g2cfg_name(pc),a0
-	move.l	a0,d1
-	move.l	#1006,d2
-	jsr	-30(a6)
-	move.l	d0,d7
-	beq	.save_done
-	move.l	d7,d1
-	lea	g2cfg_buf(pc),a0
-	move.l	a0,d2
-	move.l	#g2cfg_len+18,d3
-	jsr	-48(a6)
-	move.l	d7,d1
-	jsr	-36(a6)
+	lea	g2cfg_buf(pc),a1
+	move.l	#g2cfg_len+18,d0
+	jsr	g2save_config_checked
 .save_done
 	movem.l	(a7)+,d0-d7/a0-a6
 	rts
@@ -1310,113 +1301,172 @@ wpmess	dc.b	1
 fileheader	ds.b	14
 loadmem	dc.l	0
 
-loadfileabs	move.l	a1,loadmem
+; loadfileabs requires d2 = destination capacity; compressed input is rejected.
+; The only legacy fixed-buffer caller supplies the 128-byte palette capacity.
+loadfileabs
+	move.l	a1,loadmem
+	move.l	d2,g2load_abs_capacity
 	bra.s	loadfile_
 
 loadfile	clr.l	loadmem
-	;
-loadfile_	;a0=name, d1=memtype
-	;
-	;decrunch file if nec.
-	;
-	;return d0=pointer
-	;
+	clr.l	g2load_abs_capacity
+loadfile_	; a0=name, d1=memtype; d0=usable pointer or 0
 	push
-	;
-	move.l	d1,d5	;save memtype
-	; Gloombench2 Patch 1: ordinary CPU-side file loads use FastRAM first.
-	; Explicit CHIP requests (d1=2) remain untouched. allocmem2_ falls back
-	; from MEMF_FAST to MEMF_PUBLIC if FastRAM is unavailable.
+	move.l	a0,a2		; resource name survives DOS calls
+	moveq	#0,d6		; no uninitialised extra offset for short/raw files
+	move.l	d1,d5
 	cmp.l	#1,d5
-	bne.s	.g2bench_p1_memtype_ready
-	moveq	#4,d5		; MEMF_FAST
-.g2bench_p1_memtype_ready
+	bne.s	.memtype_ready
+	moveq	#4,d5
+.memtype_ready
 	move.l	dosbase,a6
-	;
 	move.l	a0,d1
 	move.l	#1005,d2
-	jsr	-30(a6)	;open it!
-	move.l	d0,d7	;handle
-	beq	.err
-	;
+	jsr	-30(a6)
+	move.l	d0,d7
+	beq.w	.err
 	move.l	d7,d1
 	moveq	#0,d2
 	moveq	#1,d3
-	jsr	-66(a6)	;seek to end
-	;
+	jsr	-66(a6)
+	tst.l	d0
+	bmi.w	.closeerr
 	move.l	d7,d1
 	moveq	#0,d2
-	moveq	#-1,d3	;seek to start
+	moveq	#-1,d3
 	jsr	-66(a6)
-	;
-	move.l	d0,d4	;length=prev filepos
-	;
+	tst.l	d0
+	ble.w	.closeerr	; reject seek failure, negative length and empty files
+	move.l	d0,d4		; allocation size
+	move.l	d0,a4		; exact disk length, distinct from decrunch capacity
 	move.l	d7,d1
 	move.l	#fileheader,d2
 	moveq	#14,d3
-	jsr	-42(a6)	;read!
-	;
-	move.l	d0,-(a7)	;how many bytes read!
-	;
+	cmp.l	d3,d4
+	bcc.s	.header_size
+	move.l	d4,d3
+.header_size
+	jsr	-42(a6)
+	cmp.l	d3,d0
+	bne.w	.closeerr
 	move.l	d7,d1
 	moveq	#0,d2
-	moveq	#-1,d3	;back to start
+	moveq	#-1,d3
 	jsr	-66(a6)
-	;
-	cmp.l	#14,(a7)+
-	bcs.s	.nocrunch
-	;
-	moveq	#0,d6
+	tst.l	d0
+	bmi.w	.closeerr
+	cmp.l	#4,d4
+	bcs.w	.raw
 	move.l	fileheader(pc),d0
 	cmp.l	#'CrM2',d0
 	beq.s	.crunch
 	cmp.l	#'CrM!',d0
-	bne.s	.nocrunch
-	;
-.crunch	cmp.l	fileheader+6(pc),d4 ;loadlen>destlen?
-	bcc.s	.skip
-	move.l	fileheader+6(pc),d4 ;length to allocate
-.skip	;
-	moveq	#14,d6
-	add	fileheader+4(pc),d6
-	bsr	loadit
-	move.l	d0,a0	;src
-	add.l	d6,d0	;dest
+	bne.w	.raw
+.crunch
+	cmp.l	#14,d4
+	bcs.w	.closeerr
+	tst.l	loadmem
+	bne.w	.closeerr	; no expanding compressed file may target a fixed buffer
+	move.l	fileheader+6(pc),d0
+	ble.w	.closeerr
+	move.l	fileheader+10(pc),d1
+	cmp.l	#6,d1
+	bcs.w	.closeerr	; decoder reads a trailing word and longword
+	move.l	d4,d2
+	sub.l	#14,d2
+	cmp.l	d2,d1
+	bhi.w	.closeerr	; compressed payload must fit the bytes actually loaded
+	cmp.l	d0,d4
+	bcc.s	.capacity_ready
+	move.l	d0,d4
+.capacity_ready
+	move.w	fileheader+4(pc),d6
+	add.l	#14,d6		; unsigned MinSecDist, never a wrapping word addition
+	bsr.w	loadit
+	tst.l	d0
+	beq.w	.err
+	move.l	d0,a0
+	add.l	d6,d0
 	move.l	d0,a1
-	;
+	move.l	a4,d0
+	move.l	d4,d1
 	jsr	flushc
-	jsr	decrm+32
+	jsr	g2crm_decode_checked
+	tst.l	d0
+	bne.s	.crunch_failed
 	jsr	flushc
-	;
+	move.l	a1,a0
+	move.l	fileheader+6(pc),d0
+	jsr	g2asset_set_length
+	move.l	a0,d0
+	bra.s	.done
+.crunch_failed
+	freemem	loadfile_invalid_crm
+	bra.s	.err
+.raw
+	bsr.w	loadit
+	bra.s	.done
+.closeerr
+	move.l	d7,d1
+	jsr	-36(a6)
+.err
+	moveq	#0,d0
+.done
 	pull
 	rts
-.nocrunch	;
-	bsr	loadit
-	;
-.err	pull
-	rts
 
-loadit	;d4=length to alloc/read, d5=memtype
-	;seek to start, load, close and return base in d0.
-	;
+loadit	; d4=allocation capacity, a4=exact disk length, d6=extra offset
 	move.l	loadmem(pc),d0
-	bne.s	.noalloc
-	;
+	beq.s	.allocate
+	move.l	g2load_abs_capacity,d1
+	cmp.l	d4,d1
+	bcs.s	.failed
+	move.l	d0,a3
+	bra.s	.read
+.allocate
 	move.l	d4,d0
 	move.l	d5,d1
-	move.l	d6,d2	;offset XS
+	move.l	d6,d2
 	allocmem2	loadfile
+	tst.l	d0
+	beq.s	.failed
 	sub.l	d6,d0
-.noalloc	;
+	move.l	d0,a3		; read base is preserved across Read/Close
+.read
 	move.l	d7,d1
-	move.l	d0,d2
-	move.l	d4,d3	;read len
-	jsr	-42(a6)	;read
+	move.l	a3,d2
+	move.l	a4,d3
+	jsr	-42(a6)
+	cmp.l	a4,d0
+	bne.s	.free_failed
 	move.l	d7,d1
-	jsr	-36(a6)	;close
-	move.l	d2,d0
-	;
+	jsr	-36(a6)
+	moveq	#0,d7
+	tst.l	d0
+	beq.s	.free_failed_closed
+	move.l	a3,d0
 	rts
+.free_failed
+	move.l	d7,d1
+	jsr	-36(a6)
+	moveq	#0,d7
+.free_failed_closed
+	tst.l	loadmem
+	bne.s	.failed
+	move.l	a3,a1
+	add.l	d6,a1		; free the registered user pointer, not its read prefix
+	freemem	loadfile_failed
+.failed
+	tst.l	d7
+	beq.s	.closed
+	move.l	d7,d1
+	jsr	-36(a6)
+	moveq	#0,d7
+.closed
+	moveq	#0,d0
+	rts
+
+g2load_abs_capacity	dc.l	0
 
 calcpalettes	;generate 16 versions of palette
 	;
@@ -1524,6 +1574,7 @@ forbid	tst	os
 	bsr	ownblitter
 	move.l	4.w,a6
 	jsr	-132(a6)
+	addq.w	#1,g2exit_forbid_depth
 	move	#$8400,$dff096	;bltnasty!
 	pull
 	;
@@ -1533,18 +1584,26 @@ permit	tst	os
 	bne.s	.rts
 	;
 	push
+	tst.w	g2exit_forbid_depth
+	beq.s	.not_owned
+	subq.w	#1,g2exit_forbid_depth
 	move.l	4.w,a6
 	jsr	-138(a6)
 	jsr	disownblitter
+.not_owned
 	pull
 	;
 .rts	rts
 
 initvbint	push
+	tst.w	g2exit_vb_owned
+	bne.s	.done
 	move.l	4.w,a6
 	moveq	#5,d0
 	lea	vbintserver,a1
 	jsr	-168(a6)	;addintserver
+	st	g2exit_vb_owned
+.done
 	pull
 	rts
 
@@ -1566,10 +1625,14 @@ rbfintdata	dc.l	rbuff
 rbfintcode	dc.l	rbf
 
 finitvbint	push
+	tst.w	g2exit_vb_owned
+	beq.s	.done
+	clr.w	g2exit_vb_owned
 	move.l	4.w,a6
 	moveq	#5,d0
 	lea	vbintserver,a1
 	jsr	-174(a6)
+.done
 	pull
 	rts
 

@@ -1,0 +1,619 @@
+{
+  "unique_pathnames": 6,
+  "unique_file_hashes": 5,
+  "binary_observations": 12,
+  "observations": [
+    {
+      "profile": "Gloom 3",
+      "resource": "gloom3/objs/baldy",
+      "binary": "game.hunk",
+      "file_bytes": 72098,
+      "sha256": "c81f94716e6cffd24a516cb0df4722c17f58c1779ad834a0cd747109d52bc670",
+      "expected_format": "animation header + flat frame*8+facing table + bounded shapes/palette",
+      "actual_header": {
+        "rotation_shift": 0,
+        "frames": 40,
+        "width": 33,
+        "height": 65,
+        "palette_offset": 71852,
+        "flat_entries": 40,
+        "first_shape": 172
+      },
+      "rejecting_condition": "g2require_actor_shape: 40 < 48",
+      "consumer": "baldypunch/demonpause choose frame 5; drawshape_8 reads 12+(40..47)*4",
+      "cause": "table ends where first shape starts; missing entries are shape/pixel words, not hidden pointers",
+      "classification": "B: correct rejection for this actual consumer; C: intended original frame mapping remains unverified",
+      "attack_targets": [
+        {
+          "index": 40,
+          "table_entry_exists": false,
+          "consumed_long_hex": "000a003c"
+        },
+        {
+          "index": 41,
+          "table_entry_exists": false,
+          "consumed_long_hex": "001e003d"
+        },
+        {
+          "index": 42,
+          "table_entry_exists": false,
+          "consumed_long_hex": "00000000"
+        },
+        {
+          "index": 43,
+          "table_entry_exists": false,
+          "consumed_long_hex": "00000000"
+        },
+        {
+          "index": 44,
+          "table_entry_exists": false,
+          "consumed_long_hex": "00000000"
+        },
+        {
+          "index": 45,
+          "table_entry_exists": false,
+          "consumed_long_hex": "00000001"
+        },
+        {
+          "index": 46,
+          "table_entry_exists": false,
+          "consumed_long_hex": "00000004"
+        },
+        {
+          "index": 47,
+          "table_entry_exists": false,
+          "consumed_long_hex": "04030303"
+        }
+      ],
+      "other_profiles": []
+    },
+    {
+      "profile": "Gloom 3",
+      "resource": "gloom3/objs/demon",
+      "binary": "game.hunk",
+      "file_bytes": 92496,
+      "sha256": "0723135c985a8343c2fdc9dc5d00d45317c63c4e99c492d6525eca426b1067af",
+      "expected_format": "animation header + flat frame*8+facing table + bounded shapes/palette",
+      "actual_header": {
+        "rotation_shift": 0,
+        "frames": 47,
+        "width": 67,
+        "height": 66,
+        "palette_offset": 91856,
+        "flat_entries": 47,
+        "first_shape": 200
+      },
+      "rejecting_condition": "g2require_actor_shape: 47 < 48",
+      "consumer": "baldypunch/demonpause choose frame 5; drawshape_8 reads 12+(40..47)*4",
+      "cause": "table ends where first shape starts; missing entries are shape/pixel words, not hidden pointers",
+      "classification": "B: correct rejection for this actual consumer; C: intended original frame mapping remains unverified",
+      "attack_targets": [
+        {
+          "index": 40,
+          "table_entry_exists": true,
+          "consumed_long_hex": "000132a4"
+        },
+        {
+          "index": 41,
+          "table_entry_exists": true,
+          "consumed_long_hex": "00013996"
+        },
+        {
+          "index": 42,
+          "table_entry_exists": true,
+          "consumed_long_hex": "000141f6"
+        },
+        {
+          "index": 43,
+          "table_entry_exists": true,
+          "consumed_long_hex": "00014904"
+        },
+        {
+          "index": 44,
+          "table_entry_exists": true,
+          "consumed_long_hex": "00014ff6"
+        },
+        {
+          "index": 45,
+          "table_entry_exists": true,
+          "consumed_long_hex": "00015722"
+        },
+        {
+          "index": 46,
+          "table_entry_exists": true,
+          "consumed_long_hex": "00015fa4"
+        },
+        {
+          "index": 47,
+          "table_entry_exists": false,
+          "consumed_long_hex": "000a003c"
+        }
+      ],
+      "other_profiles": []
+    },
+    {
+      "profile": "Gloom 3",
+      "resource": "gloom3/objs/lizard",
+      "binary": "game.hunk",
+      "file_bytes": 67372,
+      "sha256": "bda927e220d9a3921aedcff7abe693f49e759f2bc13903cbdef8a7466f9eac3e",
+      "expected_format": "animation header + flat frame*8+facing table + bounded shapes/palette",
+      "actual_header": {
+        "rotation_shift": 0,
+        "frames": 40,
+        "width": 27,
+        "height": 67,
+        "palette_offset": 67250,
+        "flat_entries": 40,
+        "first_shape": 172
+      },
+      "rejecting_condition": "g2require_actor_shape: 40 < 48",
+      "consumer": "baldypunch/demonpause choose frame 5; drawshape_8 reads 12+(40..47)*4",
+      "cause": "table ends where first shape starts; missing entries are shape/pixel words, not hidden pointers",
+      "classification": "B: correct rejection for this actual consumer; C: intended original frame mapping remains unverified",
+      "attack_targets": [
+        {
+          "index": 40,
+          "table_entry_exists": false,
+          "consumed_long_hex": "00070042"
+        },
+        {
+          "index": 41,
+          "table_entry_exists": false,
+          "consumed_long_hex": "00180043"
+        },
+        {
+          "index": 42,
+          "table_entry_exists": false,
+          "consumed_long_hex": "00000000"
+        },
+        {
+          "index": 43,
+          "table_entry_exists": false,
+          "consumed_long_hex": "00000000"
+        },
+        {
+          "index": 44,
+          "table_entry_exists": false,
+          "consumed_long_hex": "00000000"
+        },
+        {
+          "index": 45,
+          "table_entry_exists": false,
+          "consumed_long_hex": "00000000"
+        },
+        {
+          "index": 46,
+          "table_entry_exists": false,
+          "consumed_long_hex": "00000000"
+        },
+        {
+          "index": 47,
+          "table_entry_exists": false,
+          "consumed_long_hex": "00000016"
+        }
+      ],
+      "other_profiles": []
+    },
+    {
+      "profile": "Gloom 3",
+      "resource": "gloom3/objs/troll",
+      "binary": "game.hunk",
+      "file_bytes": 72508,
+      "sha256": "cbbc07c4a067004bf37a53dd73b8caff1dd80fac3abc0330280310bc72b824c5",
+      "expected_format": "animation header + flat frame*8+facing table + bounded shapes/palette",
+      "actual_header": {
+        "rotation_shift": 0,
+        "frames": 40,
+        "width": 33,
+        "height": 62,
+        "palette_offset": 72338,
+        "flat_entries": 40,
+        "first_shape": 172
+      },
+      "rejecting_condition": "g2require_actor_shape: 40 < 48",
+      "consumer": "baldypunch/demonpause choose frame 5; drawshape_8 reads 12+(40..47)*4",
+      "cause": "table ends where first shape starts; missing entries are shape/pixel words, not hidden pointers",
+      "classification": "B: correct rejection for this actual consumer; C: intended original frame mapping remains unverified",
+      "attack_targets": [
+        {
+          "index": 40,
+          "table_entry_exists": false,
+          "consumed_long_hex": "0009003c"
+        },
+        {
+          "index": 41,
+          "table_entry_exists": false,
+          "consumed_long_hex": "001a003d"
+        },
+        {
+          "index": 42,
+          "table_entry_exists": false,
+          "consumed_long_hex": "00000000"
+        },
+        {
+          "index": 43,
+          "table_entry_exists": false,
+          "consumed_long_hex": "00000000"
+        },
+        {
+          "index": 44,
+          "table_entry_exists": false,
+          "consumed_long_hex": "00000000"
+        },
+        {
+          "index": 45,
+          "table_entry_exists": false,
+          "consumed_long_hex": "00000000"
+        },
+        {
+          "index": 46,
+          "table_entry_exists": false,
+          "consumed_long_hex": "00000707"
+        },
+        {
+          "index": 47,
+          "table_entry_exists": false,
+          "consumed_long_hex": "07070707"
+        }
+      ],
+      "other_profiles": []
+    },
+    {
+      "profile": "Gloom 3",
+      "resource": "gloom3/txts/test",
+      "binary": "game.hunk",
+      "file_bytes": 82288,
+      "sha256": "1298eac57d79de95aa2fd48385b240ef5beff0470f167dbccbc86d4540cb8267",
+      "expected_format": "palette offset long + 1..20 complete 4160-byte texture columns + palette",
+      "actual_header": {
+        "format": "single animation-shaped graphic",
+        "rotation_shift": 0,
+        "frames": 1,
+        "width": 320,
+        "height": 255,
+        "palette_offset": 81624,
+        "shape_offset": 16,
+        "handles": [
+          1,
+          254
+        ]
+      },
+      "rejecting_condition": "g2validate_texture: first long 1 < 4164",
+      "consumer": "texture loader reads first long as palette offset; rendering assumes complete 64*65 columns",
+      "cause": "different file format; not a truncated texture column",
+      "classification": "B: correct rejection in texture path; standalone sprite usability is not asserted"
+    },
+    {
+      "profile": "Zombie Massacre",
+      "resource": "massacre/txts/test",
+      "binary": "game.hunk",
+      "file_bytes": 82288,
+      "sha256": "1298eac57d79de95aa2fd48385b240ef5beff0470f167dbccbc86d4540cb8267",
+      "expected_format": "palette offset long + 1..20 complete 4160-byte texture columns + palette",
+      "actual_header": {
+        "format": "single animation-shaped graphic",
+        "rotation_shift": 0,
+        "frames": 1,
+        "width": 320,
+        "height": 255,
+        "palette_offset": 81624,
+        "shape_offset": 16,
+        "handles": [
+          1,
+          254
+        ]
+      },
+      "rejecting_condition": "g2validate_texture: first long 1 < 4164",
+      "consumer": "texture loader reads first long as palette offset; rendering assumes complete 64*65 columns",
+      "cause": "different file format; not a truncated texture column",
+      "classification": "B: correct rejection in texture path; standalone sprite usability is not asserted"
+    },
+    {
+      "profile": "Gloom 3",
+      "resource": "gloom3/objs/baldy",
+      "binary": "bench.hunk",
+      "file_bytes": 72098,
+      "sha256": "c81f94716e6cffd24a516cb0df4722c17f58c1779ad834a0cd747109d52bc670",
+      "expected_format": "animation header + flat frame*8+facing table + bounded shapes/palette",
+      "actual_header": {
+        "rotation_shift": 0,
+        "frames": 40,
+        "width": 33,
+        "height": 65,
+        "palette_offset": 71852,
+        "flat_entries": 40,
+        "first_shape": 172
+      },
+      "rejecting_condition": "g2require_actor_shape: 40 < 48",
+      "consumer": "baldypunch/demonpause choose frame 5; drawshape_8 reads 12+(40..47)*4",
+      "cause": "table ends where first shape starts; missing entries are shape/pixel words, not hidden pointers",
+      "classification": "B: correct rejection for this actual consumer; C: intended original frame mapping remains unverified",
+      "attack_targets": [
+        {
+          "index": 40,
+          "table_entry_exists": false,
+          "consumed_long_hex": "000a003c"
+        },
+        {
+          "index": 41,
+          "table_entry_exists": false,
+          "consumed_long_hex": "001e003d"
+        },
+        {
+          "index": 42,
+          "table_entry_exists": false,
+          "consumed_long_hex": "00000000"
+        },
+        {
+          "index": 43,
+          "table_entry_exists": false,
+          "consumed_long_hex": "00000000"
+        },
+        {
+          "index": 44,
+          "table_entry_exists": false,
+          "consumed_long_hex": "00000000"
+        },
+        {
+          "index": 45,
+          "table_entry_exists": false,
+          "consumed_long_hex": "00000001"
+        },
+        {
+          "index": 46,
+          "table_entry_exists": false,
+          "consumed_long_hex": "00000004"
+        },
+        {
+          "index": 47,
+          "table_entry_exists": false,
+          "consumed_long_hex": "04030303"
+        }
+      ],
+      "other_profiles": []
+    },
+    {
+      "profile": "Gloom 3",
+      "resource": "gloom3/objs/demon",
+      "binary": "bench.hunk",
+      "file_bytes": 92496,
+      "sha256": "0723135c985a8343c2fdc9dc5d00d45317c63c4e99c492d6525eca426b1067af",
+      "expected_format": "animation header + flat frame*8+facing table + bounded shapes/palette",
+      "actual_header": {
+        "rotation_shift": 0,
+        "frames": 47,
+        "width": 67,
+        "height": 66,
+        "palette_offset": 91856,
+        "flat_entries": 47,
+        "first_shape": 200
+      },
+      "rejecting_condition": "g2require_actor_shape: 47 < 48",
+      "consumer": "baldypunch/demonpause choose frame 5; drawshape_8 reads 12+(40..47)*4",
+      "cause": "table ends where first shape starts; missing entries are shape/pixel words, not hidden pointers",
+      "classification": "B: correct rejection for this actual consumer; C: intended original frame mapping remains unverified",
+      "attack_targets": [
+        {
+          "index": 40,
+          "table_entry_exists": true,
+          "consumed_long_hex": "000132a4"
+        },
+        {
+          "index": 41,
+          "table_entry_exists": true,
+          "consumed_long_hex": "00013996"
+        },
+        {
+          "index": 42,
+          "table_entry_exists": true,
+          "consumed_long_hex": "000141f6"
+        },
+        {
+          "index": 43,
+          "table_entry_exists": true,
+          "consumed_long_hex": "00014904"
+        },
+        {
+          "index": 44,
+          "table_entry_exists": true,
+          "consumed_long_hex": "00014ff6"
+        },
+        {
+          "index": 45,
+          "table_entry_exists": true,
+          "consumed_long_hex": "00015722"
+        },
+        {
+          "index": 46,
+          "table_entry_exists": true,
+          "consumed_long_hex": "00015fa4"
+        },
+        {
+          "index": 47,
+          "table_entry_exists": false,
+          "consumed_long_hex": "000a003c"
+        }
+      ],
+      "other_profiles": []
+    },
+    {
+      "profile": "Gloom 3",
+      "resource": "gloom3/objs/lizard",
+      "binary": "bench.hunk",
+      "file_bytes": 67372,
+      "sha256": "bda927e220d9a3921aedcff7abe693f49e759f2bc13903cbdef8a7466f9eac3e",
+      "expected_format": "animation header + flat frame*8+facing table + bounded shapes/palette",
+      "actual_header": {
+        "rotation_shift": 0,
+        "frames": 40,
+        "width": 27,
+        "height": 67,
+        "palette_offset": 67250,
+        "flat_entries": 40,
+        "first_shape": 172
+      },
+      "rejecting_condition": "g2require_actor_shape: 40 < 48",
+      "consumer": "baldypunch/demonpause choose frame 5; drawshape_8 reads 12+(40..47)*4",
+      "cause": "table ends where first shape starts; missing entries are shape/pixel words, not hidden pointers",
+      "classification": "B: correct rejection for this actual consumer; C: intended original frame mapping remains unverified",
+      "attack_targets": [
+        {
+          "index": 40,
+          "table_entry_exists": false,
+          "consumed_long_hex": "00070042"
+        },
+        {
+          "index": 41,
+          "table_entry_exists": false,
+          "consumed_long_hex": "00180043"
+        },
+        {
+          "index": 42,
+          "table_entry_exists": false,
+          "consumed_long_hex": "00000000"
+        },
+        {
+          "index": 43,
+          "table_entry_exists": false,
+          "consumed_long_hex": "00000000"
+        },
+        {
+          "index": 44,
+          "table_entry_exists": false,
+          "consumed_long_hex": "00000000"
+        },
+        {
+          "index": 45,
+          "table_entry_exists": false,
+          "consumed_long_hex": "00000000"
+        },
+        {
+          "index": 46,
+          "table_entry_exists": false,
+          "consumed_long_hex": "00000000"
+        },
+        {
+          "index": 47,
+          "table_entry_exists": false,
+          "consumed_long_hex": "00000016"
+        }
+      ],
+      "other_profiles": []
+    },
+    {
+      "profile": "Gloom 3",
+      "resource": "gloom3/objs/troll",
+      "binary": "bench.hunk",
+      "file_bytes": 72508,
+      "sha256": "cbbc07c4a067004bf37a53dd73b8caff1dd80fac3abc0330280310bc72b824c5",
+      "expected_format": "animation header + flat frame*8+facing table + bounded shapes/palette",
+      "actual_header": {
+        "rotation_shift": 0,
+        "frames": 40,
+        "width": 33,
+        "height": 62,
+        "palette_offset": 72338,
+        "flat_entries": 40,
+        "first_shape": 172
+      },
+      "rejecting_condition": "g2require_actor_shape: 40 < 48",
+      "consumer": "baldypunch/demonpause choose frame 5; drawshape_8 reads 12+(40..47)*4",
+      "cause": "table ends where first shape starts; missing entries are shape/pixel words, not hidden pointers",
+      "classification": "B: correct rejection for this actual consumer; C: intended original frame mapping remains unverified",
+      "attack_targets": [
+        {
+          "index": 40,
+          "table_entry_exists": false,
+          "consumed_long_hex": "0009003c"
+        },
+        {
+          "index": 41,
+          "table_entry_exists": false,
+          "consumed_long_hex": "001a003d"
+        },
+        {
+          "index": 42,
+          "table_entry_exists": false,
+          "consumed_long_hex": "00000000"
+        },
+        {
+          "index": 43,
+          "table_entry_exists": false,
+          "consumed_long_hex": "00000000"
+        },
+        {
+          "index": 44,
+          "table_entry_exists": false,
+          "consumed_long_hex": "00000000"
+        },
+        {
+          "index": 45,
+          "table_entry_exists": false,
+          "consumed_long_hex": "00000000"
+        },
+        {
+          "index": 46,
+          "table_entry_exists": false,
+          "consumed_long_hex": "00000707"
+        },
+        {
+          "index": 47,
+          "table_entry_exists": false,
+          "consumed_long_hex": "07070707"
+        }
+      ],
+      "other_profiles": []
+    },
+    {
+      "profile": "Gloom 3",
+      "resource": "gloom3/txts/test",
+      "binary": "bench.hunk",
+      "file_bytes": 82288,
+      "sha256": "1298eac57d79de95aa2fd48385b240ef5beff0470f167dbccbc86d4540cb8267",
+      "expected_format": "palette offset long + 1..20 complete 4160-byte texture columns + palette",
+      "actual_header": {
+        "format": "single animation-shaped graphic",
+        "rotation_shift": 0,
+        "frames": 1,
+        "width": 320,
+        "height": 255,
+        "palette_offset": 81624,
+        "shape_offset": 16,
+        "handles": [
+          1,
+          254
+        ]
+      },
+      "rejecting_condition": "g2validate_texture: first long 1 < 4164",
+      "consumer": "texture loader reads first long as palette offset; rendering assumes complete 64*65 columns",
+      "cause": "different file format; not a truncated texture column",
+      "classification": "B: correct rejection in texture path; standalone sprite usability is not asserted"
+    },
+    {
+      "profile": "Zombie Massacre",
+      "resource": "massacre/txts/test",
+      "binary": "bench.hunk",
+      "file_bytes": 82288,
+      "sha256": "1298eac57d79de95aa2fd48385b240ef5beff0470f167dbccbc86d4540cb8267",
+      "expected_format": "palette offset long + 1..20 complete 4160-byte texture columns + palette",
+      "actual_header": {
+        "format": "single animation-shaped graphic",
+        "rotation_shift": 0,
+        "frames": 1,
+        "width": 320,
+        "height": 255,
+        "palette_offset": 81624,
+        "shape_offset": 16,
+        "handles": [
+          1,
+          254
+        ]
+      },
+      "rejecting_condition": "g2validate_texture: first long 1 < 4164",
+      "consumer": "texture loader reads first long as palette offset; rendering assumes complete 64*65 columns",
+      "cause": "different file format; not a truncated texture column",
+      "classification": "B: correct rejection in texture path; standalone sprite usability is not asserted"
+    }
+  ]
+}

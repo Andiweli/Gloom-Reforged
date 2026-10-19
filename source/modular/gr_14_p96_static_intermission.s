@@ -1298,8 +1298,10 @@ g2p96_gameplay_dbuf_flip
 .use0
 	move.l	p96gameplay_dbuf_sb0,a1
 .have_sb
+	move.l	a1,d2		; library calls may destroy a1, never d2
 	moveq	#3,d3
 .retry
+	move.l	d2,a1
 	move.l	p96winprobe_screen_ptr,a0
 	move.l	p96gameplay_intbase,a6
 	jsr	-780(a6)	;ChangeScreenBuffer
@@ -1384,7 +1386,7 @@ g2p96_gameplay_dbuf_suspend_visible
 	rts
 
 g2p96_gameplay_dbuf_suspend_primary
-	movem.l	d0-d3/a0-a1/a6,-(a7)
+	movem.l	d0-d3/a0-a2/a6,-(a7)
 	jsr	g2p96_gameplay_dbuf_restore_rport_original	;c86zjf: FreeScreenBuffer/close uses original bitmap
 	tst	p96gameplay_dbuf_active
 	beq.w	.done
@@ -1412,8 +1414,10 @@ g2p96_gameplay_dbuf_suspend_primary
 	beq.w	.syncfail
 	jsr	g2p96_gameplay_clear_bitmap_a2
 	move.l	p96gameplay_dbuf_sb0,a1
+	move.l	a1,d2
 	moveq	#3,d3
 .retry
+	move.l	d2,a1
 	move.l	p96winprobe_screen_ptr,a0
 	move.l	p96gameplay_intbase,a6
 	jsr	-780(a6)
@@ -1440,7 +1444,7 @@ g2p96_gameplay_dbuf_suspend_primary
 .syncfail
 	move	#-1,p96gameplay_dbuf_suspended
 .done
-	movem.l	(a7)+,d0-d3/a0-a1/a6
+	movem.l	(a7)+,d0-d3/a0-a2/a6
 	rts
 
 g2p96_gameplay_dbuf_resume
@@ -1466,8 +1470,19 @@ g2p96_gameplay_dbuf_resume
 
 g2p96_gameplay_dbuf_free
 	movem.l	d0/a0-a1/a6,-(a7)
+.wait_safe
 	jsr	g2p96_gameplay_dbuf_wait_safe
+	tst.l	d0
+	beq.w	.wait_safe	; timeout leaves ownership with the display
+.wait_disp
 	jsr	g2p96_gameplay_dbuf_wait_disp
+	tst.l	d0
+	beq.w	.wait_disp
+	move.l	p96gameplay_grbase,d0
+	beq.w	.blit_done
+	move.l	d0,a6
+	jsr	-228(a6)	; V39 FreeScreenBuffer does not wait for the blitter
+.blit_done
 	jsr	g2p96_gameplay_dbuf_free_partial
 	movem.l	(a7)+,d0/a0-a1/a6
 	rts
@@ -2260,6 +2275,7 @@ g2p96_static_decode_gloombrush_best
 ; out: d0=-1 success.  Source width is the same 8-pixel multiple expected by
 ; the original decodeiff routine; height is clipped to the remaining 240 rows.
 g2p96_static_decode_iff_dual_common
+	jsr	g2require_iff	; same bounds contract as the native decoder
 	movem.l	d1-d7/a0-a6,-(a7)
 	move	d6,p96static_direct_dest_y
 	move.l	a0,a5		; source header/data

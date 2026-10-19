@@ -9,6 +9,8 @@
 	include	"modular/gr_08_serial_gameflow.s"
 	include	"modular/gr_09_menus_config_displayselect.s"
 	include	"modular/gr_10_p96_native_display.s"
+	; Audit cold-loader growth: retain d825e91 C2P modulo-16 layout.
+	dcb.w 1,$4e71
 	include	"modular/gr_11_kalm_c2p_grey_menu.s"
 	include	"modular/gr_12_profiles_embedded_assets.s"
 	include	"modular/gr_13_p96_menu_native.s"
@@ -28,3 +30,10 @@
 	include	"modular/gr_27_wall_bayer_lookup.s"
 	include "modular/gr_28_launcher_update.s"
 	include "modular/gr_29_automap.s"
+	include "modular/gr_31_resource_safety.s"
+	include "modular/gr_32_config_safe_write.s"
+	include "modular/gr_33_crm_bounds.s"
+	include "modular/gr_34_event_script_bounds.s"
+	include "modular/gr_35_script_bounds.s"
+	include "modular/gr_36_palette_resource_bounds.s"
+	include "modular/gr_37_med_structure_bounds.s"

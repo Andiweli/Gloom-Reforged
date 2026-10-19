@@ -1,0 +1,1095 @@
+Gloom Reforged 2.4.0 - Stabilisierung auf Branch audit
+Stand: 11. Oktober 2026
+
+Aktueller Status: überprüfter Phase-4-Quellstand, bedingt bereit für Hardwaretests.
+Keine öffentliche Release-Freigabe und kein vollständiger Abschluss von F004.
+F004 bleibt wegen der unten genannten MED-Player-/Kompatibilitätsgrenzen offen.
+Die folgenden bisherigen Abschnitte dokumentieren Phase 1 (d825e91); aktuelle
+Ergebnisse und Änderungen stehen in den angehängten Abschnitten Phase 2 bis 4.
+
+Ausgangspunkt
+-------------
+origin/master und der auditierte Commit sind identisch:
+c223cf5dce87dacbfb9591a6109e02bbee0df98c. master bleibt unverändert.
+Die Versionsnummer bleibt 2.4.0. Kein PR, kein Merge und keine neue Veröffentlichung.
+Änderungen betreffen Quellcode; bestehende Binärdateien und Release-ZIPs wurden
+nicht neu erstellt. Der Updater muss für die Zielplattform neu gebaut werden.
+
+Geschlossene Auditbefunde
+------------------------
+F001: Pflichtallokationen von Startup, Objektpools, Bildschirm und Menüs werden
+geprüft. Fast-RAM-Fallback bewahrt die ursprünglichen Flags über AllocMem.
+Größen-/Offsetüberläufe liefern NULL. Haupt-Objektdateien dürfen nicht mit NULL
+fortgesetzt werden. Fehler verlassen verschachtelte Frames über den gesicherten
+Task-Stack und räumen nur tatsächlich besessene Ressourcen auf. VBlank, Audio,
+View, Forbid/Blitter und Libraries berücksichtigen Teilinitialisierung.
+
+F002: OpenScreen-/OpenWindow-/AllocDBufInfo-Fehler führen zum kontrollierten
+Abbruch. Es wird kein gemischter OS-/Copper-Fallbackzustand weiterverwendet.
+Native Fenster/Screen/DBufInfo werden nur bei vorhandenem Besitz geschlossen.
+
+F003: Seek, Header-Read, Allokation, Body-Read und Close werden geprüft. Leere,
+negative und unvollständige Dateien werden verworfen. Disk-Länge und Entpack-
+Kapazität bleiben getrennt; gelesen werden genau die ermittelten Dateibytes.
+Fehler schließen den Handle einmal und entfernen die fehlgeschlagene Allokation.
+loadfileabs verlangt jetzt eine explizite Kapazität; sein einziger interner
+Legacy-Aufrufer übergibt 128. Komprimierte Dateien dürfen keinen festen Puffer
+überschreiben. CrM-Headergrenzen werden vor dem vorhandenen Codec geprüft.
+Die interne Codec-Sicherheit ist ausdrücklich Teil des offenen F004.
+
+F005: Alle 160 Texture-Pointer werden initialisiert und vor Freigabe gelöscht.
+Jeder der acht Screens behält seine zwanzig Slots, auch bei leerem Namen.
+Kompakte Screens mit 1..20 Spalten veröffentlichen nur echte Spalten; weitere
+Slots bleiben NULL. Ein benannter, fehlender Screen führt zum Abbruch.
+
+F006: Fehlende Safe-/Display-Replies bleiben ausstehend. Wiederholte Poll-
+Timeouts erlauben keine Freigabe. Erst nach beiden Bestätigungen und WaitBlit
+werden ScreenBuffer und Ports freigegeben. Ein dauerhaft defekter Treiber ohne
+Replies kann den Exit blockieren; das ist keine erfolgreiche Synchronisation.
+FreeScreenBuffer darf laut Intuition-Vertrag auch den aktuellen Buffer abbauen.
+
+F007: Hardware- und Ringbuffer-Overruns werden quittiert und gezählt; der ISR
+kehrt ohne Warnschleife zurück. Serial wird erst beim tatsächlichen Link-Aufruf
+initialisiert und nach fehlgeschlagenem Verbindungsversuch wieder freigegeben.
+
+F008: Plain/TLS liefern bei ordentlichem EOF 0/AMG_OK, bei Fehlern negativ.
+Der HTTP-Client akzeptiert vollständig eingerahmte Antworten auch nach einem
+Transportabbruch, verwirft aber unvollständige Content-Length-/Chunked-Bodies
+und ungerahmte Antworten mit Transportfehler. Content-Length wird strikt geprüft.
+
+F009: ChangeScreenBuffer und WaitTOF dürfen A1 zerstören; jeder Versuch lädt
+seinen ScreenBuffer erneut. suspend_primary bewahrt außerdem das verwendete A2.
+
+F010: AGA-Copper-Paletten zählen Banken von 32 Einträgen korrekt, einschließlich
+kleiner letzter Bank und Null-Einträgen. Der OS-Palettenpublisher ist unverändert.
+
+F011: Spiel-/P96-/Launcher-Präferenzen schreiben über dieselbe geprüfte Routine.
+Sie erzeugt erst eine task-spezifische Datei <Name>.g2XXXXXXXX.tmp, prüft Write
+und Close, sichert die alte Datei als .bak und installiert dann die neue Datei.
+Beide Namen liegen im selben Verzeichnis; die Dateikomponente bleibt innerhalb
+der klassischen 30-Zeichen-Grenze. Existierende temporäre/Backup-Dateien werden
+nicht überschrieben. Installationsfehler stellen die alte Datei zurück. Scheitert
+auch die Rückstellung, bleiben alte .bak und vollständige .tmp erhalten.
+Gespeichert-Markierungen werden erst nach erfolgreicher Installation aktualisiert.
+
+F012: Aktuelle Modulübersicht, aktive Include-Liste und 34 SHA-256-Einträge
+wurden aktualisiert. Historische Split-/Release-Daten bleiben als solche markiert.
+
+Offen: F004 - teilweise abgesichert, nicht vollständig geschlossen
+-----------------------------------------------------------------
+Neu geprüft werden logische Nutzdatenlängen, Map-Header/Offsets, Grid-/Polygon-
+Point-Indizes, acht Texture-Namen, Texture-Spalten/Palette, Animations-Header,
+Frame-Tabellen/Pixelspannen sowie IFF-Abmessungen und ByteRun1-Ein-/Ausgabegrenzen.
+Prüfungen liegen in Lade-/Remap-/Bildvorbereitungspfaden. Geladene IFF-Dateien
+speichern eine erfolgreiche Prüfung; die Pixel-Renderloops erhalten keine Checks.
+Der private Allokationsheader ist nun 32 statt 16 Byte groß, mit separater
+Nutzdatenlänge und Prüfmarkierung; Eigentum/Freigabe bleiben über memlist erhalten.
+
+Noch nicht vollständig abgesichert sind:
+- Rückwärtsleser, Dictionary-Referenzen und Ausgabegrenzen innerhalb des alten
+  CrM!/CrM2-Codecs. Ein plausibler Header ist kein Beweis für sicheren Payload.
+- Vollständige Event-/Map-Animationsprogramme, Operandbereiche und alle daraus
+  folgenden Polygon-/Texture-Zugriffe während der Laufzeit.
+- Script-Dateinamen/Textzeilen und weitere Script-Parserpfade.
+- Sämtliche Bild-/Palette-Paare und die aggregierte Palette bei addpal.
+
+Diese offenen Pfade sind nicht durch Platzhalter oder angeblich vollständige
+Validierung geschlossen worden. Unvertrauenswürdige Originaldaten sind weiterhin
+kein vollständig abgesicherter Eingabekanal. Der Arbeitsbranch ist kein fertig
+validierter Release-Kandidat für alle Datenprofile.
+
+Erfolgreiche Prüfung
+--------------------
+- Vollständige Spiel- und GloomBench-68020-Amiga-Hunks mit vasm 2.0f assembliert;
+  keine Assemblerfehler, keine Optimierungen/Übersetzungen. Je sechs bestehende
+  Warnungen: Bezeichner rts/data/offset/c2p/text sowie automatische joyxs-Ausrichtung.
+  Die getesteten Instruktionen stimmen bytegenau mit den normalen Hunks ohne
+  Debug-Symbole überein.
+- 782 Tests an den tatsächlichen Hunk-Instruktionen mit Musashi 313ebf1:
+  je 100 Spiel-/98 Bench-Fehlerpfadfälle auf 68020/030/040 plus je 94 echte
+  Repository-/kompilierte Ressourcenfixtures. Library-Aufrufe werden simuliert.
+  Enthalten sind volatile Register, NULL, Seek/Read/Close, ByteRun1, Animationen,
+  kompakte/fehlende Slots, Paletten-Canaries, verzögerte P96-Replies, Native-Open-
+  Fehler und DOS-Write-/Close-/Rename-/Rollback-/Dateikollisionsfehler.
+- 45 HTTP-Fälle mit dem produktiven http.c und einem TLS-Transportstub, mit
+  Lesehäppchen 1/7/4096 Byte; Host-Build C11 /W4 /WX mit MSVC.
+- 19 vollständige Render-/Gameplay-Module sowie restlicher Präsentationscode
+  unverändert; C2P, MOVE16, ADDX/Carry, Bayer/Wände, Physics, Auflösungen,
+  Qualitätsstufen, Low-Bandwidth, Automap und Cache-Kerne bleiben erhalten.
+- Alle 71 g2bench2-Messblöcke sind unverändert; acht korrigierte gemeinsame
+  Routineblöcke stimmen zwischen Spiel und Bench überein. Neue gr_31/gr_32
+  werden von beiden Programmen direkt eingebunden.
+- Vollständiger Git-Diff und Prüfsummenprüfung; Details zur Reproduktion in
+  tests/README.md und tests/stability_invariants.py.
+
+Ausstehende Zielplattform-/Hardwaretests
+---------------------------------------
+Keine echte Amiga-Hardware, kein vollständiges AmigaOS und keine P96-Treiber
+wurden ausgeführt. Original-GenAm-/Release-Packaging und Amiga-C/AmiSSL-Build
+sowie echte HTTP/TLS-Verbindungen des Updaters stehen aus.
+Erforderlich sind 68020/030/040/060, AGA, ECS/EHB, alle sechs P96-Auflösungen,
+Single/Double Buffer, Low-Bandwidth, sämtliche Qualitäts-/Skalierungsstufen,
+alle vier Datenprofile, knapper/fragmentierter Chip-/Fast-RAM, viele Levelwechsel,
+Window-Fokus/Abbruch/Exit und Fehler bei DOS-Datenträgern. Die MOVE16-Routinen
+sind unverändert, wurden hier aber nicht auf einer 68060 ausgeführt.
+
+Erkennbare Grenzen/Risiken
+-------------------------
+F004 bleibt offen. Ein ausgefallener P96-Reply kann den Exit dauerhaft blockieren.
+Private Speicherheader benötigen zusätzlich 16 Byte pro Allokation. Echte
+FPS-/GloomBench-Messungen stehen aus; unveränderter Renderquellcode ist kein
+Hardware-Performancebeweis. Die neuen Formatprüfungen müssen insbesondere mit
+externen Gloom-3-/Zombie-Massacre-/Classic-Datensätzen verifiziert werden.
+
+Konfigurations-Renames bilden keine stromausfallsichere atomare Transaktion:
+zwischen zwei Renames kann der Hauptname fehlen, während .bak die alte Datei
+enthält. Bei fehlgeschlagener Rückstellung oder Neustart nach diesem Schritt
+muss die vollständige .bak bei beendetem Spiel unter dem ursprünglichen Namen
+wiederhergestellt werden. Eine nach erfolgreicher Installation übriggebliebene
+.bak oder .tmp kann weitere Saves desselben Tasks blockieren. Erst nach Prüfung
+und Sicherung der alten Datei bereinigen; der Code löscht keine fremden Altdateien.
+
+API-Verträge (Primärdokumentation)
+---------------------------------
+https://developer.amigaos3.net/autodocs/dos.library/Close.html
+https://developer.amigaos3.net/autodocs/dos.library/Rename.html
+https://developer.amigaos3.net/autodocs/intuition.library/FreeScreenBuffer.html
+https://developer.amigaos3.net/autodocs/intuition.library/ChangeScreenBuffer.html
+
+Logische Commits
+---------------
+4d76dae HTTP/TLS-EOF und vollständige Antworten
+06618b2 P96-Besitz, serielle Overruns, Register und AGA-Palette
+2dd373f Teilinitialisierung/Pflichtallokationen und kontrollierter Abbruch
+e3900c9 geprüfter gemeinsamer Dateilader
+3482a91 Ressourcenrahmen/kompakte feste Texture-Slots (F004 teilweise)
+0885f79 A2-Erhalt beim P96-Suspend
+0b0fe42 geprüfte Konfigurationsersetzung
+Abschlusscommit: aktuelle Dokumentation/Prüfsummen und erweiterte Regressionen.
+Veröffentlichung ausschließlich auf origin/audit; master bleibt c223cf5.
+
+
+Audit Phase 2 - überprüfter Zwischenstand vom 11. Oktober 2026
+===========================================================
+
+Ausgangslage und Git
+-------------------
+Remote audit wurde vor Änderungen geprüft: d825e918241f39e62451552114aa776e6ed154f6.
+Der vorhandene Bericht und alle acht Phase-1-Commits wurden übernommen. Keine
+zusätzlichen Remote-Commits lagen vor; erneuter Fetch vor Veröffentlichung
+bestätigte denselben Ausgangsstand. Kein Neustart auf master, kein PR/Merge.
+origin/master bleibt c223cf5dce87dacbfb9591a6109e02bbee0df98c. Die lokale
+Arbeitskopie führt ausschließlich audit; es wurde kein lokaler master angelegt.
+Version 2.4.0, bestehende Executables, Daten und Release-Archive sind unverändert.
+
+Phase 1 wurde separat erneut ausgeführt: 782 bestandene Instruktions-/Fixture-
+Fälle, 45 bestandene HTTP-Fälle, erfolgreiche Vollassemblierung beider Programme,
+19 damals unveränderte vollständige Module und 71 unveränderte Messblöcke.
+Die folgenden Zahlen stammen aus dem abschließenden neuen Quellstand.
+
+Behobene Restfehler und technische Begründung
+------------------------------------------
+CrM!/CrM2: Beide Loader verwenden einen gemeinsamen begrenzten Decoder. Er prüft
+Header/Payload/Tail-Bits, tatsächliche Dateilänge, Ausgabekapazität, Größen-
+überläufe, Bitbudget, Huffman-Code-/Tabellengrenzen, Kopierlängen und bereits
+produzierte Rückreferenzbereiche. In-place-Schreiben darf ungelesene Eingabe nicht
+zerstören. Unerwartetes Ende verwirft die Ressource, propagiert den Fehler und
+entfernt die fehlgeschlagene Allokation. Der ursprüngliche Codec bleibt als
+Testoracle/INCBIN unverändert. Kompatible Null-Tail-Bits sind explizit getestet;
+die alte physische Rückwärts-Prefetchtechnik darf zwei Headerwörter vorlesen,
+ohne diese als zusätzliche Nutzbits zu interpretieren. Kein Prüfsummenformat:
+eine Beschädigung, die weiterhin einen gültigen Stream ergibt, ist nicht immer
+erkennbar. Gültige getestete Ergebnisse stimmen bytegenau mit dem alten Codec.
+
+Events/Maps: Alle 24 tatsächlichen Eventtabelleneinträge und die Opcodes 0..6
+werden vor Nutzung mit vollständigen Operanden geprüft. Grenzen leiten sich aus
+dem Map-Header, den Ressourcenspannen, g2objinfo und der echten Polygonstruktur ab.
+Geprüft werden Objektarten, Event-/Polygonreferenzen, Teleportkontext, Texture-
+Slots und Morph-Blöcke. Map-Animationsprogramme besitzen vollständige Tabellen,
+2..160 Frames und vorhandene Texture-Pointer. Ein Frame hätte im alten DBF-Pfad
+einen Unterlauf ausgelöst. Nach Laden werden alle tatsächlich referenzierten
+Texturen verlangt. Voller Türpool überspringt das validierte Event; fehlendes
+Teleportobjekt führt zum kontrollierten Abbruch. Kollabierte/überlaufende Morph-
+Normalen werden abgefangen; gültige Festkommaergebnisse bleiben unverändert.
+
+Level-Scripts: Ein begrenzter Parser prüft die zwölf existierenden Befehle,
+Dateiende, CR/LF/CRLF, Kommentare, Parameter und tatsächliche Zielpuffergrößen.
+Unvollständige Zeilen und unbekannte Befehle werden verworfen. Loop benötigt
+einen möglichen Play-/Wait-Pfad; eine zusätzliche Laufzeitmarkierung verhindert
+auch einen tatsächlich durchlaufenen Loop ohne Wartepunkt. Textprüfung bildet
+Glyphindizes, automatische Wortteilung, 40-Zeichen-Blitterzeilen und verfügbare
+Zeilenhöhe nach. Der Levelscanner liest keine fünf Bytes hinter Dateiende.
+Keine Änderung an gültigem Gameplay-Timing oder der Text-Blitterroutine.
+
+Paletten/weitere Ressourcen: Geprüft werden die tatsächlichen AGA-/ECS-
+Palettegrößen, IFF-Farbtiefe, 4096-Byte-Remap-Tabelle, 512-Farben-Sammelpuffer,
+gezählte Floor-/Wall-Paletten, Font-Offsets/BLTSIZE/Zeilen/Masken einschließlich
+zusätzlichem DMA-Wort, maximal zehn Pixel Bigfont-Höhe und ECS-Bitplanegrenzen.
+Das GloomBrush-Format ist IFF und wird entsprechend geprüft. Profile und
+eingebettete Ersatzdaten werden an den gemeinsamen Verbrauchergrenzen geprüft.
+Die echten HUD-, Gun- und Gegner-/Spielerzugriffe bestimmen die Mindestanzahl
+Animationsbilder. Animationen begrenzen auch das spätere vorzeichenbehaftete
+16-Bit-Spaltenoffset. Floor-/Tile-Verbraucher verlangen die tatsächlich benötigten
+128*128 bzw. 2*64*65 Pixel. SFX-Dateien decken Paula-Wortlänge ab, einschließlich
+des Hardware-Sonderfalls Länge 0 = 65536 Wörter; fehlendes optionales SFX startet
+kein DMA. P96-CLUT bekommt vollständige Palette/Remap-Daten vor Veröffentlichung.
+
+MED: Neue strukturelle Prüfung von MMD0/1-/MCN0/1-Headern, modlen, Songdaten,
+Block-/Sequenz-/Sampletabellen, Blockdaten, optionalen Expansionsstrukturen und
+relativen Synth-/Hybrid-Wellenzeigern. Multi-Modul-Zyklen werden ohne Allokation
+begrenzt. Grenzen sind aus Formatdokumentation und Disassemblierung des vorhandenen
+Players rekonstruiert. Insbesondere werden die nachgewiesenen SUBQ.B/DBF-
+Unterläufe und ein fehlerhafter MIDI-Dump-Relokationspfad vor Aufruf verworfen.
+Der 7644-Byte-Binärplayer wird nicht verändert. Diese Prüfung ist KEIN Beweis
+für sichere vollständige Musik-Wiedergabe; siehe offene Risiken.
+
+Direkte DOS-Pfade: Konfigurationsleser besitzen feste Read-Kapazitäten und
+Formatprüfung. Profil-/Disk-Probes lesen keine Nutzdaten. Diagnosepfade schreiben
+fest begrenzte interne Texte. Das ungenutzte Legacy-savefile hat keinen internen
+Aufrufer. Externes C2P besitzt mindestens 42 Bytes für alle verwendeten Entries;
+sein Inhalt und der mit LoadSeg geladene GloomUpdate bleiben vertrauenswürdiger
+Programmcode, keine validierbaren allgemeinen Datenformate.
+
+Konfigurationsspeicherung
+------------------------
+Das Backup heißt nun dauerhaft <Name>.g2bak; die temporäre Datei bleibt task-
+spezifisch. Nach Unterbrechung zwischen old->backup und temp->target finden die
+Spiel-/P96-/Launcher-Leser beim nächsten Start die Sicherung auch bei anderer
+Task-Adresse. Wiederherstellung erfolgt nur bei echtem ERROR_OBJECT_NOT_FOUND;
+ein vorhandenes Ziel wird nicht überschrieben. Die normalen Leser prüfen danach
+Signatur/Version/Inhalt. Temporäre Dateien werden niemals ungeprüft übernommen.
+Write/Close müssen vollständig erfolgreich sein; Close verbraucht auch bei Fehler
+den Handle. AmigaDOS-Rename kann existierende Ziele nicht ersetzen und arbeitet
+innerhalb desselben Volumes. Bestehende Artefakte werden nicht trunkiert.
+
+Grenzen: Keine atomare Mehrdatei-Transaktion, kein belegter Stromausfall-/Flush-
+Schutz auf allen Dateisystemen. Extern beschädigtes Backup wird nicht als gültige
+Konfiguration akzeptiert. Bei bereits installiertem Ziel bleiben alte Backups
+erhalten und blockieren weitere Saves bis zur manuellen Prüfung/Sicherung.
+Alte task-spezifische Phase-1-.bak-Dateien benötigen manuelle Wiederherstellung.
+Gleichzeitige konkurrierende Spielprozesse sind keine getestete Transaktion.
+Zusatzoperationen liegen beim Start/Preferences-Save, nicht im Renderpfad.
+
+P96-Double-Buffering
+-------------------
+Der Phase-1-Besitzpfad bleibt unverändert. Safe- und Display-Replies müssen vor
+WaitBlit/Freigabe eingetroffen sein. Dauerhaft fehlende Replies behalten Buffer,
+aktive Ports und Task-Lebensdauer; es wird weder freigegeben noch ein unsicherer
+Screenwechsel erzwungen. Ein befristeter Beobachtungstest bestätigt dieses
+Verhalten, keine spätere Terminierung. Es existiert kein nachgewiesener
+Abbruch-/Cancel-Vertrag, der bei dauerhaft defektem Treiber sicheren nicht
+blockierenden Task-Exit garantiert. Der Exit kann daher weiterhin hängen.
+Ein Timeout wird ausdrücklich nicht als Eigentumsübertragung interpretiert.
+Keine Änderung/zusätzliche Prüfung im regulären Flip-Pfad.
+
+Tatsächliche Test- und Buildergebnisse
+------------------------------------
+Auf 68k-Instruktionsebene ausgeführt, AmigaOS-/DOS-/Treiberaufrufe modelliert:
+  782 vorhandene Phase-1-Fälle/Originalressourcenfixtures: bestanden.
+ 1476 CrM-/Normalenfälle: bestanden (246 je CPU/Binary; 236 Codec + 10 Normalen).
+  708 Event-/Scriptfälle: bestanden (118 je CPU/Binary).
+  744 Paletten-/Ressourcenfälle: bestanden (124 je CPU/Binary).
+   66 Konfigurationsunterbrechungs-/Wiederherstellungsfälle: bestanden.
+  468 MED-Struktur-/C2P-Entry-Spannenfälle: bestanden; keine Player-Zertifizierung.
+   12 P96-Reply-Ausfallbeobachtungen: bestanden; Exit bleibt erwartungsgemäß blockiert.
+ 4256 Fälle insgesamt; fokussierte Suiten jeweils Spiel/Bench auf 68020/030/040.
+CrM enthält Original-/kompilierte Ressourcen, Fast/LZH-Literale/Rückreferenzen,
+getrennte/in-place-Puffer, Speicher-Canaries und 180 deterministische zufällige
+Strukturen pro CPU/Binary: 179 verworfen, eine strukturell gültig abgearbeitet.
+
+Zusätzlich 448 bestandene Lifecycle/OOM-Szenarien auf 68020-Instruktionen:
+336 echte scriptplay-Ladepräfixe (42 Repository-Maps zweimal, jeweils AGA/P96
+für Spiel/Bench), vier abschließende Gesamtfreigaben und 108 injizierte
+Initialisierungs-AllocMem-Fehler (alle 54 Positionen je Binary). Stop vor Gameplay;
+Grafik/Audio/IRQ/Library-/DOS-Kontext simuliert. Handles/privater memlist-Besitz
+werden geprüft; nach Gesamtfreigabe bleiben keine privaten Blöcke zurück.
+Dies sind 4704 bestandene Instruktions-/Fixture-/Lifecycle-Fälle, keine 4704
+unabhängigen Hardwaretests. Zusätzlich: 45 HTTP-Tests mit produktivem http.c und
+TLS-Stub bestanden; echte TLS-Verbindungen stehen aus.
+
+Vollassemblierung Spiel und GloomBench mit vasm 2.0f, Motorola/m68k, -devpac,
+-m68020 -nocase -Fhunkexe -kick1hunks: jeweils Debug- und Normal-Hunk erfolgreich.
+Je sechs vorhandene Warnungen (rts/data/offset/c2p/text, joyxs-Ausrichtung),
+keine Fehler, keine automatischen Instruktionsübersetzungen/Optimierungen.
+Debug-/Normal-CODE einschließlich BSS stimmen nach gleicher Relokation überein.
+Normal-Spiel: 467356 Bytes; CODE/BSS 433840 Bytes; SHA-256
+3ef3e4abcedd8a9ef8f795116d78beb31a3c8bddc305f5b5c0d8e1ae5f904902
+Normal-Bench: 469960 Bytes; CODE/BSS 436092 Bytes; SHA-256
+f54aad7943a464217dd5dc8702bbb467ec7e6637280e728592d015301196747b
+Diese lokalen Testbuilds ersetzen keine Release-Binärdateien.
+Werkzeuge: Musashi 313ebf1bd9f4d0d93341eb5ce21fd8a119e9dbdd, MSVC 19.51,
+Python 3.12.14. Reproduktion: tests/README.md; Werkzeuge/Outputs extern.
+
+Statisch geprüft / binär verglichen:
+37 aktive Module, 39 gültige SHA-256-Einträge, 18 verschiedene aktive INCBIN-
+Dateien vorhanden und byteidentisch zu Phase 1. 18 vollständige Module identisch
+zu master, drei weitere identisch zu Phase 1; 71 Messblöcke unverändert und acht
+korrigierte gemeinsame Routinen synchron. gr_12 enthält jetzt den sicheren
+Embedded-Loader; daher nicht mehr Bestandteil der alten 19 Identitätsmodule.
+
+Renderkern/Performance
+---------------------
+Zehn relevante assemblierte Spannen pro Binary verglichen: 33300 Bytes Spiel,
+33336 Bytes Bench. Acht Spannen byteidentisch nach Normalisierung absoluter
+Relokationen; Scene-/Wall-Spannen behalten Instruktionen/Längen und nachgewiesene
+PC-relative Symbol+Offset-Ziele, ihre Displacement-Bytes ändern sich durch Layout.
+C2P 020/030 und 040/060, MOVE16, ADDX-Ketten, Bayer und P96-Flip erhalten ihre
+Implementierung. Keine zusätzlichen Checks in inneren Pixel-/Wand-/Sprite-Loops.
+Sechs kalte Event-/Lade-/Morph-Körper liegen hinter gleich großen JMP/NOP-Entries,
+damit bestehende PC-Operanden keine automatischen Long-Übersetzungen benötigen.
+Acht statische, nicht ausgeführte Padding-Bytes bewahren Kalm-Modulo-16-Ausrichtung.
+Die neue Normalen-Fehlerprüfung betrifft Morph-Geometrie; gültige Rechenergebnisse
+sind differentiell bestätigt. Kein Nachweis einer FPS-Gleichheit: keine realen
+FPS-/GloomBench-Messungen. Cache-/Adresslayout und Ladeprüfungen können Kosten haben.
+
+Allokations-Overhead
+-------------------
+Private Header bleiben 32 statt historisch 16 Bytes, zusätzlich 16 Bytes pro
+gleichzeitig lebendem privaten AllocMem-Block. Keine weitere Vergrößerung in Phase 2.
+Zusätzliche Nutzdatenlänge/Prüfmarkierung benötigen acht Bytes; die übrigen acht
+bewahren das bisherige Alignment. Eine gleichwertig sichere kompatible 24-Byte-
+Variante ist nicht nachgewiesen; keine Optimierung auf Verdacht.
+
+Reproduzierbare Originalprofil-Fixtures (AGA-Flag, CLUT 320x240, OS-Modell):
+AGA initmain: 52 lebende Blöcke, 29 Chip-Anforderungen, Mehrbedarf 832 Bytes.
+P96 initmain: 51 lebende Blöcke, 27 Chip-Anforderungen, Mehrbedarf 816 Bytes.
+Nach Map-/Event1-Laden: AGA 57..66, P96 56..65 lebende Blöcke.
+Gemessener Modell-Peak: AGA 66 = 1056 Bytes, P96 65 = 1040 Bytes Mehrbedarf.
+Chip-angeforderter Anteil: AGA 29*16 = 464, P96 27*16 = 432 Bytes.
+Andere Blöcke sind Fast/Public-Anforderungen; Public kann auf echter Hardware
+ebenfalls Chip-RAM belegen. Nach jeder Level-Freigabe konstant 53/52 lebende
+Blöcke. Werte stimmen für Spiel und Bench überein. Nicht gezählt sind interne
+OS/P96-Allokationen; andere Profile/Qualitäten können andere Peaks haben.
+Bei hartem Speichermangel können rund 1 KiB Mehrbedarf eine Allokation verhindern;
+das rechtfertigt keine unbewiesene Schwächung der Speicherverwaltung.
+
+Offen / noch nicht verifiziert / Hardware
+----------------------------------------
+F004 ist NICHT vollständig geschlossen. MED-Noten-/Instrumentreferenzen,
+Effektsteuerung, Synthesizer-Befehlssprünge/Zyklen und Playback-DMA sind nicht
+vollständig abgesichert. Ein strukturell gültiges bösartiges MED kann dort weiter
+unsicher sein. Äußere Strukturprüfung darf nicht als sichere Player-Sandbox gelten.
+Alle externen Profil-Datensätze liegen hier nicht vollständig vor. Die neuen
+Verbrauchergrenzen müssen mit den bisher funktionierenden Originalprofilen und
+ihren tatsächlichen Medien getestet werden. Unbekannte Varianten werden nicht
+durch erfundene großzügige Größenlimits für kompatibel erklärt.
+Native externe Programme/C2P sind weiterhin vertrauenswürdige Executables.
+P96-Reply-Ausfall und Dateisystem-Transaktionsgrenzen bleiben wie oben dokumentiert.
+
+Auf echter Amiga-Hardware geprüft: KEINE Tests dieses Durchlaufs.
+Ausstehend: 68020/030/040/060, AGA, ECS/EHB, P96 Single/Double Buffer und alle
+sechs Auflösungen, sämtliche vier Profile und externe Datensätze, echte Blitter-
+und Paula-DMA, Musik, Menüs/Intermissions, Qualitätsstufen/Low-Bandwidth, knapper/
+fragmentierter Chip-/Fast-RAM, viele vollständige Levelwechsel, Screenwechsel,
+Exit/Neustart und reale DOS-Fehler/Unterbrechungen. GenAm-Originalbuild, Ziel-C/
+AmiSSL und echtes HTTP/TLS bleiben ebenfalls ausstehend. Der 68060 wurde nicht
+emuliert; seine spezialisierten Routinen sind statisch/binär verglichen.
+
+Damit sind die vorhandenen Host-/Instruktionsregressionen und Builds erfüllt,
+aber das Abschlusskriterium "F004 vollständig" und vollständige Zielplattform-
+Kompatibilitätsbestätigung nicht erfüllt. Phase 2 ist ausdrücklich ein geprüfter
+Zwischenstand, kein vollständiger Sicherheits-/Hardwareabschluss.
+
+Primärbelege zusätzlich zu den Phase-1-API-Verträgen
+---------------------------------------------------
+https://developer.amigaos3.net/autodocs/graphics.library/AllocDBufInfo.html
+https://developer.amigaos3.net/autodocs/dos.library/Rename.html
+https://developer.amigaos3.net/autodocs/dos.library/Close.html
+Teijo Kinnunen, MMD_FileFormat.doc, Revision 6 (1996), Autoren-Dokument im Mirror:
+https://github.com/dv1/ion_player/blob/master/extern/uade-2.13/amigasrc/players/med/MMD_FileFormat.doc
+
+Logische Phase-2-Commits / Veröffentlichungsstand
+-----------------------------------------------
+693f3ff CrM-Eingabe-/Bit-/Huffman-/Ausgabegrenzen für beide Loader.
+88890b6 Events/Scripts/Paletten/Animationen/MED-Struktur und neue Regressionen.
+436d17a Neustart-Wiederherstellung unterbrochener Konfigurationsersetzung.
+19985d5 Phase-2-Bericht, Modulübersicht und Reproduktionshinweise.
+Veröffentlicht ausschließlich auf origin/audit, Fast-forward ab d825e91.
+Der veröffentlichte Bericht ist über den aktuellen audit-HEAD erreichbar:
+https://github.com/Andiweli/Gloom-Reforged/blob/audit/AUDIT-STABILIZATION-2.4.0.txt
+Am 11. Oktober 2026 um 13:20 UTC nach erfolgreichem Push direkt per ls-remote
+verifiziert: origin/audit = 19985d5e619570f63ddd87f1c10199facef60a88,
+origin/master = c223cf5dce87dacbfb9591a6109e02bbee0df98c. Lokaler audit-HEAD
+und origin/audit stimmten überein; Arbeitskopie sauber, nur Quellcode/Tests/
+Dokumentation geändert. Dieser anschließende reine Berichtsnachtrag erfasst
+die tatsächlich bestätigte Veröffentlichung. Seine eigene Commit-ID ist der
+finale Git-HEAD des Berichts; finale Remote-Gleichheit wird erneut kontrolliert.
+
+
+===========================================================================
+PHASE 3 - RESTABSICHERUNG UND HARDWARE-VORBEREITUNG (11. Oktober 2026)
+===========================================================================
+
+Ergebnis / Verifizierungsgrenze
+-----------------------------
+F004 bleibt TEILWEISE OFFEN. Konkrete MED-Verbraucher-/CIA-Fehler und neue
+Zurückweisungen gültiger Originaldaten sind behoben. Ein vollständiger Beweis
+aller MED-Effekt-/Aliaszustände und der Gloom-3-Gegnerreferenzen fehlt weiterhin.
+Dieser Stand ist eine geprüfte Hardware-Testbasis, kein vollständiger F004-
+Abschluss, kein Release und kein Nachweis vollständiger Profilkompatibilität.
+Version 2.4.0 und alle bestehenden Release-Binärdateien bleiben unverändert.
+
+Ausgangsstand tatsächlich geprüft
+--------------------------------
+Remote audit vor Änderungen erneut abgefragt/fetched:
+f568087f4179c4ca2682aef4093e2415a8d1299a. Keine neuen Remote-Commits gegenüber
+diesem Stand. Alle fünf Phase-2-Commits wurden übernommen, nicht neu bei master
+begonnen: 693f3ff, 88890b6, 436d17a, 19985d5, f568087. Vorhandener Bericht und
+Quellstand geprüft. Referenz master unverändert:
+c223cf5dce87dacbfb9591a6109e02bbee0df98c. Phase-1/2-Zahlen unten neu ausgeführt;
+historische Abschnitte bleiben als damalige Befunde erhalten.
+
+Nachweise: Statisch geprüft = Quellen/Disassembly/API-Verträge;
+durch Test bestätigt = ausdrücklich genannte Host-/Modell-Fixtures;
+auf 68k-Instruktionsebene geprüft = assemblierte Produktionsinstruktionen auf
+Musashi, mit bezeichneten OS-/Chip-/IRQ-Modellen;
+auf echter Amiga-Hardware geprüft = KEINE Tests dieses Durchlaufs;
+noch nicht verifiziert = unten benannte Hardware-/Graph-/Kompatibilitätsgrenzen.
+
+MED: tatsächlich eingebundener Verbraucher
+------------------------------------------
+source/medplay blieb unverändert. Rekonstruktion aus diesem HUNK, nicht aus
+einem anderen MED-Player-Quellstand. Öffentliche Einträge CODE+0 Init, +4 Load,
++8 Start, +12 Stop; Tick bei Datei+$40e (= CODE+$3ee). Init/Start/Stop bewahren
+D2-D7/A2-A6; Tick liefert D0=1 für Exec. Library-Stubs zerstören die üblichen
+Scratch-Register. Register-/Stackkonventionen durch Instruktionstests geprüft.
+
+Der tatsächliche Tick liest immer vier Byte pro MMD1-Zelle (Datei+$48c..$4c6).
+MMD0/MCN0-Dreibytezellen haben hier keinen Playback-Zweig. Synth-/Hybridtypen
+haben in PlayNote ebenfalls keinen Decoder und würden als Samplegeometrie
+missverstanden. Die kalte Prüfung akzeptiert deshalb MMD1/MCN1, rohe und die
+bereits vorhandenen Multi-Octave-Typen 0..6; MMD0/MCN0/MCNT, negative Synth-/
+Hybridtypen sowie 16-Bit-/Stereo-Flags werden vor Relokation/Wiedergabe verworfen.
+Das sind keine neu implementierten Formatfeatures. Die früheren synthetischen
+positiven MMD0/Synth-Strukturfixtures waren kein Playback-Kompatibilitätsbeweis;
+ihre korrekte Erwartung ist nun Zurückweisung. Alle acht gelieferten Original-
+MED-Dateien verwenden MMD1 und rohe Typ-0-Samples und werden akzeptiert.
+
+Neue kalte Verbrauchergrenzen (gr_37), durch Negativtests bestätigt:
+- Initiales pblock-Highbyte 42 muss null sein: Start setzt nur das Lowbyte.
+- Höchstens Rowindex 16383, da Tick row*4 zunächst als WORD berechnet.
+- Instrumentbyte &63 liegt innerhalb numsamples und referenziert einen
+  vorhandenen Samplepointer; Instrument 0 als bestehender Zustand bleibt gültig.
+- Defaulttempo sowie der tatsächlich als WORD benutzte BPM-Divisor sind ungleich
+  null; ein nicht-null LONG-Produkt mit null Low-WORD ist ebenfalls ungültig.
+- Finetune-Effekt $15 und Erweiterungsbyte 3 (nur bei Stride>3) liegen -8..7;
+  der Zeiger auf die vorhandene Tuning-Tabelle kann dadurch nicht weglaufen.
+- Bxx-Parameter liegt im bereits validierten Playsequence-Präfix songlen.
+- Initial-/Loop-DMA-Spannen für rohe Samples bleiben innerhalb des gesamten
+  gehaltenen Moduls. AUDLEN=0 bedeutet 65536 WORDS und wird nicht als leer
+  behandelt. Die Prüfung folgt Datei+$392..$3e2 und dem WORD-Längenverbraucher.
+  Keine erfundene Sample-Einzelgrenze: Zombie-Massacre medA enthält eine ungerade
+  Samplelänge 7761 mit Loop-Ende ein Byte dahinter, aber innerhalb des Moduls.
+  Diese Originaldaten bleiben gültig. Ungültige Spannen werden vor DMA verworfen.
+
+Zwei konkrete CIA/Lifecycle-Fehler sicher korrigiert:
+1. Der eingebundene FreeTimer ließ sein Besitzbyte nach RemICRVector gesetzt.
+   Stop zweimal bzw. ein späterer fehlgeschlagener Start konnte eine bereits
+   entfernte/fremde IRQ-Belegung entfernen. Eine kalte Stop-Umleitung ruft den
+   originalen internen Stop und löscht Besitz erst NACH dessen Rückkehr.
+2. Sind beide Timer von ciaa.resource belegt, behält AllocTimer A6=ciaa.resource
+   und ruft darüber OpenResource für ciab auf. Die kalte Umleitung stellt
+   A6=Exec aus 4.w wieder her und kehrt mit dem ursprünglichen Ergebnis/CCR
+   zum bestehenden Ablauf zurück. Alle 16 Belegungsmuster, fehlende Ressourcen,
+   Stop vor Start, wiederholter Stop und fremde Wiederbelegung wurden geprüft.
+
+Die Umleitungen werden ausschließlich in der eigenen relokierten Player-Kopie
+installiert, mit Originalsignaturen und idempotenter Prüfung. CODE+$50..$55
+(6 Byte) und CODE+$e98..$ea1 (10 Byte) werden ersetzt; keine Tick-/Effekt-/DMA-
+Instruktion wird gepatcht. Cache-Publikation über vorhandenes flushc erfolgt
+auch bei erneuter Installation. Abweichende Signaturen brechen vor CIA-Besitz ab.
+Instruktionsvergleich aller 7288 Player-CODE/Datenbytes nach Init: abgesehen von
+HUNK-Relokationen und diesen 16 Patchbytes identisch zu f568087 (beide Programme).
+Normalisierter SHA-256:
+7471ae22620f8b699a8c393ca3f00f3c00c2aca2e5bda9998e6b4650e17c1f1f
+
+Originalmusik: acht Dateien, je Phase-2-Spiel/neues Spiel/neuer Bench, je 30000
+Ticks = 24 Fälle / 720000 Ticks. Gleiche beobachtete MMIO-Schreibfolgen, Anzahl
+der DMA-Publikationen und Sequenzreichweite; keine veröffentlichte Paula-Spanne
+außerhalb des gehaltenen Moduls oder des zwei Byte großen chipzero im numerischen
+2-MiB-Chip-Modell. Vergleichs-/Datei-/Decode-Hashes und Reichweiten:
+tests/phase3_original_music.json. Dies beweist die beobachteten Abläufe, NICHT
+alle erreichbaren Zustände. Insbesondere Gloom3 med1 erreicht nur Sequenzindex
+4 von 42 Einträgen. Echte DMA, Klang, CIA-Latch und asynchrone IRQs sind offen.
+
+MED-Restbefunde ausdrücklich nicht geschlossen
+---------------------------------------------
+Kein vollständiger Zustandsgraph und keine Player-Sandbox:
+- Instrument 0 kann über Songwechsel einen bisherigen Kanalzustand behalten.
+- Dxx-Reihenwechsel gegen die tatsächlich nächste Blockhöhe und B/D-Kombinationen
+  mit verbleibendem D4-Highword sind nicht vollständig abgesichert.
+- Effekt $19 (Sampleoffset) und Multi-Octave-Geometrie mit WORD-Schifts/DIVU
+  benötigen vollständige Analyse ihrer erreichbaren Zustandskombinationen.
+- Block-/Info-/Expansion-/Samplepointer-Aliasing kann trotz äußerer Spannenprüfung
+  durch die mutierende Relokation neue Werte erzeugen; kein Disjunktheitsbeweis.
+- CIA kann sofort nach AddICRVector auslösen. Das Modell prüft den tatsächlichen
+  Handler synchron, nicht alle IRQ-Installations-/Reentranzzeitpunkte.
+Strukturell akzeptierte bösartige MED-Daten können deshalb weiterhin unsicher
+sein. Die konkreten neuen Negativtests dürfen nicht als genereller DMA-/MED-
+Sicherheitsnachweis interpretiert werden. Synth-Befehlsschleifen werden nicht
+ausgeführt: die in diesem Player nicht unterstützten Typen werden verworfen.
+
+Vier tatsächlich gelieferte Originalprofile
+-------------------------------------------
+G:\ZGloom\gloom, deluxe, gloom3, massacre wurden ausschließlich gelesen.
+Keine Spieldatei kopiert/geändert/committet. SHA-256, Längen und Ergebnisse in
+tests/phase3_original_profiles.json (Metadaten, keine Originalressourcen).
+Aussage gilt für diese gelieferten Dateien, nicht für jede Vertriebsrevision.
+650 Verträge für Maps/Events (198), Texturen/Tiles, Animationen, Sounds,
+erkannte Trimmed-Bilder, gepaarte AGA-Paletten und vier Scripts, je zwei Binary-
+Beobachtungen = 1300. 1288 vollständig akzeptiert, 12 kontrolliert blockiert.
+Alle 198 Map-/Eventprogramme und vier Scripts akzeptiert. Nicht erfasste Dateien,
+fehlende profilbezogene ECS/EHB-Bilder und tatsächliche vollständige Kampagnen
+sind kein Bestandteil dieses Erfolgsnachweises.
+
+Vier nachgewiesene Originalvertrags-Korrekturen (nur Laden/Intermission):
+- Gloom3/ZM Trimmed-Bilder enthalten RLE-Zeilen mit einem überzähligen letzten
+  Byte. Zwei kalte, vollständig begrenzte Durchläufe validieren erst alle Runs,
+  danach entfernen sie genau das Byte. Literale werden vollständig konsumiert;
+  keine Allokation, kein Überschreiben ungelesener Daten. Sichtbare width/8-Bytes
+  aller Zeilen/Planes bleiben identisch. Strict-Decoder bleiben unverändert.
+  Nur Profile 2/3 erhalten diesen Normalisierungspfad; andere Profile und Runs
+  mit zwei überzähligen Bytes/unvollständiger Quelle werden weiter abgewiesen.
+- Gloom3 gun hat zwei Originalframes normal/Rückstoß. Eine private Kopie fügt
+  drei NULL-Mündungsfeuer-Slots ein, verschiebt Palette/Shapeoffsets um 12 Byte
+  und behält an_frames=2 sowie alle Originalpixels/Palette. Der bestehende
+  Mündungsfeuerverbraucher überspringt NULL bereits. Originalblock wird erst
+  nach erfolgreichem Ersatz freigegeben; OOM behält den alten Besitz bis Cleanup.
+  Wiederholte Prüfung erzeugt keine weitere Kopie. Keine erfundenen Frames.
+- Gloom3 player Frame35 ist ein leerer 1x0-Eintrag mit Handles (0,-1). Dieser
+  genaue Fall bleibt bytegenau unverändert gültig. remap verarbeitet null Byte;
+  drawshapes überspringt die null Bildschirmhöhe vor Pixeln/Schatten/Reflexionen
+  und vor Division durch diese Höhe. Der tatsächliche Renderer-Zweig ist auf
+  020/030/040 für beide Programme getestet; keine Änderung am Renderkern.
+- Längere gültige Gloom3-/ZM-Texte wurden vom 64-Byte-Puffer zurückgewiesen.
+  Der gemeinsame text/picname-Puffer hat jetzt 80 Byte. Grenze weiterhin aus
+  tatsächlichem Labelabstand, Textlayout weiterhin nach vorhandenem 320/8-
+  Verbraucher validiert, originale Worttrennung unverändert. Kein Renderloop-
+  Check. rest_-Marker mit Parameter bleiben gültig und erhalten einen Test.
+
+Offene Profilprobleme, keine Kompatibilität behauptet:
+- Gloom3 objs/baldy, demon, lizard, troll haben 40/47/40/40 Einträge, während die
+  bestehenden festen frame*8+facing-Zugriffe 48 verlangen. Animationsstruktur
+  gültig, feste Referenzen kontrolliert blockiert. Ohne Beweis der ursprünglichen
+  Frame-/Gameplay-Zuordnung wäre Auffüllen oder Abschwächen der Grenze spekulativ.
+  Ein späterer Level, der diese Gegner lädt, ist daher nicht als spielbar bestätigt.
+- Gloom3 und ZM txts/test sind inhaltsgleiche 82288-Byte-Dateien. Die damalige
+  Diagnose "unvollständige Texturspalte" wird in Phase 4 korrigiert: Grafik im
+  Animationsformat, kein Texturformat. Beide werden im Texturpfad sicher abgewiesen.
+  Keine der jeweils untersuchten
+  Map-Namentabellen referenziert test; dennoch keine allgemeine Benutzbarkeit.
+Sechs unterschiedliche blockierte Dateien ergeben zwölf Binary-Beobachtungen.
+
+16 echte initmain-/Gesamtfreigabe-Präfixe (4 Profile x AGA/P96 x Spiel/Bench)
+bestanden im 68020-Modell. Profilbestimmung/Loader/Ownership laufen tatsächlich;
+Grafik, Audio, OS-Bibliotheken, IRQs und C2P-Aufbau explizit modelliert. Nach
+freememlist keine privaten Blöcke/Handles zurück. Kein echtes Amiga-Boot und
+keine simulierte vollständige Kampagne. Wiederholte 42 Repository-Levelwechsel
+bleiben durch die unten genannten 448 bestehenden Lifecycle-/OOM-Fälle bestätigt.
+
+P96-Exit und Konfigurationsspeicherung
+------------------------------------
+P96-Reply-Schutz bleibt unverändert. AllocDBufInfo verlangt das Abholen beider
+Replies vor Freigabe. FreeScreenBuffer/CloseScreen oder WaitBlit dokumentieren
+keine allgemeine Cancel-/Entkopplungsgarantie für dauerhaft fehlende Replies.
+Auch ein Exit mit zurückgelassenen Ports wäre nicht bewiesen sicher: ReplyPort-
+mp_SigTask und Task/Programmspeicher können weiter referenziert sein. Deshalb
+kein Timeout, der Betriebssystem-/Treiberbesitz freigibt. Dauerhaft fehlende
+Replies dürfen weiterhin blockieren. 12 begrenzte Instruktionsbeobachtungen
+(je 100000 Schritte) bestätigen erhaltenen Besitz, keine spätere Terminierung.
+Normale P96-Single-/Double-Buffer-Pfade und deren zeitkritischer Code unverändert.
+
+Konfigurationscode aus Phase 2 unverändert: vollständige temporäre Datei,
+Write/Close-Ergebnisse, taskbezogene Tempnamen, stabiler Backupname, Rename
+ohne vorhandenes Ziel und Neustart-Wiederherstellung. 66 bestehende Recovery-
+Fälle plus 200 zusätzliche Fälle mit zwei unabhängigen 68k-CPUs/DOS-Verzeichnis:
+22 Pausenpositionen x2 Reihenfolgen x2 Ausgangszustände =88, vier alternierende
+Schedules und acht kaputte Backups, jeweils pro Spiel/Bench =100x2. Kein fremdes
+Temp-Truncating; nach geprüften Interleavings bleibt eine vollständige alte/neue
+Kopie. Reale g2cfg_load-Aufrufe ignorieren kurze/falsche Magic/Version-Backups
+und erhalten bestehende Settings; vorhandenes Ziel hat Vorrang.
+Das beweist weder Serialisierbarkeit/Last-writer-wins noch Dateisystemdurabilität.
+Keine atomare Mehrfachoperation, kein Journaling-/Stromausfallnachweis, keine
+starke Inhaltsprüfsumme. Lock/Open-Rennen bei gleicher Taskadresse und konservativ
+blockierende alte Tempnamen sowie andere Filesysteme bleiben offen. Kein neu
+nachgewiesener Fehler rechtfertigte zusätzliche reguläre Dateioperationen.
+
+Tatsächliche Regressionen / Testzahlen
+------------------------------------
+Alle vorhandenen Regressionen erneut auf dem finalen Quellstand ausgeführt:
+  782 asm_regression: Produktionsinstruktionen, OS-Scratch-/OOM-/Ownershippfade
+ 1476 phase2_resources: CrM, gültige Differenzvergleiche, negative Grenzen
+  714 phase2_events_scripts: Events/Scripts/EOF/Zyklen/Text (6 zusätzliche Markerfälle)
+  744 phase2_palettes: Paletten, Bilder, Font/Animation/CLUT/SFX-Verbraucher
+   66 phase2_config_recovery: Write/Close/Rename/Unterbrechung/Recovery
+  468 phase2_med: Struktur- und Format-/Typzurückweisungen, keine Playbackzertifizierung
+   12 phase2_p96: begrenzte fehlende-Reply-Beobachtungen mit erhaltenem Besitz
+  448 phase2_allocations: Start/OOM, 84 Level-/Freigaben je Modus/Binary
+  336 phase3_med: 56 Negativ-/Register-/CIA-/Stop-/IRQ-DMA-Fälle x2x3 CPUs
+  132 phase3_legacy_resources: 22 RLE/Blank-Renderer/Gun/Ownership/OOM-Fälle x2x3 CPUs
+  200 phase3_config: interleavte Writer und kaputte Backups, 68020/DOS-Modell
+   16 phase3_profiles: Originalprofil-Start/Freigabe, 68020/OS-Modell
+   24 phase3_profile_music: 8 Originalmodule x3 Binaries, je 30000 Ticks
+ ----
+ 5418 bestandene Instruktions-/Fixture-/Lifecycle-Fälle. 720000 Musikticks sind
+      Bestandteil der 24 Tracefälle, keine zusätzlichen unabhängigen Tests.
+Zusätzlich 1300 Originalressourcen-Beobachtungen (1288 akzeptiert /12 sicher
+blockiert) und 45 HTTP-Fälle frisch mit produktivem http.c und TLS-Stub bestanden.
+MSVC /W4 /WX, keine Compilerwarnung. Echte TLS-/AmiSSL-Verbindungen offen.
+Quellen/Hashes/Zahlen: tests/phase3_evidence.json; Reproduktion: tests/README.md.
+
+Build / Statische Invarianten / Performance
+------------------------------------------
+Spiel und GloomBench vollständig mit vasm 2.0f assembliert, Debug und Normal,
+-Fhunkexe -kick1hunks -devpac -m68020 -nocase: je sechs bereits vorhandene
+Warnungen (rts/data/offset/c2p/text, joyxs-Ausrichtung), keine Fehler, null
+automatische Übersetzungen/Optimierungen. Debug-/Normal-CODE inklusive BSS nach
+gleicher Relokation identisch. Keine Release-Binärdatei ersetzt.
+Normal-Spiel: 468564 Dateibytes; CODE 434950 / gepolstertes CODE+BSS 434952;
+SHA-256 c24fa849d46ec52ab7dfbd37821971ec3397dc4ba603de9c62648c563fcc2240
+Normal-Bench: 471172 Dateibytes; CODE 437206 / gepolstertes CODE+BSS 437208;
+SHA-256 695970bcc2015d648bf019efa7eba625adc76761c3724428ed4232ae650927f9
+Werkzeuge: Python 3.12.14, MSVC 19.51, Musashi
+313ebf1bd9f4d0d93341eb5ce21fd8a119e9dbdd mit aktuellem opt-in MMIO-Testadapter.
+Tool-/Buildoutputs außerhalb des Repositorys.
+
+37 aktive Module und alle 39 Manifesthashes geprüft; 18 verschiedene aktive
+INCBIN-Dateien vorhanden und identisch zu Phase 1. 18 komplette Module identisch
+zu master, drei weitere zu Phase 1, 71 Bench-Messblöcke unverändert, acht gemeinsame
+korrigierte Routineblöcke synchron. gr_35 hat keine semantische Phase-3-Änderung.
+Rendervergleich gegen f568087: zehn Spannen /33300 Bytes Spiel, /33336 Bytes Bench.
+Acht Spannen nach Absolutrelokations-Normalisierung bytegleich, Scene/Wall behalten
+Instruktionslängen/Opcode/Layout und nachgewiesene PC-Symbol+Offset-Ziele. Geänderte
+PC-Displacementbytes folgen nur dem Layout. C2P020/030/040/060, MOVE16, ADDX-Carry,
+Bayer, Wand-/Fixedpoint-, P96-Flip-/Staging-/LowBW-, Qualitäts-/Cacheimplementierungen
+behalten ihre bestehenden Quellen. Zwei statische Paddingbytes gleichen den neuen
+sechs Byte großen MED-Eintrittsaufruf aus; der +16-Textpuffer wahrt Kalm-Modulo16.
+Alle vier Kalm-Init-Ausrichtungen je Binary mit f568087 verglichen und erhalten.
+Keine neue Validierung im inneren Rendering, keine geänderte Messmethodik.
+Keine realen FPS-/GloomBench-Messungen: Gleichheit des gemessenen Durchsatzes wird
+nicht behauptet. Mehr kalter Code, private Kopie und Cachelayout können Kosten haben.
+
+Speicher / tatsächlicher Allokations-Overhead
+-------------------------------------------
+Private Header weiterhin 32 statt historisch16 Byte = +16 pro lebendem Block.
+Davon acht für Nutzdatenlänge/Prüfmarkierung, acht für erhaltenes Alignment.
+Keine nachgewiesen gleichwertige sichere kleinere Variante; kein Abbau.
+Repository-Lifecycle neu gemessen: Peak AGA66 =1056 Byte / P96 65 =1040 Byte
+zusätzliche Header. Chip-Anforderungen 29/27 =>464/432 Byte; Fast/Public-Anteil
+hinzu, MEMF_PUBLIC kann ebenfalls Chip-RAM sein. OS-/Treiber-Allokationen fehlen.
+Gelieferte Originalprofile (Spiel und Bench gleich, nach initmain):
+                 Blöcke AGA/P96   Peak AGA/P96   Headermehrbedarf am Peak
+Classic                 51/50          53/52          848/832 Byte
+Deluxe                  53/52          55/54          880/864 Byte
+Gloom3                  53/52          55/54          880/864 Byte
+Zombie Massacre         53/52          55/54          880/864 Byte
+Erfolgreiche Startup-Allokationen Classic53/52, Deluxe/ZM55/54, Gloom3 56/55;
+bei Gloom3 ersetzt eine zusätzliche Allokation den alten Gunblock (Peak bleibt).
+Die +12 Gun-Nutzbytes sind Fast/Public, temporär leben alte/neue Datei zusammen
+mit einem zusätzlichen 32-Byte-Header (+16 Audit-Overhead). Textpuffer +16 statisch.
+Gepolstertes Codeimage wächst gegen Phase 2 um1112 Spiel /1116 Bench-Byte, keine
+weitere Headervergrößerung. Diese Zahlen sind Modellmessungen, kein Gesamtbedarf
+auf Hardware. Fragmentiertes/knappes Chip-/Fast-RAM muss real geprüft werden.
+
+Erforderliche Hardware-/Kompatibilitätstests
+------------------------------------------
+Auf echter Amiga-Hardware geprüft: NULL.
+Ausstehend: 68020/030/040/060, AGA, ECS/EHB (profilbezogene Medien fehlen hier),
+P96 Single/Double Buffer mit allen sechs Auflösungen, reale Paula-/Blitter-DMA,
+CIA-Belegung durch andere Tasks, sofortiger IRQ, Stop/Start/Songwechsel/Klang,
+Gloom3-Gegnerverträge, komplette Kampagnen aller vier Profile, Menüs/Intermissions,
+Qualitätsstufen/LowBW, Screenwechsel, viele Levelwechsel, Speichermangel,
+Exit/Neustart, echte DOS-Fehler/Unterbrechungen/konkurrierende Tasks und Filesysteme.
+GenAm-Originalbuild, Ziel-C/AmiSSL, TLS und FPS/GloomBench-Messungen offen.
+68060-Spezialisierung statisch/binär erhalten, keine 68060-Instruktionsausführung.
+Sechs P96-Modi/Qualitäten behalten ihre unveränderten Implementierungen; ein
+Originalprofil-Startup in P96320x240 bestätigt nicht alle sechs realen Modi.
+
+Primärbelege / Vertragsgrenzen
+-----------------------------
+MED-Autorformat (Revision6), zur Strukturrekonstruktion; konkrete Features und
+Registerzugriffe stammen ausschließlich aus source/medplay:
+https://github.com/dv1/ion_player/blob/master/extern/uade-2.13/amigasrc/players/med/MMD_FileFormat.doc
+https://d0.se/autodocs/cia.resource/AddICRVector
+https://d0.se/autodocs/cia.resource/RemICRVector
+https://wiki.amigaos.net/wiki/CIA_Resource
+https://developer.amigaos3.net/autodocs/graphics.library/AllocDBufInfo.html
+https://developer.amigaos3.net/autodocs/intuition.library/FreeScreenBuffer.html
+https://developer.amigaos3.net/autodocs/dos.library/Rename.html
+https://developer.amigaos3.net/autodocs/dos.library/Close.html
+
+Phase-3-Commits und Veröffentlichung
+-----------------------------------
+a2ac8ca73b809d6f2eb2939af55de9a4e9afe4ce MED-Verbraucher/CIA/Stop und Regressionen.
+7bfc12fb4748ee1ea01b2c6fcb0bb1d9a44d53ca Originalprofil-Verträge/Ladevorbereitung,
+                                      Negativtests und Hash-Metadaten.
+ba151eaaf81d6ed79393ab23c175a046cf1176cb Gleichzeitige Config-Writer/kaputte Backups.
+Der anschließende Bericht-/Reproduktionscommit enthält die vollständigen Ergebnisse
+und die Musik-/Build-Nachweise. Veröffentlichung ausschließlich Fast-forward auf
+origin/audit; kein PR, kein Merge/Release, kein master-Push. Die nachfolgende
+Veröffentlichungsbestätigung erfasst die tatsächlich abgefragten Remote-IDs.
+Bericht: https://github.com/Andiweli/Gloom-Reforged/blob/audit/AUDIT-STABILIZATION-2.4.0.txt
+
+Veröffentlichten Phase-3-Stand tatsächlich bestätigt
+-------------------------------------------------
+Bericht-/Reproduktionscommit:
+c7d137610f34d3fbabe800bb14f99ab46c48d401
+Am 11. Oktober 2026 um 15:11 UTC nach erfolgreichem Fast-forward-Push mit
+git ls-remote direkt bestätigt:
+origin/audit = c7d137610f34d3fbabe800bb14f99ab46c48d401
+origin/master = c223cf5dce87dacbfb9591a6109e02bbee0df98c (unverändert).
+Lokaler HEAD und origin/audit waren identisch, Arbeitskopie sauber. Alle fünf
+Phase-2-Commits sind erhalten. Ausschließlich Quellcode/Tests/Dokumentation
+geändert; keine Release-Binärdatei, Version, master, PR oder Release verändert.
+Dieser anschließende reine Nachtrag erfasst die bereits verifizierte Publikation.
+Seine eigene Commit-ID ist der finale audit-HEAD des Berichts; Remote-Gleichheit
+wird nach seinem Push erneut direkt geprüft und im Abschluss genannt. Die
+Tests/Builds betreffen unveränderte Produktionsquellen seit 7bfc12f; spätere
+Commits enthalten Konfigurationstests, Nachweise und Dokumentation.
+
+
+Audit Phase 4 - Ressourcenkompatibilität und MED-Stabilisierung
+=============================================================
+11. Oktober 2026. Geprüfter Ausgangspunkt: Remote audit und lokaler HEAD
+d14674c11542ede83b61a706251c3d9b45193f45. Vor Beginn frisch gefetcht, keine
+zusätzlichen Remote-Commits. Vollständiger Bericht und bestehende Korrekturen
+übernommen. Ausschließlich audit; gespeicherte master-Quellreferenz
+c223cf5dce87dacbfb9591a6109e02bbee0df98c. Der direkte abschließende Remote-
+Vergleich zeigt eine externe README-Änderung (siehe Veröffentlichungsnachtrag).
+Keine lokale master-Branch angelegt.
+Version 2.4.0, Release-Binaries, INCBIN-Dateien und Originaldaten unverändert.
+Kein PR, Merge oder Release. Datenquelle G:\ZGloom wurde ausschließlich gelesen.
+
+Ergebnis: bedingt bereit für kontrollierte Hardwaretests mit dem nachgewiesenen
+Originaldatensatz. F004 NICHT vollständig geschlossen. Insbesondere ist dies
+keine allgemeine Sicherheitszertifizierung beliebiger strukturell gültiger MEDs
+und keine Bestätigung vollständiger Gloom-3-Kampagnen oder öffentlicher Release-Reife.
+
+Tatsächlich korrigierte MED-Probleme
+----------------------------------
+1. Relokationsaliasing innerhalb eines Modulheaders: Die tatsächlichen Schreib-
+   felder des unveränderten Players ($150/$162/$1ac/$ee, Dateioffsets) können
+   Sample-Arrays/Header und Patterninhalt überschreiben oder Zeiger zweimal
+   relocieren. Die bestehende g2validate_med-Vorabprüfung schützt jetzt Header,
+   Song, Block-/Sample-Arrays, Expansion, Blockinfo, Samplebereiche und benutzte
+   Instrumenterweiterungen vor den konkret rekonstruierten Überlappungen.
+   Doppelte Blocks mit NULL Info und gemeinsam gelesene Samples bleiben gültig;
+   gemeinsame leere Info-Records sind zulässig, mehrfach mutierte Zeiger nicht.
+   Kein weiterer Validator, keine Allokation, kein Write in die Eingabedatei.
+
+2. Zeilensprung: Im tatsächlichen Player ist $1d der Pattern-Break; $0d ist ein
+   Volume-Slide. Der Lookahead liest die gewählte neue Zeile bereits am Ende
+   des aktuellen IRQs. Die letzte wirksame $1d-Zeile wird gegen ihre tatsächlichen
+   Sequenznachfolger geprüft: Bxx-Reihenfolge, Wrapping, wiederholte Blocks und
+   überschriebene Sprünge bleiben berücksichtigt. Keine pauschale Mindest-
+   zeilenzahl über alle Blocks. Ein späterer dynamischer $16-Loop überschreibt
+   Pendingrow zustandsabhängig; diese Interaktion wird ausdrücklich nicht als
+   vollständig bewiesen dargestellt. Die Paula-Maske $000f aktiviert vier Tracks.
+
+3. $19-Sampleoffset lässt durch LSL.W #8 einen hohen Parameter-BYTE in D4 stehen.
+   Direkt nachfolgende Bxx/$1d konsumieren dessen WORD, obwohl nur das neue
+   Parameter-BYTE geladen wird. Die konkret gefährliche unmittelbare Kombination
+   mit nichtnull Offset wird vor Wiedergabe abgewiesen. Andere Offseteffekte
+   bleiben erhalten; kein generelles Abschalten von Sampleoffset oder Sprüngen.
+
+4. Multi-Oktav-Samples: DIVU.W des Players darf nicht überlaufen und eine
+   veröffentlichte Paula-Länge darf nicht zu null/65536 WORDS werden. Kalte
+   Prüfung mit den tatsächlichen sechs Typ- und Oktav-Lookups des unveränderten
+   INCBIN sichert initiale und Loop-DMA-Spannen innerhalb des besessenen Moduls.
+   WORD-Shifts/Truncation und ausgerichtete Paula-Adressen werden nachvollzogen.
+   72 Kombinationen aus Typ/Oktave/Loop pro Binary/CPU sind zusätzlich auf
+   tatsächlichen Playerinstruktionen mit beobachteten DMA-Publikationen geprüft.
+   Dynamische Offsetzustände sind dadurch nicht allgemein zertifiziert.
+
+5. Erste Tonhöhenbefehle können vor PlayNote einen NULL-Tuningzeiger lesen.
+   Die bestehende kalte Playerinstallation setzt nur die vier leeren Paula-
+   Tuningzeiger auf die bereits eingebundene Finetune-null-Tabelle. Vorhandene
+   Tuningzustände und zwölf kurze MIDI-Records bleiben unverändert. Idempotenz,
+   Registerkonvention und unveränderte restliche Playerbytes sind geprüft.
+   source/medplay bleibt 7644 Byte, SHA-256
+   87a9ea5aaadc46586a339fbeec869db95ede73420aaebdbe30875f117049b349.
+   Keine neue Instruktionsänderung am Binärplayer: nur 16 Byte initialer Zustand
+   in vorhandenen Records. Die beiden Phase-3-Stop/CIA-Patches bleiben bestehen.
+
+6. Retained-Instrument beim Songstart: Ein alter Index kann ohne neues Instrument
+   in die kleinere oder NULL-belegte Sample-Tabelle des neuen Songs greifen.
+   Beide Produktions-Startstellen benutzen nun einen gemeinsamen kalten Wrapper.
+   Er schützt konkret erste Noten und sofortige $1f0x-Retrigger, die PlayNote mit
+   einem ungültigen beibehaltenen Index aufrufen würden. Portamento, Ffd, Ffe und
+   Befehle ohne diesen tatsächlichen Samplezugriff werden nicht pauschal blockiert.
+   Keine zusätzlichen Checks im Audio-IRQ. Spätere/delayed Zustände bleiben offen.
+
+7. Bereits aktiver Start: AllocTimer erkennt seinen eigenen belegten Timer nicht
+   als Wiederverwendung und kann seine Ownership verlieren. Der Wrapper stoppt
+   nur bei nachgewiesener vorhandener Ownership zuerst über den abgesicherten
+   öffentlichen Stop. Im regulären bereits gestoppten Pfad kein weiterer Stop.
+   Fehler verlassen den Start vor neuer Timerakquise und bereinigen besessene
+   Ressourcen; keine fremden Vektoren oder noch verwendete Samples freigegeben.
+
+8. AddICRVector darf sofort einen IRQ auslösen. Ein kurzer, ausgeglichener Exec-
+   Disable/Enable-Abschnitt umfasst Startprüfung, nötigen Owned-Stop und originalen
+   Start. Damit kann ein alter IRQ den geprüften Index nicht dazwischen verändern,
+   und der neue Handler wird erst nach Veröffentlichung des Startzustands aktiv.
+   Vorhandene Disable-Nestung bleibt erhalten, auch bei kontrolliertem Fehler.
+   Das ist statisch geprüft und mit OS-Aufruf-/Ownershipmodellen bestätigt;
+   reale sofortige CIA-Dispatches/Latenzen sind noch NICHT verifiziert.
+
+Sechs im d14674c-Stand akzeptierte Fixtures reproduzieren tatsächliche bewachte
+CPU-Zugriffsfehler; ein zusätzlicher aktiver Start reproduziert einen Timer-Leak.
+Diese erwarteten Gegenbeispiele sind separat ausgewiesen, nicht als bestandene
+Stabilitätstests zum Gesamtergebnis addiert. Neue Negativ-/Lifecyclefälle prüfen
+die korrigierten Ablehnungen und Besitzübergänge auf den finalen Assemblaten.
+
+MED-Grenzen / offener Rest von F004
+---------------------------------
+Nachgewiesen: fünf-Bit-Effektdispatch, sechs-Bit-Instrumentmasken, strukturelle
+Spannen/Referenzen, einzelne gefährliche Sprung-/Alias-/Startzustände und die unten
+genannten Originaltraces. Synth-/Hybridtypen bleiben durch die vorhandene
+Strukturprüfung ausgeschlossen: Dieser Binärplayer enthält keinen passenden
+PlayNote-Verbraucher. Keine neue Musikfunktion wird stillschweigend deaktiviert.
+
+NICHT vollständig nachgewiesen sind insbesondere:
+- Relokations-/Ownershipüberlappungen zwischen verschiedenen verketteten Headers;
+  die neue Aliasprüfung hat ausdrücklich einen einzelnen Header als Beweisgrenze.
+- Vollständiger Effekt-/Kanalzustandsgraph mit späterer Instrument-null-Nutzung,
+  Ff2/delayed Retrigger, $16-Loop/Pendingrow-Wechselwirkungen und behaltenem D4
+  nach beliebigen dazwischenliegenden Effekten. Die erste-Zeile-Startprüfung
+  ist keine allgemeine Validierung sämtlicher späterer beibehaltener Instrumente.
+- Alle dynamischen Sampleoffset-/DMA-Zustände und ihre Kombination mit WORD-
+  Arithmetic, Loops und Multi-Oktav-Samples. Nicht alle 68k-sicheren Tabellen-
+  Zugriffe sind damit hinsichtlich musikalischer Semantik vollständig bewiesen.
+- Andere MED-Revisionen/Features und andere Originalvertriebsdatensätze sowie
+  echte CIA-Latch-/IRQ-Dispatch- und Paula-DMA-Eigenschaften.
+Strukturell gültig ist weiterhin keine Garantie beliebiger manipulierter
+Wiedergabezustände. F004 bleibt offen; unbewiesene Fälle werden nicht durch
+erfundene Grenzen, generelle Effektdeaktivierungen oder IRQ-Checks kaschiert.
+
+Vier Gloom-3-Gegner und zwölf Ressourcenbeobachtungen
+---------------------------------------------------
+Die Datei-Anatomie wurde vollständig anhand deklarierter Pointer, Shapes und
+Palette rekonstruiert und gegen andere verfügbare Profile verglichen:
+                 Bytes   rot  Einträge  erster Shape/Tabellenende  Palette
+objs/baldy       72098     0      40              172               71852
+objs/demon       92496     0      47              200               91856
+objs/lizard      67372     0      40              172               67250
+objs/troll       72508     0      40              172               72338
+Alle vier Animationen erfüllen die eigenständige Strukturprüfung. Die tatsäch-
+lichen baldy-/lizard-/troll-Angriffsabläufe und demonpause wählen jedoch Frame5.
+drawshape_8 liest dafür Einträge40..47 unabhängig von an_rotshft. Bei den drei
+40er-Dateien sind diese LONGs schon Shape-/Pixelworte; demon hat nur40..46, an
+Index47 beginnt der Shapeheader $000a003c. Keine versteckten acht Zusatzpointer.
+Originale Angriffsauswahl und alle acht Zeigerindizes wurden unverändert auf
+68k-Instruktionen ausgeführt; der Test stoppt vor absichtlich ungültigen Shapes.
+
+Einstufung: B für den tatsächlichen Reforged-Verbrauchervertrag (unvollständige
+Frame-Tabelle, korrekte Ablehnung), C für eine alternative ursprüngliche Gloom-3-
+Frame-/Gameplay-Zuordnung (nicht nachgewiesen). Keine pauschale Aussage, die
+Originaldateien seien generell korrupt. Kein verantwortbarer Beweis für A/False
+Positive; deshalb keine Lockerung, Wiederholung/Erfindung von Frames oder neue
+Gegnermechanik. Entsprechende spätere Gloom-3-Level bleiben inkompatibel/offen.
+
+txts/test in Gloom3 und Zombie Massacre: je82288 Byte, identischer SHA-256
+1298eac57d79de95aa2fd48385b240ef5beff0470f167dbccbc86d4540cb8267.
+Header (rot0,frames1,width320,height255,palette81624,shape16), Handles(1,254),
+81600 Pixelbytes ab24 bis81624, anschließend Palette. Das ist eine einzelne
+große Grafik im Animationslayout. Als Textur gelesen ist der erste LONG1 statt
+des erforderlichen Offsets4164..83204 für vollständige64*65-Spalten. Somit
+korrekte Ablehnung eines anderen Formats im Texturpfad, keine unvollständige
+Texturspalte. Diese Phase-3-Diagnose wurde oben ausdrücklich korrigiert.
+Keine der198 geprüften Map-Namentabellen referenziert test. Allgemeine Sprite-
+Benutzbarkeit dieser großen Grafik wird wegen anderer Verbrauchergrenzen nicht
+behauptet; keine neue Nutzung oder Normalisierung implementiert.
+
+Einzelzuordnung aller12 Beobachtungen (R=richtige Ablehnung im genannten Pfad):
+ 01 Spiel  Gloom3          objs/baldy   R:40<48, Angriff/acht Facings; B/C wie oben
+ 02 Bench  Gloom3          objs/baldy   R:40<48, derselbe Verbraucher; B/C
+ 03 Spiel  Gloom3          objs/demon   R:47<48, Frame5/Facing7 fehlt; B/C
+ 04 Bench  Gloom3          objs/demon   R:47<48, derselbe Verbraucher; B/C
+ 05 Spiel  Gloom3          objs/lizard  R:40<48, baldy-Angriffsablauf; B/C
+ 06 Bench  Gloom3          objs/lizard  R:40<48, derselbe Verbraucher; B/C
+ 07 Spiel  Gloom3          objs/troll   R:40<48, baldy-Angriffsablauf; B/C
+ 08 Bench  Gloom3          objs/troll   R:40<48, derselbe Verbraucher; B/C
+ 09 Spiel  Gloom3          txts/test   R:Palette-LONG1<4164, anderes Format; B
+ 10 Bench  Gloom3          txts/test   R:derselbe Texturvertrag; B
+ 11 Spiel  Zombie Massacre txts/test   R:Palette-LONG1<4164, anderes Format; B
+ 12 Bench  Zombie Massacre txts/test   R:derselbe Texturvertrag; B
+Sechs Dateipfade, fünf verschiedene Inhalte; die gleiche Datei wurde für Spiel
+und Bench je einmal beobachtet. Vollständige Hash-/Header-/Ablehnungs-/Verbraucher-
+Zuordnung: tests/phase4_resource_classification.json (12 Records).
+
+Frisch wiederholter Originalvergleich:650 Verträge x2 =1300 Beobachtungen,
+1288 akzeptiert,12 kontrolliert blockiert; unverändert gegenüber Phase3.
+198 Maps/Events,64 Tiles,114 Texturen,83 Animationen,92 Sounds,48 Bilder,
+47 gepaarte AGA-Paletten und4 Scripts. Keine Testfälle entfernt/abgeschwächt.
+Nicht erfasste Dateien, fehlende ECS/EHB-Profilmedien, andere Vertriebsrevisionen
+und vollständige Kampagnen sind nicht in diesem Erfolgsnachweis enthalten.
+
+P96 / Konfigurationsspeicherung
+-------------------------------
+Erneute Prüfung der unten verlinkten Autodocs liefert keine dokumentierte
+Cancel-Garantie bei dauerhaft fehlenden Safe-/Display-Replies. Besitzschutz,
+Ports, Screenwechsel und Exitcode unverändert. Kein unsicherer Timeout und keine
+Freigabe ohne bestätigte Rückgabe; dauerhaftes Blockieren bleibt möglich.
+12 Beobachtungen zu je100000 Instruktionen bestätigen gehaltenen Besitz,
+keine spätere Terminierung. FreeScreenBuffer verlangt Freigabe vor CloseScreen;
+WaitBlit ist keine Garantie für alle ausstehenden Buffer-Replies.
+
+Config-Backup/Restore unverändert. Alle66 Recovery- und200 unabhängigen Zwei-
+CPU-/Interleavingfälle erneut bestanden. Kein neu nachgewiesener Speicherfehler
+oder Verlust einer letzten vollständigen Kopie in diesen DOS-Modellen.
+Rename schlägt bei vorhandenem Ziel fehl; der Code berücksichtigt diesen Vertrag.
+Die produktiven Basenames gloom.cfg(9), Backup(15), Task-Temp(24) bleiben unter
+der30-Zeichen-Grenze des dokumentierten ROM/RAM-Filesystem-Truncating-Verhaltens.
+Weiterhin keine atomare Mehrfachtransaktion, Last-writer-wins-, Journaling- oder
+Stromausfallgarantie; echte Filesystem-/gleichzeitige Task-Rennen bleiben offen.
+
+Tatsächlich erneut ausgeführte Regression / Aussagekraft
+-------------------------------------------------------
+  782 asm_regression              Produktionsinstruktionen/OS-Scratch/OOM
+ 1476 phase2_resources            CrM-Oracle d825e91, positive/negative Grenzen
+  714 phase2_events_scripts       Event-/Scriptbefehle/Referenzen/EOF/Zyklen
+  744 phase2_palettes             Bilder/Paletten/Animation/CLUT/Font/SFX
+   66 phase2_config_recovery      Unterbrechung/Write/Close/Rename/Recovery
+  468 phase2_med                  Struktur und bestehende Typ-/Formatgrenzen
+   12 phase2_p96                  begrenzte fehlende-Reply-Beobachtungen
+  448 phase2_allocations          OOM +84 Level-/Cleanupzyklen je Modus/Binary
+  336 phase3_med                  Register/Timer/CIA/Stop und beobachtete DMA
+  132 phase3_legacy_resources     RLE/Gun/Blank-Renderer/Ownership
+  200 phase3_config              unabhängige CPUs, Interleaving/kaputte Backups
+   16 phase3_profiles             Originalprofil-initmain/free, AGA/P96-Modell
+   24 phase3_profile_music        acht Originalmodule x3 Binaries x30000 Ticks
+ ----
+ 5418 Phase-1-bis-3-Fälle auf finalem Phase-4-Code erneut bestanden.
+ 1614 phase4_med                  269 neue Fälle xSpiel/Bench x020/030/040
+  252 phase4_resources            tatsächliche Angriffs-/Pointer-Verbraucher
+  192 phase4_song_switch          64 geordnete Originalsongpaare x3 Binaries
+ ----
+ 7476 bestandene Instruktions-/Fixture-/Lifecycle-/Tracefälle (+2058).
+Zusätzlich45 HTTP-Tests frisch mit produktivem http.c, MSVC/W4/WX und TLS-Stub
+bestanden; keine Compilerwarnungen. TLS/AmiSSL auf Amiga bleibt ungetestet.
+1300 Originalressourcenbeobachtungen stehen separat zu diesen Testfallzahlen.
+
+Single-Song-Traces720000 Ticks plus Songpaar-Traces384000 Ticks =1104000.
+Playerinstruktionen laufen tatsächlich; Paula-/CIA-/Beam-/DOS-Aufrufe und
+Speicherplatzierung sind Modelle. Jeder beobachtete DMA-Bereich liegt im jeweils
+besessenen Musikmodul oder Chipzero; bei Wechseln bleiben beide Musikblöcke
+resident. Alle verglichenen MMIO-Bytefolgen stimmen mit den Referenzen überein.
+Keine Aussage über Analogklang, reale DMA-Transfers, IRQ-Latenzen oder alle
+erreichbaren Effekte. Tickzahl ist keine Zahl unabhängiger Testfälle.
+Primärdaten/Buildhashes: tests/phase4_evidence.json und die vier Phase-4-Metadaten-
+dateien; Befehle/Grenzen: tests/README.md. Keine Original-Spielmedien eingecheckt.
+
+Build / Renderidentität / Laufzeit / Speicher
+--------------------------------------------
+Spiel und GloomBench Debug UND Normal vollständig assembliert mit vasm2.0f,
+-Fhunkexe -kick1hunks -devpac -m68020 -nocase. Je6 bestehende Warnungen,0 Fehler,
+0 automatische Übersetzungen/Optimierungen. Relokiertes Debug-/Normal-CODE/BSS
+identisch. 37 Includes,39 Manifesthashes,18 bytegleiche aktive INCBIN-Dateien.
+Normal-Spiel:470004 Dateibytes, CODE/BSS436352 Byte, SHA-256
+5584ee152aa9a05c30b7ac6a26f39a0dfa8771b32d2b4199bb4d182fd771ed42.
+Normal-Bench:472612 Dateibytes, CODE/BSS438608 Byte, SHA-256
+c9c28559426a2d9ad43dac9269ae68b8634cecf0d17dcf0f2ddebc5a9a1d72b1.
+Werkzeuge unverändert: Python3.12.14, MSVC19.51, Musashi313ebf1 mit Phase-3-
+MMIO-Adapter. Alle Werkzeuge/Assemblate/Logs außerhalb des Repositorys.
+
+Zehn Renderinstruktionsspannen gegenüber d14674c:33300 Byte Spiel/33336 Bench,
+ALLE nach Absolutrelokations-Normalisierung bytegleich, inklusive Szene/Wände.
+Die zwei kalten Startaufrufe behalten ihren alten Footprint; alle vier Kalm-
+Init-Adressen je Binary sind sogar identisch, nicht nur modulo16. 18 ganze
+master-Module,3 weitere Phase-1-Module,71 Bench-Messblöcke und8 gemeinsame
+korrigierte Routinen unverändert/synchron. C2P020/030/040/060, MOVE16, Bayer,
+ADDX/Fixedpoint, AGA/ECS/EHB, P96 Flip/Staging/LowBW, Qualitäts-/Cachepfade,
+VBlank-/Gameplay-Timing und GloomBench-Messmethodik erhalten.
+
+Keine neuen Checks im inneren Render-/Audio-IRQ. Mehr Vorabvalidierung beim Laden,
+kalter Songstart und dessen kurzer Disable-Abschnitt haben zusätzliche Kosten;
+deren reale Dauer/IRQ-Latenz ist nicht gemessen. Die Aliasprüfung enthält kalte
+quadratische Blockvergleiche, kein garantierter Worst-case-Ladezeitnachweis für
+beliebig große manipulierte MEDs. Kein gemessener FPS-/Durchsatzgleichstand.
+
+Allokationsheader unverändert32 statt historisch16 Byte: +16 pro privatem Block.
+Neu gemessener Repository-Peak AGA66/P9665 =>1056/1040 Byte Headermehrbedarf;
+Chip-Anforderungen29/27 =>464/432 Byte, Public kann ebenfalls Chip-RAM sein.
+Originalprofil-Startuppeaks wie Phase3: Classic53/52 =>848/832 Byte; die anderen
+Profile55/54 =>880/864 Byte (AGA/P96). Keine neue private Allokation in Phase4.
+40 Byte statischer Aliasarbeitsbereich innerhalb des Codeimages; dessen gesamtes
+gepaddetes Wachstum gegen Phase3 beträgt1400 Byte je Binary, einschließlich
+dieser40 Byte und kaltem Code. Die vier Tuningzeiger benötigen keinen neuen RAM-
+Block. OS-/Treiberbedarf und tatsächliche Chip-/Fast-Platzierung nicht gemessen.
+
+Release-Reife: ausdrückliche Antworten
+--------------------------------------
+1. F004 vollständig geschlossen? NEIN. Die genannten MED-Grenzen bleiben offen.
+2. Alle gültigen Originalressourcen funktionieren? NICHT nachgewiesen. Acht
+   gelieferte Musiken/198 Maps akzeptiert,1288/1300 Ressourcenbeobachtungen;
+   vier Gloom-3-Angriffsverträge bleiben inkompatibel, test hat anderes Format.
+3. Bekannte MED-Risiken beseitigt? Die konkret getesteten Ursachen oben sind
+   korrigiert; kein vollständiger Effekt-/Alias-/Zustandsnachweis. NEIN allgemein.
+4. Neue Stabilitäts-/Kompatibilitätsprobleme? In den ausgeführten Regressionen
+   keine beobachtet. Außerhalb ihrer Grenzen keine allgemeine Negativgarantie.
+5. Renderkern/GloomBench unverändert? JA in allen verglichenen Spannen und allen
+   71 Messblöcken. Gesamtes Programm wächst um kalten Sicherheitscode.
+6. Zusätzliche Laufzeitkosten? Keine neuen Render-/Audio-IRQ-Instruktionen;
+   zusätzliche Lade-/Startkosten und kurz maskierte IRQs, reale Dauer unbekannt.
+7. Fehlende Hardwaretests? ALLE:020/030/040/060, AGA/ECS/EHB, sechs P96-Auflösungen
+   Single/Double, reale Paula/Blitter/CIA, sofortiger IRQ/fremde Timer, Klang und
+   Stop/Start/Restart, Speichermangel/Fragmentierung, Screen-/Menü-/Levelwechsel,
+   Exit/Neustart, vollständige Kampagnen, Filesystemfehler und FPS/GloomBench.
+8. Hardware-Release-Candidate? BEDINGT BEREIT für kontrollierte Tests der mit
+   Hashes nachgewiesenen Daten. Kein uneingeschränkt kompatibler Candidate für
+   alle vier vollständigen Spiele oder beliebige MED-Dateien. Gloom-3-Level mit
+   den vier Gegnern bleiben ausdrücklich ausgeklammert. Kein öffentlicher Release.
+Die endgültige Freigabe von master und Version2.4.1 bleibt allein beim Nutzer.
+
+Phase-4-Commits / GitHub
+-----------------------
+6e1bc1d77f4868025d483819b050d83f7059258e MED-Vorabgrenzen/Tuning/Start-Ownership,
+                                      Register-/DMA-/Negativ- und Songpaartests.
+b5d194be56352b1b9e7ef929c37964fc0e27e682 Einzelklassifizierung/Originalverbraucher.
+Der folgende Bericht-/Nachweiscommit enthält diese aktualisierte Bewertung,
+frisch erzeugte Metadaten und Reproduktionshinweise. Vor/nach Publikation werden
+origin/audit und der aktuelle master-HEAD direkt geprüft; die tatsächlich
+bestätigten Remote-IDs folgen im Veröffentlichungsnachtrag und Abschlussbericht.
+
+Erneut geprüfte Primärverträge (11. Oktober 2026)
+------------------------------------------------
+https://developer.amigaos3.net/autodocs/graphics.library/AllocDBufInfo.html
+https://developer.amigaos3.net/autodocs/intuition.library/FreeScreenBuffer.html
+https://developer.amigaos3.net/autodocs/dos.library/Rename.html
+https://d0.se/autodocs/cia.resource/AddICRVector
+Strukturformat weiterhin Kinnunens MMD Revision6 (siehe Phase3); Effektziele,
+Typ-/Oktavtabellen und Zugriffsspannen stammen aus dem tatsächlichen medplay.
+
+Veröffentlichten Phase-4-Stand direkt bestätigt / externe master-Abweichung
+-------------------------------------------------------------------------
+Bericht-/Nachweiscommit:
+fcb40ef6994cb027464bf2db28b71ff63b7b8c50.
+Fast-forward-Push ausschließlich audit (keine Tags): d14674c -> fcb40ef.
+Am 11. Oktober 2026, 16:44 UTC mit git ls-remote auf GitHub direkt bestätigt:
+  audit  = fcb40ef6994cb027464bf2db28b71ff63b7b8c50
+  master = 7d178c9ad62f1484578464920e21b5c5997c3f83
+Lokaler audit-HEAD und origin/audit identisch, Arbeitskopie zu diesem Zeitpunkt
+sauber. Alle Phase-1-bis-3-Commits bleiben Vorfahren des veröffentlichten Standes.
+
+master ist NICHT global unverändert: Ein separater, von Andiweli über GitHub
+erstellter Commit vom 11. Oktober, 18:38:49 MESZ (16:38:49 UTC), "Update README.md",
+ändert ausschließlich README.md (6 Zeilen hinzu,1 entfernt). Expliziter Fetch
+refs/heads/master:refs/remotes/origin/master und vollständiger Diff zu c223cf5
+bestätigen: keine Produktionsquelle, Version oder Binärdatei geändert.
+Das ist keine Änderung dieses Auditauftrags; dessen einzige Push-Ref war audit.
+Die externe README-Änderung wird nicht zurückgesetzt oder in audit integriert.
+
+Die frühere master-Aussage stützte sich auf den gespeicherten Tracking-Ref:
+remote.origin.fetch ist nur auf audit konfiguriert. Ein "git fetch origin audit
+master" lädt master zwar in FETCH_HEAD, aktualisiert dabei origin/master nicht.
+Diese Tracking-Abweichung wurde beim direkten Remotevergleich entdeckt und
+hier sowie in tests/phase4_evidence.json ausdrücklich korrigiert.
+Das Kriterium "master insgesamt unverändert geblieben" ist deshalb nicht
+erfüllt; die strengere zutreffende Aussage ist: vom Auditauftrag nicht angefasst,
+seine Referenz-Produktionsquellen unverändert, externe README-Änderung dokumentiert.
+
+Dieser anschließende Nachtragscommit enthält nur Bericht/Publikationsmetadaten.
+Seine eigene ID ergibt sich aus dem finalen GitHub-Commitlog und Abschlussbericht;
+der finale audit-HEAD wird nach seinem Push nochmals direkt abgefragt. Tests und
+Builds betreffen exakt die unveränderten Produktionsquellen von 6e1bc1d.
+Keine öffentliche Freigabe, keine Versionsänderung und kein master-Push.

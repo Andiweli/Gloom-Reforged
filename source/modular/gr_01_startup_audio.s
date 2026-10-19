@@ -94,11 +94,12 @@ wb	;
 	jsr	g2v190p_load_title_assets	; v190p: reload title art if gameplay freed it
 	; v190go: Classic Gloom now uses embedded Gloom2 title/menu assets too,
 	; so the old unsupported-profile title-music skip must not run anymore.
-	move.l	medat,a1
+	move.l	#g2med_start_checked,a1
 	move.l	titlemed,d0	; v190cr: compatible installs may not have title MED
 	beq.s	.g2v190cr_no_title_music
 	move.l	d0,a0
-	jsr	8(a1)	;start title music!
+	jsr	(a1)	; cold wrapper; retain original four-byte call footprint
+	nop
 .g2v190cr_no_title_music
 	;
 .intro2	jsr	g2v36_clear_title_buffers	;v36: clear both OS bitmaps before returning to title menu
@@ -161,9 +162,12 @@ exittoos	jsr	finitvbint
 	jsr	g2v190ep_stop_all_sfx
 	jsr	g2p96_display_shutdown	;c86zfq: central shutdown display-state close
 	jsr	inputoff	; v34: restore ciaa/rawkey vectors before OS exit/closewindow
+	tst.w	g2fatal_state
+	bne.s	.no_cfg_save	; never persist partial/default state after a failed start
 	jsr	g2cfg_save	;v141: persist menu/options on clean exit
+.no_cfg_save
 	jsr	freeobjlist2
-	jsr	permit
+	jsr	g2release_task_ownership
 	jsr	finitdisplay
 	jsr	finitsfx
 	jsr	finitser
@@ -473,6 +477,8 @@ waitquiet	jsr	vwait
 
 playsfx	;sfx file in a0, vol in d0, priority in d1
 	;
+	move.l a0,d2
+	beq.s .no_sample	; optional missing SFX must not program DMA from address zero
 	;move	#$4000,$dff09a	;snd/vb ints off
 	;
 	lea	sfxs(pc),a1
@@ -494,6 +500,7 @@ playsfx	;sfx file in a0, vol in d0, priority in d1
 	;no-can-do!
 	;
 	;move	#$c000,$dff09a
+.no_sample
 	rts
 	;
 queuesfx	;OK, turn off other and play US!

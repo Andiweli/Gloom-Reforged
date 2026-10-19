@@ -1,0 +1,5982 @@
+{
+  "validation_context": [
+    {
+      "binary": "game",
+      "file_bytes": 468564,
+      "normal_hunk_sha256": "c24fa849d46ec52ab7dfbd37821971ec3397dc4ba603de9c62648c563fcc2240",
+      "code_bss_bytes": 434952,
+      "baseline_code_bss_bytes": 433840,
+      "growth_bytes": 1112,
+      "debug_normal_code_equal": true,
+      "kalm_alignment_mod16": {
+        "g2k_c2p1x1_8_c5_gen_init": 12,
+        "g2k_c2p1x1_6_c5_gen_init": 6,
+        "g2k_c2p1x1_8_c5_040_init": 6,
+        "g2k_c2p1x1_6_c5_040_init": 4
+      },
+      "assembler": [
+        {
+          "log": "game-build.log",
+          "warnings": 6,
+          "code_bytes": 434950
+        },
+        {
+          "log": "game-normal-build.log",
+          "warnings": 6,
+          "code_bytes": 434950
+        }
+      ]
+    },
+    {
+      "binary": "bench",
+      "file_bytes": 471172,
+      "normal_hunk_sha256": "695970bcc2015d648bf019efa7eba625adc76761c3724428ed4232ae650927f9",
+      "code_bss_bytes": 437208,
+      "baseline_code_bss_bytes": 436092,
+      "growth_bytes": 1116,
+      "debug_normal_code_equal": true,
+      "kalm_alignment_mod16": {
+        "g2k_c2p1x1_8_c5_gen_init": 8,
+        "g2k_c2p1x1_6_c5_gen_init": 2,
+        "g2k_c2p1x1_8_c5_040_init": 2,
+        "g2k_c2p1x1_6_c5_040_init": 0
+      },
+      "assembler": [
+        {
+          "log": "bench-build.log",
+          "warnings": 6,
+          "code_bytes": 437206
+        },
+        {
+          "log": "bench-normal-build.log",
+          "warnings": 6,
+          "code_bytes": 437206
+        }
+      ]
+    }
+  ],
+  "assets": [
+    {
+      "resource": "gloom/maps/com1_1",
+      "kind": "map/events",
+      "file_bytes": 928,
+      "sha256": "11e20ae8cc38c1509d6702c6d768f4328cbd3686306ec256cee03b4af5e7562a",
+      "decoded_bytes": 9578,
+      "accepted": true,
+      "normalised": false
+    },
+    {
+      "resource": "gloom/maps/com1_2",
+      "kind": "map/events",
+      "file_bytes": 1202,
+      "sha256": "b930753e4c33c79415abb5e14ba6dfb5a4fce033720f3c5c0dad8f75271124ed",
+      "decoded_bytes": 10450,
+      "accepted": true,
+      "normalised": false
+    },
+    {
+      "resource": "gloom/maps/com1_3",
+      "kind": "map/events",
+      "file_bytes": 944,
+      "sha256": "a3ecf63918d7f489075d781c7c909d3d59c87686203fff25de52d4833aba0034",
+      "decoded_bytes": 9998,
+      "accepted": true,
+      "normalised": false
+    },
+    {
+      "resource": "gloom/maps/com1_4",
+      "kind": "map/events",
+      "file_bytes": 858,
+      "sha256": "3ab7345a13a46cbaf2cac8c0ddd5bf3adca3e40eebbaac44c0b3e419c2983acd",
+      "decoded_bytes": 10062,
+      "accepted": true,
+      "normalised": false
+    },
+    {
+      "resource": "gloom/maps/com1_5",
+      "kind": "map/events",
+      "file_bytes": 944,
+      "sha256": "4769ab8636ca5f9f712658c59d75c50365d995206511acae1d9b0b75a7c811f8",
+      "decoded_bytes": 9718,
+      "accepted": true,
+      "normalised": false
+    },
+    {
+      "resource": "gloom/maps/com1_6",
+      "kind": "map/events",
+      "file_bytes": 1292,
+      "sha256": "3112921dce134014456315febaa0aab6bfb6415192f26543dbc090c368ace24b",
+      "decoded_bytes": 10794,
+      "accepted": true,
+      "normalised": false
+    },
+    {
+      "resource": "gloom/maps/com1_7",
+      "kind": "map/events",
+      "file_bytes": 968,
+      "sha256": "eca579f86f1be1bfd8287d3a91555809d091c6f51b2722f96d58710e7958f6aa",
+      "decoded_bytes": 9842,
+      "accepted": true,
+      "normalised": false
+    },
+    {
+      "resource": "gloom/maps/com2_1",
+      "kind": "map/events",
+      "file_bytes": 846,
+      "sha256": "60b652b6a2eede1045e6e5c5935fcbf4102931b113b68a9cd2e9b4153bc7bdd6",
+      "decoded_bytes": 9602,
+      "accepted": true,
+      "normalised": false
+    },
+    {
+      "resource": "gloom/maps/com2_2",
+      "kind": "map/events",
+      "file_bytes": 1078,
+      "sha256": "59804130f7a5bbcd16f772c9b2aea64c45078f784759309b1019646741cdf43b",
+      "decoded_bytes": 10146,
+      "accepted": true,
+      "normalised": false
+    },
+    {
+      "resource": "gloom/maps/com2_3",
+      "kind": "map/events",
+      "file_bytes": 928,
+      "sha256": "8565ecef33724b51337aad03909fca420d91847fadc2470fe648e0d635073258",
+      "decoded_bytes": 10030,
+      "accepted": true,
+      "normalised": false
+    },
+    {
+      "resource": "gloom/maps/com2_4",
+      "kind": "map/events",
+      "file_bytes": 906,
+      "sha256": "011ce80c7843a7ecfb681619d7e9bf192ac08317c53bff56931bb19474485255",
+      "decoded_bytes": 10070,
+      "accepted": true,
+      "normalised": false
+    },
+    {
+      "resource": "gloom/maps/com2_5",
+      "kind": "map/events",
+      "file_bytes": 972,
+      "sha256": "19273d3ae46b90e6773d1865132904603b8883aaf043e287c8186819a831b8bf",
+      "decoded_bytes": 9858,
+      "accepted": true,
+      "normalised": false
+    },
+    {
+      "resource": "gloom/maps/com2_6",
+      "kind": "map/events",
+      "file_bytes": 858,
+      "sha256": "3560aecfc87308ce93b32d165d62f22fe128aa8abe27b9bb99eac9cbf88df914",
+      "decoded_bytes": 9846,
+      "accepted": true,
+      "normalised": false
+    },
+    {
+      "resource": "gloom/maps/com2_7",
+      "kind": "map/events",
+      "file_bytes": 886,
+      "sha256": "7e15b5d1b87068762e5bbbb2543be9fd03233a9ae9a2caf6550be003746dfd88",
+      "decoded_bytes": 9678,
+      "accepted": true,
+      "normalised": false
+    },
+    {
+      "resource": "gloom/maps/com3_1",
+      "kind": "map/events",
+      "file_bytes": 1300,
+      "sha256": "f4ed92136b2e5fa3025b4bef1a989444e3b13acffbf462d06ca28f994b7b402e",
+      "decoded_bytes": 10478,
+      "accepted": true,
+      "normalised": false
+    },
+    {
+      "resource": "gloom/maps/com3_2",
+      "kind": "map/events",
+      "file_bytes": 1300,
+      "sha256": "011744c1e5fa6f560404855b1ef73d3f17682c56e1bd76fa919a1309ccae7608",
+      "decoded_bytes": 10602,
+      "accepted": true,
+      "normalised": false
+    },
+    {
+      "resource": "gloom/maps/com3_3",
+      "kind": "map/events",
+      "file_bytes": 962,
+      "sha256": "4f113da79a75fac2def9c3750de1209983e8bad0bbb820c035f13630c0a99f17",
+      "decoded_bytes": 10030,
+      "accepted": true,
+      "normalised": false
+    },
+    {
+      "resource": "gloom/maps/com3_4",
+      "kind": "map/events",
+      "file_bytes": 1260,
+      "sha256": "a52b5c2a77b3c695856fe72b020be25595dedb9d8a88561a223399d807e0aa09",
+      "decoded_bytes": 10566,
+      "accepted": true,
+      "normalised": false
+    },
+    {
+      "resource": "gloom/maps/com3_5",
+      "kind": "map/events",
+      "file_bytes": 1566,
+      "sha256": "0dc2a3b9b577b99f63eb21d27950081fe96f81098b8f6fa9424a2d129f42d9ef",
+      "decoded_bytes": 11498,
+      "accepted": true,
+      "normalised": false
+    },
+    {
+      "resource": "gloom/maps/com3_6",
+      "kind": "map/events",
+      "file_bytes": 1186,
+      "sha256": "ab8bdc9497a76edf5e8d313fa1dcfccac6b102bee30c92e22e04b2c33dea151b",
+      "decoded_bytes": 10594,
+      "accepted": true,
+      "normalised": false
+    },
+    {
+      "resource": "gloom/maps/com3_7",
+      "kind": "map/events",
+      "file_bytes": 1868,
+      "sha256": "cb0b57599229f9293ce0421f347ad354f4892a853cb6105012a80e056494af9a",
+      "decoded_bytes": 11538,
+      "accepted": true,
+      "normalised": false
+    },
+    {
+      "resource": "gloom/maps/map1_1",
+      "kind": "map/events",
+      "file_bytes": 1434,
+      "sha256": "deb31ed1f1573ab38fa39a95b0bd00e9b328e9454d0e4cf4f8dae3f7c9673076",
+      "decoded_bytes": 10586,
+      "accepted": true,
+      "normalised": false
+    },
+    {
+      "resource": "gloom/maps/map1_2",
+      "kind": "map/events",
+      "file_bytes": 2280,
+      "sha256": "1f98ff3fd5f5d13c251a7da4897c662688b6915e56ad31de185a745ec04abe46",
+      "decoded_bytes": 12630,
+      "accepted": true,
+      "normalised": false
+    },
+    {
+      "resource": "gloom/maps/map1_3",
+      "kind": "map/events",
+      "file_bytes": 3066,
+      "sha256": "e5f151c522812f143f584945d9ae30dea39ae62ca169842a22fd997a02bdac65",
+      "decoded_bytes": 14678,
+      "accepted": true,
+      "normalised": false
+    },
+    {
+      "resource": "gloom/maps/map1_4",
+      "kind": "map/events",
+      "file_bytes": 4482,
+      "sha256": "b85a6cfa5a7e07353e5237069b7f37e8e3c7a9288a484156e36c415026126e4f",
+      "decoded_bytes": 17506,
+      "accepted": true,
+      "normalised": false
+    },
+    {
+      "resource": "gloom/maps/map1_5",
+      "kind": "map/events",
+      "file_bytes": 3024,
+      "sha256": "f682425781ba68de216525ef4a7e843f5881a773349046c6bd210d5de7f087c0",
+      "decoded_bytes": 14590,
+      "accepted": true,
+      "normalised": false
+    },
+    {
+      "resource": "gloom/maps/map1_6",
+      "kind": "map/events",
+      "file_bytes": 4016,
+      "sha256": "e05f1cf63acbee44b39365ee948eee5e223abda20d06666a287e45459c3b5679",
+      "decoded_bytes": 15838,
+      "accepted": true,
+      "normalised": false
+    },
+    {
+      "resource": "gloom/maps/map1_7",
+      "kind": "map/events",
+      "file_bytes": 4728,
+      "sha256": "fcde72b12e2b386407d9e77bf79addc8c01a3f34f77152ce8e5d986052312da6",
+      "decoded_bytes": 17430,
+      "accepted": true,
+      "normalised": false
+    },
+    {
+      "resource": "gloom/maps/map3_1",
+      "kind": "map/events",
+      "file_bytes": 4018,
+      "sha256": "f89789ce7778be61283b7c144fba66e1c00d6959e15bb1e7ae5de08e1e86b2b9",
+      "decoded_bytes": 15932,
+      "accepted": true,
+      "normalised": false
+    },
+    {
+      "resource": "gloom/maps/map3_2",
+      "kind": "map/events",
+      "file_bytes": 3936,
+      "sha256": "a18bd245c6c79b820859c050b4ef853649ee4253a671fe18fa252ec8085fbaa5",
+      "decoded_bytes": 15470,
+      "accepted": true,
+      "normalised": false
+    },
+    {
+      "resource": "gloom/maps/map3_3",
+      "kind": "map/events",
+      "file_bytes": 5568,
+      "sha256": "48dde5f4b5865ba1ee4c5c3d4cfa5b4e0a1a6fe903238febed28d80d3141d5ad",
+      "decoded_bytes": 19074,
+      "accepted": true,
+      "normalised": false
+    },
+    {
+      "resource": "gloom/maps/map3_4",
+      "kind": "map/events",
+      "file_bytes": 6850,
+      "sha256": "355f55d61d270132585f73f3ef039614b8e2767949c79df8191c6d613538c992",
+      "decoded_bytes": 20818,
+      "accepted": true,
+      "normalised": false
+    },
+    {
+      "resource": "gloom/maps/map3_5",
+      "kind": "map/events",
+      "file_bytes": 4294,
+      "sha256": "3e9ccf969cc292b309b2fd9aa3086dc98217922ba10611e18ef6fcf9bd4593ed",
+      "decoded_bytes": 16690,
+      "accepted": true,
+      "normalised": false
+    },
+    {
+      "resource": "gloom/maps/map3_6",
+      "kind": "map/events",
+      "file_bytes": 5650,
+      "sha256": "4bcabf7173adc64ac0d2c2a73929b1fd0ec3b7f9652a1834da9cd7d505ee435a",
+      "decoded_bytes": 19648,
+      "accepted": true,
+      "normalised": false
+    },
+    {
+      "resource": "gloom/maps/map3_7",
+      "kind": "map/events",
+      "file_bytes": 2088,
+      "sha256": "fd9eaf91e5a0e6fa0463b53cd38910864c1a7dbb6eaa87498d53cebb784a5ca6",
+      "decoded_bytes": 12534,
+      "accepted": true,
+      "normalised": false
+    },
+    {
+      "resource": "gloom/maps/map4_1",
+      "kind": "map/events",
+      "file_bytes": 4544,
+      "sha256": "acfe3a6fa27f75571afccac3f5df850106e85384f6cd4830dbf51627adc7bc0f",
+      "decoded_bytes": 15698,
+      "accepted": true,
+      "normalised": false
+    },
+    {
+      "resource": "gloom/maps/map4_2",
+      "kind": "map/events",
+      "file_bytes": 4344,
+      "sha256": "316923752a0612812056c31ea89f900253a0a54c35fe3d810b068137710e0336",
+      "decoded_bytes": 17710,
+      "accepted": true,
+      "normalised": false
+    },
+    {
+      "resource": "gloom/maps/map4_3",
+      "kind": "map/events",
+      "file_bytes": 3958,
+      "sha256": "eccd4871bf858d66a996b059b1eca60851bf510c565c36bd7085c75feff81e3e",
+      "decoded_bytes": 16262,
+      "accepted": true,
+      "normalised": false
+    },
+    {
+      "resource": "gloom/maps/map4_4",
+      "kind": "map/events",
+      "file_bytes": 4694,
+      "sha256": "de102f6d29a1e14de362f612a522a144326c18bad1d284a33bdc9d929c3fbf29",
+      "decoded_bytes": 17586,
+      "accepted": true,
+      "normalised": false
+    },
+    {
+      "resource": "gloom/maps/map4_5",
+      "kind": "map/events",
+      "file_bytes": 3808,
+      "sha256": "e9b7f7ac55483a941b94d482fdbaf08441bb43b4e81d1efd4d5a81d5e24e9440",
+      "decoded_bytes": 14882,
+      "accepted": true,
+      "normalised": false
+    },
+    {
+      "resource": "gloom/maps/map4_6",
+      "kind": "map/events",
+      "file_bytes": 4274,
+      "sha256": "0541758a2b68a62f50129e46144a347dcc638035545ae2c4a70b2a3628c76a1a",
+      "decoded_bytes": 16650,
+      "accepted": true,
+      "normalised": false
+    },
+    {
+      "resource": "gloom/maps/map4_7",
+      "kind": "map/events",
+      "file_bytes": 990,
+      "sha256": "e07d26b61cc224ecfd30a9c17cb2260a8837c75dc8c1d67d111a297cface0f45",
+      "decoded_bytes": 9734,
+      "accepted": true,
+      "normalised": false
+    },
+    {
+      "resource": "gloom/txts/floor1",
+      "kind": "tile",
+      "sha256": "a3b2d2e35baf35f99e384984f8bab3e75db48242b283b594252700add5d5ab72",
+      "accepted": true
+    },
+    {
+      "resource": "gloom/txts/floor2",
+      "kind": "tile",
+      "sha256": "121dd2614cf7aad3e4e13e5dbe75b5b56ba86577ae56d3b3565d805f53c63a01",
+      "accepted": true
+    },
+    {
+      "resource": "gloom/txts/floor3",
+      "kind": "tile",
+      "sha256": "31dae05103ce9299b016b1088e76ccf387562d6f9763a362fdb3b6734dc3a143",
+      "accepted": true
+    },
+    {
+      "resource": "gloom/txts/roof1",
+      "kind": "tile",
+      "sha256": "bc9de680f406d1cf3dfe5079255560b57b6041175772970dd7deec05f83a9eb7",
+      "accepted": true
+    },
+    {
+      "resource": "gloom/txts/roof2",
+      "kind": "tile",
+      "sha256": "7c2dc2c73066fa9956d4ecd28deb7dc520ed87251731f9e488bbfea6977d923c",
+      "accepted": true
+    },
+    {
+      "resource": "gloom/txts/roof3",
+      "kind": "tile",
+      "sha256": "e0d47af976fd7c982e7b834cd82d054b78a073fa1777a7747d89b58ed298e279",
+      "accepted": true
+    },
+    {
+      "resource": "gloom/txts/txt1_0",
+      "kind": "texture",
+      "file_bytes": 2778,
+      "sha256": "7d007f848b499c72d4652170d382351ffa21035c79ab57d108b09cff77755476",
+      "decoded_bytes": 33348,
+      "accepted": true,
+      "normalised": false,
+      "referenced_by_maps": true
+    },
+    {
+      "resource": "gloom/txts/txt1_1",
+      "kind": "texture",
+      "file_bytes": 15330,
+      "sha256": "3695232cf8dadffdbea738640933030ebb90c37b4f69ccdf059afbffa48ceea2",
+      "decoded_bytes": 83716,
+      "accepted": true,
+      "normalised": false,
+      "referenced_by_maps": true
+    },
+    {
+      "resource": "gloom/txts/txt1_2",
+      "kind": "texture",
+      "file_bytes": 9532,
+      "sha256": "d7ba76c7883822f84e6f3c49f8626386303bc8c449c97dd287a807a79be95c12",
+      "decoded_bytes": 83716,
+      "accepted": true,
+      "normalised": false,
+      "referenced_by_maps": true
+    },
+    {
+      "resource": "gloom/txts/txt1_3",
+      "kind": "texture",
+      "file_bytes": 10156,
+      "sha256": "096d0c6d5fb71bd55652a1a180bf2c918ed92a3d8ab66dbd8da4001caa8b8610",
+      "decoded_bytes": 83332,
+      "accepted": true,
+      "normalised": false,
+      "referenced_by_maps": true
+    },
+    {
+      "resource": "gloom/txts/txt1_4",
+      "kind": "texture",
+      "file_bytes": 11616,
+      "sha256": "5d1da2d5eeff14634f21c1d0d0bfa0192ff703cc3ba9e0e4402186c56581b2d6",
+      "decoded_bytes": 83268,
+      "accepted": true,
+      "normalised": false,
+      "referenced_by_maps": true
+    },
+    {
+      "resource": "gloom/txts/txt3_1",
+      "kind": "texture",
+      "file_bytes": 16554,
+      "sha256": "cbdb194f1ee784e52391ec1a12cbe13ab9c2d095d673c50370a5b2f841b9f833",
+      "decoded_bytes": 83716,
+      "accepted": true,
+      "normalised": false,
+      "referenced_by_maps": true
+    },
+    {
+      "resource": "gloom/txts/txt3_2",
+      "kind": "texture",
+      "file_bytes": 14068,
+      "sha256": "ce363f7fa792805943b49d2a6be04f70b6fe97784e89029723a2a3c7fc16362d",
+      "decoded_bytes": 83716,
+      "accepted": true,
+      "normalised": false,
+      "referenced_by_maps": true
+    },
+    {
+      "resource": "gloom/txts/txt3_3",
+      "kind": "texture",
+      "file_bytes": 17986,
+      "sha256": "89aa2ab0fc14159133cb8bc2ca803489e9d25ad379d63583ac55d902f8ab1ea1",
+      "decoded_bytes": 75396,
+      "accepted": true,
+      "normalised": false,
+      "referenced_by_maps": true
+    },
+    {
+      "resource": "gloom/txts/txt3_4",
+      "kind": "texture",
+      "file_bytes": 2396,
+      "sha256": "a4e379b5ad703d929447c19a8009052c5d10828d55526a373e8e9111446f0a16",
+      "decoded_bytes": 17156,
+      "accepted": true,
+      "normalised": false,
+      "referenced_by_maps": true
+    },
+    {
+      "resource": "gloom/txts/txt4_1",
+      "kind": "texture",
+      "file_bytes": 16424,
+      "sha256": "d5f3fb07fa4b692307755a377dd7a6c6c942426bbbf7b12d9846028d247a112e",
+      "decoded_bytes": 83716,
+      "accepted": true,
+      "normalised": false,
+      "referenced_by_maps": true
+    },
+    {
+      "resource": "gloom/txts/txt4_2",
+      "kind": "texture",
+      "file_bytes": 12462,
+      "sha256": "e3be1c5a378c931a3973e5f9b2c0a21c7e9ac81ec6d2ef43650d00b9f28e2b18",
+      "decoded_bytes": 83268,
+      "accepted": true,
+      "normalised": false,
+      "referenced_by_maps": true
+    },
+    {
+      "resource": "gloom/txts/txt4_3",
+      "kind": "texture",
+      "file_bytes": 16522,
+      "sha256": "e750347731774d3e5fc33be4df6c14ef51f8f0816fc3dd2deecf58e64d9a5fff",
+      "decoded_bytes": 83268,
+      "accepted": true,
+      "normalised": false,
+      "referenced_by_maps": true
+    },
+    {
+      "resource": "gloom/objs/baldy",
+      "kind": "animation",
+      "file_bytes": 12500,
+      "sha256": "badc710c646becd7d359c54ec436a9795abff35a3fa822fa8e70a646ad5e132e",
+      "decoded_bytes": 83540,
+      "accepted": true,
+      "normalised": false,
+      "fixed_actor_references_safe": true
+    },
+    {
+      "resource": "gloom/objs/baldy2",
+      "kind": "animation",
+      "file_bytes": 1292,
+      "sha256": "2c3f52edc9d090e012b9251cc040f7e6a0ea3467402386a208b9107ab7eb2d28",
+      "decoded_bytes": 3812,
+      "accepted": true,
+      "normalised": false
+    },
+    {
+      "resource": "gloom/objs/deathhead",
+      "kind": "animation",
+      "file_bytes": 4802,
+      "sha256": "f3d4123865bc9d3981024dede3f9e8f71d6b45d36c1f61f06c30cd3e42b99f63",
+      "decoded_bytes": 58268,
+      "accepted": true,
+      "normalised": false,
+      "fixed_actor_references_safe": true
+    },
+    {
+      "resource": "gloom/objs/demon",
+      "kind": "animation",
+      "file_bytes": 13012,
+      "sha256": "d9574a475a0a48fecd20585fdcadf166c4fc5f82b31ce9a4b5d1ee6a039e15d3",
+      "decoded_bytes": 91328,
+      "accepted": true,
+      "normalised": false,
+      "fixed_actor_references_safe": true
+    },
+    {
+      "resource": "gloom/objs/demon2",
+      "kind": "animation",
+      "file_bytes": 970,
+      "sha256": "14f721f8488726f71cd1f47d42e0b01d2a552d16eba5cde1536084a951dc9521",
+      "decoded_bytes": 2614,
+      "accepted": true,
+      "normalised": false
+    },
+    {
+      "resource": "gloom/objs/dragon",
+      "kind": "animation",
+      "file_bytes": 67360,
+      "sha256": "3344c651726b0718f80b11cc0a946afdea1931186ef21910ab18bb058480dec4",
+      "decoded_bytes": 340456,
+      "accepted": true,
+      "normalised": false,
+      "fixed_actor_references_safe": true
+    },
+    {
+      "resource": "gloom/objs/dragon2",
+      "kind": "animation",
+      "file_bytes": 3686,
+      "sha256": "e601b2806476c96f9381a39a51f031154175b8ad2f49ae50d603c2e1c8fa7988",
+      "decoded_bytes": 14398,
+      "accepted": true,
+      "normalised": false
+    },
+    {
+      "resource": "gloom/objs/ghoul",
+      "kind": "animation",
+      "file_bytes": 7934,
+      "sha256": "af2d4aa58f0ada793e7a04d8512acbbd04ae5e23a5971214ed8a9c3e9f8934b2",
+      "decoded_bytes": 70666,
+      "accepted": true,
+      "normalised": false,
+      "fixed_actor_references_safe": true
+    },
+    {
+      "resource": "gloom/objs/lizard",
+      "kind": "animation",
+      "file_bytes": 12408,
+      "sha256": "a719eca4e1826a26c7994518631509a0c67c741be796cf74d8a4c82e0f9ebdcb",
+      "decoded_bytes": 92942,
+      "accepted": true,
+      "normalised": false,
+      "fixed_actor_references_safe": true
+    },
+    {
+      "resource": "gloom/objs/lizard2",
+      "kind": "animation",
+      "file_bytes": 1286,
+      "sha256": "ea225ed9d6223dd77a462a9f85bb654b3f2a867afa6e04e746d18ad76e386593",
+      "decoded_bytes": 3546,
+      "accepted": true,
+      "normalised": false
+    },
+    {
+      "resource": "gloom/objs/marine",
+      "kind": "animation",
+      "file_bytes": 12240,
+      "sha256": "528159d219f2b3b8094f5a9d838f229f0a23c2cd19a00d17675afb5f92fc1e16",
+      "decoded_bytes": 72964,
+      "accepted": true,
+      "normalised": false,
+      "fixed_actor_references_safe": true
+    },
+    {
+      "resource": "gloom/objs/marine2",
+      "kind": "animation",
+      "file_bytes": 1380,
+      "sha256": "263d78a732c05a6a5a47b834ad78251b4867639aa8833f6f15c3d5cd23bd045c",
+      "decoded_bytes": 4048,
+      "accepted": true,
+      "normalised": false
+    },
+    {
+      "resource": "gloom/objs/phantom",
+      "kind": "animation",
+      "file_bytes": 11064,
+      "sha256": "a7be77e7cf2428183bc4660f2d8a1ce7b3e9b7dee5f86da6fe15f021703175c1",
+      "decoded_bytes": 100452,
+      "accepted": true,
+      "normalised": false,
+      "fixed_actor_references_safe": true
+    },
+    {
+      "resource": "gloom/objs/phantom2",
+      "kind": "animation",
+      "file_bytes": 1206,
+      "sha256": "69de9b5586249a8de5511abf4e07556afee9616e350b7a0a0a273ea06a391582",
+      "decoded_bytes": 3180,
+      "accepted": true,
+      "normalised": false
+    },
+    {
+      "resource": "gloom/objs/player",
+      "kind": "animation",
+      "file_bytes": 11704,
+      "sha256": "bd105c65f546e90c34876d7d28d19d0d9a38b245c31b9f3e9131f7a3bad678ee",
+      "decoded_bytes": 72118,
+      "accepted": true,
+      "normalised": false,
+      "fixed_actor_references_safe": true
+    },
+    {
+      "resource": "gloom/objs/terra",
+      "kind": "animation",
+      "file_bytes": 26722,
+      "sha256": "662c6c28ccafa8a390c7cd03a6d901d9f2c6c00d6c04f93d41bee48a0bce8908",
+      "decoded_bytes": 139278,
+      "accepted": true,
+      "normalised": false,
+      "fixed_actor_references_safe": true
+    },
+    {
+      "resource": "gloom/objs/terra2",
+      "kind": "animation",
+      "file_bytes": 1836,
+      "sha256": "2ab9e156f1400dbe68fc488aaaddc26a55d634d6a6bfa8231335ae914d802c3e",
+      "decoded_bytes": 5588,
+      "accepted": true,
+      "normalised": false
+    },
+    {
+      "resource": "gloom/objs/tokens",
+      "kind": "animation",
+      "file_bytes": 928,
+      "sha256": "cbbec1aa2b25a69b5947ce18813c9f71fadf31b2a696d5628ccb5671ff8fc25e",
+      "decoded_bytes": 3370,
+      "accepted": true,
+      "normalised": false,
+      "fixed_actor_references_safe": true
+    },
+    {
+      "resource": "gloom/objs/troll",
+      "kind": "animation",
+      "file_bytes": 24060,
+      "sha256": "8651f3107f7f358f9a5c8277bd8991ec6fb1574b2724fffc244a742ddffd7368",
+      "decoded_bytes": 148320,
+      "accepted": true,
+      "normalised": false,
+      "fixed_actor_references_safe": true
+    },
+    {
+      "resource": "gloom/objs/troll2",
+      "kind": "animation",
+      "file_bytes": 2234,
+      "sha256": "2f488271ce1da576383f1e0980975f58c1f2efac7da1c991053b2cfd56167f6b",
+      "decoded_bytes": 6488,
+      "accepted": true,
+      "normalised": false
+    },
+    {
+      "resource": "gloom/sfxs/die.bin",
+      "kind": "sound",
+      "file_bytes": 7908,
+      "sha256": "662ae711d342a907ace339fe94e3fb8ae0519edd701e0237945b88650c36dd6b",
+      "decoded_bytes": 9286,
+      "accepted": true,
+      "normalised": false
+    },
+    {
+      "resource": "gloom/sfxs/door.bin",
+      "kind": "sound",
+      "file_bytes": 14586,
+      "sha256": "db7d21cf05ba82ff93a7b7ab54ffa34b9fd312f81e915c33c4a6a1c7912b2a69",
+      "decoded_bytes": 16388,
+      "accepted": true,
+      "normalised": false
+    },
+    {
+      "resource": "gloom/sfxs/dragon.bin",
+      "kind": "sound",
+      "file_bytes": 14884,
+      "sha256": "176ba302f9f2b956063b946f69388924dd7f35431aa7ac781c575d9ad341c620",
+      "decoded_bytes": 16388,
+      "accepted": true,
+      "normalised": false
+    },
+    {
+      "resource": "gloom/sfxs/footstep.bin",
+      "kind": "sound",
+      "file_bytes": 1308,
+      "sha256": "083e43793e252faa45aaab66e7682f34371fcccf76c804ad9ef9b1b499b7e770",
+      "decoded_bytes": 2664,
+      "accepted": true,
+      "normalised": false
+    },
+    {
+      "resource": "gloom/sfxs/ghoul.bin",
+      "kind": "sound",
+      "file_bytes": 14058,
+      "sha256": "f39e5bb16235c578707be2c8f9e53ae9a9beeec35b0db2203bc2d95f3d975f93",
+      "decoded_bytes": 16388,
+      "accepted": true,
+      "normalised": false
+    },
+    {
+      "resource": "gloom/sfxs/grunt.bin",
+      "kind": "sound",
+      "file_bytes": 5362,
+      "sha256": "c4ec98b58c6a9d4c0016749711faf146d7f8017131bc40449772000c1549174c",
+      "decoded_bytes": 5664,
+      "accepted": true,
+      "normalised": false
+    },
+    {
+      "resource": "gloom/sfxs/grunt2.bin",
+      "kind": "sound",
+      "file_bytes": 7086,
+      "sha256": "788ec7e7a7b8d7d7ccaa1e7bbc1e6573f19d0a72a708d17110a5783705542cfe",
+      "decoded_bytes": 8196,
+      "accepted": true,
+      "normalised": false
+    },
+    {
+      "resource": "gloom/sfxs/grunt3.bin",
+      "kind": "sound",
+      "file_bytes": 4082,
+      "sha256": "5842fee3a7802bd9e25894e70b4a7331590732d1e010c6a7a08672bca6cf7863",
+      "decoded_bytes": 4932,
+      "accepted": true,
+      "normalised": false
+    },
+    {
+      "resource": "gloom/sfxs/grunt4.bin",
+      "kind": "sound",
+      "file_bytes": 7018,
+      "sha256": "45298529215129b38e24af93b60f6bb3618a00e3db25e6f13958e4e7987cebed",
+      "decoded_bytes": 7478,
+      "accepted": true,
+      "normalised": false
+    },
+    {
+      "resource": "gloom/sfxs/lizard.bin",
+      "kind": "sound",
+      "file_bytes": 7676,
+      "sha256": "f9d16859cfded9d570626696f9715ab4b52fc92a504cfbc57afa0448926098a6",
+      "decoded_bytes": 8196,
+      "accepted": true,
+      "normalised": false
+    },
+    {
+      "resource": "gloom/sfxs/lizhit.bin",
+      "kind": "sound",
+      "file_bytes": 5070,
+      "sha256": "9e3e54c5f1ebd9d72f39dc696a43692d88bfd40bc8aea5a901f93be4dac7fd8a",
+      "decoded_bytes": 8196,
+      "accepted": true,
+      "normalised": false
+    },
+    {
+      "resource": "gloom/sfxs/robodie.bin",
+      "kind": "sound",
+      "file_bytes": 12626,
+      "sha256": "3dbc7b7a39ac0b250b0949711433afe519dfdf3ea041a7378fc0647bbe8afb5b",
+      "decoded_bytes": 16326,
+      "accepted": true,
+      "normalised": false
+    },
+    {
+      "resource": "gloom/sfxs/robot.bin",
+      "kind": "sound",
+      "file_bytes": 15840,
+      "sha256": "645ed8d21dab9bae50e8c3db9176efcb8efae27136fd4e7d1d8d698861ea709d",
+      "decoded_bytes": 18854,
+      "accepted": true,
+      "normalised": false
+    },
+    {
+      "resource": "gloom/sfxs/shoot.bin",
+      "kind": "sound",
+      "file_bytes": 7654,
+      "sha256": "126fa1d14100344efac11e34350066b275e915ac3cd7c48e201fd508560dc22a",
+      "decoded_bytes": 8364,
+      "accepted": true,
+      "normalised": false
+    },
+    {
+      "resource": "gloom/sfxs/shoot2.bin",
+      "kind": "sound",
+      "file_bytes": 4898,
+      "sha256": "4b80c4c533589693373da4c28ffb5df858e55a2ad058629b8be5f4698859d8f8",
+      "decoded_bytes": 5988,
+      "accepted": true,
+      "normalised": false
+    },
+    {
+      "resource": "gloom/sfxs/shoot3.bin",
+      "kind": "sound",
+      "file_bytes": 6246,
+      "sha256": "ebb6b2c8fd387933c55ff725894ace5f3121ccaad6da41edb9bfc1a2dcb7a017",
+      "decoded_bytes": 8196,
+      "accepted": true,
+      "normalised": false
+    },
+    {
+      "resource": "gloom/sfxs/shoot4.bin",
+      "kind": "sound",
+      "file_bytes": 7692,
+      "sha256": "0e07c5dbf1a5bdebe274552829b596ad0573fef10df765105ec4aec5f05bde96",
+      "decoded_bytes": 8196,
+      "accepted": true,
+      "normalised": false
+    },
+    {
+      "resource": "gloom/sfxs/shoot5.bin",
+      "kind": "sound",
+      "file_bytes": 7554,
+      "sha256": "2a223cfe87fa5d24442b201e0ff7df6cf94a148b282fd8be6f10eb68c146c0cf",
+      "decoded_bytes": 8196,
+      "accepted": true,
+      "normalised": false
+    },
+    {
+      "resource": "gloom/sfxs/splat.bin",
+      "kind": "sound",
+      "file_bytes": 4318,
+      "sha256": "1bb45668effb98ee3e9296d210bab7964968698d85d743090de5563cccd42711",
+      "decoded_bytes": 5300,
+      "accepted": true,
+      "normalised": false
+    },
+    {
+      "resource": "gloom/sfxs/teleport.bin",
+      "kind": "sound",
+      "file_bytes": 6796,
+      "sha256": "48c83031e26037b735d5a254e2d6cebfe292eb96834666b9d13f1366e380a2b6",
+      "decoded_bytes": 8790,
+      "accepted": true,
+      "normalised": false
+    },
+    {
+      "resource": "gloom/sfxs/token.bin",
+      "kind": "sound",
+      "file_bytes": 5836,
+      "sha256": "6d1df6a61e27dcd2cd5d72ae766248903a16bb8009aacd90e6efb2bd635081a2",
+      "decoded_bytes": 8012,
+      "accepted": true,
+      "normalised": false
+    },
+    {
+      "resource": "gloom/sfxs/trollhit.bin",
+      "kind": "sound",
+      "file_bytes": 7846,
+      "sha256": "9f695ea7b7ea36d1a5131cec828ef608ab36b16b01a06f4743bf0e0451056430",
+      "decoded_bytes": 8196,
+      "accepted": true,
+      "normalised": false
+    },
+    {
+      "resource": "gloom/sfxs/trollmad.bin",
+      "kind": "sound",
+      "file_bytes": 14422,
+      "sha256": "c4597956fc0e61d976a5f6e5700e29cc8f95794c3a6f5a9d8af93513b4ba33c2",
+      "decoded_bytes": 16388,
+      "accepted": true,
+      "normalised": false
+    },
+    {
+      "resource": "gloom/pics/blackmagic",
+      "kind": "picture",
+      "file_bytes": 7276,
+      "sha256": "cb1aea899bd7c1c1aa9f5a2537f696bea58955253f77be7f687d67ffb0ceb8c2",
+      "decoded_bytes": 15365,
+      "accepted": true,
+      "normalised": false
+    },
+    {
+      "resource": "gloom/pics/blackmagic.pal",
+      "kind": "AGA palette",
+      "sha256": "e69cdcadafc29bfca163465c301c67eaab9daf0c7fcdd4475865bdc787dabe17",
+      "accepted": true,
+      "bytes": 512,
+      "needed": 512
+    },
+    {
+      "resource": "gloom/pics/combat",
+      "kind": "picture",
+      "file_bytes": 55562,
+      "sha256": "43bfb2eb425fa3eb0065e2255ecf6bc47b5197fe19e00431da94ca7ad32f5d00",
+      "decoded_bytes": 62475,
+      "accepted": true,
+      "normalised": false
+    },
+    {
+      "resource": "gloom/pics/combat.pal",
+      "kind": "AGA palette",
+      "sha256": "4c6ccc0a8267e9147ed69a713cd9341ba930d98d49008bd7f38b686a6052dcb4",
+      "accepted": true,
+      "bytes": 512,
+      "needed": 512
+    },
+    {
+      "resource": "gloom/pics/gothic",
+      "kind": "picture",
+      "file_bytes": 47714,
+      "sha256": "83784d8e6d2599ad83fda130c601c8f84801b77a9e99a3ce81307b6bfa5b26a5",
+      "decoded_bytes": 59932,
+      "accepted": true,
+      "normalised": false
+    },
+    {
+      "resource": "gloom/pics/gothic.pal",
+      "kind": "AGA palette",
+      "sha256": "aaa85c18cd34f8a856f7ca030daea55cb330f5259c5b7f6298a9ee4fd8f217e7",
+      "accepted": true,
+      "bytes": 512,
+      "needed": 512
+    },
+    {
+      "resource": "gloom/pics/hell",
+      "kind": "picture",
+      "file_bytes": 50852,
+      "sha256": "681d00cdebae260297b476103aa2deb2753a1edf0e1b8eabb569b728754893e0",
+      "decoded_bytes": 59592,
+      "accepted": true,
+      "normalised": false
+    },
+    {
+      "resource": "gloom/pics/hell.pal",
+      "kind": "AGA palette",
+      "sha256": "e45c43d6e6b7d6055b8ac32d1a174f175cef9391d07a0ebddd9f746ba6865934",
+      "accepted": true,
+      "bytes": 512,
+      "needed": 512
+    },
+    {
+      "resource": "gloom/pics/spacehulk",
+      "kind": "picture",
+      "file_bytes": 56596,
+      "sha256": "983caed81cc882910e2f763483da4991ece8a3e7e12483a31b8a73b9ff9874c4",
+      "decoded_bytes": 62286,
+      "accepted": true,
+      "normalised": false
+    },
+    {
+      "resource": "gloom/pics/spacehulk.pal",
+      "kind": "AGA palette",
+      "sha256": "92b9fc289ce06e223d721030145737a4b2572a20097804079ee7cab688ecbca8",
+      "accepted": true,
+      "bytes": 512,
+      "needed": 512
+    },
+    {
+      "resource": "gloom/pics/theend",
+      "kind": "picture",
+      "file_bytes": 45212,
+      "sha256": "f3cdb40d4fb74b5db45e8ff887889b895f5ad0c480edca457a6c4b29de794dbb",
+      "decoded_bytes": 54621,
+      "accepted": true,
+      "normalised": false
+    },
+    {
+      "resource": "gloom/pics/theend.pal",
+      "kind": "AGA palette",
+      "sha256": "5169848ebdf88fa53c2b76e8bfde8a41b35ba25e55f57400ff3d230d4f6490a1",
+      "accepted": true,
+      "bytes": 512,
+      "needed": 512
+    },
+    {
+      "resource": "gloom/misc/script",
+      "kind": "script",
+      "file_bytes": 632,
+      "sha256": "5f3ef6f9ef4766f43f98feb887d0ca7ca780749d2f4be2d5a770cd884c2f3f66",
+      "decoded_bytes": 1777,
+      "accepted": true,
+      "normalised": false
+    },
+    {
+      "resource": "deluxe/maps/com1_1",
+      "kind": "map/events",
+      "file_bytes": 928,
+      "sha256": "11e20ae8cc38c1509d6702c6d768f4328cbd3686306ec256cee03b4af5e7562a",
+      "decoded_bytes": 9578,
+      "accepted": true,
+      "normalised": false
+    },
+    {
+      "resource": "deluxe/maps/com1_2",
+      "kind": "map/events",
+      "file_bytes": 1202,
+      "sha256": "b930753e4c33c79415abb5e14ba6dfb5a4fce033720f3c5c0dad8f75271124ed",
+      "decoded_bytes": 10450,
+      "accepted": true,
+      "normalised": false
+    },
+    {
+      "resource": "deluxe/maps/com1_3",
+      "kind": "map/events",
+      "file_bytes": 944,
+      "sha256": "a3ecf63918d7f489075d781c7c909d3d59c87686203fff25de52d4833aba0034",
+      "decoded_bytes": 9998,
+      "accepted": true,
+      "normalised": false
+    },
+    {
+      "resource": "deluxe/maps/com1_4",
+      "kind": "map/events",
+      "file_bytes": 858,
+      "sha256": "3ab7345a13a46cbaf2cac8c0ddd5bf3adca3e40eebbaac44c0b3e419c2983acd",
+      "decoded_bytes": 10062,
+      "accepted": true,
+      "normalised": false
+    },
+    {
+      "resource": "deluxe/maps/com1_5",
+      "kind": "map/events",
+      "file_bytes": 944,
+      "sha256": "4769ab8636ca5f9f712658c59d75c50365d995206511acae1d9b0b75a7c811f8",
+      "decoded_bytes": 9718,
+      "accepted": true,
+      "normalised": false
+    },
+    {
+      "resource": "deluxe/maps/com1_6",
+      "kind": "map/events",
+      "file_bytes": 1292,
+      "sha256": "3112921dce134014456315febaa0aab6bfb6415192f26543dbc090c368ace24b",
+      "decoded_bytes": 10794,
+      "accepted": true,
+      "normalised": false
+    },
+    {
+      "resource": "deluxe/maps/com1_7",
+      "kind": "map/events",
+      "file_bytes": 968,
+      "sha256": "eca579f86f1be1bfd8287d3a91555809d091c6f51b2722f96d58710e7958f6aa",
+      "decoded_bytes": 9842,
+      "accepted": true,
+      "normalised": false
+    },
+    {
+      "resource": "deluxe/maps/com2_1",
+      "kind": "map/events",
+      "file_bytes": 846,
+      "sha256": "60b652b6a2eede1045e6e5c5935fcbf4102931b113b68a9cd2e9b4153bc7bdd6",
+      "decoded_bytes": 9602,
+      "accepted": true,
+      "normalised": false
+    },
+    {
+      "resource": "deluxe/maps/com2_2",
+      "kind": "map/events",
+      "file_bytes": 1078,
+      "sha256": "59804130f7a5bbcd16f772c9b2aea64c45078f784759309b1019646741cdf43b",
+      "decoded_bytes": 10146,
+      "accepted": true,
+      "normalised": false
+    },
+    {
+      "resource": "deluxe/maps/com2_3",
+      "kind": "map/events",
+      "file_bytes": 928,
+      "sha256": "8565ecef33724b51337aad03909fca420d91847fadc2470fe648e0d635073258",
+      "decoded_bytes": 10030,
+      "accepted": true,
+      "normalised": false
+    },
+    {
+      "resource": "deluxe/maps/com2_4",
+      "kind": "map/events",
+      "file_bytes": 906,
+      "sha256": "011ce80c7843a7ecfb681619d7e9bf192ac08317c53bff56931bb19474485255",
+      "decoded_bytes": 10070,
+      "accepted": true,
+      "normalised": false
+    },
+    {
+      "resource": "deluxe/maps/com2_5",
+      "kind": "map/events",
+      "file_bytes": 972,
+      "sha256": "19273d3ae46b90e6773d1865132904603b8883aaf043e287c8186819a831b8bf",
+      "decoded_bytes": 9858,
+      "accepted": true,
+      "normalised": false
+    },
+    {
+      "resource": "deluxe/maps/com2_6",
+      "kind": "map/events",
+      "file_bytes": 858,
+      "sha256": "3560aecfc87308ce93b32d165d62f22fe128aa8abe27b9bb99eac9cbf88df914",
+      "decoded_bytes": 9846,
+      "accepted": true,
+      "normalised": false
+    },
+    {
+      "resource": "deluxe/maps/com2_7",
+      "kind": "map/events",
+      "file_bytes": 886,
+      "sha256": "7e15b5d1b87068762e5bbbb2543be9fd03233a9ae9a2caf6550be003746dfd88",
+      "decoded_bytes": 9678,
+      "accepted": true,
+      "normalised": false
+    },
+    {
+      "resource": "deluxe/maps/com3_1",
+      "kind": "map/events",
+      "file_bytes": 1300,
+      "sha256": "f4ed92136b2e5fa3025b4bef1a989444e3b13acffbf462d06ca28f994b7b402e",
+      "decoded_bytes": 10478,
+      "accepted": true,
+      "normalised": false
+    },
+    {
+      "resource": "deluxe/maps/com3_2",
+      "kind": "map/events",
+      "file_bytes": 1300,
+      "sha256": "011744c1e5fa6f560404855b1ef73d3f17682c56e1bd76fa919a1309ccae7608",
+      "decoded_bytes": 10602,
+      "accepted": true,
+      "normalised": false
+    },
+    {
+      "resource": "deluxe/maps/com3_3",
+      "kind": "map/events",
+      "file_bytes": 962,
+      "sha256": "4f113da79a75fac2def9c3750de1209983e8bad0bbb820c035f13630c0a99f17",
+      "decoded_bytes": 10030,
+      "accepted": true,
+      "normalised": false
+    },
+    {
+      "resource": "deluxe/maps/com3_4",
+      "kind": "map/events",
+      "file_bytes": 1260,
+      "sha256": "a52b5c2a77b3c695856fe72b020be25595dedb9d8a88561a223399d807e0aa09",
+      "decoded_bytes": 10566,
+      "accepted": true,
+      "normalised": false
+    },
+    {
+      "resource": "deluxe/maps/com3_5",
+      "kind": "map/events",
+      "file_bytes": 1566,
+      "sha256": "0dc2a3b9b577b99f63eb21d27950081fe96f81098b8f6fa9424a2d129f42d9ef",
+      "decoded_bytes": 11498,
+      "accepted": true,
+      "normalised": false
+    },
+    {
+      "resource": "deluxe/maps/com3_6",
+      "kind": "map/events",
+      "file_bytes": 1186,
+      "sha256": "ab8bdc9497a76edf5e8d313fa1dcfccac6b102bee30c92e22e04b2c33dea151b",
+      "decoded_bytes": 10594,
+      "accepted": true,
+      "normalised": false
+    },
+    {
+      "resource": "deluxe/maps/com3_7",
+      "kind": "map/events",
+      "file_bytes": 1868,
+      "sha256": "cb0b57599229f9293ce0421f347ad354f4892a853cb6105012a80e056494af9a",
+      "decoded_bytes": 11538,
+      "accepted": true,
+      "normalised": false
+    },
+    {
+      "resource": "deluxe/maps/map1_1",
+      "kind": "map/events",
+      "file_bytes": 10546,
+      "sha256": "05b20e3cb072dc3b0373b1276cd2121c3798129a40cabed22db44ea10f3bb82b",
+      "decoded_bytes": 10546,
+      "accepted": true,
+      "normalised": false
+    },
+    {
+      "resource": "deluxe/maps/map1_1-orig",
+      "kind": "map/events",
+      "file_bytes": 10546,
+      "sha256": "f73b7577566c0ff2eaa93ade21b111684c77d253bf74140dde395ba9e8323bc9",
+      "decoded_bytes": 10546,
+      "accepted": true,
+      "normalised": false
+    },
+    {
+      "resource": "deluxe/maps/map1_2",
+      "kind": "map/events",
+      "file_bytes": 2280,
+      "sha256": "1f98ff3fd5f5d13c251a7da4897c662688b6915e56ad31de185a745ec04abe46",
+      "decoded_bytes": 12630,
+      "accepted": true,
+      "normalised": false
+    },
+    {
+      "resource": "deluxe/maps/map1_3",
+      "kind": "map/events",
+      "file_bytes": 3066,
+      "sha256": "e5f151c522812f143f584945d9ae30dea39ae62ca169842a22fd997a02bdac65",
+      "decoded_bytes": 14678,
+      "accepted": true,
+      "normalised": false
+    },
+    {
+      "resource": "deluxe/maps/map1_4",
+      "kind": "map/events",
+      "file_bytes": 4482,
+      "sha256": "b85a6cfa5a7e07353e5237069b7f37e8e3c7a9288a484156e36c415026126e4f",
+      "decoded_bytes": 17506,
+      "accepted": true,
+      "normalised": false
+    },
+    {
+      "resource": "deluxe/maps/map1_5",
+      "kind": "map/events",
+      "file_bytes": 3024,
+      "sha256": "f682425781ba68de216525ef4a7e843f5881a773349046c6bd210d5de7f087c0",
+      "decoded_bytes": 14590,
+      "accepted": true,
+      "normalised": false
+    },
+    {
+      "resource": "deluxe/maps/map1_6",
+      "kind": "map/events",
+      "file_bytes": 4016,
+      "sha256": "e05f1cf63acbee44b39365ee948eee5e223abda20d06666a287e45459c3b5679",
+      "decoded_bytes": 15838,
+      "accepted": true,
+      "normalised": false
+    },
+    {
+      "resource": "deluxe/maps/map1_7",
+      "kind": "map/events",
+      "file_bytes": 4728,
+      "sha256": "fcde72b12e2b386407d9e77bf79addc8c01a3f34f77152ce8e5d986052312da6",
+      "decoded_bytes": 17430,
+      "accepted": true,
+      "normalised": false
+    },
+    {
+      "resource": "deluxe/maps/map3_1",
+      "kind": "map/events",
+      "file_bytes": 4018,
+      "sha256": "f89789ce7778be61283b7c144fba66e1c00d6959e15bb1e7ae5de08e1e86b2b9",
+      "decoded_bytes": 15932,
+      "accepted": true,
+      "normalised": false
+    },
+    {
+      "resource": "deluxe/maps/map3_2",
+      "kind": "map/events",
+      "file_bytes": 3936,
+      "sha256": "a18bd245c6c79b820859c050b4ef853649ee4253a671fe18fa252ec8085fbaa5",
+      "decoded_bytes": 15470,
+      "accepted": true,
+      "normalised": false
+    },
+    {
+      "resource": "deluxe/maps/map3_3",
+      "kind": "map/events",
+      "file_bytes": 5568,
+      "sha256": "48dde5f4b5865ba1ee4c5c3d4cfa5b4e0a1a6fe903238febed28d80d3141d5ad",
+      "decoded_bytes": 19074,
+      "accepted": true,
+      "normalised": false
+    },
+    {
+      "resource": "deluxe/maps/map3_4",
+      "kind": "map/events",
+      "file_bytes": 6850,
+      "sha256": "355f55d61d270132585f73f3ef039614b8e2767949c79df8191c6d613538c992",
+      "decoded_bytes": 20818,
+      "accepted": true,
+      "normalised": false
+    },
+    {
+      "resource": "deluxe/maps/map3_5",
+      "kind": "map/events",
+      "file_bytes": 4294,
+      "sha256": "3e9ccf969cc292b309b2fd9aa3086dc98217922ba10611e18ef6fcf9bd4593ed",
+      "decoded_bytes": 16690,
+      "accepted": true,
+      "normalised": false
+    },
+    {
+      "resource": "deluxe/maps/map3_6",
+      "kind": "map/events",
+      "file_bytes": 5650,
+      "sha256": "4bcabf7173adc64ac0d2c2a73929b1fd0ec3b7f9652a1834da9cd7d505ee435a",
+      "decoded_bytes": 19648,
+      "accepted": true,
+      "normalised": false
+    },
+    {
+      "resource": "deluxe/maps/map3_7",
+      "kind": "map/events",
+      "file_bytes": 2088,
+      "sha256": "fd9eaf91e5a0e6fa0463b53cd38910864c1a7dbb6eaa87498d53cebb784a5ca6",
+      "decoded_bytes": 12534,
+      "accepted": true,
+      "normalised": false
+    },
+    {
+      "resource": "deluxe/maps/map4_1",
+      "kind": "map/events",
+      "file_bytes": 4544,
+      "sha256": "acfe3a6fa27f75571afccac3f5df850106e85384f6cd4830dbf51627adc7bc0f",
+      "decoded_bytes": 15698,
+      "accepted": true,
+      "normalised": false
+    },
+    {
+      "resource": "deluxe/maps/map4_2",
+      "kind": "map/events",
+      "file_bytes": 4344,
+      "sha256": "316923752a0612812056c31ea89f900253a0a54c35fe3d810b068137710e0336",
+      "decoded_bytes": 17710,
+      "accepted": true,
+      "normalised": false
+    },
+    {
+      "resource": "deluxe/maps/map4_3",
+      "kind": "map/events",
+      "file_bytes": 3958,
+      "sha256": "eccd4871bf858d66a996b059b1eca60851bf510c565c36bd7085c75feff81e3e",
+      "decoded_bytes": 16262,
+      "accepted": true,
+      "normalised": false
+    },
+    {
+      "resource": "deluxe/maps/map4_4",
+      "kind": "map/events",
+      "file_bytes": 4694,
+      "sha256": "de102f6d29a1e14de362f612a522a144326c18bad1d284a33bdc9d929c3fbf29",
+      "decoded_bytes": 17586,
+      "accepted": true,
+      "normalised": false
+    },
+    {
+      "resource": "deluxe/maps/map4_5",
+      "kind": "map/events",
+      "file_bytes": 3808,
+      "sha256": "e9b7f7ac55483a941b94d482fdbaf08441bb43b4e81d1efd4d5a81d5e24e9440",
+      "decoded_bytes": 14882,
+      "accepted": true,
+      "normalised": false
+    },
+    {
+      "resource": "deluxe/maps/map4_6",
+      "kind": "map/events",
+      "file_bytes": 4274,
+      "sha256": "0541758a2b68a62f50129e46144a347dcc638035545ae2c4a70b2a3628c76a1a",
+      "decoded_bytes": 16650,
+      "accepted": true,
+      "normalised": false
+    },
+    {
+      "resource": "deluxe/maps/map4_7",
+      "kind": "map/events",
+      "file_bytes": 990,
+      "sha256": "e07d26b61cc224ecfd30a9c17cb2260a8837c75dc8c1d67d111a297cface0f45",
+      "decoded_bytes": 9734,
+      "accepted": true,
+      "normalised": false
+    },
+    {
+      "resource": "deluxe/txts/floor1",
+      "kind": "tile",
+      "sha256": "9f2c055e35aaaa7a4076ba4facbe632befa81fcfcca091ae91441b66bbecaff3",
+      "accepted": true
+    },
+    {
+      "resource": "deluxe/txts/floor2",
+      "kind": "tile",
+      "sha256": "121dd2614cf7aad3e4e13e5dbe75b5b56ba86577ae56d3b3565d805f53c63a01",
+      "accepted": true
+    },
+    {
+      "resource": "deluxe/txts/floor3",
+      "kind": "tile",
+      "sha256": "31dae05103ce9299b016b1088e76ccf387562d6f9763a362fdb3b6734dc3a143",
+      "accepted": true
+    },
+    {
+      "resource": "deluxe/txts/roof1",
+      "kind": "tile",
+      "sha256": "5e5b6eb1c3f23aa7178440cb9f660892278961db838b7ebf772eb19f6f9aec5d",
+      "accepted": true
+    },
+    {
+      "resource": "deluxe/txts/roof2",
+      "kind": "tile",
+      "sha256": "7c2dc2c73066fa9956d4ecd28deb7dc520ed87251731f9e488bbfea6977d923c",
+      "accepted": true
+    },
+    {
+      "resource": "deluxe/txts/roof3",
+      "kind": "tile",
+      "sha256": "e0d47af976fd7c982e7b834cd82d054b78a073fa1777a7747d89b58ed298e279",
+      "accepted": true
+    },
+    {
+      "resource": "deluxe/txts/txt1_0",
+      "kind": "texture",
+      "file_bytes": 2778,
+      "sha256": "7d007f848b499c72d4652170d382351ffa21035c79ab57d108b09cff77755476",
+      "decoded_bytes": 33348,
+      "accepted": true,
+      "normalised": false,
+      "referenced_by_maps": true
+    },
+    {
+      "resource": "deluxe/txts/txt1_1",
+      "kind": "texture",
+      "file_bytes": 15330,
+      "sha256": "3695232cf8dadffdbea738640933030ebb90c37b4f69ccdf059afbffa48ceea2",
+      "decoded_bytes": 83716,
+      "accepted": true,
+      "normalised": false,
+      "referenced_by_maps": true
+    },
+    {
+      "resource": "deluxe/txts/txt1_2",
+      "kind": "texture",
+      "file_bytes": 9532,
+      "sha256": "d7ba76c7883822f84e6f3c49f8626386303bc8c449c97dd287a807a79be95c12",
+      "decoded_bytes": 83716,
+      "accepted": true,
+      "normalised": false,
+      "referenced_by_maps": true
+    },
+    {
+      "resource": "deluxe/txts/txt1_3",
+      "kind": "texture",
+      "file_bytes": 10156,
+      "sha256": "096d0c6d5fb71bd55652a1a180bf2c918ed92a3d8ab66dbd8da4001caa8b8610",
+      "decoded_bytes": 83332,
+      "accepted": true,
+      "normalised": false,
+      "referenced_by_maps": true
+    },
+    {
+      "resource": "deluxe/txts/txt1_4",
+      "kind": "texture",
+      "file_bytes": 11616,
+      "sha256": "5d1da2d5eeff14634f21c1d0d0bfa0192ff703cc3ba9e0e4402186c56581b2d6",
+      "decoded_bytes": 83268,
+      "accepted": true,
+      "normalised": false,
+      "referenced_by_maps": true
+    },
+    {
+      "resource": "deluxe/txts/txt3_1",
+      "kind": "texture",
+      "file_bytes": 16554,
+      "sha256": "cbdb194f1ee784e52391ec1a12cbe13ab9c2d095d673c50370a5b2f841b9f833",
+      "decoded_bytes": 83716,
+      "accepted": true,
+      "normalised": false,
+      "referenced_by_maps": true
+    },
+    {
+      "resource": "deluxe/txts/txt3_2",
+      "kind": "texture",
+      "file_bytes": 14068,
+      "sha256": "ce363f7fa792805943b49d2a6be04f70b6fe97784e89029723a2a3c7fc16362d",
+      "decoded_bytes": 83716,
+      "accepted": true,
+      "normalised": false,
+      "referenced_by_maps": true
+    },
+    {
+      "resource": "deluxe/txts/txt3_3",
+      "kind": "texture",
+      "file_bytes": 17986,
+      "sha256": "89aa2ab0fc14159133cb8bc2ca803489e9d25ad379d63583ac55d902f8ab1ea1",
+      "decoded_bytes": 75396,
+      "accepted": true,
+      "normalised": false,
+      "referenced_by_maps": true
+    },
+    {
+      "resource": "deluxe/txts/txt3_4",
+      "kind": "texture",
+      "file_bytes": 2396,
+      "sha256": "a4e379b5ad703d929447c19a8009052c5d10828d55526a373e8e9111446f0a16",
+      "decoded_bytes": 17156,
+      "accepted": true,
+      "normalised": false,
+      "referenced_by_maps": true
+    },
+    {
+      "resource": "deluxe/txts/txt4_1",
+      "kind": "texture",
+      "file_bytes": 16424,
+      "sha256": "d5f3fb07fa4b692307755a377dd7a6c6c942426bbbf7b12d9846028d247a112e",
+      "decoded_bytes": 83716,
+      "accepted": true,
+      "normalised": false,
+      "referenced_by_maps": true
+    },
+    {
+      "resource": "deluxe/txts/txt4_2",
+      "kind": "texture",
+      "file_bytes": 12462,
+      "sha256": "e3be1c5a378c931a3973e5f9b2c0a21c7e9ac81ec6d2ef43650d00b9f28e2b18",
+      "decoded_bytes": 83268,
+      "accepted": true,
+      "normalised": false,
+      "referenced_by_maps": true
+    },
+    {
+      "resource": "deluxe/txts/txt4_3",
+      "kind": "texture",
+      "file_bytes": 16522,
+      "sha256": "e750347731774d3e5fc33be4df6c14ef51f8f0816fc3dd2deecf58e64d9a5fff",
+      "decoded_bytes": 83268,
+      "accepted": true,
+      "normalised": false,
+      "referenced_by_maps": true
+    },
+    {
+      "resource": "deluxe/objs/baldy",
+      "kind": "animation",
+      "file_bytes": 12500,
+      "sha256": "badc710c646becd7d359c54ec436a9795abff35a3fa822fa8e70a646ad5e132e",
+      "decoded_bytes": 83540,
+      "accepted": true,
+      "normalised": false,
+      "fixed_actor_references_safe": true
+    },
+    {
+      "resource": "deluxe/objs/baldy2",
+      "kind": "animation",
+      "file_bytes": 1292,
+      "sha256": "2c3f52edc9d090e012b9251cc040f7e6a0ea3467402386a208b9107ab7eb2d28",
+      "decoded_bytes": 3812,
+      "accepted": true,
+      "normalised": false
+    },
+    {
+      "resource": "deluxe/objs/deathhead",
+      "kind": "animation",
+      "file_bytes": 4802,
+      "sha256": "f3d4123865bc9d3981024dede3f9e8f71d6b45d36c1f61f06c30cd3e42b99f63",
+      "decoded_bytes": 58268,
+      "accepted": true,
+      "normalised": false,
+      "fixed_actor_references_safe": true
+    },
+    {
+      "resource": "deluxe/objs/demon",
+      "kind": "animation",
+      "file_bytes": 13012,
+      "sha256": "d9574a475a0a48fecd20585fdcadf166c4fc5f82b31ce9a4b5d1ee6a039e15d3",
+      "decoded_bytes": 91328,
+      "accepted": true,
+      "normalised": false,
+      "fixed_actor_references_safe": true
+    },
+    {
+      "resource": "deluxe/objs/demon2",
+      "kind": "animation",
+      "file_bytes": 970,
+      "sha256": "14f721f8488726f71cd1f47d42e0b01d2a552d16eba5cde1536084a951dc9521",
+      "decoded_bytes": 2614,
+      "accepted": true,
+      "normalised": false
+    },
+    {
+      "resource": "deluxe/objs/dragon",
+      "kind": "animation",
+      "file_bytes": 67360,
+      "sha256": "3344c651726b0718f80b11cc0a946afdea1931186ef21910ab18bb058480dec4",
+      "decoded_bytes": 340456,
+      "accepted": true,
+      "normalised": false,
+      "fixed_actor_references_safe": true
+    },
+    {
+      "resource": "deluxe/objs/dragon2",
+      "kind": "animation",
+      "file_bytes": 3686,
+      "sha256": "e601b2806476c96f9381a39a51f031154175b8ad2f49ae50d603c2e1c8fa7988",
+      "decoded_bytes": 14398,
+      "accepted": true,
+      "normalised": false
+    },
+    {
+      "resource": "deluxe/objs/ghoul",
+      "kind": "animation",
+      "file_bytes": 7934,
+      "sha256": "af2d4aa58f0ada793e7a04d8512acbbd04ae5e23a5971214ed8a9c3e9f8934b2",
+      "decoded_bytes": 70666,
+      "accepted": true,
+      "normalised": false,
+      "fixed_actor_references_safe": true
+    },
+    {
+      "resource": "deluxe/objs/lizard",
+      "kind": "animation",
+      "file_bytes": 12408,
+      "sha256": "a719eca4e1826a26c7994518631509a0c67c741be796cf74d8a4c82e0f9ebdcb",
+      "decoded_bytes": 92942,
+      "accepted": true,
+      "normalised": false,
+      "fixed_actor_references_safe": true
+    },
+    {
+      "resource": "deluxe/objs/lizard2",
+      "kind": "animation",
+      "file_bytes": 1286,
+      "sha256": "ea225ed9d6223dd77a462a9f85bb654b3f2a867afa6e04e746d18ad76e386593",
+      "decoded_bytes": 3546,
+      "accepted": true,
+      "normalised": false
+    },
+    {
+      "resource": "deluxe/objs/marine",
+      "kind": "animation",
+      "file_bytes": 12240,
+      "sha256": "528159d219f2b3b8094f5a9d838f229f0a23c2cd19a00d17675afb5f92fc1e16",
+      "decoded_bytes": 72964,
+      "accepted": true,
+      "normalised": false,
+      "fixed_actor_references_safe": true
+    },
+    {
+      "resource": "deluxe/objs/marine2",
+      "kind": "animation",
+      "file_bytes": 1380,
+      "sha256": "263d78a732c05a6a5a47b834ad78251b4867639aa8833f6f15c3d5cd23bd045c",
+      "decoded_bytes": 4048,
+      "accepted": true,
+      "normalised": false
+    },
+    {
+      "resource": "deluxe/objs/phantom",
+      "kind": "animation",
+      "file_bytes": 11064,
+      "sha256": "a7be77e7cf2428183bc4660f2d8a1ce7b3e9b7dee5f86da6fe15f021703175c1",
+      "decoded_bytes": 100452,
+      "accepted": true,
+      "normalised": false,
+      "fixed_actor_references_safe": true
+    },
+    {
+      "resource": "deluxe/objs/phantom2",
+      "kind": "animation",
+      "file_bytes": 1206,
+      "sha256": "69de9b5586249a8de5511abf4e07556afee9616e350b7a0a0a273ea06a391582",
+      "decoded_bytes": 3180,
+      "accepted": true,
+      "normalised": false
+    },
+    {
+      "resource": "deluxe/objs/player",
+      "kind": "animation",
+      "file_bytes": 11704,
+      "sha256": "bd105c65f546e90c34876d7d28d19d0d9a38b245c31b9f3e9131f7a3bad678ee",
+      "decoded_bytes": 72118,
+      "accepted": true,
+      "normalised": false,
+      "fixed_actor_references_safe": true
+    },
+    {
+      "resource": "deluxe/objs/player2",
+      "kind": "animation",
+      "file_bytes": 1312,
+      "sha256": "63c7676224220fd6427ab0444e7ee216a1af1e6f5539720b95011ca2d2c0f5e0",
+      "decoded_bytes": 3976,
+      "accepted": true,
+      "normalised": false
+    },
+    {
+      "resource": "deluxe/objs/terra",
+      "kind": "animation",
+      "file_bytes": 26722,
+      "sha256": "662c6c28ccafa8a390c7cd03a6d901d9f2c6c00d6c04f93d41bee48a0bce8908",
+      "decoded_bytes": 139278,
+      "accepted": true,
+      "normalised": false,
+      "fixed_actor_references_safe": true
+    },
+    {
+      "resource": "deluxe/objs/terra2",
+      "kind": "animation",
+      "file_bytes": 1836,
+      "sha256": "2ab9e156f1400dbe68fc488aaaddc26a55d634d6a6bfa8231335ae914d802c3e",
+      "decoded_bytes": 5588,
+      "accepted": true,
+      "normalised": false
+    },
+    {
+      "resource": "deluxe/objs/tokens",
+      "kind": "animation",
+      "file_bytes": 928,
+      "sha256": "cbbec1aa2b25a69b5947ce18813c9f71fadf31b2a696d5628ccb5671ff8fc25e",
+      "decoded_bytes": 3370,
+      "accepted": true,
+      "normalised": false,
+      "fixed_actor_references_safe": true
+    },
+    {
+      "resource": "deluxe/objs/troll",
+      "kind": "animation",
+      "file_bytes": 24060,
+      "sha256": "8651f3107f7f358f9a5c8277bd8991ec6fb1574b2724fffc244a742ddffd7368",
+      "decoded_bytes": 148320,
+      "accepted": true,
+      "normalised": false,
+      "fixed_actor_references_safe": true
+    },
+    {
+      "resource": "deluxe/objs/troll2",
+      "kind": "animation",
+      "file_bytes": 2234,
+      "sha256": "2f488271ce1da576383f1e0980975f58c1f2efac7da1c991053b2cfd56167f6b",
+      "decoded_bytes": 6488,
+      "accepted": true,
+      "normalised": false
+    },
+    {
+      "resource": "deluxe/sfxs/die.bin",
+      "kind": "sound",
+      "file_bytes": 7908,
+      "sha256": "662ae711d342a907ace339fe94e3fb8ae0519edd701e0237945b88650c36dd6b",
+      "decoded_bytes": 9286,
+      "accepted": true,
+      "normalised": false
+    },
+    {
+      "resource": "deluxe/sfxs/door.bin",
+      "kind": "sound",
+      "file_bytes": 14586,
+      "sha256": "db7d21cf05ba82ff93a7b7ab54ffa34b9fd312f81e915c33c4a6a1c7912b2a69",
+      "decoded_bytes": 16388,
+      "accepted": true,
+      "normalised": false
+    },
+    {
+      "resource": "deluxe/sfxs/dragon.bin",
+      "kind": "sound",
+      "file_bytes": 14884,
+      "sha256": "176ba302f9f2b956063b946f69388924dd7f35431aa7ac781c575d9ad341c620",
+      "decoded_bytes": 16388,
+      "accepted": true,
+      "normalised": false
+    },
+    {
+      "resource": "deluxe/sfxs/footstep.bin",
+      "kind": "sound",
+      "file_bytes": 1308,
+      "sha256": "083e43793e252faa45aaab66e7682f34371fcccf76c804ad9ef9b1b499b7e770",
+      "decoded_bytes": 2664,
+      "accepted": true,
+      "normalised": false
+    },
+    {
+      "resource": "deluxe/sfxs/ghoul.bin",
+      "kind": "sound",
+      "file_bytes": 14058,
+      "sha256": "f39e5bb16235c578707be2c8f9e53ae9a9beeec35b0db2203bc2d95f3d975f93",
+      "decoded_bytes": 16388,
+      "accepted": true,
+      "normalised": false
+    },
+    {
+      "resource": "deluxe/sfxs/grunt.bin",
+      "kind": "sound",
+      "file_bytes": 5362,
+      "sha256": "c4ec98b58c6a9d4c0016749711faf146d7f8017131bc40449772000c1549174c",
+      "decoded_bytes": 5664,
+      "accepted": true,
+      "normalised": false
+    },
+    {
+      "resource": "deluxe/sfxs/grunt2.bin",
+      "kind": "sound",
+      "file_bytes": 7086,
+      "sha256": "788ec7e7a7b8d7d7ccaa1e7bbc1e6573f19d0a72a708d17110a5783705542cfe",
+      "decoded_bytes": 8196,
+      "accepted": true,
+      "normalised": false
+    },
+    {
+      "resource": "deluxe/sfxs/grunt3.bin",
+      "kind": "sound",
+      "file_bytes": 4082,
+      "sha256": "5842fee3a7802bd9e25894e70b4a7331590732d1e010c6a7a08672bca6cf7863",
+      "decoded_bytes": 4932,
+      "accepted": true,
+      "normalised": false
+    },
+    {
+      "resource": "deluxe/sfxs/grunt4.bin",
+      "kind": "sound",
+      "file_bytes": 7018,
+      "sha256": "45298529215129b38e24af93b60f6bb3618a00e3db25e6f13958e4e7987cebed",
+      "decoded_bytes": 7478,
+      "accepted": true,
+      "normalised": false
+    },
+    {
+      "resource": "deluxe/sfxs/lizard.bin",
+      "kind": "sound",
+      "file_bytes": 7676,
+      "sha256": "f9d16859cfded9d570626696f9715ab4b52fc92a504cfbc57afa0448926098a6",
+      "decoded_bytes": 8196,
+      "accepted": true,
+      "normalised": false
+    },
+    {
+      "resource": "deluxe/sfxs/lizhit.bin",
+      "kind": "sound",
+      "file_bytes": 5070,
+      "sha256": "9e3e54c5f1ebd9d72f39dc696a43692d88bfd40bc8aea5a901f93be4dac7fd8a",
+      "decoded_bytes": 8196,
+      "accepted": true,
+      "normalised": false
+    },
+    {
+      "resource": "deluxe/sfxs/robodie.bin",
+      "kind": "sound",
+      "file_bytes": 12626,
+      "sha256": "3dbc7b7a39ac0b250b0949711433afe519dfdf3ea041a7378fc0647bbe8afb5b",
+      "decoded_bytes": 16326,
+      "accepted": true,
+      "normalised": false
+    },
+    {
+      "resource": "deluxe/sfxs/robot.bin",
+      "kind": "sound",
+      "file_bytes": 15840,
+      "sha256": "645ed8d21dab9bae50e8c3db9176efcb8efae27136fd4e7d1d8d698861ea709d",
+      "decoded_bytes": 18854,
+      "accepted": true,
+      "normalised": false
+    },
+    {
+      "resource": "deluxe/sfxs/shoot.bin",
+      "kind": "sound",
+      "file_bytes": 7654,
+      "sha256": "126fa1d14100344efac11e34350066b275e915ac3cd7c48e201fd508560dc22a",
+      "decoded_bytes": 8364,
+      "accepted": true,
+      "normalised": false
+    },
+    {
+      "resource": "deluxe/sfxs/shoot2.bin",
+      "kind": "sound",
+      "file_bytes": 4898,
+      "sha256": "4b80c4c533589693373da4c28ffb5df858e55a2ad058629b8be5f4698859d8f8",
+      "decoded_bytes": 5988,
+      "accepted": true,
+      "normalised": false
+    },
+    {
+      "resource": "deluxe/sfxs/shoot3.bin",
+      "kind": "sound",
+      "file_bytes": 6246,
+      "sha256": "ebb6b2c8fd387933c55ff725894ace5f3121ccaad6da41edb9bfc1a2dcb7a017",
+      "decoded_bytes": 8196,
+      "accepted": true,
+      "normalised": false
+    },
+    {
+      "resource": "deluxe/sfxs/shoot4.bin",
+      "kind": "sound",
+      "file_bytes": 7692,
+      "sha256": "0e07c5dbf1a5bdebe274552829b596ad0573fef10df765105ec4aec5f05bde96",
+      "decoded_bytes": 8196,
+      "accepted": true,
+      "normalised": false
+    },
+    {
+      "resource": "deluxe/sfxs/shoot5.bin",
+      "kind": "sound",
+      "file_bytes": 7554,
+      "sha256": "2a223cfe87fa5d24442b201e0ff7df6cf94a148b282fd8be6f10eb68c146c0cf",
+      "decoded_bytes": 8196,
+      "accepted": true,
+      "normalised": false
+    },
+    {
+      "resource": "deluxe/sfxs/splat.bin",
+      "kind": "sound",
+      "file_bytes": 4318,
+      "sha256": "1bb45668effb98ee3e9296d210bab7964968698d85d743090de5563cccd42711",
+      "decoded_bytes": 5300,
+      "accepted": true,
+      "normalised": false
+    },
+    {
+      "resource": "deluxe/sfxs/teleport.bin",
+      "kind": "sound",
+      "file_bytes": 6796,
+      "sha256": "48c83031e26037b735d5a254e2d6cebfe292eb96834666b9d13f1366e380a2b6",
+      "decoded_bytes": 8790,
+      "accepted": true,
+      "normalised": false
+    },
+    {
+      "resource": "deluxe/sfxs/token.bin",
+      "kind": "sound",
+      "file_bytes": 5836,
+      "sha256": "6d1df6a61e27dcd2cd5d72ae766248903a16bb8009aacd90e6efb2bd635081a2",
+      "decoded_bytes": 8012,
+      "accepted": true,
+      "normalised": false
+    },
+    {
+      "resource": "deluxe/sfxs/trollhit.bin",
+      "kind": "sound",
+      "file_bytes": 7846,
+      "sha256": "9f695ea7b7ea36d1a5131cec828ef608ab36b16b01a06f4743bf0e0451056430",
+      "decoded_bytes": 8196,
+      "accepted": true,
+      "normalised": false
+    },
+    {
+      "resource": "deluxe/sfxs/trollmad.bin",
+      "kind": "sound",
+      "file_bytes": 14422,
+      "sha256": "c4597956fc0e61d976a5f6e5700e29cc8f95794c3a6f5a9d8af93513b4ba33c2",
+      "decoded_bytes": 16388,
+      "accepted": true,
+      "normalised": false
+    },
+    {
+      "resource": "deluxe/pics/blackmagic",
+      "kind": "picture",
+      "file_bytes": 7286,
+      "sha256": "40fda31fea334ccc75bdff82044dede7f1ac6db7cb99a0c16e7d8e08bfebb092",
+      "decoded_bytes": 15364,
+      "accepted": true,
+      "normalised": false
+    },
+    {
+      "resource": "deluxe/pics/blackmagic.pal",
+      "kind": "AGA palette",
+      "sha256": "dd892211eaf27802b35cd5fa99206908e7dfafcf88d3ac0c70c991e69570e594",
+      "accepted": true,
+      "bytes": 512,
+      "needed": 512
+    },
+    {
+      "resource": "deluxe/pics/combat",
+      "kind": "picture",
+      "file_bytes": 47130,
+      "sha256": "211767fa95d1fe91c8f28795d7b72432746c04e51990a57032f30efacc3aef77",
+      "decoded_bytes": 56925,
+      "accepted": true,
+      "normalised": false
+    },
+    {
+      "resource": "deluxe/pics/combat.pal",
+      "kind": "AGA palette",
+      "sha256": "9a317bf36e10b56a3691579b741714750f1119a976d83bcf4c084c08779919cf",
+      "accepted": true,
+      "bytes": 512,
+      "needed": 512
+    },
+    {
+      "resource": "deluxe/pics/gloom",
+      "kind": "picture",
+      "file_bytes": 12334,
+      "sha256": "02304afe36a9abc9c4cda760025f9d4207b75a6449200bdabcb4a339210271e0",
+      "decoded_bytes": 16021,
+      "accepted": true,
+      "normalised": false
+    },
+    {
+      "resource": "deluxe/pics/gothic",
+      "kind": "picture",
+      "file_bytes": 37518,
+      "sha256": "d63f178a0d9e9e9df72320f1c9b087de8bba22934bf436c547e5f6769abea538",
+      "decoded_bytes": 51176,
+      "accepted": true,
+      "normalised": false
+    },
+    {
+      "resource": "deluxe/pics/gothic.pal",
+      "kind": "AGA palette",
+      "sha256": "878dbe0b9f436901cc993ac751fcdbe29196396dc9b464467e39cc5fae8be005",
+      "accepted": true,
+      "bytes": 512,
+      "needed": 512
+    },
+    {
+      "resource": "deluxe/pics/hell",
+      "kind": "picture",
+      "file_bytes": 38918,
+      "sha256": "b6340500a5c03f94207ace1e3c6c3db15c5ce0b71567774a753fc2253bfa7c14",
+      "decoded_bytes": 51063,
+      "accepted": true,
+      "normalised": false
+    },
+    {
+      "resource": "deluxe/pics/hell.pal",
+      "kind": "AGA palette",
+      "sha256": "351a974b6d51da6aaa036b0f3aac4c9a47dc9cf65d07b67eba2757d6b00e39e2",
+      "accepted": true,
+      "bytes": 512,
+      "needed": 512
+    },
+    {
+      "resource": "deluxe/pics/spacehulk",
+      "kind": "picture",
+      "file_bytes": 45022,
+      "sha256": "b666a5dcf5ca43ae3986e73f695fc555a313aca1e3d0ee6d1073dc3f83d9504e",
+      "decoded_bytes": 53969,
+      "accepted": true,
+      "normalised": false
+    },
+    {
+      "resource": "deluxe/pics/spacehulk.pal",
+      "kind": "AGA palette",
+      "sha256": "cc337f89ef6f1fbf06d52e69eba7e98532b32f548110b528ff62f26177cdd695",
+      "accepted": true,
+      "bytes": 512,
+      "needed": 512
+    },
+    {
+      "resource": "deluxe/pics/theend",
+      "kind": "picture",
+      "file_bytes": 32334,
+      "sha256": "2b8e615768bc9c04fb8c5c5ffc3eb1c34632a040db4c433618bd907da6671298",
+      "decoded_bytes": 43758,
+      "accepted": true,
+      "normalised": false
+    },
+    {
+      "resource": "deluxe/pics/theend.pal",
+      "kind": "AGA palette",
+      "sha256": "817a0d2cabc026b72d2206649e9c6534ab7ffae9a0e24a0be8a32fdd68f2b735",
+      "accepted": true,
+      "bytes": 512,
+      "needed": 512
+    },
+    {
+      "resource": "deluxe/pics/title",
+      "kind": "picture",
+      "file_bytes": 34484,
+      "sha256": "858b21fe119f9d28a6468a5b92badc0340e8d636c20f01c016e1a38f4fe52bd8",
+      "decoded_bytes": 50002,
+      "accepted": true,
+      "normalised": false
+    },
+    {
+      "resource": "deluxe/pics/title.pal",
+      "kind": "AGA palette",
+      "sha256": "2aa41a5d7b99eafb0c8a15c11b1733ffafa4e5fc81d67af28ec1d9f6c3fb4906",
+      "accepted": true,
+      "bytes": 512,
+      "needed": 512
+    },
+    {
+      "resource": "deluxe/misc/script",
+      "kind": "script",
+      "file_bytes": 1777,
+      "sha256": "77dd828a05a597b42caa6e34ae814afcc92c541eb9d394bbbdae26a027d37bc9",
+      "decoded_bytes": 1777,
+      "accepted": true,
+      "normalised": false
+    },
+    {
+      "resource": "gloom3/maps/com1_1",
+      "kind": "map/events",
+      "file_bytes": 9086,
+      "sha256": "2c6604b92580c638bed455e3988cd4e26b9cbdcc238484671240b99e41ca0281",
+      "decoded_bytes": 9086,
+      "accepted": true,
+      "normalised": false
+    },
+    {
+      "resource": "gloom3/maps/com1_2",
+      "kind": "map/events",
+      "file_bytes": 9158,
+      "sha256": "f81e5908f0d2be7cbde8a47060024a4d39120cadae66321d4ee2615c1d027e38",
+      "decoded_bytes": 9158,
+      "accepted": true,
+      "normalised": false
+    },
+    {
+      "resource": "gloom3/maps/com1_3",
+      "kind": "map/events",
+      "file_bytes": 9374,
+      "sha256": "9e0b0f31d5164e5f3b9430253f27253296f26920182a498162015bd5558c34b2",
+      "decoded_bytes": 9374,
+      "accepted": true,
+      "normalised": false
+    },
+    {
+      "resource": "gloom3/maps/com1_4",
+      "kind": "map/events",
+      "file_bytes": 9674,
+      "sha256": "96a0d835d6fb4731ab5ee0f6baf5cd5f18c2fc5c21271f2fbe9ab515e6345017",
+      "decoded_bytes": 9674,
+      "accepted": true,
+      "normalised": false
+    },
+    {
+      "resource": "gloom3/maps/com1_5",
+      "kind": "map/events",
+      "file_bytes": 9862,
+      "sha256": "089d3ce193d6360c0da3c3cbe41a250d41c135c8bfc5dfaf4a7bccba9083b1f0",
+      "decoded_bytes": 9862,
+      "accepted": true,
+      "normalised": false
+    },
+    {
+      "resource": "gloom3/maps/com1_6",
+      "kind": "map/events",
+      "file_bytes": 9042,
+      "sha256": "a9e6080cfd4e1b375e4fd8364953cc2348681333a40a647d1f6f12c5211f878c",
+      "decoded_bytes": 9042,
+      "accepted": true,
+      "normalised": false
+    },
+    {
+      "resource": "gloom3/maps/com1_7",
+      "kind": "map/events",
+      "file_bytes": 9218,
+      "sha256": "b83f04fa772aa3ea89b70a20ee12d4ccdb0e259d6901634d0cbd1015f3758314",
+      "decoded_bytes": 9218,
+      "accepted": true,
+      "normalised": false
+    },
+    {
+      "resource": "gloom3/maps/com2_1",
+      "kind": "map/events",
+      "file_bytes": 9494,
+      "sha256": "a9877c84db7ae21e4dd33aad300bffddd62144655e10f71d67213ce464edad9b",
+      "decoded_bytes": 9494,
+      "accepted": true,
+      "normalised": false
+    },
+    {
+      "resource": "gloom3/maps/com2_2",
+      "kind": "map/events",
+      "file_bytes": 9722,
+      "sha256": "5e6e1c880511c0ffb5f0fb99da77ee973de2f3bcc7812047eb219c707a2152e8",
+      "decoded_bytes": 9722,
+      "accepted": true,
+      "normalised": false
+    },
+    {
+      "resource": "gloom3/maps/com2_3",
+      "kind": "map/events",
+      "file_bytes": 9342,
+      "sha256": "68fe8b94df9edfef47d8366cf4a73661018e3b9c17f00eaa7ac5ead5909d4fe4",
+      "decoded_bytes": 9342,
+      "accepted": true,
+      "normalised": false
+    },
+    {
+      "resource": "gloom3/maps/com2_4",
+      "kind": "map/events",
+      "file_bytes": 9562,
+      "sha256": "81c00fffeb56985305e2871d90482925738c934c739a633a59b279315f4751a1",
+      "decoded_bytes": 9562,
+      "accepted": true,
+      "normalised": false
+    },
+    {
+      "resource": "gloom3/maps/com2_5",
+      "kind": "map/events",
+      "file_bytes": 9462,
+      "sha256": "a13bf1da49d32a19e5ec8a2ebdaff9e94451be49cf19e19fff7aa0bce46bb462",
+      "decoded_bytes": 9462,
+      "accepted": true,
+      "normalised": false
+    },
+    {
+      "resource": "gloom3/maps/com2_6",
+      "kind": "map/events",
+      "file_bytes": 9578,
+      "sha256": "3c07b99dd876277efb693ce4ea1d0c689b240d27507e75e445bc0288ffa8ea0b",
+      "decoded_bytes": 9578,
+      "accepted": true,
+      "normalised": false
+    },
+    {
+      "resource": "gloom3/maps/com2_7",
+      "kind": "map/events",
+      "file_bytes": 9538,
+      "sha256": "1c5e2461746bf49fcd49c9999960f4c68548252c2155a32988dc99bef9714ce8",
+      "decoded_bytes": 9538,
+      "accepted": true,
+      "normalised": false
+    },
+    {
+      "resource": "gloom3/maps/com3_1",
+      "kind": "map/events",
+      "file_bytes": 9166,
+      "sha256": "0b404214ed5400cac50f7812201eadf229eb6238a1309f3c614260e635007bcf",
+      "decoded_bytes": 9166,
+      "accepted": true,
+      "normalised": false
+    },
+    {
+      "resource": "gloom3/maps/com3_2",
+      "kind": "map/events",
+      "file_bytes": 9026,
+      "sha256": "fe0d3516f9f7b37401563f94bd44ae60a7004f31eee4b9886fa312ba108f59de",
+      "decoded_bytes": 9026,
+      "accepted": true,
+      "normalised": false
+    },
+    {
+      "resource": "gloom3/maps/com3_3",
+      "kind": "map/events",
+      "file_bytes": 9074,
+      "sha256": "fad9a024ad20d2f3c96de9c01db097f456d70d8a39e4f0014354cfaf473a2706",
+      "decoded_bytes": 9074,
+      "accepted": true,
+      "normalised": false
+    },
+    {
+      "resource": "gloom3/maps/com3_4",
+      "kind": "map/events",
+      "file_bytes": 9110,
+      "sha256": "3619f84d1d6572f5ee4889194f205f0cc278e10e813c0adcad18dfc2629dbfea",
+      "decoded_bytes": 9110,
+      "accepted": true,
+      "normalised": false
+    },
+    {
+      "resource": "gloom3/maps/com3_5",
+      "kind": "map/events",
+      "file_bytes": 8994,
+      "sha256": "1818c4d3118aa9fd605a0e2417fe982ae0a44b86037c8f46c0f10359ad67f647",
+      "decoded_bytes": 8994,
+      "accepted": true,
+      "normalised": false
+    },
+    {
+      "resource": "gloom3/maps/com3_6",
+      "kind": "map/events",
+      "file_bytes": 9378,
+      "sha256": "3c5225340e1f09238cac759e5534e68a8856411b828133ea4886efa990830c62",
+      "decoded_bytes": 9378,
+      "accepted": true,
+      "normalised": false
+    },
+    {
+      "resource": "gloom3/maps/com3_7",
+      "kind": "map/events",
+      "file_bytes": 9594,
+      "sha256": "4533c490ce98d0368f169267cbd1705cd19dea69996b54f2f3c0f00e6be368c7",
+      "decoded_bytes": 9594,
+      "accepted": true,
+      "normalised": false
+    },
+    {
+      "resource": "gloom3/maps/map1a",
+      "kind": "map/events",
+      "file_bytes": 10998,
+      "sha256": "5caf252fd24cab9a76348d7e8e60ca1e2c042fc75511ef177e0aa67c1fd0e617",
+      "decoded_bytes": 10998,
+      "accepted": true,
+      "normalised": false
+    },
+    {
+      "resource": "gloom3/maps/map1b",
+      "kind": "map/events",
+      "file_bytes": 11974,
+      "sha256": "0234a97cae43dd8cb7345ea25519c5f2a5165336c579b34c78181e5ab08a3af5",
+      "decoded_bytes": 11974,
+      "accepted": true,
+      "normalised": false
+    },
+    {
+      "resource": "gloom3/maps/map1c",
+      "kind": "map/events",
+      "file_bytes": 11038,
+      "sha256": "09413fd934d65dceb5af0dcb8bdfe96995fba9415b01a356857431d43bad0582",
+      "decoded_bytes": 11038,
+      "accepted": true,
+      "normalised": false
+    },
+    {
+      "resource": "gloom3/maps/map1d",
+      "kind": "map/events",
+      "file_bytes": 11650,
+      "sha256": "15b8fe09266eb643b09f2758ca12ccb10abe4ac4aa13a6e6aca06698d05c0d5c",
+      "decoded_bytes": 11650,
+      "accepted": true,
+      "normalised": false
+    },
+    {
+      "resource": "gloom3/maps/map1e",
+      "kind": "map/events",
+      "file_bytes": 11826,
+      "sha256": "d8ca1c2d2ced3bd54889222f66173756983b66c7f1d6c1880c7377ce5c5dd96d",
+      "decoded_bytes": 11826,
+      "accepted": true,
+      "normalised": false
+    },
+    {
+      "resource": "gloom3/maps/map1f",
+      "kind": "map/events",
+      "file_bytes": 16438,
+      "sha256": "9751e53ae4eb09a03fdf75f64a33425a0b4c91a5a6e4e25618d4311b0c1dfb4c",
+      "decoded_bytes": 16438,
+      "accepted": true,
+      "normalised": false
+    },
+    {
+      "resource": "gloom3/maps/map1g",
+      "kind": "map/events",
+      "file_bytes": 16078,
+      "sha256": "48d63d292eee78c576d9e28c50a262b70e444d7c2d263cb3844804f31baed707",
+      "decoded_bytes": 16078,
+      "accepted": true,
+      "normalised": false
+    },
+    {
+      "resource": "gloom3/maps/map2a",
+      "kind": "map/events",
+      "file_bytes": 11566,
+      "sha256": "60808ebd3dbafaeb55f1dc8ab5ed70a3268b9d5297c8d6d7bde88882b4a085c9",
+      "decoded_bytes": 11566,
+      "accepted": true,
+      "normalised": false
+    },
+    {
+      "resource": "gloom3/maps/map2b",
+      "kind": "map/events",
+      "file_bytes": 11094,
+      "sha256": "1f4e1887142c624237436fe4cd74c29f39dbdb5f2b18da60c007f951861d4e65",
+      "decoded_bytes": 11094,
+      "accepted": true,
+      "normalised": false
+    },
+    {
+      "resource": "gloom3/maps/map2c",
+      "kind": "map/events",
+      "file_bytes": 10874,
+      "sha256": "863a14e5510cc10e84a3824244cc9ef0e28f1fab7ac5cf6960e482ae74c1ae7c",
+      "decoded_bytes": 10874,
+      "accepted": true,
+      "normalised": false
+    },
+    {
+      "resource": "gloom3/maps/map2d",
+      "kind": "map/events",
+      "file_bytes": 11254,
+      "sha256": "804026cfa0a15f29afd5dbb42b19b9af0e27b9125ed141bd8b75f3693ec02311",
+      "decoded_bytes": 11254,
+      "accepted": true,
+      "normalised": false
+    },
+    {
+      "resource": "gloom3/maps/map2e",
+      "kind": "map/events",
+      "file_bytes": 11786,
+      "sha256": "6fa3412f0d278b270fe67e6c06bbceee898331a28c728fc8e7ce2efd0f2ab17f",
+      "decoded_bytes": 11786,
+      "accepted": true,
+      "normalised": false
+    },
+    {
+      "resource": "gloom3/maps/map2f",
+      "kind": "map/events",
+      "file_bytes": 12246,
+      "sha256": "1f1031ab7134be5234a3f7f5343171185d88fa955e9e8e1ac37cdc076415b5b3",
+      "decoded_bytes": 12246,
+      "accepted": true,
+      "normalised": false
+    },
+    {
+      "resource": "gloom3/maps/map2g",
+      "kind": "map/events",
+      "file_bytes": 12354,
+      "sha256": "22ce24c6423ca9c4083a86e10b73d079833aa310d94f925992921f008fcf7571",
+      "decoded_bytes": 12354,
+      "accepted": true,
+      "normalised": false
+    },
+    {
+      "resource": "gloom3/maps/map3a",
+      "kind": "map/events",
+      "file_bytes": 14242,
+      "sha256": "0dceaae1badc2c3fbb5922ec41bf3416e80aa85f3267a6c36e2fe85176a1683b",
+      "decoded_bytes": 14242,
+      "accepted": true,
+      "normalised": false
+    },
+    {
+      "resource": "gloom3/maps/map3b",
+      "kind": "map/events",
+      "file_bytes": 12414,
+      "sha256": "b9652f71a788c57449ab13a08e41d13b72416b9ff7c2ab1b3e954912066c13e8",
+      "decoded_bytes": 12414,
+      "accepted": true,
+      "normalised": false
+    },
+    {
+      "resource": "gloom3/maps/map3c",
+      "kind": "map/events",
+      "file_bytes": 11526,
+      "sha256": "e1f53c6406c21a4825e8cbeca855e93ac4fb8d597dd569a022612734a2a77acc",
+      "decoded_bytes": 11526,
+      "accepted": true,
+      "normalised": false
+    },
+    {
+      "resource": "gloom3/maps/map3d",
+      "kind": "map/events",
+      "file_bytes": 12726,
+      "sha256": "56220a19730f5544da4cc460a52a53b0fe36edab7a4e2cbfb45a57436c5f7f8e",
+      "decoded_bytes": 12726,
+      "accepted": true,
+      "normalised": false
+    },
+    {
+      "resource": "gloom3/maps/map3e",
+      "kind": "map/events",
+      "file_bytes": 13950,
+      "sha256": "c942dbf772496b1cad225e9e643f3df5a5ec8f6536d3399b23ad0f333e7b9024",
+      "decoded_bytes": 13950,
+      "accepted": true,
+      "normalised": false
+    },
+    {
+      "resource": "gloom3/maps/map3f",
+      "kind": "map/events",
+      "file_bytes": 14686,
+      "sha256": "2a4852182cb48bd3ced4d6b09bef5b736f8bc9197231e07c247f77ac8950ad8e",
+      "decoded_bytes": 14686,
+      "accepted": true,
+      "normalised": false
+    },
+    {
+      "resource": "gloom3/maps/map3g",
+      "kind": "map/events",
+      "file_bytes": 14574,
+      "sha256": "8317962d389cb71089fad50a2a973a571265792fd3622357240d5fb7908b50d9",
+      "decoded_bytes": 14574,
+      "accepted": true,
+      "normalised": false
+    },
+    {
+      "resource": "gloom3/maps/map4a",
+      "kind": "map/events",
+      "file_bytes": 14482,
+      "sha256": "70ff18b2ef2945dc0ca8da27226a803359a089c2edb27570fa1c9dfaabbf38bc",
+      "decoded_bytes": 14482,
+      "accepted": true,
+      "normalised": false
+    },
+    {
+      "resource": "gloom3/maps/map4b",
+      "kind": "map/events",
+      "file_bytes": 14366,
+      "sha256": "fe2fac2ee82735d8af10f4c54d9ee7655bbcab063f2645d54bd58dac8fe730ab",
+      "decoded_bytes": 14366,
+      "accepted": true,
+      "normalised": false
+    },
+    {
+      "resource": "gloom3/maps/map4c",
+      "kind": "map/events",
+      "file_bytes": 13862,
+      "sha256": "7b792c6ee260d7dd003e5c774dd78a9caab8057be4219e374683214eb51a605f",
+      "decoded_bytes": 13862,
+      "accepted": true,
+      "normalised": false
+    },
+    {
+      "resource": "gloom3/maps/map4d",
+      "kind": "map/events",
+      "file_bytes": 14038,
+      "sha256": "4f1e6f68e1660284441ea5cadb11578d1523c02c008f079e8c53d5b6c6df56eb",
+      "decoded_bytes": 14038,
+      "accepted": true,
+      "normalised": false
+    },
+    {
+      "resource": "gloom3/maps/map4e",
+      "kind": "map/events",
+      "file_bytes": 11774,
+      "sha256": "4458ba38f769cbf2c3715981cdfab491b557cbbbc9787abba233091136ef37bc",
+      "decoded_bytes": 11774,
+      "accepted": true,
+      "normalised": false
+    },
+    {
+      "resource": "gloom3/maps/map4f",
+      "kind": "map/events",
+      "file_bytes": 12566,
+      "sha256": "2b7e0f53079d51fa6aef5c00b9ba34079ab26d9473bd8c66f4e3da4515e00553",
+      "decoded_bytes": 12566,
+      "accepted": true,
+      "normalised": false
+    },
+    {
+      "resource": "gloom3/maps/map4g",
+      "kind": "map/events",
+      "file_bytes": 11190,
+      "sha256": "d2411d112e09d851c95377ffc184335bd9809aed394e15ee856f301b456a319a",
+      "decoded_bytes": 11190,
+      "accepted": true,
+      "normalised": false
+    },
+    {
+      "resource": "gloom3/maps/map5a",
+      "kind": "map/events",
+      "file_bytes": 13458,
+      "sha256": "f24c72a5e43e9ce30376ec32f8d070182d2c6267431b840c663edf06241d6af5",
+      "decoded_bytes": 13458,
+      "accepted": true,
+      "normalised": false
+    },
+    {
+      "resource": "gloom3/maps/map5b",
+      "kind": "map/events",
+      "file_bytes": 13898,
+      "sha256": "e3ace3cdd49a96bec49dcf0078dcdff8e522233a45befb1a35b4573cde13e1bf",
+      "decoded_bytes": 13898,
+      "accepted": true,
+      "normalised": false
+    },
+    {
+      "resource": "gloom3/maps/map5c",
+      "kind": "map/events",
+      "file_bytes": 12150,
+      "sha256": "1d4d6eb9a68ea300ce2f26c4b3c011d2fe40cc066f48e78e2512c2283fc89914",
+      "decoded_bytes": 12150,
+      "accepted": true,
+      "normalised": false
+    },
+    {
+      "resource": "gloom3/maps/map5d",
+      "kind": "map/events",
+      "file_bytes": 12586,
+      "sha256": "c4792f36b567d7f01d19c494054ec9c383264cb62bec1de2208e4d101e072676",
+      "decoded_bytes": 12586,
+      "accepted": true,
+      "normalised": false
+    },
+    {
+      "resource": "gloom3/maps/map5e",
+      "kind": "map/events",
+      "file_bytes": 14266,
+      "sha256": "5a1da0f5652910bcfa512842ad44f7e74ba2224d421566fd76567924010531cb",
+      "decoded_bytes": 14266,
+      "accepted": true,
+      "normalised": false
+    },
+    {
+      "resource": "gloom3/maps/map5f",
+      "kind": "map/events",
+      "file_bytes": 13818,
+      "sha256": "4a7c479b25b18d3e0ad9a0de9cd7a9507b61a487c646e42ee392a5710cfde1f4",
+      "decoded_bytes": 13818,
+      "accepted": true,
+      "normalised": false
+    },
+    {
+      "resource": "gloom3/maps/map5g",
+      "kind": "map/events",
+      "file_bytes": 13542,
+      "sha256": "7a29c120e91f0602834ec9e7f743c8aff26675d1b0e77f275cffbdac29ac11f0",
+      "decoded_bytes": 13542,
+      "accepted": true,
+      "normalised": false
+    },
+    {
+      "resource": "gloom3/maps/map6a",
+      "kind": "map/events",
+      "file_bytes": 12694,
+      "sha256": "7f889d37cc280d89d39c3ceab861355df4f459d6e312c74c12090d89f7ab8795",
+      "decoded_bytes": 12694,
+      "accepted": true,
+      "normalised": false
+    },
+    {
+      "resource": "gloom3/maps/map6b",
+      "kind": "map/events",
+      "file_bytes": 12126,
+      "sha256": "cd4a9766e833f687e69987ab71c08273f8efab1228b373751d3b57d9f6922ac6",
+      "decoded_bytes": 12126,
+      "accepted": true,
+      "normalised": false
+    },
+    {
+      "resource": "gloom3/maps/map6c",
+      "kind": "map/events",
+      "file_bytes": 11822,
+      "sha256": "41222b3c774d250e77a8251f48a6911c771c38964325559f518818e2b4b0090a",
+      "decoded_bytes": 11822,
+      "accepted": true,
+      "normalised": false
+    },
+    {
+      "resource": "gloom3/maps/map6d",
+      "kind": "map/events",
+      "file_bytes": 12414,
+      "sha256": "02df8d275813903c98cef405526046364e3adb4a0125a7fef0de20525b9574de",
+      "decoded_bytes": 12414,
+      "accepted": true,
+      "normalised": false
+    },
+    {
+      "resource": "gloom3/maps/map6e",
+      "kind": "map/events",
+      "file_bytes": 10254,
+      "sha256": "939bb174588bf7e06e7a6c2afab9812b9ff9089975934e31191de2c385a688dc",
+      "decoded_bytes": 10254,
+      "accepted": true,
+      "normalised": false
+    },
+    {
+      "resource": "gloom3/maps/map6f",
+      "kind": "map/events",
+      "file_bytes": 12572,
+      "sha256": "88a243d50e7115e330d8f9df6d8650bb43f3879643ea6b37e663a11bb3f6eae8",
+      "decoded_bytes": 12572,
+      "accepted": true,
+      "normalised": false
+    },
+    {
+      "resource": "gloom3/maps/map6g",
+      "kind": "map/events",
+      "file_bytes": 11374,
+      "sha256": "e4a211c4de4372ead63517a6cb5f02da97e1b2e3b93b6582765997c4ca1b751d",
+      "decoded_bytes": 11374,
+      "accepted": true,
+      "normalised": false
+    },
+    {
+      "resource": "gloom3/maps/map7a",
+      "kind": "map/events",
+      "file_bytes": 13278,
+      "sha256": "0651232dec7b1039e4f7feba8750218cfee668f31411b8cfc90df50ae9ef6703",
+      "decoded_bytes": 13278,
+      "accepted": true,
+      "normalised": false
+    },
+    {
+      "resource": "gloom3/maps/map7b",
+      "kind": "map/events",
+      "file_bytes": 12074,
+      "sha256": "54cc2da90cebdb61592d211779ca829906993d1cdb76f27cb24950e0373e6d99",
+      "decoded_bytes": 12074,
+      "accepted": true,
+      "normalised": false
+    },
+    {
+      "resource": "gloom3/maps/map7c",
+      "kind": "map/events",
+      "file_bytes": 12554,
+      "sha256": "c9fec194ac4a67df5f58240868c6e87b171da8c056541a65a09066c0971d269d",
+      "decoded_bytes": 12554,
+      "accepted": true,
+      "normalised": false
+    },
+    {
+      "resource": "gloom3/maps/map7d",
+      "kind": "map/events",
+      "file_bytes": 12402,
+      "sha256": "8c487260abb923e6e1427dfeabfbe90f9be8c235bb91361ac842a09917d43d19",
+      "decoded_bytes": 12402,
+      "accepted": true,
+      "normalised": false
+    },
+    {
+      "resource": "gloom3/maps/map7e",
+      "kind": "map/events",
+      "file_bytes": 12990,
+      "sha256": "4a81730725aab35f5e5d163746cefc7f0ead4402c796b847da632b3df7e74ea9",
+      "decoded_bytes": 12990,
+      "accepted": true,
+      "normalised": false
+    },
+    {
+      "resource": "gloom3/maps/map7f",
+      "kind": "map/events",
+      "file_bytes": 12786,
+      "sha256": "e051b4a2a5644cb1116d5c9defe0ee0cdbf5ae46672f7548ba38ba78061511f7",
+      "decoded_bytes": 12786,
+      "accepted": true,
+      "normalised": false
+    },
+    {
+      "resource": "gloom3/maps/map7g",
+      "kind": "map/events",
+      "file_bytes": 16954,
+      "sha256": "43ab35863be0d8671008a62fe205801ae812d361f7bd8cd1d802bc9b690486a9",
+      "decoded_bytes": 16954,
+      "accepted": true,
+      "normalised": false
+    },
+    {
+      "resource": "gloom3/maps/map8a",
+      "kind": "map/events",
+      "file_bytes": 10682,
+      "sha256": "149b00bd69a356cb4b31733c3d3ed3d4203561835b9365a001cfbadf3f1d3ba1",
+      "decoded_bytes": 10682,
+      "accepted": true,
+      "normalised": false
+    },
+    {
+      "resource": "gloom3/txts/floor0",
+      "kind": "tile",
+      "sha256": "9f2c055e35aaaa7a4076ba4facbe632befa81fcfcca091ae91441b66bbecaff3",
+      "accepted": true
+    },
+    {
+      "resource": "gloom3/txts/floor1",
+      "kind": "tile",
+      "sha256": "9f2c055e35aaaa7a4076ba4facbe632befa81fcfcca091ae91441b66bbecaff3",
+      "accepted": true
+    },
+    {
+      "resource": "gloom3/txts/floor10",
+      "kind": "tile",
+      "sha256": "121dd2614cf7aad3e4e13e5dbe75b5b56ba86577ae56d3b3565d805f53c63a01",
+      "accepted": true
+    },
+    {
+      "resource": "gloom3/txts/floor11",
+      "kind": "tile",
+      "sha256": "dbd9889d11bcb2a627308c0870344c1b5ddd207b64a299fc4dcf7f010a24d860",
+      "accepted": true
+    },
+    {
+      "resource": "gloom3/txts/floor2",
+      "kind": "tile",
+      "sha256": "121dd2614cf7aad3e4e13e5dbe75b5b56ba86577ae56d3b3565d805f53c63a01",
+      "accepted": true
+    },
+    {
+      "resource": "gloom3/txts/floor3",
+      "kind": "tile",
+      "sha256": "9f2c055e35aaaa7a4076ba4facbe632befa81fcfcca091ae91441b66bbecaff3",
+      "accepted": true
+    },
+    {
+      "resource": "gloom3/txts/floor4",
+      "kind": "tile",
+      "sha256": "2ade21339634f813cc0a3de8507e92892e0448a38f8ce75cde6ace2f36a5ecbb",
+      "accepted": true
+    },
+    {
+      "resource": "gloom3/txts/floor5",
+      "kind": "tile",
+      "sha256": "f3a5982a58f2e6dfff466ac159be3f981c6cc5c9383245760e227c36ba336033",
+      "accepted": true
+    },
+    {
+      "resource": "gloom3/txts/floor6",
+      "kind": "tile",
+      "sha256": "9f2c055e35aaaa7a4076ba4facbe632befa81fcfcca091ae91441b66bbecaff3",
+      "accepted": true
+    },
+    {
+      "resource": "gloom3/txts/floor7",
+      "kind": "tile",
+      "sha256": "4a55c21bde04bead051441e1acb72257fe152fed49e1a977fac3db0facf452c5",
+      "accepted": true
+    },
+    {
+      "resource": "gloom3/txts/floor8",
+      "kind": "tile",
+      "sha256": "32db869243670247e76108fab1f19d26a91ad098eceb3fe56a88028342b6c25a",
+      "accepted": true
+    },
+    {
+      "resource": "gloom3/txts/floor9",
+      "kind": "tile",
+      "sha256": "9f2c055e35aaaa7a4076ba4facbe632befa81fcfcca091ae91441b66bbecaff3",
+      "accepted": true
+    },
+    {
+      "resource": "gloom3/txts/Galery",
+      "kind": "texture",
+      "file_bytes": 83332,
+      "sha256": "f06a7f8c47cf308aad0daa81f0f813dee2fed81f59aac1fd1496cba362462a74",
+      "decoded_bytes": 83332,
+      "accepted": true,
+      "normalised": false,
+      "referenced_by_maps": true
+    },
+    {
+      "resource": "gloom3/txts/mall1",
+      "kind": "texture",
+      "file_bytes": 83716,
+      "sha256": "f1179af8f9214b6090f5dd3b3ec739492721d5494c9849642390fdb74e6b117d",
+      "decoded_bytes": 83716,
+      "accepted": true,
+      "normalised": false,
+      "referenced_by_maps": true
+    },
+    {
+      "resource": "gloom3/txts/mall2",
+      "kind": "texture",
+      "file_bytes": 83332,
+      "sha256": "d49c00f02b397d328e5279526f5e9e1e34799e0f3ab3635fc8819d49d962cbc6",
+      "decoded_bytes": 83332,
+      "accepted": true,
+      "normalised": false,
+      "referenced_by_maps": true
+    },
+    {
+      "resource": "gloom3/txts/mltrtxt",
+      "kind": "texture",
+      "file_bytes": 83268,
+      "sha256": "977c8af83a1edf23c2f7b0ce2164358bab47d461874f678631a19605aab09d31",
+      "decoded_bytes": 83268,
+      "accepted": true,
+      "normalised": false,
+      "referenced_by_maps": false
+    },
+    {
+      "resource": "gloom3/txts/roof0",
+      "kind": "tile",
+      "sha256": "5e5b6eb1c3f23aa7178440cb9f660892278961db838b7ebf772eb19f6f9aec5d",
+      "accepted": true
+    },
+    {
+      "resource": "gloom3/txts/roof1",
+      "kind": "tile",
+      "sha256": "5e5b6eb1c3f23aa7178440cb9f660892278961db838b7ebf772eb19f6f9aec5d",
+      "accepted": true
+    },
+    {
+      "resource": "gloom3/txts/roof10",
+      "kind": "tile",
+      "sha256": "7c2dc2c73066fa9956d4ecd28deb7dc520ed87251731f9e488bbfea6977d923c",
+      "accepted": true
+    },
+    {
+      "resource": "gloom3/txts/roof11",
+      "kind": "tile",
+      "sha256": "d9484aa925949d42fa6eba4fb4316c0e4a1312bd972bb46dda910856ee42adc3",
+      "accepted": true
+    },
+    {
+      "resource": "gloom3/txts/roof2",
+      "kind": "tile",
+      "sha256": "7c2dc2c73066fa9956d4ecd28deb7dc520ed87251731f9e488bbfea6977d923c",
+      "accepted": true
+    },
+    {
+      "resource": "gloom3/txts/roof3",
+      "kind": "tile",
+      "sha256": "5e5b6eb1c3f23aa7178440cb9f660892278961db838b7ebf772eb19f6f9aec5d",
+      "accepted": true
+    },
+    {
+      "resource": "gloom3/txts/roof4",
+      "kind": "tile",
+      "sha256": "98d82bf3b86ace3f634c92175249e7f8e53061263ac040f6c9ea58f7318e1afa",
+      "accepted": true
+    },
+    {
+      "resource": "gloom3/txts/roof5",
+      "kind": "tile",
+      "sha256": "5e5b6eb1c3f23aa7178440cb9f660892278961db838b7ebf772eb19f6f9aec5d",
+      "accepted": true
+    },
+    {
+      "resource": "gloom3/txts/roof6",
+      "kind": "tile",
+      "sha256": "c4ce00b37453ed25d28257280e74d9368aab47480db57427443640b7866d223e",
+      "accepted": true
+    },
+    {
+      "resource": "gloom3/txts/roof7",
+      "kind": "tile",
+      "sha256": "d1c4f83367354abdc37b0dbb6ea0f6bd02f1d51dc8e79764b0d335a59c2b5014",
+      "accepted": true
+    },
+    {
+      "resource": "gloom3/txts/roof8",
+      "kind": "tile",
+      "sha256": "52b2d6114e1615c858105fcaf648ccc3c954f29b2e5bfc498b2b98a5ab8fc792",
+      "accepted": true
+    },
+    {
+      "resource": "gloom3/txts/roof9",
+      "kind": "tile",
+      "sha256": "5e5b6eb1c3f23aa7178440cb9f660892278961db838b7ebf772eb19f6f9aec5d",
+      "accepted": true
+    },
+    {
+      "resource": "gloom3/txts/secret",
+      "kind": "texture",
+      "file_bytes": 71236,
+      "sha256": "e0b36e817312a8169b7896e61f5d05adcc642a4c09c147971862ccb220d60ee3",
+      "decoded_bytes": 71236,
+      "accepted": true,
+      "normalised": false,
+      "referenced_by_maps": false
+    },
+    {
+      "resource": "gloom3/txts/secret2",
+      "kind": "texture",
+      "file_bytes": 71236,
+      "sha256": "13868f69eef56f8ae113cae0cbe0aa24275c5ac854971b8d850ff78241839971",
+      "decoded_bytes": 71236,
+      "accepted": true,
+      "normalised": false,
+      "referenced_by_maps": false
+    },
+    {
+      "resource": "gloom3/txts/secret3",
+      "kind": "texture",
+      "file_bytes": 8836,
+      "sha256": "9b8cc5fb0a9689db81dd9f638c77af15be8ba000b8e5b5c8fd509aaa4519e6f0",
+      "decoded_bytes": 8836,
+      "accepted": true,
+      "normalised": false,
+      "referenced_by_maps": false
+    },
+    {
+      "resource": "gloom3/txts/Template",
+      "kind": "texture",
+      "file_bytes": 83716,
+      "sha256": "34d48bc7c695569678afa7c43a87db1755a0a52a9e3e94f262ea72bc56b0c450",
+      "decoded_bytes": 83716,
+      "accepted": true,
+      "normalised": false,
+      "referenced_by_maps": false
+    },
+    {
+      "resource": "gloom3/txts/test",
+      "kind": "texture",
+      "file_bytes": 82288,
+      "sha256": "1298eac57d79de95aa2fd48385b240ef5beff0470f167dbccbc86d4540cb8267",
+      "decoded_bytes": 82288,
+      "accepted": false,
+      "normalised": false,
+      "referenced_by_maps": false
+    },
+    {
+      "resource": "gloom3/txts/txt1_0",
+      "kind": "texture",
+      "file_bytes": 33348,
+      "sha256": "6c1e129d8fdf0593e002ccf44ca3ea3d0092522b917f4d68d010adaa6d42605a",
+      "decoded_bytes": 33348,
+      "accepted": true,
+      "normalised": false,
+      "referenced_by_maps": false
+    },
+    {
+      "resource": "gloom3/txts/txt1_1",
+      "kind": "texture",
+      "file_bytes": 15330,
+      "sha256": "3695232cf8dadffdbea738640933030ebb90c37b4f69ccdf059afbffa48ceea2",
+      "decoded_bytes": 83716,
+      "accepted": true,
+      "normalised": false,
+      "referenced_by_maps": false
+    },
+    {
+      "resource": "gloom3/txts/txt1_2",
+      "kind": "texture",
+      "file_bytes": 9532,
+      "sha256": "d7ba76c7883822f84e6f3c49f8626386303bc8c449c97dd287a807a79be95c12",
+      "decoded_bytes": 83716,
+      "accepted": true,
+      "normalised": false,
+      "referenced_by_maps": false
+    },
+    {
+      "resource": "gloom3/txts/txt1_3",
+      "kind": "texture",
+      "file_bytes": 10156,
+      "sha256": "096d0c6d5fb71bd55652a1a180bf2c918ed92a3d8ab66dbd8da4001caa8b8610",
+      "decoded_bytes": 83332,
+      "accepted": true,
+      "normalised": false,
+      "referenced_by_maps": false
+    },
+    {
+      "resource": "gloom3/txts/txt1_4",
+      "kind": "texture",
+      "file_bytes": 11616,
+      "sha256": "5d1da2d5eeff14634f21c1d0d0bfa0192ff703cc3ba9e0e4402186c56581b2d6",
+      "decoded_bytes": 83268,
+      "accepted": true,
+      "normalised": false,
+      "referenced_by_maps": true
+    },
+    {
+      "resource": "gloom3/txts/txt3_1",
+      "kind": "texture",
+      "file_bytes": 16554,
+      "sha256": "cbdb194f1ee784e52391ec1a12cbe13ab9c2d095d673c50370a5b2f841b9f833",
+      "decoded_bytes": 83716,
+      "accepted": true,
+      "normalised": false,
+      "referenced_by_maps": false
+    },
+    {
+      "resource": "gloom3/txts/txt3_2",
+      "kind": "texture",
+      "file_bytes": 14068,
+      "sha256": "ce363f7fa792805943b49d2a6be04f70b6fe97784e89029723a2a3c7fc16362d",
+      "decoded_bytes": 83716,
+      "accepted": true,
+      "normalised": false,
+      "referenced_by_maps": true
+    },
+    {
+      "resource": "gloom3/txts/txt3_3",
+      "kind": "texture",
+      "file_bytes": 17986,
+      "sha256": "89aa2ab0fc14159133cb8bc2ca803489e9d25ad379d63583ac55d902f8ab1ea1",
+      "decoded_bytes": 75396,
+      "accepted": true,
+      "normalised": false,
+      "referenced_by_maps": true
+    },
+    {
+      "resource": "gloom3/txts/txt3_4",
+      "kind": "texture",
+      "file_bytes": 2396,
+      "sha256": "a4e379b5ad703d929447c19a8009052c5d10828d55526a373e8e9111446f0a16",
+      "decoded_bytes": 17156,
+      "accepted": true,
+      "normalised": false,
+      "referenced_by_maps": false
+    },
+    {
+      "resource": "gloom3/txts/txt4_1",
+      "kind": "texture",
+      "file_bytes": 16424,
+      "sha256": "d5f3fb07fa4b692307755a377dd7a6c6c942426bbbf7b12d9846028d247a112e",
+      "decoded_bytes": 83716,
+      "accepted": true,
+      "normalised": false,
+      "referenced_by_maps": false
+    },
+    {
+      "resource": "gloom3/txts/txt4_2",
+      "kind": "texture",
+      "file_bytes": 12462,
+      "sha256": "e3be1c5a378c931a3973e5f9b2c0a21c7e9ac81ec6d2ef43650d00b9f28e2b18",
+      "decoded_bytes": 83268,
+      "accepted": true,
+      "normalised": false,
+      "referenced_by_maps": false
+    },
+    {
+      "resource": "gloom3/txts/txt4_3",
+      "kind": "texture",
+      "file_bytes": 16522,
+      "sha256": "e750347731774d3e5fc33be4df6c14ef51f8f0816fc3dd2deecf58e64d9a5fff",
+      "decoded_bytes": 83268,
+      "accepted": true,
+      "normalised": false,
+      "referenced_by_maps": false
+    },
+    {
+      "resource": "gloom3/txts/txtCar",
+      "kind": "texture",
+      "file_bytes": 83332,
+      "sha256": "84fc8234043db9b7598de6b78de09472c7dafc05ef6588ec87d3e23c599deed0",
+      "decoded_bytes": 83332,
+      "accepted": true,
+      "normalised": false,
+      "referenced_by_maps": true
+    },
+    {
+      "resource": "gloom3/txts/txtCarii",
+      "kind": "texture",
+      "file_bytes": 83332,
+      "sha256": "19632288af1e254d625d191a4a70cabaed5eddc8c1de1a4ad306a41af7427e3d",
+      "decoded_bytes": 83332,
+      "accepted": true,
+      "normalised": false,
+      "referenced_by_maps": true
+    },
+    {
+      "resource": "gloom3/txts/txtgaz",
+      "kind": "texture",
+      "file_bytes": 83268,
+      "sha256": "e96aa73a50820ccc33e7ee92f9061850e0678036b7da3103eadf925b1c7196e3",
+      "decoded_bytes": 83268,
+      "accepted": true,
+      "normalised": false,
+      "referenced_by_maps": true
+    },
+    {
+      "resource": "gloom3/txts/txtgazie",
+      "kind": "texture",
+      "file_bytes": 83268,
+      "sha256": "11d18cbf021929d2e9e09459298726b418177538b158f5079540a355cd9e18db",
+      "decoded_bytes": 83268,
+      "accepted": true,
+      "normalised": false,
+      "referenced_by_maps": true
+    },
+    {
+      "resource": "gloom3/txts/txtgazy",
+      "kind": "texture",
+      "file_bytes": 83268,
+      "sha256": "c6f36ccb8e44cd9467f34191bab03738c5b712581891b226b3517a465cc12833",
+      "decoded_bytes": 83268,
+      "accepted": true,
+      "normalised": false,
+      "referenced_by_maps": true
+    },
+    {
+      "resource": "gloom3/txts/txtlabs",
+      "kind": "texture",
+      "file_bytes": 83268,
+      "sha256": "8c96ae0db168c12f02c5f1851a67da82d58e8f494c13a21cb9badb4f120c0985",
+      "decoded_bytes": 83268,
+      "accepted": true,
+      "normalised": false,
+      "referenced_by_maps": true
+    },
+    {
+      "resource": "gloom3/txts/txtlabs2",
+      "kind": "texture",
+      "file_bytes": 83268,
+      "sha256": "209c108e5e0a9acc3cd2df7cb7ce85529ea6c7bc1ac3923170a484e990b4dadc",
+      "decoded_bytes": 83268,
+      "accepted": true,
+      "normalised": false,
+      "referenced_by_maps": false
+    },
+    {
+      "resource": "gloom3/txts/txtlabs3",
+      "kind": "texture",
+      "file_bytes": 83268,
+      "sha256": "ebe96677d9e2c691f156cb29f00410148640ef6560769eb1b7ba410ac3092f1e",
+      "decoded_bytes": 83268,
+      "accepted": true,
+      "normalised": false,
+      "referenced_by_maps": true
+    },
+    {
+      "resource": "gloom3/txts/txtMall",
+      "kind": "texture",
+      "file_bytes": 83268,
+      "sha256": "0cab852e8c084c5b3ee6eac3ca8167699b0ca6bde859d7b2c807023f407737d9",
+      "decoded_bytes": 83268,
+      "accepted": true,
+      "normalised": false,
+      "referenced_by_maps": false
+    },
+    {
+      "resource": "gloom3/txts/txtMall12",
+      "kind": "texture",
+      "file_bytes": 83268,
+      "sha256": "ffcf5695c053ecb680b0a978363a5108f05191e5f80e4362e28e476bad2031bf",
+      "decoded_bytes": 83268,
+      "accepted": true,
+      "normalised": false,
+      "referenced_by_maps": true
+    },
+    {
+      "resource": "gloom3/txts/txtMir",
+      "kind": "texture",
+      "file_bytes": 83332,
+      "sha256": "8beda944b1f2540a783d5187c38ecca816a0761a808d38390499a99df814e205",
+      "decoded_bytes": 83332,
+      "accepted": true,
+      "normalised": false,
+      "referenced_by_maps": true
+    },
+    {
+      "resource": "gloom3/txts/txtTun",
+      "kind": "texture",
+      "file_bytes": 83268,
+      "sha256": "262cfcc454e78e5b0c567b28bd4e513b7a61509c2e76c07c836513b4c00ba372",
+      "decoded_bytes": 83268,
+      "accepted": true,
+      "normalised": false,
+      "referenced_by_maps": true
+    },
+    {
+      "resource": "gloom3/txts/txtTun2",
+      "kind": "texture",
+      "file_bytes": 83268,
+      "sha256": "25f444e70d6f3de5877884d78bbded0209c1dc6cf7e39a948457d1894d79fee2",
+      "decoded_bytes": 83268,
+      "accepted": true,
+      "normalised": false,
+      "referenced_by_maps": true
+    },
+    {
+      "resource": "gloom3/txts/txtTun3",
+      "kind": "texture",
+      "file_bytes": 83268,
+      "sha256": "43e830c7a4687681dfede7c2158964a33519ecd021d3e2d35be5702f5eab7a96",
+      "decoded_bytes": 83268,
+      "accepted": true,
+      "normalised": false,
+      "referenced_by_maps": false
+    },
+    {
+      "resource": "gloom3/txts/txtTun4",
+      "kind": "texture",
+      "file_bytes": 83268,
+      "sha256": "690e5381aaa1045f4391d82016bdd9f5e8d2b503226e1e6fc84ed324f57b2b8f",
+      "decoded_bytes": 83268,
+      "accepted": true,
+      "normalised": false,
+      "referenced_by_maps": true
+    },
+    {
+      "resource": "gloom3/objs/baldy",
+      "kind": "animation",
+      "file_bytes": 72098,
+      "sha256": "c81f94716e6cffd24a516cb0df4722c17f58c1779ad834a0cd747109d52bc670",
+      "decoded_bytes": 72098,
+      "accepted": true,
+      "normalised": false,
+      "fixed_actor_references_safe": false
+    },
+    {
+      "resource": "gloom3/objs/baldy2",
+      "kind": "animation",
+      "file_bytes": 1890,
+      "sha256": "6db42e65c5df9cf5d378048edc0ce208101e66585ad5992ee171b1ca07fad009",
+      "decoded_bytes": 1890,
+      "accepted": true,
+      "normalised": false
+    },
+    {
+      "resource": "gloom3/objs/deathhead",
+      "kind": "animation",
+      "file_bytes": 98474,
+      "sha256": "346c86fdc72aa6a59af96e0ef41e6636a3eabe760ebfdbf69b1fdf8ab9d5d44d",
+      "decoded_bytes": 98474,
+      "accepted": true,
+      "normalised": false,
+      "fixed_actor_references_safe": true
+    },
+    {
+      "resource": "gloom3/objs/demon",
+      "kind": "animation",
+      "file_bytes": 92496,
+      "sha256": "0723135c985a8343c2fdc9dc5d00d45317c63c4e99c492d6525eca426b1067af",
+      "decoded_bytes": 92496,
+      "accepted": true,
+      "normalised": false,
+      "fixed_actor_references_safe": false
+    },
+    {
+      "resource": "gloom3/objs/demon2",
+      "kind": "animation",
+      "file_bytes": 2026,
+      "sha256": "1dd5a6064eeb007c2a78522b6ee60e881f3dfd36bc460201a5d047de6147668c",
+      "decoded_bytes": 2026,
+      "accepted": true,
+      "normalised": false
+    },
+    {
+      "resource": "gloom3/objs/dragon",
+      "kind": "animation",
+      "file_bytes": 175914,
+      "sha256": "4b72daaa4e15ab9b87bd1df7e34bcea4005a848d448c5832599a2c60d3a60041",
+      "decoded_bytes": 175914,
+      "accepted": true,
+      "normalised": false,
+      "fixed_actor_references_safe": true
+    },
+    {
+      "resource": "gloom3/objs/dragon2",
+      "kind": "animation",
+      "file_bytes": 7818,
+      "sha256": "b1321f6c22b9baa5c90932e7c2d4e0b020034ffc0ab3f971a8dd361cb8f6645b",
+      "decoded_bytes": 7818,
+      "accepted": true,
+      "normalised": false
+    },
+    {
+      "resource": "gloom3/objs/ghoul",
+      "kind": "animation",
+      "file_bytes": 67052,
+      "sha256": "e29678d8c658231d16a970a9f549ad0a4b732555c70df2693c400af945b01e4a",
+      "decoded_bytes": 67052,
+      "accepted": true,
+      "normalised": false,
+      "fixed_actor_references_safe": true
+    },
+    {
+      "resource": "gloom3/objs/lizard",
+      "kind": "animation",
+      "file_bytes": 67372,
+      "sha256": "bda927e220d9a3921aedcff7abe693f49e759f2bc13903cbdef8a7466f9eac3e",
+      "decoded_bytes": 67372,
+      "accepted": true,
+      "normalised": false,
+      "fixed_actor_references_safe": false
+    },
+    {
+      "resource": "gloom3/objs/lizard2",
+      "kind": "animation",
+      "file_bytes": 1460,
+      "sha256": "08108cf8741ba14798f517296aa0347a71105a4486a51cc2ba8cf18b759dfbb4",
+      "decoded_bytes": 1460,
+      "accepted": true,
+      "normalised": false
+    },
+    {
+      "resource": "gloom3/objs/Marine",
+      "kind": "animation",
+      "file_bytes": 69986,
+      "sha256": "7b965028f4d2b491927c3d30379ab2baa84773165482ce77f8472a785b444dbd",
+      "decoded_bytes": 69986,
+      "accepted": true,
+      "normalised": false
+    },
+    {
+      "resource": "gloom3/objs/Marine2",
+      "kind": "animation",
+      "file_bytes": 3218,
+      "sha256": "1d3fa099d62081b1b5458068a2238b62711b73e3e04b6bdf3373c98e851e865d",
+      "decoded_bytes": 3218,
+      "accepted": true,
+      "normalised": false
+    },
+    {
+      "resource": "gloom3/objs/phantom",
+      "kind": "animation",
+      "file_bytes": 88154,
+      "sha256": "fdd13fe670c421713e6817e4c32459ba1f49206820f9c1779ea54d9a1ac516f7",
+      "decoded_bytes": 88154,
+      "accepted": true,
+      "normalised": false,
+      "fixed_actor_references_safe": true
+    },
+    {
+      "resource": "gloom3/objs/phantom2",
+      "kind": "animation",
+      "file_bytes": 2734,
+      "sha256": "c603fc6db3cbc26430fb82a96c387a5ce89b60838e058f33a26925154c72e787",
+      "decoded_bytes": 2734,
+      "accepted": true,
+      "normalised": false
+    },
+    {
+      "resource": "gloom3/objs/player",
+      "kind": "animation",
+      "file_bytes": 81628,
+      "sha256": "72f94a76c8d9908d59e90b68a88863246b0d6074659946c6c02a0ae0157d8c56",
+      "decoded_bytes": 81628,
+      "accepted": true,
+      "normalised": false,
+      "fixed_actor_references_safe": true
+    },
+    {
+      "resource": "gloom3/objs/player2",
+      "kind": "animation",
+      "file_bytes": 4972,
+      "sha256": "b2a639f13569f023e90dff3b080320a60cdd1c510c7d1bd49f66a94a75410dd7",
+      "decoded_bytes": 4972,
+      "accepted": true,
+      "normalised": false
+    },
+    {
+      "resource": "gloom3/objs/terra",
+      "kind": "animation",
+      "file_bytes": 103140,
+      "sha256": "c91f51e889f570eb7a60a814c4eea0c7fe10d1c0e36ecc6b14eb359335e65d04",
+      "decoded_bytes": 103140,
+      "accepted": true,
+      "normalised": false,
+      "fixed_actor_references_safe": true
+    },
+    {
+      "resource": "gloom3/objs/terra2",
+      "kind": "animation",
+      "file_bytes": 4794,
+      "sha256": "324be94e4b56793c466d195eaaa1735c382c074289713618d8a06902e5eb72de",
+      "decoded_bytes": 4794,
+      "accepted": true,
+      "normalised": false
+    },
+    {
+      "resource": "gloom3/objs/tokens",
+      "kind": "animation",
+      "file_bytes": 4120,
+      "sha256": "30d7445e397671aa0bf5b5b849c86f0c76742800257c3a81fe4face4e6ddb0e8",
+      "decoded_bytes": 4120,
+      "accepted": true,
+      "normalised": false,
+      "fixed_actor_references_safe": true
+    },
+    {
+      "resource": "gloom3/objs/troll",
+      "kind": "animation",
+      "file_bytes": 72508,
+      "sha256": "cbbc07c4a067004bf37a53dd73b8caff1dd80fac3abc0330280310bc72b824c5",
+      "decoded_bytes": 72508,
+      "accepted": true,
+      "normalised": false,
+      "fixed_actor_references_safe": false
+    },
+    {
+      "resource": "gloom3/objs/troll2",
+      "kind": "animation",
+      "file_bytes": 2086,
+      "sha256": "e878e1c880a5f8da00e63d4596c41038e0bcc52600837245f459ac855bfff002",
+      "decoded_bytes": 2086,
+      "accepted": true,
+      "normalised": false
+    },
+    {
+      "resource": "gloom3/sfxs/die.bin",
+      "kind": "sound",
+      "file_bytes": 7908,
+      "sha256": "662ae711d342a907ace339fe94e3fb8ae0519edd701e0237945b88650c36dd6b",
+      "decoded_bytes": 9286,
+      "accepted": true,
+      "normalised": false
+    },
+    {
+      "resource": "gloom3/sfxs/door.bin",
+      "kind": "sound",
+      "file_bytes": 23692,
+      "sha256": "e76fb074535c658f15f9e2e144e47b954638fa7b9df2a6f4cdbb0521ead4f867",
+      "decoded_bytes": 23692,
+      "accepted": true,
+      "normalised": false
+    },
+    {
+      "resource": "gloom3/sfxs/dragon.bin",
+      "kind": "sound",
+      "file_bytes": 31744,
+      "sha256": "ef57f6da390391a26423be6cbf01987535f02ae175cb824d5d2c15752940134c",
+      "decoded_bytes": 31744,
+      "accepted": true,
+      "normalised": false
+    },
+    {
+      "resource": "gloom3/sfxs/footstep.bin",
+      "kind": "sound",
+      "file_bytes": 3800,
+      "sha256": "7b88322fa7c5ed2f0b32bf08cb752965459918525c45ce728c4f91bbe444068a",
+      "decoded_bytes": 3800,
+      "accepted": true,
+      "normalised": false
+    },
+    {
+      "resource": "gloom3/sfxs/ghoul.bin",
+      "kind": "sound",
+      "file_bytes": 13114,
+      "sha256": "f1a48a6b440f7237953c362ee9a33343b7d9e79dd44280f616e5f465f8a08075",
+      "decoded_bytes": 13114,
+      "accepted": true,
+      "normalised": false
+    },
+    {
+      "resource": "gloom3/sfxs/grunt.bin",
+      "kind": "sound",
+      "file_bytes": 8974,
+      "sha256": "fb606c04ec28ca8cb9069665f9371aae2b935f4a6ac4d560fea822911bd1bab6",
+      "decoded_bytes": 8974,
+      "accepted": true,
+      "normalised": false
+    },
+    {
+      "resource": "gloom3/sfxs/grunt2.bin",
+      "kind": "sound",
+      "file_bytes": 10354,
+      "sha256": "64fa688635a91f4c8f05e9a1b16d0b02cb4f756c33ffc9d9a8f9e70c4c67c725",
+      "decoded_bytes": 10354,
+      "accepted": true,
+      "normalised": false
+    },
+    {
+      "resource": "gloom3/sfxs/grunt3.bin",
+      "kind": "sound",
+      "file_bytes": 13114,
+      "sha256": "11db244ec7f4db8aae37a61120dd79353df5187e286c776b85df28ff5bcfd875",
+      "decoded_bytes": 13114,
+      "accepted": true,
+      "normalised": false
+    },
+    {
+      "resource": "gloom3/sfxs/grunt4.bin",
+      "kind": "sound",
+      "file_bytes": 8284,
+      "sha256": "8101e0c816394bb3ee745a472ba6af5d5a5f9a087478d060f7387fe9ae3d478a",
+      "decoded_bytes": 8284,
+      "accepted": true,
+      "normalised": false
+    },
+    {
+      "resource": "gloom3/sfxs/lizard.bin",
+      "kind": "sound",
+      "file_bytes": 17812,
+      "sha256": "634d19d49c8f397a5f65a32969a83ed7787116ca04212f0e396179e1911dd3f2",
+      "decoded_bytes": 17812,
+      "accepted": true,
+      "normalised": false
+    },
+    {
+      "resource": "gloom3/sfxs/lizhit.bin",
+      "kind": "sound",
+      "file_bytes": 10860,
+      "sha256": "d4d649381ea3090d24dbd1a9e94f47b33ee86667bab1c83a3d69b15448e1581a",
+      "decoded_bytes": 10860,
+      "accepted": true,
+      "normalised": false
+    },
+    {
+      "resource": "gloom3/sfxs/robodie.bin",
+      "kind": "sound",
+      "file_bytes": 22084,
+      "sha256": "22ae0651bd320aeca2551a465a0662a771827ac412982d0073ad5bbe9da87cb9",
+      "decoded_bytes": 22084,
+      "accepted": true,
+      "normalised": false
+    },
+    {
+      "resource": "gloom3/sfxs/robot.bin",
+      "kind": "sound",
+      "file_bytes": 25888,
+      "sha256": "984beb9c27ea15e7db062e6d5d56237d4dce900d900a0e89c196684953a63fcb",
+      "decoded_bytes": 25888,
+      "accepted": true,
+      "normalised": false
+    },
+    {
+      "resource": "gloom3/sfxs/shoot.bin",
+      "kind": "sound",
+      "file_bytes": 7968,
+      "sha256": "1eb70d0cc3195a524d6816d80b04dde669995d95cb3d9061ff408fa44e683e78",
+      "decoded_bytes": 7968,
+      "accepted": true,
+      "normalised": false
+    },
+    {
+      "resource": "gloom3/sfxs/shoot2.bin",
+      "kind": "sound",
+      "file_bytes": 15458,
+      "sha256": "0daa40cbbe3bef2f73214a10a194c3487a9c652f6f41d4a05e93a7ada6361347",
+      "decoded_bytes": 15458,
+      "accepted": true,
+      "normalised": false
+    },
+    {
+      "resource": "gloom3/sfxs/shoot3.bin",
+      "kind": "sound",
+      "file_bytes": 7968,
+      "sha256": "1eb70d0cc3195a524d6816d80b04dde669995d95cb3d9061ff408fa44e683e78",
+      "decoded_bytes": 7968,
+      "accepted": true,
+      "normalised": false
+    },
+    {
+      "resource": "gloom3/sfxs/shoot4.bin",
+      "kind": "sound",
+      "file_bytes": 17680,
+      "sha256": "31cc43823b628b7c4567e6fdf67977873eddba252273f0a7275b6732b72c8a84",
+      "decoded_bytes": 17680,
+      "accepted": true,
+      "normalised": false
+    },
+    {
+      "resource": "gloom3/sfxs/shoot5.bin",
+      "kind": "sound",
+      "file_bytes": 38840,
+      "sha256": "aa0b9f1452c6c061aebd2c3561a2931a9206787e0e7e0c01aae2606c327a739b",
+      "decoded_bytes": 38840,
+      "accepted": true,
+      "normalised": false
+    },
+    {
+      "resource": "gloom3/sfxs/splat.bin",
+      "kind": "sound",
+      "file_bytes": 8364,
+      "sha256": "678a97da4278fe61e7b71617bcf6a8b92f220645e8e58870c8bb829d7998d47f",
+      "decoded_bytes": 8364,
+      "accepted": true,
+      "normalised": false
+    },
+    {
+      "resource": "gloom3/sfxs/teleport.bin",
+      "kind": "sound",
+      "file_bytes": 11786,
+      "sha256": "625466c92cef608458680619b9f4c56b61fa6a5087412b7c089338c57423d2a4",
+      "decoded_bytes": 11786,
+      "accepted": true,
+      "normalised": false
+    },
+    {
+      "resource": "gloom3/sfxs/token.bin",
+      "kind": "sound",
+      "file_bytes": 5564,
+      "sha256": "efced0f8401a65d4f6be3aa4e4234cfe46026ca4ca4f3876f94017b0ae98eb5a",
+      "decoded_bytes": 5564,
+      "accepted": true,
+      "normalised": false
+    },
+    {
+      "resource": "gloom3/sfxs/trollhit.bin",
+      "kind": "sound",
+      "file_bytes": 11144,
+      "sha256": "7686547a380dba76444600f8c5f1b638bed8b3b5f4a291904808d34b0c3b3609",
+      "decoded_bytes": 11144,
+      "accepted": true,
+      "normalised": false
+    },
+    {
+      "resource": "gloom3/sfxs/trollmad.bin",
+      "kind": "sound",
+      "file_bytes": 32142,
+      "sha256": "778b301b774cc0f85bdeecf33f8e0bca649f4ea889e5cde9a4a69da6108e508c",
+      "decoded_bytes": 32142,
+      "accepted": true,
+      "normalised": false
+    },
+    {
+      "resource": "gloom3/pics/blackmagic",
+      "kind": "picture",
+      "file_bytes": 8711,
+      "sha256": "b28f024011016a72ac1a54647add487a68ca9ef8a647936e15399b44d0364edb",
+      "decoded_bytes": 8711,
+      "accepted": true,
+      "normalised": true
+    },
+    {
+      "resource": "gloom3/pics/blackmagic.pal",
+      "kind": "AGA palette",
+      "sha256": "d1f04d470e06b7c016112dfcd560bba76c0d62ccbf2415a838bc3f644368c4eb",
+      "accepted": true,
+      "bytes": 512,
+      "needed": 512
+    },
+    {
+      "resource": "gloom3/pics/carpark",
+      "kind": "picture",
+      "file_bytes": 66723,
+      "sha256": "343524013b9f6cd5f9ec98cddc5e0b213890b07a3812d98a5790254b53321540",
+      "decoded_bytes": 66723,
+      "accepted": true,
+      "normalised": true
+    },
+    {
+      "resource": "gloom3/pics/carpark.pal",
+      "kind": "AGA palette",
+      "sha256": "44b88d806fa4a12d9d711a28f90196b85a6ca3f8f1e83cbf6855e75bd93d2761",
+      "accepted": true,
+      "bytes": 512,
+      "needed": 512
+    },
+    {
+      "resource": "gloom3/pics/combat",
+      "kind": "picture",
+      "file_bytes": 59597,
+      "sha256": "a1a6e8e99c53ba2b03b03b192bfdd4c0a784f8cacd75ee8fdf54f9875c8d5ba8",
+      "decoded_bytes": 59597,
+      "accepted": true,
+      "normalised": true
+    },
+    {
+      "resource": "gloom3/pics/combat.pal",
+      "kind": "AGA palette",
+      "sha256": "71c14b410c8c0a630d522dcc05d6e48f1a3696da75c3a51be113a8447d4a8d2a",
+      "accepted": true,
+      "bytes": 512,
+      "needed": 512
+    },
+    {
+      "resource": "gloom3/pics/gloom",
+      "kind": "picture",
+      "file_bytes": 16216,
+      "sha256": "c9aa61f5c4fea85cd33720eb7f8dcc4ed037d5fbfaf9cc2cef5de1bcc53aa2b9",
+      "decoded_bytes": 16216,
+      "accepted": true,
+      "normalised": true
+    },
+    {
+      "resource": "gloom3/pics/gloom.pal",
+      "kind": "AGA palette",
+      "sha256": "2aa41a5d7b99eafb0c8a15c11b1733ffafa4e5fc81d67af28ec1d9f6c3fb4906",
+      "accepted": true,
+      "bytes": 512,
+      "needed": 512
+    },
+    {
+      "resource": "gloom3/pics/gothic",
+      "kind": "picture",
+      "file_bytes": 80731,
+      "sha256": "feb51d2b22b59ac858980fed8db41afda2e3561d01b9ceefafccb38e31ec0ffe",
+      "decoded_bytes": 80731,
+      "accepted": true,
+      "normalised": true
+    },
+    {
+      "resource": "gloom3/pics/gothic.pal",
+      "kind": "AGA palette",
+      "sha256": "3a6e2e53bd70529a233427c0714f3943222b93bb988797731ae81248aa73fa6c",
+      "accepted": true,
+      "bytes": 1024,
+      "needed": 1024
+    },
+    {
+      "resource": "gloom3/pics/hell",
+      "kind": "picture",
+      "file_bytes": 83183,
+      "sha256": "8dd4a3bd12e6a01c960349b47e7fdc2e7253e89c01cc1263d7a899a53a1e17f1",
+      "decoded_bytes": 83183,
+      "accepted": true,
+      "normalised": true
+    },
+    {
+      "resource": "gloom3/pics/hell.pal",
+      "kind": "AGA palette",
+      "sha256": "a6608a6b0a1aee4fbdc14b0d41bea9c99c8c282e0cf84cb5a18c5751bb17fe36",
+      "accepted": true,
+      "bytes": 1024,
+      "needed": 1024
+    },
+    {
+      "resource": "gloom3/pics/labs",
+      "kind": "picture",
+      "file_bytes": 80731,
+      "sha256": "feb51d2b22b59ac858980fed8db41afda2e3561d01b9ceefafccb38e31ec0ffe",
+      "decoded_bytes": 80731,
+      "accepted": true,
+      "normalised": true
+    },
+    {
+      "resource": "gloom3/pics/labs.pal",
+      "kind": "AGA palette",
+      "sha256": "3a6e2e53bd70529a233427c0714f3943222b93bb988797731ae81248aa73fa6c",
+      "accepted": true,
+      "bytes": 1024,
+      "needed": 1024
+    },
+    {
+      "resource": "gloom3/pics/living",
+      "kind": "picture",
+      "file_bytes": 52941,
+      "sha256": "97bc46054b02f36161f9545d30da844f7966ce18809addc2fcb9e28cfe6cbf05",
+      "decoded_bytes": 52941,
+      "accepted": true,
+      "normalised": true
+    },
+    {
+      "resource": "gloom3/pics/living.pal",
+      "kind": "AGA palette",
+      "sha256": "915b0b5608379993830df54e5609a531d4c67efc6735571352866e0660c69fb5",
+      "accepted": true,
+      "bytes": 512,
+      "needed": 512
+    },
+    {
+      "resource": "gloom3/pics/Mall",
+      "kind": "picture",
+      "file_bytes": 42921,
+      "sha256": "c2f311bc739424388ee6172c49471c62ca5c23eead3ecd5e5e7826a1f66a90cf",
+      "decoded_bytes": 42921,
+      "accepted": true,
+      "normalised": true
+    },
+    {
+      "resource": "gloom3/pics/Mall.pal",
+      "kind": "AGA palette",
+      "sha256": "54f8ab951d964c942ec9241ee0fdc43dca54bf043dafe1e42930e1b3d131eba8",
+      "accepted": true,
+      "bytes": 1024,
+      "needed": 1024
+    },
+    {
+      "resource": "gloom3/pics/Military",
+      "kind": "picture",
+      "file_bytes": 51564,
+      "sha256": "f1fe2df0075d47b85d35cb380230eb3bcfd904a063b550612c0f5520c5ee695d",
+      "decoded_bytes": 51564,
+      "accepted": true,
+      "normalised": true
+    },
+    {
+      "resource": "gloom3/pics/Military.pal",
+      "kind": "AGA palette",
+      "sha256": "ca7090fb7044d33c28fd498cd5554f32e8d5e147129d78145c76d848320a3450",
+      "accepted": true,
+      "bytes": 256,
+      "needed": 256
+    },
+    {
+      "resource": "gloom3/pics/storage",
+      "kind": "picture",
+      "file_bytes": 83183,
+      "sha256": "8dd4a3bd12e6a01c960349b47e7fdc2e7253e89c01cc1263d7a899a53a1e17f1",
+      "decoded_bytes": 83183,
+      "accepted": true,
+      "normalised": true
+    },
+    {
+      "resource": "gloom3/pics/storage.pal",
+      "kind": "AGA palette",
+      "sha256": "a6608a6b0a1aee4fbdc14b0d41bea9c99c8c282e0cf84cb5a18c5751bb17fe36",
+      "accepted": true,
+      "bytes": 1024,
+      "needed": 1024
+    },
+    {
+      "resource": "gloom3/pics/title",
+      "kind": "picture",
+      "file_bytes": 31107,
+      "sha256": "14891a80091ce0fd93fb2a47f0a31d2bcca312804e9714dc0a42bf89ba28026e",
+      "decoded_bytes": 31107,
+      "accepted": true,
+      "normalised": true
+    },
+    {
+      "resource": "gloom3/pics/title.pal",
+      "kind": "AGA palette",
+      "sha256": "2aa41a5d7b99eafb0c8a15c11b1733ffafa4e5fc81d67af28ec1d9f6c3fb4906",
+      "accepted": true,
+      "bytes": 512,
+      "needed": 512
+    },
+    {
+      "resource": "gloom3/pics/tunnel",
+      "kind": "picture",
+      "file_bytes": 28923,
+      "sha256": "26c6ba9f009b6b2ac0dbfe91b3021626ecabc3fa0c923ce66d7050a0eb432767",
+      "decoded_bytes": 28923,
+      "accepted": true,
+      "normalised": true
+    },
+    {
+      "resource": "gloom3/pics/tunnel.pal",
+      "kind": "AGA palette",
+      "sha256": "9f3e18d81ff9b63e34437ef361ab8813ebf9b72cce10b58fc6fd4308dbe524e4",
+      "accepted": true,
+      "bytes": 256,
+      "needed": 256
+    },
+    {
+      "resource": "gloom3/misc/script",
+      "kind": "script",
+      "file_bytes": 4883,
+      "sha256": "d034971d29c73a63fbfc616e65d22b963c8ce370b350d11e3be1519f07051274",
+      "decoded_bytes": 4883,
+      "accepted": true,
+      "normalised": false
+    },
+    {
+      "resource": "massacre/lvls/com1_1",
+      "kind": "map/events",
+      "file_bytes": 9122,
+      "sha256": "807df7cb60596b4b52b474c5429dee4541e653a80bc3b8470979239c617b4dfb",
+      "decoded_bytes": 9122,
+      "accepted": true,
+      "normalised": false
+    },
+    {
+      "resource": "massacre/lvls/com1_2",
+      "kind": "map/events",
+      "file_bytes": 9902,
+      "sha256": "321705a7c45236548419dc2af515afc2f71c72c4d6fcb374ea24fdc9b68e09ef",
+      "decoded_bytes": 9902,
+      "accepted": true,
+      "normalised": false
+    },
+    {
+      "resource": "massacre/lvls/com1_3",
+      "kind": "map/events",
+      "file_bytes": 9422,
+      "sha256": "b96ceb2414f822d31958c475c4d883f25e0dfd877871ae8e1e29b2cb87b65b9b",
+      "decoded_bytes": 9422,
+      "accepted": true,
+      "normalised": false
+    },
+    {
+      "resource": "massacre/lvls/com1_4",
+      "kind": "map/events",
+      "file_bytes": 8614,
+      "sha256": "c0245e77d8171478a961aa0e03a029f8f0d2f2cf87010a84991904ffb65329ab",
+      "decoded_bytes": 8614,
+      "accepted": true,
+      "normalised": false
+    },
+    {
+      "resource": "massacre/lvls/com1_5",
+      "kind": "map/events",
+      "file_bytes": 9154,
+      "sha256": "7d97e31a05b19e981ecbbb3fbe5da8cce0e5b24ee171f9e6199e0abe910efffe",
+      "decoded_bytes": 9154,
+      "accepted": true,
+      "normalised": false
+    },
+    {
+      "resource": "massacre/lvls/com1_6",
+      "kind": "map/events",
+      "file_bytes": 9342,
+      "sha256": "a60b6824b11cd5f52161ca055f368a8f38beea46f665139bd31f9eb3bb32343c",
+      "decoded_bytes": 9342,
+      "accepted": true,
+      "normalised": false
+    },
+    {
+      "resource": "massacre/lvls/com1_7",
+      "kind": "map/events",
+      "file_bytes": 10470,
+      "sha256": "925366f8fc5f8ba37ae3fcaa259cbeff94e22cd5e1df2e2a67b2be868667fe9f",
+      "decoded_bytes": 10470,
+      "accepted": true,
+      "normalised": false
+    },
+    {
+      "resource": "massacre/lvls/com2_1",
+      "kind": "map/events",
+      "file_bytes": 9558,
+      "sha256": "299c2b80bd3002c331a600185bd03054a1cf929262d90565f96780ff09aa4c63",
+      "decoded_bytes": 9558,
+      "accepted": true,
+      "normalised": false
+    },
+    {
+      "resource": "massacre/lvls/com2_2",
+      "kind": "map/events",
+      "file_bytes": 9450,
+      "sha256": "3ca76a49639e897d583df2d614bf5c30799f5b7c0ebb8ac7a64c87502a200813",
+      "decoded_bytes": 9450,
+      "accepted": true,
+      "normalised": false
+    },
+    {
+      "resource": "massacre/lvls/com2_3",
+      "kind": "map/events",
+      "file_bytes": 9270,
+      "sha256": "a66cfa619339da04f5d8bd28dd9f938dbee07ff82e1a337e97ac4e8a468cc23e",
+      "decoded_bytes": 9270,
+      "accepted": true,
+      "normalised": false
+    },
+    {
+      "resource": "massacre/lvls/com2_4",
+      "kind": "map/events",
+      "file_bytes": 9406,
+      "sha256": "9c54ed683359e5c96bfca8a6e840bc7405c3269d3cc28031e8601501f1083c74",
+      "decoded_bytes": 9406,
+      "accepted": true,
+      "normalised": false
+    },
+    {
+      "resource": "massacre/lvls/com2_5",
+      "kind": "map/events",
+      "file_bytes": 9202,
+      "sha256": "652fc044fddec079e697d448db32552998c6be8516e6a3e673ed193ea90b682b",
+      "decoded_bytes": 9202,
+      "accepted": true,
+      "normalised": false
+    },
+    {
+      "resource": "massacre/lvls/com2_6",
+      "kind": "map/events",
+      "file_bytes": 8606,
+      "sha256": "4e8b0825bd0711e5035342e4c80f502f77eb59e784892e4df725b7092bdfb092",
+      "decoded_bytes": 8606,
+      "accepted": true,
+      "normalised": false
+    },
+    {
+      "resource": "massacre/lvls/com2_7",
+      "kind": "map/events",
+      "file_bytes": 9090,
+      "sha256": "bd7f2970a74798037b7161197f7541f85fe75d115a87d6f0619b394913e4be58",
+      "decoded_bytes": 9090,
+      "accepted": true,
+      "normalised": false
+    },
+    {
+      "resource": "massacre/lvls/com3_1",
+      "kind": "map/events",
+      "file_bytes": 9118,
+      "sha256": "80ea7cd328ed689022257efcdd31c45320fbaaba845d8597bb98a88bf9508a27",
+      "decoded_bytes": 9118,
+      "accepted": true,
+      "normalised": false
+    },
+    {
+      "resource": "massacre/lvls/com3_2",
+      "kind": "map/events",
+      "file_bytes": 10442,
+      "sha256": "6ec3666c1d7cc4bd974530870e348d75c88e5bccc2cd6801e0cd8e3c04b29236",
+      "decoded_bytes": 10442,
+      "accepted": true,
+      "normalised": false
+    },
+    {
+      "resource": "massacre/lvls/com3_3",
+      "kind": "map/events",
+      "file_bytes": 9258,
+      "sha256": "9d6566ae7a3d8b7e5e622c0ba282ade651ba054ffcf12e11384c91cf2e6b07fc",
+      "decoded_bytes": 9258,
+      "accepted": true,
+      "normalised": false
+    },
+    {
+      "resource": "massacre/lvls/com3_4",
+      "kind": "map/events",
+      "file_bytes": 9826,
+      "sha256": "076004523b483cc75c5d04e44738036d1eaa6b7ab96561f732bd07f22e5ed956",
+      "decoded_bytes": 9826,
+      "accepted": true,
+      "normalised": false
+    },
+    {
+      "resource": "massacre/lvls/com3_5",
+      "kind": "map/events",
+      "file_bytes": 10886,
+      "sha256": "f23367750b7a51c2adfb0838468d967cd016745a415da902db423f887374ae5f",
+      "decoded_bytes": 10886,
+      "accepted": true,
+      "normalised": false
+    },
+    {
+      "resource": "massacre/lvls/com3_6",
+      "kind": "map/events",
+      "file_bytes": 8646,
+      "sha256": "e2a495de1208fae49c47d127305dc962b76867ba89abe4d0baeb7481037b4d9b",
+      "decoded_bytes": 8646,
+      "accepted": true,
+      "normalised": false
+    },
+    {
+      "resource": "massacre/lvls/com3_7",
+      "kind": "map/events",
+      "file_bytes": 9614,
+      "sha256": "96fc16c46b80f7cabc687024c45feec14db0652d13e67d4cce43e469f03d435e",
+      "decoded_bytes": 9614,
+      "accepted": true,
+      "normalised": false
+    },
+    {
+      "resource": "massacre/lvls/map1a",
+      "kind": "map/events",
+      "file_bytes": 14066,
+      "sha256": "ca05e1895d74de2fd52638a4bcc1f5ecd90c93aaece89f89d044a29e68a357cc",
+      "decoded_bytes": 14066,
+      "accepted": true,
+      "normalised": false
+    },
+    {
+      "resource": "massacre/lvls/map1b",
+      "kind": "map/events",
+      "file_bytes": 14090,
+      "sha256": "14703e66d6f4cd6ef3dde2b5a5d99a6af57d61618f1f7d481ba5848e3876adbe",
+      "decoded_bytes": 14090,
+      "accepted": true,
+      "normalised": false
+    },
+    {
+      "resource": "massacre/lvls/map1c",
+      "kind": "map/events",
+      "file_bytes": 12918,
+      "sha256": "b5dac583e99cdeaa59fe1adb1c4fc3c4085e447e0b9e53dc19aa4420f603a045",
+      "decoded_bytes": 12918,
+      "accepted": true,
+      "normalised": false
+    },
+    {
+      "resource": "massacre/lvls/map1d",
+      "kind": "map/events",
+      "file_bytes": 15554,
+      "sha256": "6baa6b13c3e71bf9b2effd9a810c431b77ff3b2f3e2c379a8dd3a0196259e457",
+      "decoded_bytes": 15554,
+      "accepted": true,
+      "normalised": false
+    },
+    {
+      "resource": "massacre/lvls/map1e",
+      "kind": "map/events",
+      "file_bytes": 14242,
+      "sha256": "76b71a7c757772a0c8422c2dd8a7be2510d404ce832e9d9a5b65fc90878eee03",
+      "decoded_bytes": 14242,
+      "accepted": true,
+      "normalised": false
+    },
+    {
+      "resource": "massacre/lvls/map1f",
+      "kind": "map/events",
+      "file_bytes": 14014,
+      "sha256": "7e36b9ee53f13a7fb163a001bfa6aa98c2e19d2dc80e2b332959b91ee4579afc",
+      "decoded_bytes": 14014,
+      "accepted": true,
+      "normalised": false
+    },
+    {
+      "resource": "massacre/lvls/map1g",
+      "kind": "map/events",
+      "file_bytes": 12718,
+      "sha256": "1b459a27c786f8ca4d812cd67d67a110ff3113c2afbba953d96ed85d0aa73f84",
+      "decoded_bytes": 12718,
+      "accepted": true,
+      "normalised": false
+    },
+    {
+      "resource": "massacre/lvls/map2a",
+      "kind": "map/events",
+      "file_bytes": 14234,
+      "sha256": "44a91304eab4f2a78fb919f24da84cae455036c91c229cd8451dde2293d384f0",
+      "decoded_bytes": 14234,
+      "accepted": true,
+      "normalised": false
+    },
+    {
+      "resource": "massacre/lvls/map2b",
+      "kind": "map/events",
+      "file_bytes": 12198,
+      "sha256": "5ff11f11206bafd2d2cafb803c78910c51835442ec45042ed53192211496ba8f",
+      "decoded_bytes": 12198,
+      "accepted": true,
+      "normalised": false
+    },
+    {
+      "resource": "massacre/lvls/map2c",
+      "kind": "map/events",
+      "file_bytes": 13158,
+      "sha256": "e20f270b1e9866595075d69992a1f15e14164ae2c659dd58ac9cb65a581d408a",
+      "decoded_bytes": 13158,
+      "accepted": true,
+      "normalised": false
+    },
+    {
+      "resource": "massacre/lvls/map2d",
+      "kind": "map/events",
+      "file_bytes": 13334,
+      "sha256": "e504c9dcf66c68f3086bde1d6d0bd31e826c568336760cc1f4d23377c572ee99",
+      "decoded_bytes": 13334,
+      "accepted": true,
+      "normalised": false
+    },
+    {
+      "resource": "massacre/lvls/map2e",
+      "kind": "map/events",
+      "file_bytes": 12790,
+      "sha256": "d48fc906e10c6e0e0b7689005646f9d2b28454a3d4d22393521a9f466f4b7c53",
+      "decoded_bytes": 12790,
+      "accepted": true,
+      "normalised": false
+    },
+    {
+      "resource": "massacre/lvls/map2f",
+      "kind": "map/events",
+      "file_bytes": 11622,
+      "sha256": "4846493385c5c3e122b0cf30fbe2a1b6bf74d8615d93f2bc7992d0b26878776a",
+      "decoded_bytes": 11622,
+      "accepted": true,
+      "normalised": false
+    },
+    {
+      "resource": "massacre/lvls/map2g",
+      "kind": "map/events",
+      "file_bytes": 15578,
+      "sha256": "461b0fd2725fea66ae28b960270077182a9ba9d16c9d51fa5e29473d8c522c96",
+      "decoded_bytes": 15578,
+      "accepted": true,
+      "normalised": false
+    },
+    {
+      "resource": "massacre/lvls/map3a",
+      "kind": "map/events",
+      "file_bytes": 13642,
+      "sha256": "e618948fc6377c447c07364b22aabcb6b8c3ad6f8ea90f160405d38f12babd4d",
+      "decoded_bytes": 13642,
+      "accepted": true,
+      "normalised": false
+    },
+    {
+      "resource": "massacre/lvls/map3b",
+      "kind": "map/events",
+      "file_bytes": 12318,
+      "sha256": "0ef11e4d7708f4c0cb7d7e24f4749448e9b2f7e5d4039254c96b25cc25716f95",
+      "decoded_bytes": 12318,
+      "accepted": true,
+      "normalised": false
+    },
+    {
+      "resource": "massacre/lvls/map3c",
+      "kind": "map/events",
+      "file_bytes": 12486,
+      "sha256": "c0de329ee421321e5db3260d4eddb84da1759c14767d14dd0f480058fb98bd87",
+      "decoded_bytes": 12486,
+      "accepted": true,
+      "normalised": false
+    },
+    {
+      "resource": "massacre/lvls/map3d",
+      "kind": "map/events",
+      "file_bytes": 13410,
+      "sha256": "8981f5ce4b8a9d2dcfafa0fec9b13f384add51e845350312567d82a588a93be8",
+      "decoded_bytes": 13410,
+      "accepted": true,
+      "normalised": false
+    },
+    {
+      "resource": "massacre/lvls/map3e",
+      "kind": "map/events",
+      "file_bytes": 14506,
+      "sha256": "4f17db7f7994a4c12cc55186536bdeee2cc2a807718fa6804db64c6073861665",
+      "decoded_bytes": 14506,
+      "accepted": true,
+      "normalised": false
+    },
+    {
+      "resource": "massacre/lvls/map3f",
+      "kind": "map/events",
+      "file_bytes": 12598,
+      "sha256": "e98adff11cda317b2b2da0f2f73358820729c7473bb5c4495bb10712d97870a4",
+      "decoded_bytes": 12598,
+      "accepted": true,
+      "normalised": false
+    },
+    {
+      "resource": "massacre/lvls/map3g",
+      "kind": "map/events",
+      "file_bytes": 10642,
+      "sha256": "e3d4449ad9f173f8d6a8ee6ed23ae5a8991cb844b40c98812db8767cce0e7c39",
+      "decoded_bytes": 10642,
+      "accepted": true,
+      "normalised": false
+    },
+    {
+      "resource": "massacre/txts/floor0",
+      "kind": "tile",
+      "sha256": "9f2c055e35aaaa7a4076ba4facbe632befa81fcfcca091ae91441b66bbecaff3",
+      "accepted": true
+    },
+    {
+      "resource": "massacre/txts/floor1",
+      "kind": "tile",
+      "sha256": "9f2c055e35aaaa7a4076ba4facbe632befa81fcfcca091ae91441b66bbecaff3",
+      "accepted": true
+    },
+    {
+      "resource": "massacre/txts/floor10",
+      "kind": "tile",
+      "sha256": "121dd2614cf7aad3e4e13e5dbe75b5b56ba86577ae56d3b3565d805f53c63a01",
+      "accepted": true
+    },
+    {
+      "resource": "massacre/txts/floor11",
+      "kind": "tile",
+      "sha256": "dbd9889d11bcb2a627308c0870344c1b5ddd207b64a299fc4dcf7f010a24d860",
+      "accepted": true
+    },
+    {
+      "resource": "massacre/txts/floor12",
+      "kind": "tile",
+      "sha256": "6a7328eb291b1aa1717d55ccf6ccd148a963c0d6da6d91acd88b1c2423a10fb5",
+      "accepted": true
+    },
+    {
+      "resource": "massacre/txts/floor13",
+      "kind": "tile",
+      "sha256": "7d85ff53b829a620b4215ea6930c19c52fbcfde6c01cea47a4ebd765d115e98f",
+      "accepted": true
+    },
+    {
+      "resource": "massacre/txts/floor2",
+      "kind": "tile",
+      "sha256": "121dd2614cf7aad3e4e13e5dbe75b5b56ba86577ae56d3b3565d805f53c63a01",
+      "accepted": true
+    },
+    {
+      "resource": "massacre/txts/floor3",
+      "kind": "tile",
+      "sha256": "9f2c055e35aaaa7a4076ba4facbe632befa81fcfcca091ae91441b66bbecaff3",
+      "accepted": true
+    },
+    {
+      "resource": "massacre/txts/floor4",
+      "kind": "tile",
+      "sha256": "2ade21339634f813cc0a3de8507e92892e0448a38f8ce75cde6ace2f36a5ecbb",
+      "accepted": true
+    },
+    {
+      "resource": "massacre/txts/floor5",
+      "kind": "tile",
+      "sha256": "f3a5982a58f2e6dfff466ac159be3f981c6cc5c9383245760e227c36ba336033",
+      "accepted": true
+    },
+    {
+      "resource": "massacre/txts/floor6",
+      "kind": "tile",
+      "sha256": "9f2c055e35aaaa7a4076ba4facbe632befa81fcfcca091ae91441b66bbecaff3",
+      "accepted": true
+    },
+    {
+      "resource": "massacre/txts/floor7",
+      "kind": "tile",
+      "sha256": "4a55c21bde04bead051441e1acb72257fe152fed49e1a977fac3db0facf452c5",
+      "accepted": true
+    },
+    {
+      "resource": "massacre/txts/floor8",
+      "kind": "tile",
+      "sha256": "32db869243670247e76108fab1f19d26a91ad098eceb3fe56a88028342b6c25a",
+      "accepted": true
+    },
+    {
+      "resource": "massacre/txts/floor9",
+      "kind": "tile",
+      "sha256": "9f2c055e35aaaa7a4076ba4facbe632befa81fcfcca091ae91441b66bbecaff3",
+      "accepted": true
+    },
+    {
+      "resource": "massacre/txts/g3dctxt1",
+      "kind": "texture",
+      "file_bytes": 83268,
+      "sha256": "b2848d5559ebbe626bb27571e5ebd5ec574c023e0322fdf510ad57e2a371cc73",
+      "decoded_bytes": 83268,
+      "accepted": true,
+      "normalised": false,
+      "referenced_by_maps": false
+    },
+    {
+      "resource": "massacre/txts/Galery",
+      "kind": "texture",
+      "file_bytes": 83332,
+      "sha256": "f06a7f8c47cf308aad0daa81f0f813dee2fed81f59aac1fd1496cba362462a74",
+      "decoded_bytes": 83332,
+      "accepted": true,
+      "normalised": false,
+      "referenced_by_maps": false
+    },
+    {
+      "resource": "massacre/txts/ind1_1",
+      "kind": "texture",
+      "file_bytes": 83268,
+      "sha256": "f737ce16b7b9c9aad6f2997e59a68a7b3be5985420dd875114e312a3ae4b8414",
+      "decoded_bytes": 83268,
+      "accepted": true,
+      "normalised": false,
+      "referenced_by_maps": false
+    },
+    {
+      "resource": "massacre/txts/mall1",
+      "kind": "texture",
+      "file_bytes": 83716,
+      "sha256": "f1179af8f9214b6090f5dd3b3ec739492721d5494c9849642390fdb74e6b117d",
+      "decoded_bytes": 83716,
+      "accepted": true,
+      "normalised": false,
+      "referenced_by_maps": false
+    },
+    {
+      "resource": "massacre/txts/mall2",
+      "kind": "texture",
+      "file_bytes": 83332,
+      "sha256": "d49c00f02b397d328e5279526f5e9e1e34799e0f3ab3635fc8819d49d962cbc6",
+      "decoded_bytes": 83332,
+      "accepted": true,
+      "normalised": false,
+      "referenced_by_maps": false
+    },
+    {
+      "resource": "massacre/txts/Man1",
+      "kind": "texture",
+      "file_bytes": 83332,
+      "sha256": "b99676b5d5d9ed54cdff754c5d793e21d7cb1fc46c2509b8a5bd934b300c3b1a",
+      "decoded_bytes": 83332,
+      "accepted": true,
+      "normalised": false,
+      "referenced_by_maps": true
+    },
+    {
+      "resource": "massacre/txts/Man1ani",
+      "kind": "texture",
+      "file_bytes": 83332,
+      "sha256": "0083706cb51f5abf6ad7efe0f065828712e06d39a85130bc8ee390325d2ef978",
+      "decoded_bytes": 83332,
+      "accepted": true,
+      "normalised": false,
+      "referenced_by_maps": true
+    },
+    {
+      "resource": "massacre/txts/Man2x",
+      "kind": "texture",
+      "file_bytes": 83332,
+      "sha256": "c9ef8bc1aedf2bae4ed5f9e361c9b453d252aaeefa88ecd19649a3147344115e",
+      "decoded_bytes": 83332,
+      "accepted": true,
+      "normalised": false,
+      "referenced_by_maps": true
+    },
+    {
+      "resource": "massacre/txts/ManMARINE",
+      "kind": "texture",
+      "file_bytes": 83332,
+      "sha256": "9f26b92c5a0c8eb99520fb614a236177966a7363af531d3303edbe2b9c24d7ba",
+      "decoded_bytes": 83332,
+      "accepted": true,
+      "normalised": false,
+      "referenced_by_maps": true
+    },
+    {
+      "resource": "massacre/txts/mansionBrick",
+      "kind": "texture",
+      "file_bytes": 83332,
+      "sha256": "65c66aa804cea2e7a519087c94e0536166504866d2ac27354b6234b054c31150",
+      "decoded_bytes": 83332,
+      "accepted": true,
+      "normalised": false,
+      "referenced_by_maps": true
+    },
+    {
+      "resource": "massacre/txts/MansionTextures1",
+      "kind": "texture",
+      "file_bytes": 83332,
+      "sha256": "4303c85cf9d0f32faa1464f461bd62521ab64e2d29ed47ab65dc833cf8c7d040",
+      "decoded_bytes": 83332,
+      "accepted": true,
+      "normalised": false,
+      "referenced_by_maps": true
+    },
+    {
+      "resource": "massacre/txts/MansionTextures2",
+      "kind": "texture",
+      "file_bytes": 83332,
+      "sha256": "b527af83a1824aafcf0a05088741a0664fb29fbb6e4cf3790738d5509edbe268",
+      "decoded_bytes": 83332,
+      "accepted": true,
+      "normalised": false,
+      "referenced_by_maps": true
+    },
+    {
+      "resource": "massacre/txts/mltrtxt",
+      "kind": "texture",
+      "file_bytes": 83268,
+      "sha256": "977c8af83a1edf23c2f7b0ce2164358bab47d461874f678631a19605aab09d31",
+      "decoded_bytes": 83268,
+      "accepted": true,
+      "normalised": false,
+      "referenced_by_maps": false
+    },
+    {
+      "resource": "massacre/txts/roof0",
+      "kind": "tile",
+      "sha256": "5e5b6eb1c3f23aa7178440cb9f660892278961db838b7ebf772eb19f6f9aec5d",
+      "accepted": true
+    },
+    {
+      "resource": "massacre/txts/roof1",
+      "kind": "tile",
+      "sha256": "5e5b6eb1c3f23aa7178440cb9f660892278961db838b7ebf772eb19f6f9aec5d",
+      "accepted": true
+    },
+    {
+      "resource": "massacre/txts/roof10",
+      "kind": "tile",
+      "sha256": "7c2dc2c73066fa9956d4ecd28deb7dc520ed87251731f9e488bbfea6977d923c",
+      "accepted": true
+    },
+    {
+      "resource": "massacre/txts/roof11",
+      "kind": "tile",
+      "sha256": "d9484aa925949d42fa6eba4fb4316c0e4a1312bd972bb46dda910856ee42adc3",
+      "accepted": true
+    },
+    {
+      "resource": "massacre/txts/roof12",
+      "kind": "tile",
+      "sha256": "5c7b2129a47436e894969cffe7eef64f0737d3a69a69926b5875d2c5c77406a9",
+      "accepted": true
+    },
+    {
+      "resource": "massacre/txts/roof13",
+      "kind": "tile",
+      "sha256": "4e465f832cefb6822b9e80721e5846e02b55b677b314afedcb8b77db6569bf08",
+      "accepted": true
+    },
+    {
+      "resource": "massacre/txts/roof2",
+      "kind": "tile",
+      "sha256": "7c2dc2c73066fa9956d4ecd28deb7dc520ed87251731f9e488bbfea6977d923c",
+      "accepted": true
+    },
+    {
+      "resource": "massacre/txts/roof3",
+      "kind": "tile",
+      "sha256": "5e5b6eb1c3f23aa7178440cb9f660892278961db838b7ebf772eb19f6f9aec5d",
+      "accepted": true
+    },
+    {
+      "resource": "massacre/txts/roof4",
+      "kind": "tile",
+      "sha256": "98d82bf3b86ace3f634c92175249e7f8e53061263ac040f6c9ea58f7318e1afa",
+      "accepted": true
+    },
+    {
+      "resource": "massacre/txts/roof5",
+      "kind": "tile",
+      "sha256": "5e5b6eb1c3f23aa7178440cb9f660892278961db838b7ebf772eb19f6f9aec5d",
+      "accepted": true
+    },
+    {
+      "resource": "massacre/txts/roof6",
+      "kind": "tile",
+      "sha256": "c4ce00b37453ed25d28257280e74d9368aab47480db57427443640b7866d223e",
+      "accepted": true
+    },
+    {
+      "resource": "massacre/txts/roof7",
+      "kind": "tile",
+      "sha256": "d1c4f83367354abdc37b0dbb6ea0f6bd02f1d51dc8e79764b0d335a59c2b5014",
+      "accepted": true
+    },
+    {
+      "resource": "massacre/txts/roof8",
+      "kind": "tile",
+      "sha256": "52b2d6114e1615c858105fcaf648ccc3c954f29b2e5bfc498b2b98a5ab8fc792",
+      "accepted": true
+    },
+    {
+      "resource": "massacre/txts/roof9",
+      "kind": "tile",
+      "sha256": "5e5b6eb1c3f23aa7178440cb9f660892278961db838b7ebf772eb19f6f9aec5d",
+      "accepted": true
+    },
+    {
+      "resource": "massacre/txts/Scarey",
+      "kind": "texture",
+      "file_bytes": 83332,
+      "sha256": "b70db81ebc0e281c0ab94124624c1b4cfcf31e9e5233170da995fc45146a6d9c",
+      "decoded_bytes": 83332,
+      "accepted": true,
+      "normalised": false,
+      "referenced_by_maps": false
+    },
+    {
+      "resource": "massacre/txts/secret",
+      "kind": "texture",
+      "file_bytes": 71236,
+      "sha256": "e0b36e817312a8169b7896e61f5d05adcc642a4c09c147971862ccb220d60ee3",
+      "decoded_bytes": 71236,
+      "accepted": true,
+      "normalised": false,
+      "referenced_by_maps": false
+    },
+    {
+      "resource": "massacre/txts/secret2",
+      "kind": "texture",
+      "file_bytes": 71236,
+      "sha256": "13868f69eef56f8ae113cae0cbe0aa24275c5ac854971b8d850ff78241839971",
+      "decoded_bytes": 71236,
+      "accepted": true,
+      "normalised": false,
+      "referenced_by_maps": false
+    },
+    {
+      "resource": "massacre/txts/secret3",
+      "kind": "texture",
+      "file_bytes": 8836,
+      "sha256": "9b8cc5fb0a9689db81dd9f638c77af15be8ba000b8e5b5c8fd509aaa4519e6f0",
+      "decoded_bytes": 8836,
+      "accepted": true,
+      "normalised": false,
+      "referenced_by_maps": false
+    },
+    {
+      "resource": "massacre/txts/Template",
+      "kind": "texture",
+      "file_bytes": 83716,
+      "sha256": "34d48bc7c695569678afa7c43a87db1755a0a52a9e3e94f262ea72bc56b0c450",
+      "decoded_bytes": 83716,
+      "accepted": true,
+      "normalised": false,
+      "referenced_by_maps": false
+    },
+    {
+      "resource": "massacre/txts/test",
+      "kind": "texture",
+      "file_bytes": 82288,
+      "sha256": "1298eac57d79de95aa2fd48385b240ef5beff0470f167dbccbc86d4540cb8267",
+      "decoded_bytes": 82288,
+      "accepted": false,
+      "normalised": false,
+      "referenced_by_maps": false
+    },
+    {
+      "resource": "massacre/txts/tranhangs",
+      "kind": "texture",
+      "file_bytes": 83332,
+      "sha256": "362e2da0921a52625543c996bfa2e0ecaccd053768f6293782b7510f137168db",
+      "decoded_bytes": 83332,
+      "accepted": true,
+      "normalised": false,
+      "referenced_by_maps": false
+    },
+    {
+      "resource": "massacre/txts/tranhangs3",
+      "kind": "texture",
+      "file_bytes": 83716,
+      "sha256": "09b72b8c219405af2c4b6f861146ddc5b6384b87e6d67e65174ffb943432cf79",
+      "decoded_bytes": 83716,
+      "accepted": true,
+      "normalised": false,
+      "referenced_by_maps": false
+    },
+    {
+      "resource": "massacre/txts/tranhangsii",
+      "kind": "texture",
+      "file_bytes": 83332,
+      "sha256": "dfbd3816dfb5a1f958dad4f0adb75b95dfa2b6150706b03267b7f607d4aa7216",
+      "decoded_bytes": 83332,
+      "accepted": true,
+      "normalised": false,
+      "referenced_by_maps": false
+    },
+    {
+      "resource": "massacre/txts/TranMARINE",
+      "kind": "texture",
+      "file_bytes": 83716,
+      "sha256": "3a6969317d7d75f64e6e9d14e6d72914fa78e51d053a416fc85e50509ba0592a",
+      "decoded_bytes": 83716,
+      "accepted": true,
+      "normalised": false,
+      "referenced_by_maps": false
+    },
+    {
+      "resource": "massacre/txts/TRNTXTSsec",
+      "kind": "texture",
+      "file_bytes": 83332,
+      "sha256": "7c8152c201ee309a1379cab1bf1d14554237b55c9b12958af2002493ebaa4e91",
+      "decoded_bytes": 83332,
+      "accepted": true,
+      "normalised": false,
+      "referenced_by_maps": true
+    },
+    {
+      "resource": "massacre/txts/txt1_0",
+      "kind": "texture",
+      "file_bytes": 33348,
+      "sha256": "6c1e129d8fdf0593e002ccf44ca3ea3d0092522b917f4d68d010adaa6d42605a",
+      "decoded_bytes": 33348,
+      "accepted": true,
+      "normalised": false,
+      "referenced_by_maps": false
+    },
+    {
+      "resource": "massacre/txts/txt1_1",
+      "kind": "texture",
+      "file_bytes": 15330,
+      "sha256": "3695232cf8dadffdbea738640933030ebb90c37b4f69ccdf059afbffa48ceea2",
+      "decoded_bytes": 83716,
+      "accepted": true,
+      "normalised": false,
+      "referenced_by_maps": false
+    },
+    {
+      "resource": "massacre/txts/txt1_2",
+      "kind": "texture",
+      "file_bytes": 9532,
+      "sha256": "d7ba76c7883822f84e6f3c49f8626386303bc8c449c97dd287a807a79be95c12",
+      "decoded_bytes": 83716,
+      "accepted": true,
+      "normalised": false,
+      "referenced_by_maps": false
+    },
+    {
+      "resource": "massacre/txts/txt1_3",
+      "kind": "texture",
+      "file_bytes": 10156,
+      "sha256": "096d0c6d5fb71bd55652a1a180bf2c918ed92a3d8ab66dbd8da4001caa8b8610",
+      "decoded_bytes": 83332,
+      "accepted": true,
+      "normalised": false,
+      "referenced_by_maps": false
+    },
+    {
+      "resource": "massacre/txts/txt1_4",
+      "kind": "texture",
+      "file_bytes": 11616,
+      "sha256": "5d1da2d5eeff14634f21c1d0d0bfa0192ff703cc3ba9e0e4402186c56581b2d6",
+      "decoded_bytes": 83268,
+      "accepted": true,
+      "normalised": false,
+      "referenced_by_maps": false
+    },
+    {
+      "resource": "massacre/txts/txt3_1",
+      "kind": "texture",
+      "file_bytes": 16554,
+      "sha256": "cbdb194f1ee784e52391ec1a12cbe13ab9c2d095d673c50370a5b2f841b9f833",
+      "decoded_bytes": 83716,
+      "accepted": true,
+      "normalised": false,
+      "referenced_by_maps": false
+    },
+    {
+      "resource": "massacre/txts/txt3_2",
+      "kind": "texture",
+      "file_bytes": 83332,
+      "sha256": "cf5ce933b366d1758ad2b361dc5a9d25af87467e03d08156bb94394f05b2b3fd",
+      "decoded_bytes": 83332,
+      "accepted": true,
+      "normalised": false,
+      "referenced_by_maps": true
+    },
+    {
+      "resource": "massacre/txts/txt3_3",
+      "kind": "texture",
+      "file_bytes": 17986,
+      "sha256": "89aa2ab0fc14159133cb8bc2ca803489e9d25ad379d63583ac55d902f8ab1ea1",
+      "decoded_bytes": 75396,
+      "accepted": true,
+      "normalised": false,
+      "referenced_by_maps": false
+    },
+    {
+      "resource": "massacre/txts/txt3_4",
+      "kind": "texture",
+      "file_bytes": 2396,
+      "sha256": "a4e379b5ad703d929447c19a8009052c5d10828d55526a373e8e9111446f0a16",
+      "decoded_bytes": 17156,
+      "accepted": true,
+      "normalised": false,
+      "referenced_by_maps": false
+    },
+    {
+      "resource": "massacre/txts/txt3DC",
+      "kind": "texture",
+      "file_bytes": 83332,
+      "sha256": "6db091e7a3564310c2e3b0de841a537edd6907d204195e327b532ec83c059210",
+      "decoded_bytes": 83332,
+      "accepted": true,
+      "normalised": false,
+      "referenced_by_maps": false
+    },
+    {
+      "resource": "massacre/txts/txt3DC-blur",
+      "kind": "texture",
+      "file_bytes": 83332,
+      "sha256": "50c1c603aa539dbe5e750d03e998c07d8c4e15e95d2bdf63e3a73f868dc9c503",
+      "decoded_bytes": 83332,
+      "accepted": true,
+      "normalised": false,
+      "referenced_by_maps": false
+    },
+    {
+      "resource": "massacre/txts/txt3DCX",
+      "kind": "texture",
+      "file_bytes": 83332,
+      "sha256": "2412a5ff4dc0a4711877d08c20e3214dd4dfc4e0c1a65cbce2d6e588584f457b",
+      "decoded_bytes": 83332,
+      "accepted": true,
+      "normalised": false,
+      "referenced_by_maps": false
+    },
+    {
+      "resource": "massacre/txts/txt4_1",
+      "kind": "texture",
+      "file_bytes": 16424,
+      "sha256": "d5f3fb07fa4b692307755a377dd7a6c6c942426bbbf7b12d9846028d247a112e",
+      "decoded_bytes": 83716,
+      "accepted": true,
+      "normalised": false,
+      "referenced_by_maps": false
+    },
+    {
+      "resource": "massacre/txts/txt4_2",
+      "kind": "texture",
+      "file_bytes": 12462,
+      "sha256": "e3be1c5a378c931a3973e5f9b2c0a21c7e9ac81ec6d2ef43650d00b9f28e2b18",
+      "decoded_bytes": 83268,
+      "accepted": true,
+      "normalised": false,
+      "referenced_by_maps": false
+    },
+    {
+      "resource": "massacre/txts/txt4_3",
+      "kind": "texture",
+      "file_bytes": 16522,
+      "sha256": "e750347731774d3e5fc33be4df6c14ef51f8f0816fc3dd2deecf58e64d9a5fff",
+      "decoded_bytes": 83268,
+      "accepted": true,
+      "normalised": false,
+      "referenced_by_maps": false
+    },
+    {
+      "resource": "massacre/txts/txtCar",
+      "kind": "texture",
+      "file_bytes": 83332,
+      "sha256": "84fc8234043db9b7598de6b78de09472c7dafc05ef6588ec87d3e23c599deed0",
+      "decoded_bytes": 83332,
+      "accepted": true,
+      "normalised": false,
+      "referenced_by_maps": false
+    },
+    {
+      "resource": "massacre/txts/txtCarii",
+      "kind": "texture",
+      "file_bytes": 83332,
+      "sha256": "19632288af1e254d625d191a4a70cabaed5eddc8c1de1a4ad306a41af7427e3d",
+      "decoded_bytes": 83332,
+      "accepted": true,
+      "normalised": false,
+      "referenced_by_maps": false
+    },
+    {
+      "resource": "massacre/txts/txtgaz",
+      "kind": "texture",
+      "file_bytes": 83268,
+      "sha256": "e96aa73a50820ccc33e7ee92f9061850e0678036b7da3103eadf925b1c7196e3",
+      "decoded_bytes": 83268,
+      "accepted": true,
+      "normalised": false,
+      "referenced_by_maps": false
+    },
+    {
+      "resource": "massacre/txts/txtgazie",
+      "kind": "texture",
+      "file_bytes": 83268,
+      "sha256": "3b78bfffd95c6c0e24604cdead965c1d056ce812e4f739ba41a88f85e01ca457",
+      "decoded_bytes": 83268,
+      "accepted": true,
+      "normalised": false,
+      "referenced_by_maps": false
+    },
+    {
+      "resource": "massacre/txts/txtgazy",
+      "kind": "texture",
+      "file_bytes": 83268,
+      "sha256": "c6f36ccb8e44cd9467f34191bab03738c5b712581891b226b3517a465cc12833",
+      "decoded_bytes": 83268,
+      "accepted": true,
+      "normalised": false,
+      "referenced_by_maps": false
+    },
+    {
+      "resource": "massacre/txts/txtlabs",
+      "kind": "texture",
+      "file_bytes": 83268,
+      "sha256": "8c96ae0db168c12f02c5f1851a67da82d58e8f494c13a21cb9badb4f120c0985",
+      "decoded_bytes": 83268,
+      "accepted": true,
+      "normalised": false,
+      "referenced_by_maps": false
+    },
+    {
+      "resource": "massacre/txts/txtlabs2",
+      "kind": "texture",
+      "file_bytes": 83268,
+      "sha256": "209c108e5e0a9acc3cd2df7cb7ce85529ea6c7bc1ac3923170a484e990b4dadc",
+      "decoded_bytes": 83268,
+      "accepted": true,
+      "normalised": false,
+      "referenced_by_maps": false
+    },
+    {
+      "resource": "massacre/txts/txtlabs3",
+      "kind": "texture",
+      "file_bytes": 83268,
+      "sha256": "ebe96677d9e2c691f156cb29f00410148640ef6560769eb1b7ba410ac3092f1e",
+      "decoded_bytes": 83268,
+      "accepted": true,
+      "normalised": false,
+      "referenced_by_maps": false
+    },
+    {
+      "resource": "massacre/txts/txtMall",
+      "kind": "texture",
+      "file_bytes": 83268,
+      "sha256": "0cab852e8c084c5b3ee6eac3ca8167699b0ca6bde859d7b2c807023f407737d9",
+      "decoded_bytes": 83268,
+      "accepted": true,
+      "normalised": false,
+      "referenced_by_maps": false
+    },
+    {
+      "resource": "massacre/txts/txtMall12",
+      "kind": "texture",
+      "file_bytes": 83268,
+      "sha256": "ffcf5695c053ecb680b0a978363a5108f05191e5f80e4362e28e476bad2031bf",
+      "decoded_bytes": 83268,
+      "accepted": true,
+      "normalised": false,
+      "referenced_by_maps": false
+    },
+    {
+      "resource": "massacre/txts/txtMir",
+      "kind": "texture",
+      "file_bytes": 83332,
+      "sha256": "8beda944b1f2540a783d5187c38ecca816a0761a808d38390499a99df814e205",
+      "decoded_bytes": 83332,
+      "accepted": true,
+      "normalised": false,
+      "referenced_by_maps": false
+    },
+    {
+      "resource": "massacre/txts/txtTun",
+      "kind": "texture",
+      "file_bytes": 83268,
+      "sha256": "262cfcc454e78e5b0c567b28bd4e513b7a61509c2e76c07c836513b4c00ba372",
+      "decoded_bytes": 83268,
+      "accepted": true,
+      "normalised": false,
+      "referenced_by_maps": false
+    },
+    {
+      "resource": "massacre/txts/txtTun2",
+      "kind": "texture",
+      "file_bytes": 83268,
+      "sha256": "25f444e70d6f3de5877884d78bbded0209c1dc6cf7e39a948457d1894d79fee2",
+      "decoded_bytes": 83268,
+      "accepted": true,
+      "normalised": false,
+      "referenced_by_maps": false
+    },
+    {
+      "resource": "massacre/txts/txtTun3",
+      "kind": "texture",
+      "file_bytes": 83268,
+      "sha256": "43e830c7a4687681dfede7c2158964a33519ecd021d3e2d35be5702f5eab7a96",
+      "decoded_bytes": 83268,
+      "accepted": true,
+      "normalised": false,
+      "referenced_by_maps": false
+    },
+    {
+      "resource": "massacre/txts/txtTun4",
+      "kind": "texture",
+      "file_bytes": 83268,
+      "sha256": "690e5381aaa1045f4391d82016bdd9f5e8d2b503226e1e6fc84ed324f57b2b8f",
+      "decoded_bytes": 83268,
+      "accepted": true,
+      "normalised": false,
+      "referenced_by_maps": false
+    },
+    {
+      "resource": "massacre/char/dows-head",
+      "kind": "animation",
+      "file_bytes": 113498,
+      "sha256": "31edd699c2e1dfd88293795aa50d9ece81c6f62dc1e8ef495824245a7bc15354",
+      "decoded_bytes": 113498,
+      "accepted": true,
+      "normalised": false
+    },
+    {
+      "resource": "massacre/char/fatzo",
+      "kind": "animation",
+      "file_bytes": 82156,
+      "sha256": "e2b55341e75553b9e32a4b08269c5ef524e849c1df1ec5a7c7b5bd5f5ce4d5be",
+      "decoded_bytes": 82156,
+      "accepted": true,
+      "normalised": false
+    },
+    {
+      "resource": "massacre/char/fatzo2",
+      "kind": "animation",
+      "file_bytes": 4794,
+      "sha256": "324be94e4b56793c466d195eaaa1735c382c074289713618d8a06902e5eb72de",
+      "decoded_bytes": 4794,
+      "accepted": true,
+      "normalised": false
+    },
+    {
+      "resource": "massacre/char/ghost",
+      "kind": "animation",
+      "file_bytes": 86438,
+      "sha256": "23a7463253b023b1536c2fc9b821c7675ae8e787dca81007e58d41be22087cd7",
+      "decoded_bytes": 86438,
+      "accepted": true,
+      "normalised": false
+    },
+    {
+      "resource": "massacre/char/james",
+      "kind": "animation",
+      "file_bytes": 94140,
+      "sha256": "380eff208919357276fb64a8b3cd93dfbd1aca5b7cfdea4d3abfb26d7adc1905",
+      "decoded_bytes": 94140,
+      "accepted": true,
+      "normalised": false
+    },
+    {
+      "resource": "massacre/char/james2",
+      "kind": "animation",
+      "file_bytes": 2546,
+      "sha256": "841d10c2d756694b445f2a4507e6494575c847784f7bec6c1617d712d1c75463",
+      "decoded_bytes": 2546,
+      "accepted": true,
+      "normalised": false
+    },
+    {
+      "resource": "massacre/char/kforee",
+      "kind": "animation",
+      "file_bytes": 71602,
+      "sha256": "e57dd723c11883a3aa99bcde4a298fa3fe1ff502044c4c8640cc4b27861bb303",
+      "decoded_bytes": 71602,
+      "accepted": true,
+      "normalised": false
+    },
+    {
+      "resource": "massacre/char/kforee2",
+      "kind": "animation",
+      "file_bytes": 3976,
+      "sha256": "769f4c77c766d1af0e1ce6d865db9669cc32686096777fa937df9d274c70c28e",
+      "decoded_bytes": 3976,
+      "accepted": true,
+      "normalised": false
+    },
+    {
+      "resource": "massacre/char/pwrups",
+      "kind": "animation",
+      "file_bytes": 4120,
+      "sha256": "30d7445e397671aa0bf5b5b849c86f0c76742800257c3a81fe4face4e6ddb0e8",
+      "decoded_bytes": 4120,
+      "accepted": true,
+      "normalised": false
+    },
+    {
+      "resource": "massacre/char/skinny",
+      "kind": "animation",
+      "file_bytes": 93716,
+      "sha256": "74f269cf77199187cdcc0e281a341cf5cf53c69044d8d57049a8d14d5500b28a",
+      "decoded_bytes": 93716,
+      "accepted": true,
+      "normalised": false
+    },
+    {
+      "resource": "massacre/char/skinny2",
+      "kind": "animation",
+      "file_bytes": 3260,
+      "sha256": "b3513b1fcc39d3c352f3594f041979a0a2f0d9f1ef5d029ab18504f0605c7412",
+      "decoded_bytes": 3260,
+      "accepted": true,
+      "normalised": false
+    },
+    {
+      "resource": "massacre/char/troopr",
+      "kind": "animation",
+      "file_bytes": 71566,
+      "sha256": "be35b2112402df0866ba7e7cf7ffe2721fa0e76dbe5a562ebfba954205f50a5c",
+      "decoded_bytes": 71566,
+      "accepted": true,
+      "normalised": false
+    },
+    {
+      "resource": "massacre/char/troopr2",
+      "kind": "animation",
+      "file_bytes": 1662,
+      "sha256": "46d678923e1128917ebaeb4646b3a2ecd108060a6089d31ad855980a722dc331",
+      "decoded_bytes": 1662,
+      "accepted": true,
+      "normalised": false
+    },
+    {
+      "resource": "massacre/char/zocom",
+      "kind": "animation",
+      "file_bytes": 92496,
+      "sha256": "0723135c985a8343c2fdc9dc5d00d45317c63c4e99c492d6525eca426b1067af",
+      "decoded_bytes": 92496,
+      "accepted": true,
+      "normalised": false
+    },
+    {
+      "resource": "massacre/char/zocom2",
+      "kind": "animation",
+      "file_bytes": 2026,
+      "sha256": "1dd5a6064eeb007c2a78522b6ee60e881f3dfd36bc460201a5d047de6147668c",
+      "decoded_bytes": 2026,
+      "accepted": true,
+      "normalised": false
+    },
+    {
+      "resource": "massacre/char/zombi",
+      "kind": "animation",
+      "file_bytes": 91036,
+      "sha256": "3ece7086c7c56a8c2e2194fc12f9bade129c96a8bbba989e7fc45f89db3d063e",
+      "decoded_bytes": 91036,
+      "accepted": true,
+      "normalised": false
+    },
+    {
+      "resource": "massacre/char/zombi2",
+      "kind": "animation",
+      "file_bytes": 5250,
+      "sha256": "71f1a2a8b495e736a2776aa60ffc66e609fd6fddb378bcf28985e9a5c2651c0f",
+      "decoded_bytes": 5250,
+      "accepted": true,
+      "normalised": false
+    },
+    {
+      "resource": "massacre/char/zombie",
+      "kind": "animation",
+      "file_bytes": 175914,
+      "sha256": "4b72daaa4e15ab9b87bd1df7e34bcea4005a848d448c5832599a2c60d3a60041",
+      "decoded_bytes": 175914,
+      "accepted": true,
+      "normalised": false
+    },
+    {
+      "resource": "massacre/char/zombie2",
+      "kind": "animation",
+      "file_bytes": 11110,
+      "sha256": "2d34be397ace14be53dcf5d9215a70565a4eb7f16a0dbfa2d23b13bcfc43ce46",
+      "decoded_bytes": 11110,
+      "accepted": true,
+      "normalised": false
+    },
+    {
+      "resource": "massacre/char/zomboid",
+      "kind": "animation",
+      "file_bytes": 82156,
+      "sha256": "247f9330c3e462c2b9056fd26b8ea6d6fe1229aaaf9e98f4a82dc315b70f2def",
+      "decoded_bytes": 82156,
+      "accepted": true,
+      "normalised": false
+    },
+    {
+      "resource": "massacre/char/zomboid2",
+      "kind": "animation",
+      "file_bytes": 3844,
+      "sha256": "cc099730bec43325afe3e3b5b09aaec100871202e8f3bace18ce7ff57a58934c",
+      "decoded_bytes": 3844,
+      "accepted": true,
+      "normalised": false
+    },
+    {
+      "resource": "massacre/musi/die.bin",
+      "kind": "sound",
+      "file_bytes": 7908,
+      "sha256": "662ae711d342a907ace339fe94e3fb8ae0519edd701e0237945b88650c36dd6b",
+      "decoded_bytes": 9286,
+      "accepted": true,
+      "normalised": false
+    },
+    {
+      "resource": "massacre/musi/door.bin",
+      "kind": "sound",
+      "file_bytes": 17828,
+      "sha256": "0fca538510adeace262f0d8051d1d756c4706307cbfb20409b46a8f0aa2a1a21",
+      "decoded_bytes": 17828,
+      "accepted": true,
+      "normalised": false
+    },
+    {
+      "resource": "massacre/musi/fatzdie.bin",
+      "kind": "sound",
+      "file_bytes": 22084,
+      "sha256": "22ae0651bd320aeca2551a465a0662a771827ac412982d0073ad5bbe9da87cb9",
+      "decoded_bytes": 22084,
+      "accepted": true,
+      "normalised": false
+    },
+    {
+      "resource": "massacre/musi/fatzo.bin",
+      "kind": "sound",
+      "file_bytes": 123348,
+      "sha256": "022f00fe967ae7492ecb2e6becdfbaaf1a840af4338402dfa82335eeaf8081f1",
+      "decoded_bytes": 123348,
+      "accepted": true,
+      "normalised": false
+    },
+    {
+      "resource": "massacre/musi/footstep.bin",
+      "kind": "sound",
+      "file_bytes": 3800,
+      "sha256": "7b88322fa7c5ed2f0b32bf08cb752965459918525c45ce728c4f91bbe444068a",
+      "decoded_bytes": 3800,
+      "accepted": true,
+      "normalised": false
+    },
+    {
+      "resource": "massacre/musi/ghost.bin",
+      "kind": "sound",
+      "file_bytes": 33242,
+      "sha256": "8d3fd3d5adc7691f3f59a4cb4dc837d1e0b2a1d689857108b4d2a3dee77ebd1a",
+      "decoded_bytes": 33242,
+      "accepted": true,
+      "normalised": false
+    },
+    {
+      "resource": "massacre/musi/groan.bin",
+      "kind": "sound",
+      "file_bytes": 9894,
+      "sha256": "dfb6215fcf96e50941efd726f1f31c7652cef37b2189337467f5e869e8b58359",
+      "decoded_bytes": 9894,
+      "accepted": true,
+      "normalised": false
+    },
+    {
+      "resource": "massacre/musi/groan2.bin",
+      "kind": "sound",
+      "file_bytes": 10870,
+      "sha256": "de416cbde7401dd7dcf49918309b0755849c38bef4fb5c1c232f0f65553620e1",
+      "decoded_bytes": 10870,
+      "accepted": true,
+      "normalised": false
+    },
+    {
+      "resource": "massacre/musi/groan3.bin",
+      "kind": "sound",
+      "file_bytes": 14450,
+      "sha256": "df61c2947e798b7ffbec790fd96eb6332efb4f41b5b91108fc241fa4f490b145",
+      "decoded_bytes": 14450,
+      "accepted": true,
+      "normalised": false
+    },
+    {
+      "resource": "massacre/musi/groan4.bin",
+      "kind": "sound",
+      "file_bytes": 10962,
+      "sha256": "77bd5dedf389cc39b53d396382693217d7725938ebaa867adfc309e9707c6a33",
+      "decoded_bytes": 10962,
+      "accepted": true,
+      "normalised": false
+    },
+    {
+      "resource": "massacre/musi/jameshit.bin",
+      "kind": "sound",
+      "file_bytes": 10962,
+      "sha256": "77bd5dedf389cc39b53d396382693217d7725938ebaa867adfc309e9707c6a33",
+      "decoded_bytes": 10962,
+      "accepted": true,
+      "normalised": false
+    },
+    {
+      "resource": "massacre/musi/jamesmad.bin",
+      "kind": "sound",
+      "file_bytes": 11462,
+      "sha256": "bc27b0053b919d35a2cdc6bedad3082efc7c0308b3e17cb29b7a2ceecf53e7a7",
+      "decoded_bytes": 11462,
+      "accepted": true,
+      "normalised": false
+    },
+    {
+      "resource": "massacre/musi/pwrup.bin",
+      "kind": "sound",
+      "file_bytes": 5564,
+      "sha256": "efced0f8401a65d4f6be3aa4e4234cfe46026ca4ca4f3876f94017b0ae98eb5a",
+      "decoded_bytes": 5564,
+      "accepted": true,
+      "normalised": false
+    },
+    {
+      "resource": "massacre/musi/shoot.bin",
+      "kind": "sound",
+      "file_bytes": 9766,
+      "sha256": "05a54ac69cbc952da52d266942d6eb3b8a6b9462573bae018bafc233f6e67141",
+      "decoded_bytes": 9766,
+      "accepted": true,
+      "normalised": false
+    },
+    {
+      "resource": "massacre/musi/shoot2.bin",
+      "kind": "sound",
+      "file_bytes": 14950,
+      "sha256": "1aeb9dd5fa1dd64e7dcb626093f40ff1ee6508a5972a0c531795e5a7c991ae9d",
+      "decoded_bytes": 14950,
+      "accepted": true,
+      "normalised": false
+    },
+    {
+      "resource": "massacre/musi/shoot3.bin",
+      "kind": "sound",
+      "file_bytes": 10612,
+      "sha256": "771c9a1b10d545cd7d4dcab67beb773d008d9c18ced5808e0e8dca3028846ab7",
+      "decoded_bytes": 10612,
+      "accepted": true,
+      "normalised": false
+    },
+    {
+      "resource": "massacre/musi/shoot4.bin",
+      "kind": "sound",
+      "file_bytes": 16946,
+      "sha256": "f39de4e9a97f11cd40f40aa39525aafafa8f32514ba7f7806a66ca45d6b031ef",
+      "decoded_bytes": 16946,
+      "accepted": true,
+      "normalised": false
+    },
+    {
+      "resource": "massacre/musi/shoot5.bin",
+      "kind": "sound",
+      "file_bytes": 16946,
+      "sha256": "f39de4e9a97f11cd40f40aa39525aafafa8f32514ba7f7806a66ca45d6b031ef",
+      "decoded_bytes": 16946,
+      "accepted": true,
+      "normalised": false
+    },
+    {
+      "resource": "massacre/musi/skihit.bin",
+      "kind": "sound",
+      "file_bytes": 10860,
+      "sha256": "d4d649381ea3090d24dbd1a9e94f47b33ee86667bab1c83a3d69b15448e1581a",
+      "decoded_bytes": 10860,
+      "accepted": true,
+      "normalised": false
+    },
+    {
+      "resource": "massacre/musi/skinny.bin",
+      "kind": "sound",
+      "file_bytes": 25534,
+      "sha256": "c1004565aaf06ae926c5311c959a1aa4713fd16e1697249ade15edb5e9b27422",
+      "decoded_bytes": 25534,
+      "accepted": true,
+      "normalised": false
+    },
+    {
+      "resource": "massacre/musi/splat.bin",
+      "kind": "sound",
+      "file_bytes": 8364,
+      "sha256": "678a97da4278fe61e7b71617bcf6a8b92f220645e8e58870c8bb829d7998d47f",
+      "decoded_bytes": 8364,
+      "accepted": true,
+      "normalised": false
+    },
+    {
+      "resource": "massacre/musi/teleport.bin",
+      "kind": "sound",
+      "file_bytes": 26798,
+      "sha256": "1413da6d0babe719a3784f158b325eb0df7bded609ee8b87b4575c0b804e659d",
+      "decoded_bytes": 26798,
+      "accepted": true,
+      "normalised": false
+    },
+    {
+      "resource": "massacre/musi/zombie.bin",
+      "kind": "sound",
+      "file_bytes": 31744,
+      "sha256": "ef57f6da390391a26423be6cbf01987535f02ae175cb824d5d2c15752940134c",
+      "decoded_bytes": 31744,
+      "accepted": true,
+      "normalised": false
+    },
+    {
+      "resource": "massacre/pixs/alphasoftw",
+      "kind": "picture",
+      "file_bytes": 25202,
+      "sha256": "27cda3c80b0d83ac2eaf6268ec70a73e39f05c8c6940674ab80ae78f58b6a98b",
+      "decoded_bytes": 25202,
+      "accepted": true,
+      "normalised": true
+    },
+    {
+      "resource": "massacre/pixs/alphasoftw.pal",
+      "kind": "AGA palette",
+      "sha256": "cd7610c3c96b5a371f950df16224a17e9c68a469d1c23763a16a033601ffa84c",
+      "accepted": true,
+      "bytes": 512,
+      "needed": 512
+    },
+    {
+      "resource": "massacre/pixs/carpark",
+      "kind": "picture",
+      "file_bytes": 66723,
+      "sha256": "343524013b9f6cd5f9ec98cddc5e0b213890b07a3812d98a5790254b53321540",
+      "decoded_bytes": 66723,
+      "accepted": true,
+      "normalised": true
+    },
+    {
+      "resource": "massacre/pixs/carpark.pal",
+      "kind": "AGA palette",
+      "sha256": "44b88d806fa4a12d9d711a28f90196b85a6ca3f8f1e83cbf6855e75bd93d2761",
+      "accepted": true,
+      "bytes": 512,
+      "needed": 512
+    },
+    {
+      "resource": "massacre/pixs/combat",
+      "kind": "picture",
+      "file_bytes": 59597,
+      "sha256": "a1a6e8e99c53ba2b03b03b192bfdd4c0a784f8cacd75ee8fdf54f9875c8d5ba8",
+      "decoded_bytes": 59597,
+      "accepted": true,
+      "normalised": true
+    },
+    {
+      "resource": "massacre/pixs/combat.pal",
+      "kind": "AGA palette",
+      "sha256": "71c14b410c8c0a630d522dcc05d6e48f1a3696da75c3a51be113a8447d4a8d2a",
+      "accepted": true,
+      "bytes": 512,
+      "needed": 512
+    },
+    {
+      "resource": "massacre/pixs/g3-dc",
+      "kind": "picture",
+      "file_bytes": 7714,
+      "sha256": "06c874c1e31306c4cc8a8724566d43359c239e0c445d41cdef437ba7ba217b88",
+      "decoded_bytes": 7714,
+      "accepted": true,
+      "normalised": false
+    },
+    {
+      "resource": "massacre/pixs/g3-dc.pal",
+      "kind": "AGA palette",
+      "sha256": "dd47a156f4775a417d0ba035098e4ea3e3517fad3fb555c26f7097cb973ba115",
+      "accepted": true,
+      "bytes": 512,
+      "needed": 512
+    },
+    {
+      "resource": "massacre/pixs/gothic",
+      "kind": "picture",
+      "file_bytes": 80731,
+      "sha256": "feb51d2b22b59ac858980fed8db41afda2e3561d01b9ceefafccb38e31ec0ffe",
+      "decoded_bytes": 80731,
+      "accepted": true,
+      "normalised": true
+    },
+    {
+      "resource": "massacre/pixs/gothic.pal",
+      "kind": "AGA palette",
+      "sha256": "3a6e2e53bd70529a233427c0714f3943222b93bb988797731ae81248aa73fa6c",
+      "accepted": true,
+      "bytes": 1024,
+      "needed": 1024
+    },
+    {
+      "resource": "massacre/pixs/hell",
+      "kind": "picture",
+      "file_bytes": 83183,
+      "sha256": "8dd4a3bd12e6a01c960349b47e7fdc2e7253e89c01cc1263d7a899a53a1e17f1",
+      "decoded_bytes": 83183,
+      "accepted": true,
+      "normalised": true
+    },
+    {
+      "resource": "massacre/pixs/hell.pal",
+      "kind": "AGA palette",
+      "sha256": "a6608a6b0a1aee4fbdc14b0d41bea9c99c8c282e0cf84cb5a18c5751bb17fe36",
+      "accepted": true,
+      "bytes": 1024,
+      "needed": 1024
+    },
+    {
+      "resource": "massacre/pixs/labs",
+      "kind": "picture",
+      "file_bytes": 80731,
+      "sha256": "feb51d2b22b59ac858980fed8db41afda2e3561d01b9ceefafccb38e31ec0ffe",
+      "decoded_bytes": 80731,
+      "accepted": true,
+      "normalised": true
+    },
+    {
+      "resource": "massacre/pixs/labs.pal",
+      "kind": "AGA palette",
+      "sha256": "3a6e2e53bd70529a233427c0714f3943222b93bb988797731ae81248aa73fa6c",
+      "accepted": true,
+      "bytes": 1024,
+      "needed": 1024
+    },
+    {
+      "resource": "massacre/pixs/living",
+      "kind": "picture",
+      "file_bytes": 52941,
+      "sha256": "97bc46054b02f36161f9545d30da844f7966ce18809addc2fcb9e28cfe6cbf05",
+      "decoded_bytes": 52941,
+      "accepted": true,
+      "normalised": true
+    },
+    {
+      "resource": "massacre/pixs/living.pal",
+      "kind": "AGA palette",
+      "sha256": "915b0b5608379993830df54e5609a531d4c67efc6735571352866e0660c69fb5",
+      "accepted": true,
+      "bytes": 512,
+      "needed": 512
+    },
+    {
+      "resource": "massacre/pixs/Mall",
+      "kind": "picture",
+      "file_bytes": 42921,
+      "sha256": "c2f311bc739424388ee6172c49471c62ca5c23eead3ecd5e5e7826a1f66a90cf",
+      "decoded_bytes": 42921,
+      "accepted": true,
+      "normalised": true
+    },
+    {
+      "resource": "massacre/pixs/Mall.pal",
+      "kind": "AGA palette",
+      "sha256": "54f8ab951d964c942ec9241ee0fdc43dca54bf043dafe1e42930e1b3d131eba8",
+      "accepted": true,
+      "bytes": 1024,
+      "needed": 1024
+    },
+    {
+      "resource": "massacre/pixs/mansion",
+      "kind": "picture",
+      "file_bytes": 44322,
+      "sha256": "e7a19c28359ffafa03f11a3a9b2ab84cdece79806f5de3267b61e2d9d91b1c60",
+      "decoded_bytes": 44322,
+      "accepted": true,
+      "normalised": true
+    },
+    {
+      "resource": "massacre/pixs/mansion.pal",
+      "kind": "AGA palette",
+      "sha256": "9013a0e26c52301fd56c46535b032a9548903db383dd11f32012718d117a9297",
+      "accepted": true,
+      "bytes": 512,
+      "needed": 512
+    },
+    {
+      "resource": "massacre/pixs/Military",
+      "kind": "picture",
+      "file_bytes": 51564,
+      "sha256": "f1fe2df0075d47b85d35cb380230eb3bcfd904a063b550612c0f5520c5ee695d",
+      "decoded_bytes": 51564,
+      "accepted": true,
+      "normalised": true
+    },
+    {
+      "resource": "massacre/pixs/Military.pal",
+      "kind": "AGA palette",
+      "sha256": "ca7090fb7044d33c28fd498cd5554f32e8d5e147129d78145c76d848320a3450",
+      "accepted": true,
+      "bytes": 256,
+      "needed": 256
+    },
+    {
+      "resource": "massacre/pixs/storage",
+      "kind": "picture",
+      "file_bytes": 83183,
+      "sha256": "8dd4a3bd12e6a01c960349b47e7fdc2e7253e89c01cc1263d7a899a53a1e17f1",
+      "decoded_bytes": 83183,
+      "accepted": true,
+      "normalised": true
+    },
+    {
+      "resource": "massacre/pixs/storage.pal",
+      "kind": "AGA palette",
+      "sha256": "a6608a6b0a1aee4fbdc14b0d41bea9c99c8c282e0cf84cb5a18c5751bb17fe36",
+      "accepted": true,
+      "bytes": 1024,
+      "needed": 1024
+    },
+    {
+      "resource": "massacre/pixs/temple",
+      "kind": "picture",
+      "file_bytes": 39600,
+      "sha256": "1b0525e0f06b451163b04e6508e4eb220ff51ec6e896df1db32082222ab34c09",
+      "decoded_bytes": 39600,
+      "accepted": true,
+      "normalised": true
+    },
+    {
+      "resource": "massacre/pixs/temple.pal",
+      "kind": "AGA palette",
+      "sha256": "9013a0e26c52301fd56c46535b032a9548903db383dd11f32012718d117a9297",
+      "accepted": true,
+      "bytes": 512,
+      "needed": 512
+    },
+    {
+      "resource": "massacre/pixs/title",
+      "kind": "picture",
+      "file_bytes": 31626,
+      "sha256": "57faabaa477ea96668d846f76bce485a5cd2bb61de22e6f01e2e2173ca24bfba",
+      "decoded_bytes": 31626,
+      "accepted": true,
+      "normalised": true
+    },
+    {
+      "resource": "massacre/pixs/title.pal",
+      "kind": "AGA palette",
+      "sha256": "28ae84eef05ef6695c4be298a4c23db0fe2c5bb0adbf2acccf86bc96bc91a8c5",
+      "accepted": true,
+      "bytes": 512,
+      "needed": 512
+    },
+    {
+      "resource": "massacre/pixs/train",
+      "kind": "picture",
+      "file_bytes": 47680,
+      "sha256": "7875c8deb447f286db2a4825518add97634bfa7c5739f05a7bd23e8286fe15ac",
+      "decoded_bytes": 47680,
+      "accepted": true,
+      "normalised": true
+    },
+    {
+      "resource": "massacre/pixs/train.pal",
+      "kind": "AGA palette",
+      "sha256": "9013a0e26c52301fd56c46535b032a9548903db383dd11f32012718d117a9297",
+      "accepted": true,
+      "bytes": 512,
+      "needed": 512
+    },
+    {
+      "resource": "massacre/pixs/tunnel",
+      "kind": "picture",
+      "file_bytes": 28923,
+      "sha256": "26c6ba9f009b6b2ac0dbfe91b3021626ecabc3fa0c923ce66d7050a0eb432767",
+      "decoded_bytes": 28923,
+      "accepted": true,
+      "normalised": true
+    },
+    {
+      "resource": "massacre/pixs/tunnel.pal",
+      "kind": "AGA palette",
+      "sha256": "9f3e18d81ff9b63e34437ef361ab8813ebf9b72cce10b58fc6fd4308dbe524e4",
+      "accepted": true,
+      "bytes": 256,
+      "needed": 256
+    },
+    {
+      "resource": "massacre/pixs/words1",
+      "kind": "picture",
+      "file_bytes": 46848,
+      "sha256": "1b17afef95f54b0dc95fed2f222c4df28b77b38c22f001acb06a8f4870531830",
+      "decoded_bytes": 46848,
+      "accepted": true,
+      "normalised": true
+    },
+    {
+      "resource": "massacre/pixs/words1.pal",
+      "kind": "AGA palette",
+      "sha256": "2c3855c2f1c840205e4c19bbb8e81bfd6a6a1f68691bd0a0199c0f03f0f2a7d3",
+      "accepted": true,
+      "bytes": 512,
+      "needed": 512
+    },
+    {
+      "resource": "massacre/pixs/words2",
+      "kind": "picture",
+      "file_bytes": 39233,
+      "sha256": "f2f41feeb42e0d65b71580efa35759c2be96d989764f4bebd06883e7e77813ae",
+      "decoded_bytes": 39233,
+      "accepted": true,
+      "normalised": true
+    },
+    {
+      "resource": "massacre/pixs/words2.pal",
+      "kind": "AGA palette",
+      "sha256": "2c3855c2f1c840205e4c19bbb8e81bfd6a6a1f68691bd0a0199c0f03f0f2a7d3",
+      "accepted": true,
+      "bytes": 512,
+      "needed": 512
+    },
+    {
+      "resource": "massacre/pixs/words3",
+      "kind": "picture",
+      "file_bytes": 42778,
+      "sha256": "3c41d8c2cdde3fc3b42fbce7c4334946991c063b6d3599c66541c419271be0cc",
+      "decoded_bytes": 42778,
+      "accepted": true,
+      "normalised": true
+    },
+    {
+      "resource": "massacre/pixs/words3.pal",
+      "kind": "AGA palette",
+      "sha256": "2c3855c2f1c840205e4c19bbb8e81bfd6a6a1f68691bd0a0199c0f03f0f2a7d3",
+      "accepted": true,
+      "bytes": 512,
+      "needed": 512
+    },
+    {
+      "resource": "massacre/pixs/words4",
+      "kind": "picture",
+      "file_bytes": 39087,
+      "sha256": "2719c40dd9ace3b7b76fd4c0ec70ac3acbb532487e67d5d724e48872dfbcc661",
+      "decoded_bytes": 39087,
+      "accepted": true,
+      "normalised": true
+    },
+    {
+      "resource": "massacre/pixs/words4.pal",
+      "kind": "AGA palette",
+      "sha256": "2c3855c2f1c840205e4c19bbb8e81bfd6a6a1f68691bd0a0199c0f03f0f2a7d3",
+      "accepted": true,
+      "bytes": 512,
+      "needed": 512
+    },
+    {
+      "resource": "massacre/pixs/words5",
+      "kind": "picture",
+      "file_bytes": 36702,
+      "sha256": "b80df2665b89edd94f83612821f947dee7342c1a7fd8824d1e6617f5e9cd7922",
+      "decoded_bytes": 36702,
+      "accepted": true,
+      "normalised": true
+    },
+    {
+      "resource": "massacre/pixs/words5.pal",
+      "kind": "AGA palette",
+      "sha256": "2c3855c2f1c840205e4c19bbb8e81bfd6a6a1f68691bd0a0199c0f03f0f2a7d3",
+      "accepted": true,
+      "bytes": 512,
+      "needed": 512
+    },
+    {
+      "resource": "massacre/stuf/stages",
+      "kind": "script",
+      "file_bytes": 2344,
+      "sha256": "9fb4d516f171da7886277262aeae5fbd8c759d9425218a62bef6ab13585db880",
+      "decoded_bytes": 2344,
+      "accepted": true,
+      "normalised": false
+    }
+  ],
+  "startups": [
+    {
+      "profile": "gloom",
+      "mode": "AGA",
+      "binary": "game.hunk",
+      "startup_blocks": 51,
+      "startup_chip_requests": 29,
+      "peak_blocks": 53,
+      "peak_header_extra": 848,
+      "successful_allocations": 53
+    },
+    {
+      "profile": "gloom",
+      "mode": "P96",
+      "binary": "game.hunk",
+      "startup_blocks": 50,
+      "startup_chip_requests": 27,
+      "peak_blocks": 52,
+      "peak_header_extra": 832,
+      "successful_allocations": 52
+    },
+    {
+      "profile": "gloom",
+      "mode": "AGA",
+      "binary": "bench.hunk",
+      "startup_blocks": 51,
+      "startup_chip_requests": 29,
+      "peak_blocks": 53,
+      "peak_header_extra": 848,
+      "successful_allocations": 53
+    },
+    {
+      "profile": "gloom",
+      "mode": "P96",
+      "binary": "bench.hunk",
+      "startup_blocks": 50,
+      "startup_chip_requests": 27,
+      "peak_blocks": 52,
+      "peak_header_extra": 832,
+      "successful_allocations": 52
+    },
+    {
+      "profile": "deluxe",
+      "mode": "AGA",
+      "binary": "game.hunk",
+      "startup_blocks": 53,
+      "startup_chip_requests": 29,
+      "peak_blocks": 55,
+      "peak_header_extra": 880,
+      "successful_allocations": 55
+    },
+    {
+      "profile": "deluxe",
+      "mode": "P96",
+      "binary": "game.hunk",
+      "startup_blocks": 52,
+      "startup_chip_requests": 27,
+      "peak_blocks": 54,
+      "peak_header_extra": 864,
+      "successful_allocations": 54
+    },
+    {
+      "profile": "deluxe",
+      "mode": "AGA",
+      "binary": "bench.hunk",
+      "startup_blocks": 53,
+      "startup_chip_requests": 29,
+      "peak_blocks": 55,
+      "peak_header_extra": 880,
+      "successful_allocations": 55
+    },
+    {
+      "profile": "deluxe",
+      "mode": "P96",
+      "binary": "bench.hunk",
+      "startup_blocks": 52,
+      "startup_chip_requests": 27,
+      "peak_blocks": 54,
+      "peak_header_extra": 864,
+      "successful_allocations": 54
+    },
+    {
+      "profile": "gloom3",
+      "mode": "AGA",
+      "binary": "game.hunk",
+      "startup_blocks": 53,
+      "startup_chip_requests": 29,
+      "peak_blocks": 55,
+      "peak_header_extra": 880,
+      "successful_allocations": 56
+    },
+    {
+      "profile": "gloom3",
+      "mode": "P96",
+      "binary": "game.hunk",
+      "startup_blocks": 52,
+      "startup_chip_requests": 27,
+      "peak_blocks": 54,
+      "peak_header_extra": 864,
+      "successful_allocations": 55
+    },
+    {
+      "profile": "gloom3",
+      "mode": "AGA",
+      "binary": "bench.hunk",
+      "startup_blocks": 53,
+      "startup_chip_requests": 29,
+      "peak_blocks": 55,
+      "peak_header_extra": 880,
+      "successful_allocations": 56
+    },
+    {
+      "profile": "gloom3",
+      "mode": "P96",
+      "binary": "bench.hunk",
+      "startup_blocks": 52,
+      "startup_chip_requests": 27,
+      "peak_blocks": 54,
+      "peak_header_extra": 864,
+      "successful_allocations": 55
+    },
+    {
+      "profile": "massacre",
+      "mode": "AGA",
+      "binary": "game.hunk",
+      "startup_blocks": 53,
+      "startup_chip_requests": 29,
+      "peak_blocks": 55,
+      "peak_header_extra": 880,
+      "successful_allocations": 55
+    },
+    {
+      "profile": "massacre",
+      "mode": "P96",
+      "binary": "game.hunk",
+      "startup_blocks": 52,
+      "startup_chip_requests": 27,
+      "peak_blocks": 54,
+      "peak_header_extra": 864,
+      "successful_allocations": 54
+    },
+    {
+      "profile": "massacre",
+      "mode": "AGA",
+      "binary": "bench.hunk",
+      "startup_blocks": 53,
+      "startup_chip_requests": 29,
+      "peak_blocks": 55,
+      "peak_header_extra": 880,
+      "successful_allocations": 55
+    },
+    {
+      "profile": "massacre",
+      "mode": "P96",
+      "binary": "bench.hunk",
+      "startup_blocks": 52,
+      "startup_chip_requests": 27,
+      "peak_blocks": 54,
+      "peak_header_extra": 864,
+      "successful_allocations": 54
+    }
+  ]
+}

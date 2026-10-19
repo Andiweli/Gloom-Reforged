@@ -5,6 +5,7 @@ sblen	equ	128	;serial buffer length
 g2exit_serial_vector	dc.l	0
 g2exit_serial_intena	dc.w	0
 g2exit_serial_owned	dc.w	0
+g2serial_overruns	dc.w	0
 
 initser	push
 	tst	g2exit_serial_owned
@@ -97,7 +98,7 @@ rbf	;receive buffer full interupt
 	movem.l	d0-d1/a0-a1,-(a7)
 	;
 	move	$dff018,d0	;ser byte
-	bmi	.fuck
+	bmi.w	.overrun
 	move	#$800,$dff09c
 	;
 	move	chatok(pc),d1
@@ -115,6 +116,8 @@ rbf	;receive buffer full interupt
 	bra.s	.bye
 	;
 .chskip	lea	rbuff(pc),a1
+	cmp.w	#sblen,rbfcnt
+	bhs.w	.overrun		; do not overwrite unread ring entries
 	move	rput(pc),d1
 	and	#sblen-1,d1
 	move.b	d0,0(a1,d1)
@@ -124,9 +127,10 @@ rbf	;receive buffer full interupt
 .bye	movem.l	(a7)+,d0-d1/a0-a1
 	rts
 	;
-.fuck	warn	#$f00	;ser overflow error!
-	warn	#$fff
-	bra.s	.fuck
+.overrun
+	move	#$0800,$dff09c	; clear RBF/OVRUN before returning to Exec
+	addq.w	#1,g2serial_overruns
+	bra.w	.bye			; no DOS calls or waits in the interrupt
 
 rbuff	ds.b	sblen
 rput	dc	0
@@ -170,7 +174,8 @@ initmed	lea	medat,a0
 	move.l	#medplayer,(a0)
 	bsr	relocate
 	;
-.noreloc	move.l	medat,a1
+.noreloc	jsr	g2med_install_stop
+	move.l	medat,a1
 	move.l	chipzero(pc),a0
 	jsr	(a1)
 	move	#-1,g2exit_med_initialized
@@ -341,6 +346,14 @@ loadfiles	;
 	move.l	a2,a0
 	bsr	loadfile
 	move.l	d0,(a3)
+	jsr g2validate_loaded_slot
+	cmp.l #script,a3
+	bne.s .not_script
+	tst.l d0
+	beq.s .not_script
+	move.l d0,a0
+	jsr g2require_script
+.not_script
 .z	tst.b	(a2)+
 	bne.s	.z
 	exg	a2,d0
@@ -430,12 +443,14 @@ initmain	;
 	lea	ciaaname,a1
 	jsr	-498(a6)
 	move.l	d0,ciaa
+	requiremem
 	;
 	tst	os
 	beq.s	.osskipz
 	move.l	#12*257,d0
 	moveq	#4,d1
 	allocmem	temppal
+	requiremem
 	move.l	d0,temppal
 .osskipz	;
 	; Fix3b: keep audio silence at +0 separate from writable sprite data.
@@ -443,31 +458,37 @@ initmain	;
 	move.l	#256,d0	;MEMF_CLEAR below initializes both chip RAM regions
 	move.l	#$10002,d1
 	allocmem	chipzero
+	requiremem
 	move.l	d0,chipzero
 	;
 	move.l	#256,d0
 	moveq	#4,d1
 	allocmem	maptable
+	requiremem
 	move.l	d0,maptable
 	;
 	move.l	#32768,d0
 	moveq	#4,d1
 	allocmem	memory
+	requiremem
 	move.l	d0,memory
 	;
 	move.l	#g2render_max_width*vd_size,d0
 	moveq	#4,d1
 	allocmem	vertdraws
+	requiremem
 	move.l	d0,vertdraws
 	;
 	move.l	#maxz*2,d0
 	moveq	#4,d1
 	allocmem	darktable
+	requiremem
 	move.l	d0,darktable
 	;
 	move.l	#g2render_max_width*g2render_height_const+15,d0
 	moveq	#4,d1
 	allocmem	chunky
+	requiremem
 	tst.l	d0
 	beq.s	.g2p11_chunky_alloc_done
 	add.l	#15,d0
@@ -492,6 +513,7 @@ initmain	;
 	move.l	d0,p96static_rgbbufsize
 	moveq	#4,d1
 	allocmem	p96staticrgb
+	requiremem
 	move.l	d0,p96static_rgbbufptr
 .g2c86zgv_no_staticbuf
 	;
@@ -512,11 +534,13 @@ initmain	;
 	move.l	d0,p96clut_stage_size
 	moveq	#4,d1
 	allocmem	p96clutstage
+	requiremem
 	move.l	d0,p96clut_stage_ptr
 	beq	.g2c87b78j_no_clut_buffers
 	move.l	#65536,d0
 	moveq	#4,d1
 	allocmem	p96clutreverse
+	requiremem
 	move.l	d0,p96clut_reverse_ptr
 	beq	.g2c87b78j_no_clut_buffers
 	jsr	g2p96_clut_clear_runtime_c87b78j
@@ -527,6 +551,7 @@ initmain	;
 	move.l	#256*16,d0
 	moveq	#4,d1
 	allocmem	palettes
+	requiremem
 	;
 	;16 shades...
 	lea	palettes(pc),a0
@@ -628,6 +653,7 @@ initmain	;
 	jsr	g2loadgunfallback	;v61: optional misc/stuf gun.bin fallback
 	jsr	g2embed_apply_g1_fallbacks	;v190gl: gun fallback if no file exists
 	jsr	g2embed_apply_zm_title_overlay	;v190hu: embedded Zombie Massacre title overlay
+	jsr g2require_core_tables
 	moveq	#6,d0
 	;
 	; v41i diagnostic: progfiles/agafiles loaded OK.
@@ -646,6 +672,7 @@ initmain	;
 		moveq	#1,d1
 		bsr	loadfile
 		move.l	d0,planar_c2p
+		jsr g2require_external_c2p
 		;
 		move.l	planar_c2p(pc),a2
 		tst.l	a2
@@ -715,8 +742,7 @@ g2_inline_c2p_init	;blackmagic_1-compatible initc2p table builder
 g2_after_inline_c2p_init
 	moveq	#8,d0
 	bsr	initmed
-	bsr	initser
-	bsr	calcbaud
+	; Link options are inactive in the release. Acquire serial only at doconnect.
 	bsr	initdarktable
 	moveq	#9,d0
 	;
@@ -743,6 +769,7 @@ g2_after_inline_c2p_init
 	move.l	gunpic(pc),d0	;v61: gun.bin has its own palette
 	beq.s	g2v61_no_gun_remap
 	move.l	d0,a0
+	jsr	g2require_anim	; g2gun_prepare also consumes frame/palette offsets
 	jsr	g2gun_prepare
 	move.l	gunpic(pc),a0
 	jsr	remapanim
@@ -1241,48 +1268,14 @@ execscript_med	;
 	move.l	loadingmed(pc),d0
 	beq.s	execscript
 	move.l	d0,a0
-	move.l	medat,a1
-	jsr	8(a1)	;start loading music!
+	move.l	#g2med_start_checked,a1
+	jsr	(a1)	; cold wrapper; retain original four-byte call footprint
+	nop
 	;
 execscript	cmp	#2,gametype
 	beq	scriptplay	;no script for combat game!
 	;
-	move.l	scriptat(pc),a0
-	;
-.loop	move.b	(a0)+,d0
-	cmp.b	#10,d0
-	beq.s	.loop
-	and	#31,d0
-	bne.s	.more
-.loop2	cmp.b	#10,(a0)+
-	bne.s	.loop2
-	bra.s	.loop
-.more	cmp	#27,d0
-	bcc.s	.loop2
-	add	#96,d0
-	;
-	;command! fetch the rest...
-	;
-	move.b	(a0)+,d1
-	and	#31,d1
-	add	#96,d1
-	lsl.l	#8,d0
-	or	d1,d0
-	;
-	move.b	(a0)+,d1
-	and	#31,d1
-	add	#96,d1
-	lsl.l	#8,d0
-	or	d1,d0
-	;
-	move.b	(a0)+,d1
-	and	#31,d1
-	add	#96,d1
-	lsl.l	#8,d0
-	or	d1,d0
-	;
-	addq	#1,a0	;skip '_'
-	move.l	a0,scriptat
+	jsr g2script_next_command
 	cmp.l	#'pict',d0
 	beq	scriptpict
 	cmp.l	#'draw',d0
@@ -1330,12 +1323,13 @@ sccont	dc.b	'cont_'
 scriptrest	;restart point marker
 	; c87b5: consume the rest_ line and continue, but never add an offset,
 	; allocate a continuation entry or write a gloomgame file.
-.leol	cmp.b	#10,(a0)+
-	bne.s	.leol
-	move.l	a0,scriptat
-	bra	execscript
+	move.l g2script_nextline,scriptat
+	bra execscript
 
-scriptloop	; v190hy cleanup: log marker removed
+scriptloop	; bound scripts must actually yield before repeating
+	tst.w g2script_yielded
+	beq.l g2fatal_abort
+	clr.w g2script_yielded
 	move.l	script,scriptat
 	bra	execscript
 
@@ -1431,18 +1425,10 @@ scriptdraw	; v190hy cleanup: log marker removed
 .g2v190hy2_draw_no_fontpal
 	bra	execscript
 
-fetchrest	move.l	scriptat,a0
-	moveq	#-1,d0
-.loop	addq	#1,d0
-	move.b	(a0)+,(a1)
-	cmp.b	#10,(a1)+
-	bne.s	.loop
-	clr.b	-(a1)
-	move.l	a0,scriptat
-	rts
+fetchrest	jmp g2script_fetchrest
 
 text	;
-picname	ds.b	64
+picname	ds.b	80	; two bounded 40-character text rows, including separator/NUL
 pic_pal	dc.b	'.pal',0
 	even
 
@@ -1490,6 +1476,7 @@ g2ecs_load_g3zm_intermission_palette_abs
 	lea	g2ecs_inter_palette_name,a0
 	lea	g2ecs_inter_palette_cache,a1
 	moveq	#1,d1
+	move.l	#128,d2	; fixed palette cache capacity
 	jsr	loadfileabs
 	tst.l	d0
 	beq.s	.done
@@ -1532,6 +1519,7 @@ freetiles	push
 
 floorname	dc.b	'txts/floor'
 floortag	ds.b	32
+g2floor_tag_end
 	even
 
 roofname	dc.b	'txts/roof'
@@ -1560,10 +1548,16 @@ loadtile	;
 	moveq	#1,d1
 	jsr	loadfile
 	move.l	d0,floor
+	requiremem
+	move.l d0,a0
+	jsr g2require_tile
 	lea	roofname(pc),a0
 	moveq	#1,d1
 	jsr	loadfile
 	move.l	d0,roof
+	requiremem
+	move.l d0,a0
+	jsr g2require_tile
 	bsr	forbid
 	;
 	move.l	map_rgbsfrom,map_rgbsat
@@ -1646,6 +1640,7 @@ scriptpict	;load an iff
 	moveq	#1,d1
 	jsr	loadfile
 	move.l	d0,picpal
+	jsr g2require_picpal
 .nopic
 	addq	#4,a7
 	bsr	forbid
@@ -1685,6 +1680,7 @@ g2v190t_reload_current_pic
 	moveq	#1,d1
 	jsr	loadfile
 	move.l	d0,picpal
+	jsr g2require_picpal
 .close	bsr	forbid
 .rts	rts
 
@@ -1858,6 +1854,7 @@ scriptwait	;
 	tst	pdelay
 	bmi	execscript
 	bsr	waitany
+	move.w #-1,g2script_yielded
 	bra	execscript
 
 checkany	movem.l	d0-d7/a0-a6,-(a7)
@@ -1943,6 +1940,7 @@ freeobjlist2	lea	objlist,a2
 
 mappath	dc.b	'maps/'
 mapname	ds.b	64
+g2map_name_end
 	even
 
 linkswap	tst	linked
@@ -2047,6 +2045,7 @@ scriptplay	;
 .g2v190s_noskip
 	bsr	fetchrest
 .gotname	;
+	move.w #-1,g2script_yielded
 	lea	mapname,a0
 	; v11 native safety check. c87b79p: P96 never executes doc2p and must
 	; not depend on an external/native C2P routine being present.
@@ -2097,6 +2096,7 @@ g2v10_map_loaded
 	;
 	bsr	initmap
 	bsr	loadtxts
+	jsr g2require_map_textures
 	move	#$a3f7,d0
 	jsr	seedrnd
 	moveq	#1,d0
@@ -3171,11 +3171,16 @@ phoneat	dc.l	phonenum
 nulllink	;
 	lea	connect(pc),a0
 doconnect	;
+	movem.l	d0-d1/a0-a1/a6,-(a7)
+	bsr	initser
+	bsr	calcbaud
+	movem.l	(a7)+,d0-d1/a0-a1/a6
 	bsr	sendstring
 	bsr	waitconnect
 	beq	.calcmaster
 	;
 	clr	linked
+	bsr	finitser
 	rts
 	;
 	;OK, randomly determine who is master and who is slave!
@@ -3932,8 +3937,12 @@ g2v190i_try_script
 
 g2v190i_parse_script
 	movem.l	d0-d7/a0-a6,-(a7)
+	jsr g2asset_bounds
+	move.l a1,a3
 	move.l	a0,a6
 .loop
+	cmp.l a3,a6
+	bcc .done
 	move.b	(a6),d0
 	beq	.done
 	cmp.b	#13,d0
@@ -3946,6 +3955,10 @@ g2v190i_parse_script
 	beq	.advance
 	cmp.b	#';',d0
 	beq	.skipline
+	move.l a3,d1
+	sub.l a6,d1
+	cmp.l #5,d1
+	bcs .done
 	; v190hx4: command match is case-insensitive, like execscript itself.
 	; This keeps Classic scripts safe even if commands are PLAY_/DONE_.
 	moveq	#0,d1
@@ -3976,10 +3989,24 @@ g2v190i_parse_script
 	beq	.done
 	cmp.l	#'play',d1
 	bne	.skipline
+	lea 5(a6),a0
+	move.l a0,a4
+.g2scan_line_end
+	cmp.l a3,a4
+	bcc .done
+	move.b (a4)+,d2
+	beq.s .g2scan_line_ready
+	cmp.b #13,d2
+	beq.s .g2scan_line_ready
+	cmp.b #10,d2
+	bne.s .g2scan_line_end
+.g2scan_line_ready
 	move.l	a6,a5		; v190r: remember script command start for chain entry
 	lea	5(a6),a0
 	jsr	g2v190i_add_level
 .skipline
+	cmp.l a3,a6
+	bcc .done
 	move.b	(a6)+,d0
 	beq	.done
 	cmp.b	#13,d0		; v190hx3: Amiga/Classic scripts can be CR-only

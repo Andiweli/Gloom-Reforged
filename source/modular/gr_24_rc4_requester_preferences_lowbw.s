@@ -71,6 +71,7 @@ g2rc4_p96prefs_load_v21
         beq.w   .done
         move.l  d0,a6
         lea     g2cfg_name,a0
+        jsr     g2config_recover
         move.l  a0,d1
         move.l  #1005,d2
         jsr     -30(a6)                 ; Open MODE_OLDFILE
@@ -325,6 +326,7 @@ g2rc4_p96prefs_save_v21
 
         move.l  dosbase,a6
         lea     g2cfg_name,a0
+        jsr     g2config_recover
         move.l  a0,d1
         move.l  #1005,d2
         jsr     -30(a6)
@@ -402,19 +404,11 @@ g2rc4_p96prefs_save_v21
         move    d0,(a0)+
 
         lea     g2cfg_name,a0
-        move.l  a0,d1
-        move.l  #1006,d2
-        move.l  dosbase,a6
-        jsr     -30(a6)
-        move.l  d0,d7
-        beq.w   .done
-        move.l  d7,d1
-        lea     g2rc4_cfg_buffer_v21(pc),a0
-        move.l  a0,d2
-        move.l  #G2RC4_CFG_TOTAL_LEN_V21+6,d3
-        jsr     -48(a6)
-        move.l  d7,d1
-        jsr     -36(a6)
+        lea     g2rc4_cfg_buffer_v21(pc),a1
+        move.l  #G2RC4_CFG_TOTAL_LEN_V21+6,d0
+        jsr     g2save_config_checked
+        tst.l   d0
+        bne.w   .done
 
         tst     g2rc4_save_screenmode_v21
         beq.w   .clear_runtime_saved
