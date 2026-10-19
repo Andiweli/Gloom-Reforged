@@ -1,3 +1,5 @@
+; v2.5.0 / c87b84c: final free version: 2.4.0 audit stabilization, menu flicker fixes,
+;   Gloom 3/ZM pictures and monsters, P96 glyph outline, P96 optoff guard.
 ; v2.4.0 / c87b84b: guarded 640/854 P96 RAM staging expansion.
 ; v2.4.0 / c87b84a: release version advanced; validated COPY staging retained.
 ; v2.3.3 / c87b83b: guarded exact-size P96 RAM COPY staging.
@@ -969,7 +971,7 @@ exhalf	equ	exone>>1
 
 	jmp	entrypoint
 	; v2.3: public release marker; ECS/AGA/P96 remain official runtime paths.
-g2release_marker	dc.b	'Gloom Reforged v2.4.0 (c87b84b) by Andreas ',39,'Andiweli',39,' Stuermer',0
+g2release_marker	dc.b	'Gloom Reforged v2.5.0 (c87b84c) by Andreas ',39,'Andiweli',39,' Stuermer',0
 	even
 
 	rsreset

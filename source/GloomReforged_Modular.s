@@ -37,4 +37,6 @@
 	include "modular/gr_35_script_bounds.s"
 	include "modular/gr_36_palette_resource_bounds.s"
 	include "modular/gr_37_med_structure_bounds.s"
-	include "modular/gr_46_menu_fixes.s"	; ex-flickering: menu flicker fixes
+	include "modular/gr_46_menu_fixes.s"	; 2.5.0: optoff guard + menu flicker fixes
+	include "modular/gr_54_legacy_pictures.s"	; 2.5.0: Gloom3/ZM intermission pictures
+	include "modular/gr_55_legacy_actors.s"	; 2.5.0: Gloom3/ZM monsters with fewer frames

@@ -1,4 +1,6 @@
-; GloomBench v2.4.0 / c87b84b-perf2 -- diagnostic A/B, not a game release.
+; GloomBench v2.5.0 / c87b84c-perf2 -- diagnostic A/B, not a game release.
+; 2.5.0: shares the audit stabilization and the Gloom 3/ZM fixes (gr_54, gr_55),
+;   P96 glyph outline (9-column cache) and the optoff guard (gr_51_bench_fixes).
 ; Assemble with -DG2BENCH_STAGE_FAST=0 (BASE) or =1 (FAST).
 ; FAST is the default: released 2.4.0 exact-size and scaled P96 RAM staging.
 ; BASE=0 keeps the original per-pixel staging for controlled A/B comparisons.
@@ -992,7 +994,7 @@ exhalf	equ	exone>>1
 
 	jmp	entrypoint
 	; v2.3.3: public release marker; ECS/AGA/P96 remain official runtime paths.
-g2release_marker	dc.b	'GloomBench v2.4.0 (c87b84b-perf2) by Andreas ',39,'Andiweli',39,' Stuermer',0
+g2release_marker	dc.b	'GloomBench v2.5.0 (c87b84c-perf2) by Andreas ',39,'Andiweli',39,' Stuermer',0
 	even
 
 	rsreset
@@ -21604,8 +21606,8 @@ optoff	;
 	move	#13,flashdelay
 	rts
 .g2c86zjj_legacy_optoff
-	bsr	ownblitter
-	move	curropt(pc),d6
+	jsr	g2bench_optoff_guard	; 2.5.0: owns blitter, d6=curropt; skips null pages (gr_51)
+	nop			; same 8-byte footprint as BSR ownblitter + MOVE curropt(pc),d6
 	lea	menustrips(pc),a0
 	move.l	4(a0,d6*8),a0	;address of strip
 	mulu	fonth(pc),d6
@@ -37011,10 +37013,13 @@ p96menu_glyph_cache_name	dc.b	'P96 Bigfont glyph cache',0
 p96menu_glyph_scratch_name	dc.b	'P96 Bigfont CHIP scratch',0	; 25 bytes including NUL
 	even			; c87b79j: keep following 680x0 code word-aligned
 p96menu_glyph_count	equ	40
-p96menu_glyph_width	equ	8
+; 2.5.0: Bigfont2 glyphs are 9 pixels wide (column 8 is the right outline),
+; printed 8 pixels apart like the planar blit. All cache users draw
+; transparently and clip to 320x240; only these values changed (same size).
+p96menu_glyph_width	equ	9
 p96menu_glyph_height	equ	10
-p96menu_glyph_bytes	equ	80
-p96menu_glyph_cache_bytes	equ	3200
+p96menu_glyph_bytes	equ	90
+p96menu_glyph_cache_bytes	equ	3600
 
 ; Return d0=-1 only while a real P96 title/in-game menu can use the cache.
 g2p96_menu_glyph_mode_active
@@ -37115,7 +37120,7 @@ g2p96_menu_glyph_cache_ensure
 	btst	#6,$dff002
 	bne	.wait_last_blit
 	jsr	disownblitter
-	; expand each 8x10 cell into one byte per palette index
+	; expand each 9x10 cell into one byte per palette index
 	moveq	#0,d7
 .decode_glyph
 	cmp	#p96menu_glyph_count,d7
@@ -42605,7 +42610,7 @@ G2P96_MA_FORMATSALLOWED	equ	G2P96_MA_DUMMY+$0008
 G2P96_MA_WINDOWTITLE		equ	G2P96_MA_DUMMY+$000a
 G2P96_MA_OKTEXT		equ	G2P96_MA_DUMMY+$000b
 G2P96_MA_CANCELTEXT		equ	G2P96_MA_DUMMY+$000c
-G2P96_RGBFF_SUPPORTED	equ	RGBFF_CLUT	;GloomBench 2.4.0 exposes native 8-bit CLUT only
+G2P96_RGBFF_SUPPORTED	equ	RGBFF_CLUT	;GloomBench 2.5.0 exposes native 8-bit CLUT only
 G2P96_IDA_DEPTH		equ	2
 G2P96_IDA_BYTESPERPIXEL	equ	3
 G2P96_IDA_BITSPERPIXEL	equ	4
@@ -43026,7 +43031,7 @@ g2p96_req_gadget_buffer	ds.b	64
 g2p96_req_intuition_name	dc.b	'intuition.library',0
 g2p96_req_title	dc.b	'Gloom Reforged P96',0
 g2p96_req_body_prefix
-	dc.b	'GloomBench 2.4.0 uses native direct-indexed',10
+	dc.b	'GloomBench 2.5.0 uses native direct-indexed',10
 	dc.b	'8-bit Picasso96 output',10,10
 	dc.b	'Select an available P96 output size',10,10,0
 g2p96_req_body_footer
@@ -43081,7 +43086,7 @@ g2p96_req_bad_override_body
 ; Canonical build identifier kept at EOF to preserve the established placement.
 ; The former verbose P96 palette-map diagnostic block was removed in c87b79m; c87b79n makes DISPLAY=P96 the sole planar-source owner.
 ; -----------------------------------------------------------------------------
-g2build_version_text	dc.b	'2.4.0 c87b84b-perf2'
+g2build_version_text	dc.b	'2.5.0 c87b84c-perf2'
 g2build_version_text_end
 g2build_version_text_len	equ	g2build_version_text_end-g2build_version_text
 
@@ -44074,7 +44079,7 @@ g2p96_req_custom_title	dc.b	'Gloom Reforged P96'
 g2p96_req_custom_title_end
 g2p96_req_custom_title_len	equ	g2p96_req_custom_title_end-g2p96_req_custom_title
 
-g2p96_req_custom_warning1	dc.b	'GloomBench v2.4.0'
+g2p96_req_custom_warning1	dc.b	'GloomBench v2.5.0'
 g2p96_req_custom_warning1_end
 g2p96_req_custom_warning1_len	equ	g2p96_req_custom_warning1_end-g2p96_req_custom_warning1
 	dcb.b	10,0			; preserve established binary spacing
@@ -52705,7 +52710,7 @@ g2wall_bayer_table
 
 	even
 g2bench2_release_marker
-	dc.b	'GloomBench Reforged v2.4.0 / c87b84b-perf2 standalone',0
+	dc.b	'GloomBench Reforged v2.5.0 / c87b84c-perf2 standalone',0
 	even
 
 g2bench2_state		dc	0	;0 idle, 1 warmup, 2 measured, 3 finished
@@ -52748,8 +52753,8 @@ g2bench2_result_name
 
 ; Fixed-width result fields are filled immediately before output.
 g2bench2_result_buffer
-	dc.b	'GLOOMBENCH REFORGED 2.4.0',10
-	dc.b	'BUILD=c87b84b-perf2',10
+	dc.b	'GLOOMBENCH REFORGED 2.5.0',10
+	dc.b	'BUILD=c87b84c-perf2',10
 	dc.b	'GAME='
 g2bench2_result_game	ds.b	16
 	dc.b	10,'DISPLAY='
@@ -53793,7 +53798,7 @@ g2bench_p96diag_filename
         even
 
 g2bench_p96diag_header
-        dc.b    '*** GLOOMBENCH V2.4.0 P96 MODE DIAGNOSTICS ***',10
+        dc.b    '*** GLOOMBENCH V2.5.0 P96 MODE DIAGNOSTICS ***',10
         dc.b    'Diagnostic only: benchmark and renderer paths are unchanged.',10
         dc.b    'Reject bits: 01 invalid, 02 width, 04 height, 08 not-P96,',10
         dc.b    '10 not-CLUT, 20 depth, 40 bytes/pixel, 80 bits/pixel.',10,10,0
@@ -54907,10 +54912,10 @@ g2bp_hex ds.b 8
 g2bp_newline dc.b 10,0
 	ifne G2BENCH_STAGE_FAST
 g2bp_filename dc.b 'RAM:GloomBench-Perf2-FAST.log',0
-g2bp_header dc.b 'GloomBench v2.4.0 c87b84b-perf2 FAST',10,0
+g2bp_header dc.b 'GloomBench v2.5.0 c87b84c-perf2 FAST',10,0
 	else
 g2bp_filename dc.b 'RAM:GloomBench-Perf2-BASE.log',0
-g2bp_header dc.b 'GloomBench v2.4.0 c87b84b-perf2 BASE',10,0
+g2bp_header dc.b 'GloomBench v2.5.0 c87b84c-perf2 BASE',10,0
 	endc
 
 	even
@@ -54990,3 +54995,6 @@ g2bp_target_key dc.b 'MEM target: address,type,lower,upper,priority (hex),name',
 	include "modular/gr_35_script_bounds.s"
 	include "modular/gr_36_palette_resource_bounds.s"
 	include "modular/gr_37_med_structure_bounds.s"
+	include "modular/gr_51_bench_fixes.s"	; 2.5.0: bench-only optoff guard
+	include "modular/gr_54_legacy_pictures.s"	; 2.5.0: Gloom3/ZM intermission pictures (shared)
+	include "modular/gr_55_legacy_actors.s"	; 2.5.0: Gloom3/ZM monsters with fewer frames (shared)

@@ -1,3 +1,66 @@
+CURRENT VERSION: Gloom Reforged 2.5.0 (c87b84c), final free version
+===================================================================
+2.5.0 = 2.4.0 + the audit stabilization (branch audit) + bug fixes:
+  - gr_46_menu_fixes.s: P96 optoff null-page guard and the menu flicker
+    fixes (ported from v3.0 c87b86, stages 6 and 1)
+  - gr_54_legacy_pictures.s: Gloom 3 / Zombie Massacre intermission pictures
+    (original ByteRun1 rows one byte too long) pass the strict checks
+  - gr_55_legacy_actors.s: Gloom 3 monsters with fewer frames (baldy,
+    lizard, troll 40 and demon 47 of 48 entries) get a private extended copy
+  - gr_14 (and the GloomBench.s copy): P96 Bigfont glyph cache 9 columns wide
+    (the right outline column was cut off)
+  - gr_51_bench_fixes.s: GloomBench-only optoff guard
+  - version texts 2.5.0 / c87b84c (gr_00, gr_18, GloomBench.s)
+
+Build source/GloomReforged_Modular.s from source/ with the existing assets.
+It includes 40 active modules: gr_00..gr_29, gr_31..gr_37, gr_46, gr_54 and
+gr_55. The two gr_30 diagnostic sources are inactive.
+GloomBench.s shares gr_31..gr_37, gr_54 and gr_55, adds gr_51_bench_fixes and
+contains synchronized copies of corrected common routines. Its measurement
+blocks and released render kernels are unchanged.
+
+2.5.0 hooks into older modules are same-size instruction exchanges. All 2888
+labels of the audit build keep their addresses in the game and all 3050 in
+GloomBench FAST and BASE (symbol diff of assembler listings).
+  gr_02 dogamemenu CONTINUE: six JSRs -> JSR g2menu_exit_to_game + BRA.S
+        .findone + 14 NOP
+  gr_09 initmenu2: CLR p96menu_native_init_active -> JSR g2menu_session_begin
+  gr_09 optoff P96: JSR restore dispatch -> JSR g2menu_restore_curropt
+  gr_09 optoff legacy: BSR ownblitter + MOVE curropt(pc),d6
+        -> JSR g2menu_optoff_legacy_guard + NOP
+  gr_09 opton P96: JSR restore dispatch -> JSR g2menu_restore_skip
+  gr_11 g2v190aj_grey_menu_backdrop: MOVEM -> JMP g2menu_grey_backdrop,
+        CMP #2,g2display_mode -> 3 NOP
+  gr_12 g2p96_ingame_menu_floorceil_live_refresh: JSR redraw ->
+        JSR g2menu_p96_redraw_deferred, JSR opton -> JSR
+        g2menu_p96_refresh_finish, first JSR g2menu_refresh_wait_blit of
+        .aga_refresh_full -> JSR g2menu_native_live_refresh, JSR
+        g2v190aj_restore_game_palette -> BRA.W .refresh_wait_release + NOP
+  gr_13 nav_present (2x), blink_on, current_row_present: restore -> skip;
+        blink_off: restore -> JSR g2menu_restore_curropt; RGB565 presenter:
+        JSR copy_stage_to_draw_target -> JSR g2menu_stage_publish_gate
+  gr_14 title current_row_present, title blink_on: restore -> skip;
+        title blink_off: restore -> JSR g2menu_restore_curropt;
+        p96menu_glyph_width/bytes/cache_bytes 8/80/3200 -> 9/90/3600
+  gr_21 g2p96_clut_apply_table_c87b78j: MOVEM + MOVEQ -> JMP
+        g2menu_clut_apply_entry; g2p96_clut_menu_lut_ready_c87b78j: JSR
+        overlay -> JSR g2menu_overlay_cached
+  gr_31 g2require_iff, gr_36 g2require_picture_palette: JSR g2validate_iff
+        -> JSR g2legacy_validate_picture
+  gr_36 g2require_actor_shape .bad: JMP g2fatal_abort -> JMP
+        g2legacy_actor_extend
+  GloomBench.s optoff legacy: BSR ownblitter + MOVE curropt(pc),d6
+        -> JSR g2bench_optoff_guard + NOP; glyph cache values as gr_14
+
+SHA256SUMS.txt covers both entrypoints and every active module (43 entries).
+Hashes describe Git source bytes (LF). In an LF checkout run
+sha256sum -c modular/SHA256SUMS.txt from source/. With Windows CRLF
+conversion, use tests/stability_invariants.py; it canonicalizes line endings,
+verifies all entries and checks that the documented 2.5.0 hooks are the only
+differences in the audited unchanged modules.
+
+---------------- 2.4.0 AUDIT STABILIZATION RECORD ----------------
+
 CURRENT WORKING VERSION: Gloom Reforged 2.4.0 (audit stabilization)
 ==============================================================
 Base: master c223cf5dce87dacbfb9591a6109e02bbee0df98c (unchanged).

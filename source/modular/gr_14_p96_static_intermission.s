@@ -1615,10 +1615,13 @@ p96menu_glyph_cache_name	dc.b	'P96 Bigfont glyph cache',0
 p96menu_glyph_scratch_name	dc.b	'P96 Bigfont CHIP scratch',0	; 25 bytes including NUL
 	even			; c87b79j: keep following 680x0 code word-aligned
 p96menu_glyph_count	equ	40
-p96menu_glyph_width	equ	8
+; 2.5.0: Bigfont2 glyphs are 9 pixels wide (column 8 is the right outline),
+; printed 8 pixels apart like the planar blit. All cache users draw
+; transparently and clip to 320x240; only these values changed (same size).
+p96menu_glyph_width	equ	9
 p96menu_glyph_height	equ	10
-p96menu_glyph_bytes	equ	80
-p96menu_glyph_cache_bytes	equ	3200
+p96menu_glyph_bytes	equ	90
+p96menu_glyph_cache_bytes	equ	3600
 
 ; Return d0=-1 only while a real P96 title/in-game menu can use the cache.
 g2p96_menu_glyph_mode_active
@@ -1719,7 +1722,7 @@ g2p96_menu_glyph_cache_ensure
 	btst	#6,$dff002
 	bne	.wait_last_blit
 	jsr	disownblitter
-	; expand each 8x10 cell into one byte per palette index
+	; expand each 9x10 cell into one byte per palette index
 	moveq	#0,d7
 .decode_glyph
 	cmp	#p96menu_glyph_count,d7

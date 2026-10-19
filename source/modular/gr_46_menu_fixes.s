@@ -1,7 +1,7 @@
 ; =============================================================================
-; 2.4.0 ex-flickering: menu flicker fixes (appended module).
-; Port of the v3.0 menu flicker fixes (c87b86, stage 1) to Gloom Reforged
-; 2.4.0. Native AGA/ECS: the ESC menu, option refreshes and CONTINUE are
+; 2.5.0: menu fixes (appended module, game build only).
+; P96 optoff null-page guard and the v3.0 menu flicker fixes (c87b86,
+; stages 6 and 1), ported to Gloom Reforged 2.4.0 / 2.5.0. Native AGA/ECS: the ESC menu, option refreshes and CONTINUE are
 ; composed in the hidden page and shown together with their palette. P96:
 ; option refreshes publish the finished frame once, row updates no longer
 ; blank the row first, and unchanged menu pens are reused.
@@ -10,6 +10,38 @@
 ; existing labels and the audited modulo-16 phases stay unchanged. This
 ; module references older code only through absolute operands.
 ; =============================================================================
+
+; -----------------------------------------------------------------------------
+; Legacy optoff guard (called from gr_09 optoff, replaces BSR ownblitter and
+; MOVE curropt(pc),d6).
+;
+; DISPLAY=P96 owns no planar pages: initmenu2 stores a null strip pointer and
+; showbitmap/menubmap stay zero. If the glyph cache or the staged target is
+; unavailable, optoff used to fall through to the planar blit and copied from
+; Chip address 0 into low Chip RAM. The guard performs the original two
+; instructions when a strip and a planar page exist. Otherwise it drops the
+; return address and completes optoff without touching the blitter, exactly
+; like the original tail after its blit.
+; -----------------------------------------------------------------------------
+g2menu_optoff_legacy_guard
+	cmp	#2,g2display_mode
+	beq.s	.skip
+	tst.l	menubmap
+	beq.s	.skip
+	move	curropt,d6
+	lea	menustrips,a0
+	tst.l	4(a0,d6.w*8)
+	beq.s	.skip
+	jsr	ownblitter
+	move	curropt,d6
+	rts
+.skip
+	addq.l	#4,a7		; return directly to optoff's caller
+	move	#13,flashdelay
+	clr	p96menu_native_selected
+	jsr	g2p96_menu_current_row_present
+	rts
+	even
 
 ; =============================================================================
 ; Stage 1: menu flicker fixes.

@@ -17,7 +17,7 @@ g2require_picture_palette	; a0=picture, a1=palette; preserves inputs
 	move.l a1,d0
 	beq.s .bad
 	move.l a1,a2
-	jsr g2validate_iff
+	jsr g2legacy_validate_picture	; 2.5.0: + Gloom3/ZM row repair (gr_54)
 	tst.l d0
 	bne.s .bad
 	moveq #0,d0
@@ -375,7 +375,7 @@ g2require_actor_shape	; a0=main shape, a2=compiled resource holder
 	movem.l (a7)+,d0-d7/a0-a6
 	rts
 .bad
-	jmp g2fatal_abort
+	jmp g2legacy_actor_extend	; 2.5.0: Gloom3/ZM attack frames, else fatal (gr_55)
 g2actor_shape_entries
 	dc.l player,5*8,tokens,6,marine,5*8,baldy,6*8,terra,5*8
 	dc.l ghoul,3*8,demon,6*8,phantom,6*8,lizard,6*8

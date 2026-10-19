@@ -436,7 +436,7 @@ g2require_iff
 	btst	#0,23(a4)
 	bne.s	.done
 .validate
-	jsr	g2validate_iff
+	jsr	g2legacy_validate_picture	; 2.5.0: + Gloom3/ZM row repair (gr_54)
 	tst.l	d0
 	bne.s	.bad
 	move.l	a4,d0

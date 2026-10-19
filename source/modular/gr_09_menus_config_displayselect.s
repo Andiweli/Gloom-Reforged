@@ -455,8 +455,8 @@ optoff	;
 	move	#13,flashdelay
 	rts
 .g2c86zjj_legacy_optoff
-	bsr	ownblitter
-	move	curropt(pc),d6
+	jsr	g2menu_optoff_legacy_guard	; 2.5.0: owns blitter, d6=curropt; skips null pages (gr_46)
+	nop			; same 8-byte footprint as BSR ownblitter + MOVE curropt(pc),d6
 	lea	menustrips(pc),a0
 	move.l	4(a0,d6*8),a0	;address of strip
 	mulu	fonth(pc),d6
