@@ -159,12 +159,9 @@ dogamemenu	;
 	; v190am: normal CONTINUE path stays display-on.  The visible
 	; menu frame remains until predrawall has rendered and db-swapped
 	; the restored game frame, avoiding the old black redraw flash.
-	jsr	dispoff	; v190do: full cleanup after VIEW SIZE changes, no stale menu text
-	jsr	finitmenu
-	jsr	g2v190aj_restore_game_palette
-	jsr	g2resolution_apply_after_menu	;c87b69f: live P96 WIDE geometry re-arm
-	jsr	predrawall
-	jsr	dispon
+	jsr	g2menu_exit_to_game	; ex-flickering: CONTINUE without a black frame (gr_46)
+	bra.s	.findone
+	dcb.w	14,$4e71	; ex-flickering: retain the former five-call footprint
 	bra.s	.findone
 .finish_exit
 	clr	g2resolution_menu_changed	;c87b69f: no pending live apply when quitting

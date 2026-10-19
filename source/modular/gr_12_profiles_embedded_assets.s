@@ -5715,21 +5715,22 @@ g2p96_ingame_menu_floorceil_live_refresh
 	moveq	#P96DSP_MENU,d0
 	jsr	g2p96_display_state_set
 	move	#-1,p96menu_native_selected
-	jsr	g2p96_menu_redraw_gameplay_source_once
+	jsr	g2menu_p96_redraw_deferred	; ex-flickering: no palette revert, no text-free frame
 	moveq	#P96DSP_MENU,d0
 	jsr	g2p96_display_state_set
 	jsr	g2p96_menu_all_rows_present
 	move	(a7),curropt
-	jsr	opton
+	jsr	g2menu_p96_refresh_finish	; ex-flickering: rest of the new frame, then opton
 	bra.w	.refresh_wait_release
 .aga_refresh_full
 	; MenuBlitSync1: finish the selected-row blit before CPU access/free.
-	jsr	g2menu_refresh_wait_blit
+	jsr	g2menu_native_live_refresh	; ex-flickering: composed off screen (gr_46)
 	; c87b12: rebuild in the same order as the initial in-game menu:
 	; gameplay -> grey backdrop -> complete menu.  The old order composed the
 	; menu first and then C2P-swapped the grey gameplay over it, leaving only
 	; the later opton-selected row visible and under the wrong palette.
-	jsr	g2v190aj_restore_game_palette
+	bra.w	.refresh_wait_release	; ex-flickering: refresh completed above
+	nop
 	jsr	finitmenu
 	jsr	predrawall
 	; MenuBlitSync1: Complete any render blits before the grey/CPU conversion.

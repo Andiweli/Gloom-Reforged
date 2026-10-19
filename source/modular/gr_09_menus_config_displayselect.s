@@ -121,7 +121,7 @@ initmenu2	;
 	; menu contract unconditionally, then warm the glyph target when available.
 	; A failed cache/target probe degrades to missing text, never to a null
 	; planar fallback. Native AGA/ECS retain the complete old sequence.
-	clr	p96menu_native_init_active
+	jsr	g2menu_session_begin	; ex-flickering: CLR p96menu_native_init_active + pen cache reset
 	cmp	#2,g2display_mode
 	bne.s	.g2c87b79x_planar_seed
 	move	#-1,p96menu_native_init_active
@@ -451,7 +451,7 @@ optoff	;
 	tst	d0
 	beq	.g2c86zjj_legacy_optoff
 	clr	p96menu_native_selected
-	jsr	g2p96_menu_restore_current_row_dispatch_c87b78p
+	jsr	g2menu_restore_curropt	; ex-flickering: restore exactly the curropt row
 	move	#13,flashdelay
 	rts
 .g2c86zjj_legacy_optoff
@@ -506,7 +506,7 @@ opton	; c86zjj: direct cached Bigfont row for P96, original printmess2 for AGA/f
 	tst	d0
 	beq	.g2c86zjj_legacy_opton
 	move	#-1,p96menu_native_selected
-	jsr	g2p96_menu_restore_current_row_dispatch_c87b78p
+	jsr	g2menu_restore_skip	; ex-flickering: the row cache below starts from the clean stage
 	jsr	g2p96_menu_draw_current_row_best_no_restore
 	move	#13,flashdelay
 	rts

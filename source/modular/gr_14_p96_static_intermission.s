@@ -43,7 +43,7 @@ g2p96_title_menu_current_row_present
 	move	d0,p96menu_y_start
 	add	d1,d0
 	move	d0,p96menu_y_end
-	jsr	g2p96_menu_restore_current_row_dispatch_c87b78p
+	jsr	g2menu_restore_skip	; ex-flickering: the row cache below starts from the clean stage
 	jsr	g2p96_menu_draw_current_row_best_no_restore
 	movem.l	(a7)+,d0-d1
 	rts
@@ -51,13 +51,13 @@ g2p96_title_menu_current_row_present
 g2p96_title_menu_blink_current_row_on
 	movem.l	d0,-(a7)
 	move	#-1,p96menu_native_selected
-	jsr	g2p96_menu_restore_current_row_dispatch_c87b78p
+	jsr	g2menu_restore_skip	; ex-flickering: the row cache below starts from the clean stage
 	jsr	g2p96_menu_draw_current_row_best_no_restore
 	movem.l	(a7)+,d0
 	rts
 
 g2p96_title_menu_blink_current_row_off
-	jsr	g2p96_menu_restore_current_row_dispatch_c87b78p
+	jsr	g2menu_restore_curropt	; ex-flickering: restore exactly the curropt row
 	rts
 
 g2p96_title_menu_native_restore_current_row

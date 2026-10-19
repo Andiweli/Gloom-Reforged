@@ -452,8 +452,7 @@ g2p96_clut_store_rgb32_from_word_c87b78j
 
 ; Apply the complete table currently stored in p96palette_loadrgb32_table.
 g2p96_clut_apply_table_c87b78j
-	movem.l	d1-d2/a0-a2/a6,-(a7)
-	moveq	#0,d0
+	jmp	g2menu_clut_apply_entry	; ex-flickering: replaces MOVEM + MOVEQ (6 bytes), gate in gr_46
 	cmp.l	#RGBFB_CLUT,p96modeid_rgbformat
 	bne	.done
 	tst	p96gameplay_persist_active
@@ -668,7 +667,7 @@ g2p96_clut_static_lut_ready_c87b78j
 	rts
 
 g2p96_clut_menu_lut_ready_c87b78j
-	jsr	g2p96_clut_overlay_menu_lut_c87b78y
+	jsr	g2menu_overlay_cached	; ex-flickering: reuse unchanged menu pens
 	rts
 
 ; Return the normal menu/font colour in d2 for callers that draw separators

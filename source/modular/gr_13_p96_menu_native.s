@@ -37,7 +37,7 @@ g2p96_menu_native_nav_present
 	move	d0,p96menu_y_start
 	add	d1,d0
 	move	d0,p96menu_y_end
-	jsr	g2p96_menu_restore_current_row_dispatch_c87b78p
+	jsr	g2menu_restore_skip	; ex-flickering: the row cache below starts from the clean stage
 	jsr	g2p96_menu_draw_current_row_best_no_restore
 	bra.s	.done
 .not_title
@@ -50,7 +50,7 @@ g2p96_menu_native_nav_present
 	move	d0,p96menu_y_start
 	add	d1,d0
 	move	d0,p96menu_y_end
-	jsr	g2p96_menu_restore_current_row_dispatch_c87b78p
+	jsr	g2menu_restore_skip	; ex-flickering: the row cache below starts from the clean stage
 	jsr	g2p96_menu_draw_current_row_best_no_restore
 .done
 	movem.l	(a7)+,d0-d1
@@ -64,7 +64,7 @@ g2p96_menu_blink_current_row_on
 	bra	.done_on
 .not_title_on
 	move	#-1,p96menu_native_selected
-	jsr	g2p96_menu_restore_current_row_dispatch_c87b78p
+	jsr	g2menu_restore_skip	; ex-flickering: the row cache below starts from the clean stage
 	jsr	g2p96_menu_draw_current_row_best_no_restore
 .done_on
 	movem.l	(a7)+,d0
@@ -77,7 +77,7 @@ g2p96_menu_blink_current_row_off
 	jsr	g2p96_title_menu_blink_current_row_off
 	bra	.done_off
 .not_title_off
-	jsr	g2p96_menu_restore_current_row_dispatch_c87b78p
+	jsr	g2menu_restore_curropt	; ex-flickering: restore exactly the curropt row
 .done_off
 	movem.l	(a7)+,d0
 	rts
@@ -790,7 +790,7 @@ g2p96_gameplay_draw_rgb565_continue_c87b78m
 	move.l	a3,a0		;c87b78c completed Fast-RAM RGB565 page
 	move.l	d4,d0		;packed staging BytesPerRow
 	jsr	g2fps_draw_p96_target
-	jsr	g2p96_gameplay_copy_stage_to_draw_target
+	jsr	g2menu_stage_publish_gate	; ex-flickering: deferred during option refreshes
 	tst.l	d0
 	beq.w	.done
 	move	#-1,p96gameplay_direct_state	;only a completed lock/copy/unlock counts
@@ -854,7 +854,7 @@ g2p96_menu_current_row_present
 	move	d0,p96menu_y_start
 	add	d1,d0
 	move	d0,p96menu_y_end
-	jsr	g2p96_menu_restore_current_row_dispatch_c87b78p
+	jsr	g2menu_restore_skip	; ex-flickering: the row cache below starts from the clean stage
 	jsr	g2p96_menu_draw_current_row_best_no_restore
 .done
 	movem.l	(a7)+,d0-d1

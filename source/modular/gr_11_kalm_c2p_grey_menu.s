@@ -1722,10 +1722,10 @@ g2_strip_green_lut	ds.b	256
 ; yellow bigfont2 over this grey frame.  On leaving/refreshing the menu, the
 ; original gameplay palette is restored before normal rendering continues.
 g2v190aj_grey_menu_backdrop
-	movem.l	d0-d7/a0-a6,-(a7)
+	jmp	g2menu_grey_backdrop	; ex-flickering: grey page and palette shown together (gr_46)
 	; c87b79p: the grey chunky/C2P backdrop belongs only to native AGA/ECS.
 	; P96 keeps the live indexed gameplay frame and overlays glyphs directly.
-	cmp	#2,g2display_mode
+	dcb.w	3,$4e71	; ex-flickering: unreachable, retains the former footprint
 	beq.w	.g2c87b79p_done
 	move.l	lastpal,d0
 	move.l	d0,g2v190aj_saved_lastpal
